@@ -45,6 +45,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { name: 'Services', path: '/services', icon: Briefcase },
     { name: 'About', path: '/about', icon: Info },
     { name: 'Contact', path: '/contact', icon: Mail },
+    { name: 'Messages', path: '/messages', icon: Mail },
   ];
 
   return (

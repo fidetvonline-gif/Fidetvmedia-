@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Community as CommunityType } from '@/types';
 import { motion } from 'motion/react';
-import { Search, Users, ArrowRight, Plus, MessageSquare, TrendingUp, Globe } from 'lucide-react';
+import { Search, Users, ArrowRight, Plus, MessageSquare, TrendingUp, Globe, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -69,49 +69,63 @@ export default function Community() {
               ))}
             </div>
           ) : filtered.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {filtered.map((c, idx) => (
                 <motion.div
                   key={c.id}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: idx * 0.05 }}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: idx * 0.05 }}
                   viewport={{ once: true }}
+                  className={cn(
+                    "group relative h-full",
+                    idx === 0 ? "md:col-span-2" : ""
+                  )}
                 >
-                  <Link to={`/community/${c.id}`} className="group block h-full">
-                    <div className="h-full glass rounded-[3rem] p-8 space-y-6 border-white/5 hover:bg-white/5 transition-all duration-500 relative overflow-hidden">
+                  <Link to={`/community/${c.id}`} className="block h-full">
+                    <div className="h-full bg-black/40 backdrop-blur-xl rounded-[2.5rem] p-8 space-y-6 border border-white/5 hover:border-primary/30 transition-all duration-500 overflow-hidden relative">
                       {/* Abstract Background Accent */}
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl group-hover:bg-primary/10 transition-all" />
+                      <div className="absolute -top-32 -right-32 w-64 h-64 bg-primary/10 rounded-full blur-3xl group-hover:bg-primary/20 transition-all duration-700" />
+                      <div className="absolute -bottom-32 -left-32 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-all duration-700" />
                       
-                      <div className="flex justify-between items-start">
-                        <div className="w-16 h-16 bg-surface-bright rounded-2xl flex items-center justify-center border border-white/5 text-primary group-hover:scale-110 transition-transform">
+                      <div className="relative z-10 flex justify-between items-start">
+                        <div className="w-20 h-20 bg-gradient-to-br from-surface to-surface-bright rounded-[1.5rem] flex items-center justify-center border border-white/10 text-primary shadow-2xl group-hover:scale-105 group-hover:rotate-3 transition-transform duration-500">
                           {c.image_url ? (
-                            <img src={c.image_url} alt={c.name} className="w-full h-full object-cover rounded-2xl" />
+                            <img src={c.image_url} alt={c.name} className="w-full h-full object-cover rounded-[1.5rem]" />
                           ) : (
                             <Users className="w-8 h-8" />
                           )}
                         </div>
-                        <div className="flex items-center space-x-1 bg-white/5 px-3 py-1.5 rounded-full text-[9px] font-black uppercase text-gray-500 tracking-wider">
-                          <Globe className="w-3 h-3" />
+                        <div className="flex items-center space-x-1 bg-black/50 backdrop-blur-md px-4 py-2 rounded-full text-[10px] font-black uppercase text-gray-300 tracking-widest border border-white/5">
+                          <Globe className="w-3 h-3 text-primary" />
                           <span>Public</span>
                         </div>
                       </div>
 
-                      <div className="space-y-2">
-                        <h3 className="text-2xl font-bold text-white group-hover:text-primary transition-colors">{c.name}</h3>
-                        <p className="text-sm text-gray-500 leading-relaxed line-clamp-2">{c.description}</p>
+                      <div className="relative z-10 space-y-3">
+                        <h3 className={cn(
+                          "font-display font-medium text-white group-hover:text-primary transition-colors",
+                          idx === 0 ? "text-4xl" : "text-2xl"
+                        )}>{c.name}</h3>
+                        <p className={cn(
+                          "text-gray-400 font-light leading-relaxed",
+                          idx === 0 ? "text-lg max-w-2xl" : "text-sm line-clamp-2"
+                        )}>{c.description}</p>
                       </div>
 
-                      <div className="pt-6 flex items-center justify-between border-t border-white/5">
-                        <div className="flex -space-x-2">
+                      <div className="relative z-10 pt-6 flex items-center justify-between border-t border-white/5 mt-auto">
+                        <div className="flex -space-x-3">
                           {[1, 2, 3].map(i => (
-                            <div key={i} className="w-6 h-6 rounded-full border-2 border-surface bg-gray-800" />
+                            <div key={i} className="w-8 h-8 rounded-full border-2 border-surface bg-surface-bright flex items-center justify-center overflow-hidden">
+                              <User className="w-4 h-4 text-gray-500" />
+                            </div>
                           ))}
-                          <div className="w-6 h-6 rounded-full border-2 border-surface bg-surface-bright flex items-center justify-center text-[8px] font-bold text-gray-500">+12</div>
+                          <div className="w-8 h-8 rounded-full border-2 border-surface bg-primary/20 flex items-center justify-center text-[9px] font-black text-primary backdrop-blur-md">
+                            +{Math.floor(Math.random() * 50) + 10}
+                          </div>
                         </div>
-                        <div className="flex items-center space-x-2 text-primary font-black uppercase text-[10px] tracking-widest group-hover:translate-x-1 transition-transform">
-                          <span>Enter Hub</span>
-                          <ArrowRight className="w-4 h-4" />
+                        <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-white group-hover:bg-primary group-hover:text-black transition-all duration-300">
+                          <ArrowRight className="w-5 h-5 group-hover:-rotate-45 transition-transform duration-300" />
                         </div>
                       </div>
                     </div>

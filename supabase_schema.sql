@@ -228,3 +228,23 @@ CREATE POLICY "Public Access" ON storage.objects FOR SELECT USING ( bucket_id IN
 CREATE POLICY "Upload Access" ON storage.objects FOR INSERT WITH CHECK ( bucket_id IN ('avatars', 'event-thumbnails') );
 CREATE POLICY "Update Access" ON storage.objects FOR UPDATE WITH CHECK ( bucket_id IN ('avatars', 'event-thumbnails') );
 CREATE POLICY "Delete Access" ON storage.objects FOR DELETE USING ( bucket_id IN ('avatars', 'event-thumbnails') );
+
+-- 10. Direct Messages Table
+CREATE TABLE public.direct_messages (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  sender_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  receiver_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  content TEXT NOT NULL,
+  is_view_once BOOLEAN DEFAULT false,
+  is_viewed BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.direct_messages ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can insert their own messages" ON public.direct_messages FOR INSERT WITH CHECK (auth.uid() = sender_id);
+CREATE POLICY "Users can read their own messages" ON public.direct_messages FOR SELECT USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
+CREATE POLICY "Users can update their received messages" ON public.direct_messages FOR UPDATE USING (auth.uid() = receiver_id);
+CREATE POLICY "Users can delete messages" ON public.direct_messages FOR DELETE USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
+
+ALTER PUBLICATION supabase_realtime ADD TABLE public.direct_messages;

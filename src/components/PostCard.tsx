@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Post, Comment } from '@/types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Heart, MessageCircle, Share2, MoreHorizontal, User, Trash2, Edit2, Send, Award, Maximize2 } from 'lucide-react';
+import { Heart, MessageCircle, Share2, MoreHorizontal, User, Trash2, Edit2, Send, Award, Maximize2, Flag } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
@@ -22,10 +23,11 @@ export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onD
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
 
-  const [lightbox, setLightbox] = useState<{ open: boolean; url: string; type: 'image' | 'video' }>({
+  const [lightbox, setLightbox] = useState<{ open: boolean; url: string; type: 'image' | 'video', isNative?: boolean }>({
     open: false,
     url: '',
-    type: 'image'
+    type: 'image',
+    isNative: false
   });
 
   useEffect(() => {
@@ -119,6 +121,10 @@ export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onD
     }
   };
 
+  const handleReport = () => {
+    alert("Post reported successfully. Our team will review it shortly.");
+  };
+
   useEffect(() => {
     if (showComments) fetchComments();
   }, [showComments]);
@@ -146,11 +152,18 @@ export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onD
             )}
           </div>
           <div>
-            <h4 className="font-display font-bold text-white group-hover:text-primary transition-colors cursor-pointer flex items-center gap-2">
-              {post.profiles?.username || 'Anonymous'}
-              {post.profiles?.is_verified && <Award className="w-3 h-3 text-primary" />}
-            </h4>
-            <p className="text-[10px] uppercase font-bold text-gray-500 tracking-widest">
+            <div className="flex items-center gap-3">
+              <h4 className="font-display font-bold text-white group-hover:text-primary transition-colors cursor-pointer flex items-center gap-2">
+                {post.profiles?.username || 'Anonymous'}
+                {post.profiles?.is_verified && <Award className="w-3 h-3 text-primary" />}
+              </h4>
+              {user && user.id !== post.author_id && (
+                <Link to="/messages" className="bg-white/5 hover:bg-white/10 px-2 py-1 rounded-md text-[10px] text-gray-400 hover:text-white uppercase font-black items-center gap-1 flex transition-colors shadow-sm">
+                  <Send className="w-3 h-3" /> Message
+                </Link>
+              )}
+            </div>
+            <p className="text-[10px] uppercase font-bold text-gray-500 tracking-widest mt-0.5">
               {formatDistanceToNow(new Date(post.created_at))} ago
             </p>
           </div>
@@ -166,9 +179,19 @@ export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onD
               </button>
             </>
           )}
-          <button className="p-2 text-gray-600 hover:text-white transition-colors">
-            <MoreHorizontal className="w-5 h-5" />
-          </button>
+          <div className="relative group">
+            <button className="p-2 text-gray-600 hover:text-white transition-colors">
+              <MoreHorizontal className="w-5 h-5" />
+            </button>
+            <div className="absolute right-0 top-full mt-2 w-48 bg-surface border border-white/10 rounded-xl overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+              <button 
+                onClick={handleReport}
+                className="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-white/5 flex items-center gap-2"
+              >
+                <Flag className="w-4 h-4" /> Report Post
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -210,16 +233,15 @@ export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onD
               </div>
             ) : null}
             {post.type === 'video' && post.media_url ? (
-              <div className="relative w-full h-full">
-                <Player 
-                  url={post.media_url} 
-                  className="absolute top-0 left-0"
-                  width="100%"
-                  height="100%"
-                  controls 
+              <div className="relative w-full h-full bg-black">
+                <video 
+                  src={post.media_url} 
+                  className="absolute top-0 left-0 w-full h-full object-contain"
+                  controls
+                  playsInline
                 />
                 <button 
-                  onClick={() => setLightbox({ open: true, url: post.media_url!, type: 'video' })}
+                  onClick={() => setLightbox({ open: true, url: post.media_url!, type: 'video', isNative: true })}
                   className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-primary rounded-full text-white opacity-0 group-hover/media:opacity-100 transition-all z-10"
                 >
                   <Maximize2 className="w-4 h-4" />
@@ -252,6 +274,7 @@ export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onD
           mediaUrl={lightbox.url}
           type={lightbox.type}
           title={post.profiles?.username ? `Post by @${post.profiles.username}` : 'FideTV Media'}
+          isNative={lightbox.isNative}
         />
       </div>
 

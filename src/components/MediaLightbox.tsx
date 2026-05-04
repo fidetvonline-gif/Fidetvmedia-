@@ -11,9 +11,10 @@ interface MediaLightboxProps {
   mediaUrl: string;
   type: 'image' | 'video';
   title?: string;
+  isNative?: boolean;
 }
 
-export default function MediaLightbox({ isOpen, onClose, mediaUrl, type, title }: MediaLightboxProps) {
+export default function MediaLightbox({ isOpen, onClose, mediaUrl, type, title, isNative }: MediaLightboxProps) {
   const handleDownload = async () => {
     try {
       const response = await fetch(mediaUrl);
@@ -86,6 +87,17 @@ export default function MediaLightbox({ isOpen, onClose, mediaUrl, type, title }
                 alt={title || 'Full Screen Media'}
                 className="max-w-full max-h-full object-contain shadow-2xl rounded-lg"
               />
+            ) : isNative ? (
+              <div className="w-full max-w-6xl aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl border border-white/5 flex items-center justify-center">
+                <video 
+                  src={mediaUrl}
+                  className="w-full h-full object-contain cursor-pointer"
+                  style={{ maxHeight: '100%' }}
+                  controls
+                  autoPlay
+                  playsInline
+                />
+              </div>
             ) : (
               <div className="w-full max-w-6xl aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl border border-white/5">
                 <Player

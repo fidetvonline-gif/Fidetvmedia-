@@ -20,7 +20,7 @@ export default function ReloadPrompt() {
     setNeedRefresh(false)
   }
 
-  if (!offlineReady && !needRefresh) return null
+  if (!needRefresh) return null
 
   return (
     <div className="fixed bottom-24 right-6 z-[9999] pointer-events-none">
@@ -33,25 +33,21 @@ export default function ReloadPrompt() {
           </div>
           <div className="flex-1">
             <h4 className="text-white font-display font-bold text-lg">
-              {offlineReady ? 'Ready Offline' : 'Update Available'}
+              Update Available
             </h4>
             <p className="text-gray-400 text-sm">
-              {offlineReady 
-                ? 'App is ready to work offline' 
-                : 'New version is available. Click reload to update.'}
+              New version is available. Click reload to update.
             </p>
           </div>
         </div>
         
         <div className="flex gap-3 mt-2">
-          {needRefresh && (
-            <button
-              onClick={() => updateServiceWorker(true)}
-              className="flex-1 bg-primary text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary/80 transition-all active:scale-95"
-            >
-              Reload Now
-            </button>
-          )}
+          <button
+            onClick={() => updateServiceWorker(true)}
+            className="flex-1 bg-primary text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary/80 transition-all active:scale-95"
+          >
+            Reload Now
+          </button>
           <button
             onClick={() => close()}
             className="flex-1 bg-white/5 text-gray-300 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-all"

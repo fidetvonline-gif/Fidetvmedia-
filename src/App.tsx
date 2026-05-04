@@ -13,10 +13,12 @@ import NewsDetail from '@/pages/NewsDetail';
 import Booking from '@/pages/Booking';
 import Auth from '@/pages/Auth';
 import Profile from '@/pages/Profile';
+import Messages from '@/pages/Messages';
 import Admin from '@/pages/Admin';
 import Policies from '@/pages/Policies';
 import ReloadPrompt from '@/components/ReloadPrompt';
 import InstallPrompt from '@/components/InstallPrompt';
+import MessageNotifier from '@/components/MessageNotifier';
 
 export default function App() {
   return (
@@ -37,6 +39,7 @@ export default function App() {
           <Route path="/booking" element={<Booking />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/messages" element={<Messages />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/policies" element={<Policies />} />
           <Route path="*" element={<Navigate to="/" replace />} />
@@ -44,6 +47,7 @@ export default function App() {
       </Layout>
       <ReloadPrompt />
       <InstallPrompt />
+      <MessageNotifier />
     </Router>
   );
 }
