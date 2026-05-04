@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Post, Comment } from '@/types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Heart, MessageCircle, Share2, MoreHorizontal, User, Trash2, Edit2, Send, Award } from 'lucide-react';
+import { Heart, MessageCircle, Share2, MoreHorizontal, User, Trash2, Edit2, Send, Award, Maximize2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import ReactPlayer from 'react-player';
+import MediaLightbox from './MediaLightbox';
 
 const Player = ReactPlayer as any;
 
@@ -20,6 +21,12 @@ export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onD
 
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
+
+  const [lightbox, setLightbox] = useState<{ open: boolean; url: string; type: 'image' | 'video' }>({
+    open: false,
+    url: '',
+    type: 'image'
+  });
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -185,35 +192,67 @@ export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onD
         )}
         
         {(post.media_url || playableUrl) && (
-          <div className="relative rounded-2xl overflow-hidden aspect-video bg-surface">
+          <div className="relative rounded-2xl overflow-hidden aspect-video bg-surface group/media">
             {post.type === 'image' && post.media_url ? (
-              <img 
-                src={post.media_url} 
-                alt="Post content" 
-                className="w-full h-full object-cover" 
-                referrerPolicy="no-referrer"
-              />
+              <div 
+                className="w-full h-full cursor-pointer relative overflow-hidden"
+                onClick={() => setLightbox({ open: true, url: post.media_url!, type: 'image' })}
+              >
+                <img 
+                  src={post.media_url} 
+                  alt="Post content" 
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover/media:scale-110" 
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity flex items-center justify-center">
+                  <Maximize2 className="w-8 h-8 text-white drop-shadow-lg" />
+                </div>
+              </div>
             ) : null}
             {post.type === 'video' && post.media_url ? (
-              <Player 
-                url={post.media_url} 
-                className="absolute top-0 left-0"
-                width="100%"
-                height="100%"
-                controls 
-              />
+              <div className="relative w-full h-full">
+                <Player 
+                  url={post.media_url} 
+                  className="absolute top-0 left-0"
+                  width="100%"
+                  height="100%"
+                  controls 
+                />
+                <button 
+                  onClick={() => setLightbox({ open: true, url: post.media_url!, type: 'video' })}
+                  className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-primary rounded-full text-white opacity-0 group-hover/media:opacity-100 transition-all z-10"
+                >
+                  <Maximize2 className="w-4 h-4" />
+                </button>
+              </div>
             ) : null}
             {!post.media_url && playableUrl ? (
-              <Player 
-                url={playableUrl} 
-                className="absolute top-0 left-0"
-                width="100%"
-                height="100%"
-                controls 
-              />
+              <div className="relative w-full h-full">
+                <Player 
+                  url={playableUrl} 
+                  className="absolute top-0 left-0"
+                  width="100%"
+                  height="100%"
+                  controls 
+                />
+                <button 
+                  onClick={() => setLightbox({ open: true, url: playableUrl, type: 'video' })}
+                  className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-primary rounded-full text-white opacity-0 group-hover/media:opacity-100 transition-all z-10"
+                >
+                  <Maximize2 className="w-4 h-4" />
+                </button>
+              </div>
             ) : null}
           </div>
         )}
+
+        <MediaLightbox 
+          isOpen={lightbox.open}
+          onClose={() => setLightbox({ ...lightbox, open: false })}
+          mediaUrl={lightbox.url}
+          type={lightbox.type}
+          title={post.profiles?.username ? `Post by @${post.profiles.username}` : 'FideTV Media'}
+        />
       </div>
 
       <div className="pt-6 border-t border-white/10 flex items-center justify-between">

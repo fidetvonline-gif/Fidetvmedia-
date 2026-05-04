@@ -6,12 +6,28 @@ import { motion } from 'motion/react';
 import { Calendar, User, ArrowLeft, Share2, Bookmark } from 'lucide-react';
 import { format } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
+import ReactPlayer from 'react-player';
+
+const Player = ReactPlayer as any;
 
 export default function NewsDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const [item, setItem] = useState<News | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const handleShare = () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      navigator.share({
+        title: item?.title,
+        url: url
+      }).catch(console.error);
+    } else {
+      navigator.clipboard.writeText(url);
+      alert('Link copied to clipboard!');
+    }
+  };
 
   useEffect(() => {
     fetchNewsDetail();
@@ -84,10 +100,10 @@ export default function NewsDetail() {
             </div>
           </div>
           <div className="flex items-center space-x-4">
-             <button className="p-3 glass rounded-xl text-gray-400 hover:text-white transition-colors">
+             <button onClick={handleShare} className="p-3 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-primary transition-all active:scale-95 shadow-lg">
                <Share2 className="w-5 h-5" />
              </button>
-             <button className="p-3 glass rounded-xl text-gray-400 hover:text-white transition-colors">
+             <button className="p-3 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white transition-all active:scale-95 shadow-lg">
                <Bookmark className="w-5 h-5" />
              </button>
           </div>
@@ -95,13 +111,30 @@ export default function NewsDetail() {
       </header>
 
       {item!.image_url && (
-        <div className="rounded-[3rem] overflow-hidden mb-16 border border-white/5 aspect-video shadow-2xl">
-          <img src={item!.image_url} alt={item!.title} className="w-full h-full object-cover" />
+        <div className="rounded-[2.5rem] sm:rounded-[3rem] overflow-hidden mb-16 border border-white/5 aspect-video shadow-2xl relative group">
+          <img src={item!.image_url} alt={item!.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
         </div>
       )}
 
-      <div className="prose prose-invert prose-p:text-gray-400 prose-p:leading-relaxed prose-headings:text-white prose-headings:font-display prose-a:text-primary max-w-none prose-img:rounded-3xl">
-        <ReactMarkdown>{item!.content}</ReactMarkdown>
+      <div className="prose prose-invert prose-p:text-gray-400 prose-p:leading-relaxed prose-headings:text-white prose-headings:font-display prose-a:text-primary max-w-none prose-img:rounded-[2rem] news-content">
+        <ReactMarkdown
+          components={{
+            a: ({ node, ...props }) => {
+              const url = props.href || '';
+              if (Player.canPlay(url)) {
+                return (
+                  <div className="my-10 rounded-[2rem] overflow-hidden aspect-video bg-black border border-white/5 shadow-2xl">
+                    <Player url={url} width="100%" height="100%" controls />
+                  </div>
+                );
+              }
+              return <a {...props} />;
+            }
+          }}
+        >
+          {item!.content}
+        </ReactMarkdown>
       </div>
 
       {(item as any).image_urls && (item as any).image_urls.length > 0 && (

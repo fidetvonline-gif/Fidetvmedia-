@@ -1,23 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Event, Community, News, Booking, Profile } from '@/types';
+import { Event, Community, News, Booking, Profile, PortfolioItem, TvChannel } from '@/types';
 import { 
   LayoutDashboard, Radio, MessageSquare, Users, Settings, Plus, 
   Edit2, Trash2, Globe, Youtube, ToggleLeft, ToggleRight, 
   Sparkles, Camera, Eye, Newspaper, BookOpen, Clock, CheckCircle2, XCircle,
-  ShieldCheck, ShieldAlert, Award, Headset
+  ShieldCheck, ShieldAlert, Award, Headset, Briefcase, Tv
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { GoogleGenAI } from "@google/genai";
 import { fetchYouTubeStats, YouTubeStats } from '@/services/youtubeService';
+import { DEFAULT_CHANNELS } from '@/constants/channels';
 
-type AdminTab = 'overview' | 'events' | 'news' | 'communities' | 'bookings' | 'users' | 'support';
+type AdminTab = 'overview' | 'events' | 'news' | 'communities' | 'bookings' | 'users' | 'support' | 'portfolio' | 'channels';
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [events, setEvents] = useState<Event[]>([]);
+  const [channels, setChannels] = useState<TvChannel[]>([]);
+  const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
   const [news, setNews] = useState<News[]>([]);
   const [communities, setCommunities] = useState<Community[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -42,6 +45,10 @@ export default function Admin() {
   const [streamUrl, setStreamUrl] = useState('');
   const [startTime, setStartTime] = useState('');
   const [status, setStatus] = useState<'live' | 'upcoming' | 'offline'>('upcoming');
+
+  // PORTFOLIO Form State
+  const [category, setCategory] = useState('Featured');
+  const [isFeatured, setIsFeatured] = useState(true);
 
   // NEWS Form State
   const [slug, setSlug] = useState('');
@@ -96,7 +103,9 @@ export default function Admin() {
         fetchProfiles(),
         fetchBookings(),
         fetchSupportChats(),
-        fetchCommunityStats()
+        fetchCommunityStats(),
+        fetchPortfolio(),
+        fetchChannels()
       ]);
     }
     if (activeTab === 'events') await fetchEvents();
@@ -105,7 +114,19 @@ export default function Admin() {
     if (activeTab === 'bookings') await fetchBookings();
     if (activeTab === 'users') await fetchProfiles();
     if (activeTab === 'support') await fetchSupportChats();
+    if (activeTab === 'portfolio') await fetchPortfolio();
+    if (activeTab === 'channels') await fetchChannels();
     setLoading(false);
+  };
+
+  const fetchChannels = async () => {
+    const { data } = await supabase.from('tv_channels').select('*').order('order_index');
+    if (data) setChannels(data);
+  };
+
+  const fetchPortfolio = async () => {
+    const { data } = await supabase.from('portfolio_items').select('*').order('created_at', { ascending: false });
+    if (data) setPortfolio(data);
   };
 
   const fetchSupportChats = async () => {
@@ -246,6 +267,12 @@ export default function Admin() {
     } else if (activeTab === 'communities') {
       table = 'communities';
       payload = { name: title, description, image_url: imageUrl };
+    } else if (activeTab === 'portfolio') {
+      table = 'portfolio_items';
+      payload = { title, description, image_url: imageUrl, category, is_featured: isFeatured, youtube_id: youtubeId, video_url: streamUrl };
+    } else if (activeTab === 'channels') {
+      table = 'tv_channels';
+      payload = { name: title, category, description, url: streamUrl, thumbnail: imageUrl, is_active: status === 'live' };
     }
 
     if (!table) return;
@@ -290,6 +317,7 @@ export default function Admin() {
     setTitle(''); setDescription(''); setContent(''); setImageUrl(''); setYoutubeId('');
     setStreamUrl(''); setStartTime(''); setStatus('upcoming');
     setSlug(''); setIsPublished(false); setNewsGallery([]); setEditingId(null);
+    setCategory('Featured'); setIsFeatured(true);
   };
 
   const generateWithAI = async () => {
@@ -328,7 +356,9 @@ export default function Admin() {
             className="px-8 py-4 bg-primary text-white font-bold rounded-2xl flex items-center space-x-3 shadow-lg shadow-primary/20 hover:scale-105 transition-all active:scale-95"
           >
             <Plus className="w-5 h-5" />
-            <span className="uppercase tracking-widest text-xs">Create {activeTab.slice(0, -1)}</span>
+            <span className="uppercase tracking-widest text-xs">
+              Create {activeTab === 'events' ? 'Event' : activeTab === 'communities' ? 'Community' : activeTab === 'news' ? 'Article' : activeTab === 'portfolio' ? 'Portfolio Item' : activeTab === 'channels' ? 'TV Channel' : activeTab}
+            </span>
           </button>
        </div>
 
@@ -336,6 +366,8 @@ export default function Admin() {
        <div className="flex flex-wrap gap-4 mb-12">
           {[
             { id: 'overview', name: 'Overview', icon: LayoutDashboard },
+            { id: 'channels', name: 'TV Channels', icon: Tv },
+            { id: 'portfolio', name: 'Portfolio & Shows', icon: Briefcase },
             { id: 'events', name: 'Events', icon: Radio },
             { id: 'news', name: 'News & Blog', icon: Newspaper },
             { id: 'communities', name: 'Communities', icon: Users },
@@ -587,6 +619,144 @@ export default function Admin() {
                     </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'channels' && (
+            <div className="space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {/* Database Channels */}
+                {channels.map(channel => (
+                  <div key={channel.id} className="glass rounded-[2rem] p-6 space-y-4 group border-white/5 hover:border-white/10 transition-all">
+                    <div className="relative aspect-video rounded-xl overflow-hidden bg-surface-bright">
+                       {channel.thumbnail && <img src={channel.thumbnail} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />}
+                       <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black uppercase text-white tracking-widest border border-white/10">
+                          {channel.category}
+                       </div>
+                       {channel.is_active && (
+                         <div className="absolute top-4 right-4 bg-red-600/90 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black uppercase text-white tracking-widest border border-red-500/50">
+                            LIVE
+                         </div>
+                       )}
+                    </div>
+                    <div className="space-y-1">
+                       <h3 className="text-white font-bold group-hover:text-primary transition-colors">{channel.name}</h3>
+                       <p className="text-[10px] text-gray-500 line-clamp-2">{channel.description}</p>
+                    </div>
+                    <div className="flex justify-between items-center pt-4 border-t border-white/5">
+                       <div className="flex items-center gap-2">
+                          <Tv className="w-3 h-3 text-gray-600" />
+                          <span className="text-[10px] text-gray-600 font-bold uppercase tracking-widest">#{channel.order_index}</span>
+                       </div>
+                       <div className="flex space-x-2">
+                          <button onClick={() => { 
+                            setEditingId(channel.id); setTitle(channel.name); setCategory(channel.category); setDescription(channel.description || ''); setImageUrl(channel.thumbnail || ''); setStreamUrl(channel.url); setStatus(channel.is_active ? 'live' : 'offline'); 
+                            setIsEditing(true); 
+                          }} className="p-2 text-gray-500 hover:text-white transition-colors bg-white/5 rounded-lg"><Edit2 className="w-4 h-4" /></button>
+                          <button onClick={() => handleDelete('tv_channels', channel.id)} className="p-2 text-gray-500 hover:text-red-500 transition-colors bg-white/5 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                       </div>
+                    </div>
+                  </div>
+                ))}
+                
+                {channels.length === 0 && !loading && (
+                  <div className="col-span-full py-20 text-center glass rounded-[2.5rem] border-white/5 border-dashed">
+                     <div className="w-20 h-20 bg-surface-bright rounded-full flex items-center justify-center mx-auto mb-6 border border-white/5">
+                        <Tv className="w-10 h-10 text-gray-700" />
+                     </div>
+                     <h3 className="text-xl font-display font-bold text-white mb-2">No TV Channels Found</h3>
+                     <p className="text-gray-500 max-w-sm mx-auto mb-8">You haven't added any channels to your broadcast network yet.</p>
+                     {DEFAULT_CHANNELS.length > 0 && (
+                       <button 
+                         onClick={async () => {
+                           if (confirm('Import default system channels to database?')) {
+                             for (const ch of DEFAULT_CHANNELS) {
+                               await supabase.from('tv_channels').insert({
+                                 name: ch.name,
+                                 category: ch.category,
+                                 url: ch.url,
+                                 thumbnail: ch.thumbnail,
+                                 description: ch.description,
+                                 is_active: true,
+                                 icon: 'Tv'
+                               });
+                             }
+                             fetchChannels();
+                           }
+                         }}
+                         className="px-8 py-4 bg-white/5 hover:bg-white/10 rounded-2xl text-xs font-bold uppercase tracking-widest text-primary border border-primary/20 transition-all"
+                       >
+                         Seed Default Channels
+                       </button>
+                     )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'portfolio' && (
+            <div className="space-y-8">
+              <div className="flex justify-end">
+                  <button 
+                    onClick={async () => {
+                      if (confirm('Import default videos to database?')) {
+                        const defaultVideos = [
+                            { title: 'Emeritus director of information has a message for us all', category: 'Campus Matters', image_url: `https://img.youtube.com/vi/0D-zn6YAqCY/maxresdefault.jpg`, youtube_id: '0D-zn6YAqCY', description: 'Emeritus director of information has a message for us all - Campus matters', is_featured: true },
+                            { title: 'If Shallipopi & Davido Catch This Girl...', category: 'Interviews', image_url: `https://img.youtube.com/vi/VyxGvAzBQGY/maxresdefault.jpg`, youtube_id: 'VyxGvAzBQGY', description: 'If Shallipopi & Davido Catch This Girl, You Won\'t Believe What Happens..', is_featured: true },
+                            { title: 'How can a girl who says she loves me be opening her eyes...', category: 'Love Affairs', image_url: `https://img.youtube.com/vi/w24bsyvgMjs/maxresdefault.jpg`, youtube_id: 'w24bsyvgMjs', description: 'How can a girl who says she loves me be opening her eyes every time we are kissing? - Love affair', is_featured: true },
+                            { title: 'Love affair: Exploring Non-Penetrative Sex', category: 'Love Affairs', image_url: `https://img.youtube.com/vi/4xQY7dyg8Pg/maxresdefault.jpg`, youtube_id: '4xQY7dyg8Pg', description: 'Love affair: Exploring Non-Penetrative Sex', is_featured: true },
+                            { title: 'Love affair: hubby said we buy a land together...', category: 'Love Affairs', image_url: `https://img.youtube.com/vi/4m-9f9saFbA/maxresdefault.jpg`, youtube_id: '4m-9f9saFbA', description: 'Love affair: hubby said we buy a land together, he said it\'s going to be fifty fifty', is_featured: true },
+                            { title: 'This one Sabi book oh 😂😂', category: 'Campus Matters', image_url: `https://img.youtube.com/vi/jrjpYn_nX8Q/maxresdefault.jpg`, youtube_id: 'jrjpYn_nX8Q', description: 'This one Sabi book oh 😂😂 || FIDE TV', is_featured: true },
+                        ];
+                        for (const vid of defaultVideos) {
+                          await supabase.from('portfolio_items').insert(vid);
+                        }
+                        fetchPortfolio();
+                      }
+                    }}
+                    className="px-6 py-3 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold uppercase tracking-widest text-primary border border-primary/20 transition-all"
+                  >
+                    Seed YouTube Videos
+                  </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                 {portfolio.map(item => (
+                 <div key={item.id} className="glass rounded-[2rem] p-6 space-y-4 group border-white/5 hover:border-white/10 transition-all">
+                    <div className="relative aspect-video rounded-xl overflow-hidden bg-surface-bright">
+                       {item.image_url && <img src={item.image_url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />}
+                       <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black uppercase text-white tracking-widest border border-white/10">
+                          {item.category}
+                       </div>
+                       {item.is_featured && (
+                         <div className="absolute top-4 right-4 bg-primary/90 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black uppercase text-white tracking-widest border border-white/10">
+                            Featured
+                         </div>
+                       )}
+                    </div>
+                    <div className="space-y-1">
+                       <h3 className="text-white font-bold group-hover:text-primary transition-colors">{item.title}</h3>
+                       <p className="text-[10px] text-gray-500 line-clamp-2">{item.description}</p>
+                    </div>
+                    <div className="flex justify-end pt-4 border-t border-white/5">
+                       <div className="flex space-x-2">
+                          <button onClick={() => { 
+                            setEditingId(item.id); 
+                            setTitle(item.title); 
+                            setDescription(item.description || ''); 
+                            setCategory(item.category);
+                            setImageUrl(item.image_url || ''); 
+                            setYoutubeId(item.youtube_id || '');
+                            setStreamUrl(item.video_url || '');
+                            setIsFeatured(item.is_featured);
+                            setIsEditing(true); 
+                          }} className="p-2 text-gray-500 hover:text-white"><Edit2 className="w-4 h-4" /></button>
+                          <button onClick={() => handleDelete('portfolio_items', item.id)} className="p-2 text-gray-500 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                       </div>
+                    </div>
+                 </div>
+               ))}
+            </div>
             </div>
           )}
 
@@ -847,7 +1017,9 @@ export default function Admin() {
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100]" onClick={() => setIsEditing(false)} />
               <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl bg-surface rounded-[3rem] border border-white/5 z-[101] p-10 max-h-[90vh] overflow-y-auto custom-scrollbar">
                  <h2 className="text-3xl font-display font-bold text-white mb-8 tracking-tighter">
-                   {editingId ? 'Edit' : 'Create'} <span className="text-primary">{activeTab.slice(0, -1)}</span>
+                   {editingId ? 'Edit' : 'Create'} <span className="text-primary">
+                     {activeTab === 'events' ? 'Event' : activeTab === 'communities' ? 'Community' : activeTab === 'news' ? 'Article' : activeTab === 'portfolio' ? 'Portfolio Item' : activeTab === 'channels' ? 'TV Channel' : activeTab}
+                   </span>
                  </h2>
                  <form onSubmit={handleSave} className="space-y-6">
                     <div className="space-y-2">
@@ -859,6 +1031,32 @@ export default function Admin() {
                       <div className="space-y-2 text-xs uppercase text-gray-500 font-bold border-white/5 border-b pb-6 mb-6">
                          <label className="px-4">Article Slug (e.g. new-platform-update)</label>
                          <input value={slug} onChange={e => setSlug(e.target.value)} required className="w-full bg-black/40 border-white/10 rounded-2xl p-5 mt-2" />
+                      </div>
+                    )}
+
+                    {activeTab === 'portfolio' && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                         <div className="space-y-2">
+                            <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">Category</label>
+                            <input value={category} onChange={e => setCategory(e.target.value)} required placeholder="e.g. Signature Productions" className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white focus:border-primary/50 transition-colors" />
+                         </div>
+                         <div className="space-y-2">
+                            <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">YouTube ID (Optional)</label>
+                            <input value={youtubeId} onChange={e => setYoutubeId(e.target.value)} placeholder="e.g. dQw4w9WgXcQ" className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white focus:border-primary/50 transition-colors" />
+                         </div>
+                      </div>
+                    )}
+
+                    {activeTab === 'channels' && (
+                      <div className="grid grid-cols-1 gap-6">
+                         <div className="space-y-2">
+                            <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">Category</label>
+                            <input value={category} onChange={e => setCategory(e.target.value)} required placeholder="e.g. Sports" className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white focus:border-primary/50 transition-colors" />
+                         </div>
+                         <div className="space-y-2">
+                            <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">Stream URL (.m3u8, .mp4, YouTube URL, or &lt;iframe&gt;)</label>
+                            <input value={streamUrl} onChange={e => setStreamUrl(e.target.value)} required placeholder="https://... or <iframe src='...'></iframe>" className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white focus:border-primary/50 transition-colors" />
+                         </div>
                       </div>
                     )}
 
@@ -948,6 +1146,20 @@ export default function Admin() {
                       <div className="flex items-center space-x-4 p-4 glass rounded-2xl">
                          <input type="checkbox" id="pub" checked={isPublished} onChange={e => setIsPublished(e.target.checked)} className="w-5 h-5 accent-primary" />
                          <label htmlFor="pub" className="text-xs font-bold text-gray-300 uppercase tracking-widest">Publish Immediately</label>
+                      </div>
+                    )}
+
+                    {activeTab === 'portfolio' && (
+                      <div className="flex items-center space-x-4 p-4 glass rounded-2xl">
+                         <input type="checkbox" id="feat" checked={isFeatured} onChange={e => setIsFeatured(e.target.checked)} className="w-5 h-5 accent-primary" />
+                         <label htmlFor="feat" className="text-xs font-bold text-gray-300 uppercase tracking-widest">Feature on Homepage</label>
+                      </div>
+                    )}
+
+                    {activeTab === 'channels' && (
+                      <div className="flex items-center space-x-4 p-4 glass rounded-2xl">
+                         <input type="checkbox" id="act" checked={status === 'live'} onChange={e => setStatus(e.target.checked ? 'live' : 'offline')} className="w-5 h-5 accent-primary" />
+                         <label htmlFor="act" className="text-xs font-bold text-gray-300 uppercase tracking-widest">Mark as Live / Active</label>
                       </div>
                     )}
 

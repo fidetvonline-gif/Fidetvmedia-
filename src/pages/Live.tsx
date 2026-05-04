@@ -3,19 +3,50 @@ import ReactPlayer from 'react-player';
 import { supabase } from '@/lib/supabase';
 import { Event } from '@/types';
 import LiveChat from '@/components/LiveChat';
-import { Calendar, Users, Share2, Youtube, ExternalLink, Clock, AlertCircle } from 'lucide-react';
+import { Calendar, Users, Share2, Youtube, ExternalLink, Clock, AlertCircle, Globe, Tv, Film, MonitorPlay, MessageSquare } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { motion } from 'motion/react';
 import { fetchYouTubeStats, YouTubeStats } from '@/services/youtubeService';
 
+import { DEFAULT_CHANNELS } from '@/constants/channels';
+
 const Player = ReactPlayer as any;
 
 export default function Live() {
   const [event, setEvent] = useState<Event | null>(null);
+  const [dbChannels, setDbChannels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [ytStats, setYtStats] = useState<YouTubeStats | null>(null);
+  
+  const [activeChannelId, setActiveChannelId] = useState<string>('fidetv');
+  const [activeTab, setActiveTab] = useState<'channels' | 'chat'>('channels');
+  const [playerError, setPlayerError] = useState(false);
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
 
+  useEffect(() => {
+    setPlayerError(false);
+    setIsPlayerReady(false);
+  }, [activeChannelId]);
+
+  const handlePlayerError = (e: any) => {
+    console.error('Player error:', e);
+    // Be more specific about errors that should trigger the error UI
+    const errMsg = e?.toString() || '';
+    
+    // Ignore benign errors
+    if (errMsg.includes('aborted') || errMsg.includes('interrupted') || errMsg.includes('NS_ERROR_DOM_MEDIA_ABORT_ERR')) {
+      return;
+    }
+    
+    setPlayerError(true);
+  };
+
+  const handlePlayerReady = () => {
+    console.log('Player is ready for playback');
+    setIsPlayerReady(true);
+    setPlayerError(false);
+  };
   useEffect(() => {
     const fetchLiveEvent = async () => {
       setLoading(true);
@@ -36,6 +67,18 @@ export default function Live() {
           setYtStats(stats);
         }
       }
+      
+      // Fetch custom TV Channels
+      const { data: channelsData } = await supabase
+        .from('tv_channels')
+        .select('*')
+        .order('order_index', { ascending: true })
+        .order('created_at', { ascending: false });
+        
+      if (channelsData) {
+        setDbChannels(channelsData);
+      }
+      
       setLoading(false);
     };
 
@@ -47,6 +90,9 @@ export default function Live() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, payload => {
         fetchLiveEvent();
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tv_channels' }, payload => {
+        fetchLiveEvent();
+      })
       .subscribe();
 
     return () => {
@@ -54,145 +100,385 @@ export default function Live() {
     };
   }, []);
 
+  const handleShare = () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      navigator.share({
+        title: `Watch Live on FideTV`,
+        url: url,
+      }).catch(console.error);
+    } else {
+      navigator.clipboard.writeText(url);
+      alert('Stream link copied to clipboard!');
+    }
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
       </div>
     );
   }
 
-  if (!event) {
-    return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 text-center">
-        <div className="w-20 h-20 bg-surface rounded-full flex items-center justify-center mb-8 border border-white/5">
-          <AlertCircle className="w-10 h-10 text-gray-700" />
-        </div>
-        <h2 className="text-4xl font-display font-bold text-white mb-4">No Live Events Right Now</h2>
-        <p className="text-gray-500 max-w-md mx-auto mb-10 leading-relaxed">
-          We're currently offline. Check back soon or follow our community for announcements on upcoming streams.
-        </p>
-        <button 
-          onClick={() => window.location.reload()}
-          className="px-8 py-4 glass hover:bg-white/5 text-sm font-bold uppercase tracking-widest text-white rounded-full transition-all"
-        >
-          Refresh Feed
-        </button>
-      </div>
-    );
-  }
+  const isFideTvLive = event?.status === 'live';
+  const customBroadcast: any = {
+    id: 'fidetv',
+    name: 'Main Broadcast',
+    category: 'Your Channel',
+    url: event?.youtube_id ? `https://www.youtube.com/watch?v=${event.youtube_id}` : event?.stream_url,
+    thumbnail: event?.thumbnail_url || 'https://images.unsplash.com/photo-1598899134739-24c46f58b8c0?auto=format&fit=crop&q=80&w=800',
+    description: event?.description || 'Your live streaming channel offline.',
+    isLive: isFideTvLive,
+    icon: Tv,
+  };
 
-  const isLive = event.status === 'live';
+  const dynamicChannels = dbChannels.map((ch: any) => ({
+    id: ch.id,
+    name: ch.name,
+    category: ch.category,
+    thumbnail: ch.thumbnail || 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e',
+    url: ch.url,
+    icon: Tv, // Use a default icon since we don't have mapping in this component easily
+    description: ch.description,
+    isLive: ch.is_active
+  }));
+
+  const allChannels = [customBroadcast, ...dynamicChannels];
+  const activeChannel = allChannels.find(c => c.id === activeChannelId) || customBroadcast;
+  
+  const isPlayingFideTv = activeChannel.id === 'fidetv';
 
   return (
-    <div className="min-h-screen bg-black">
-      <div className="max-w-[1920px] mx-auto lg:h-[calc(100vh-80px)] flex flex-col lg:flex-row overflow-hidden">
+    <div className="min-h-screen bg-[#050505] text-white">
+      <div className="max-w-[1920px] mx-auto lg:h-[calc(100vh-80px)] flex flex-col lg:flex-row shadow-2xl">
         
-        {/* Primary Player Content */}
-        <div className="flex-grow flex flex-col min-h-[50vh] lg:min-h-0">
-          <div className="relative flex-grow bg-black aspect-video lg:aspect-auto">
-            {isLive && (event.youtube_id || event.stream_url) ? (
-              <Player
-                url={(event.youtube_id ? `https://www.youtube.com/watch?v=${event.youtube_id}` : event.stream_url) as any}
-                width="100%"
-                height="100%"
-                playing={isLive}
-                controls
-                style={{ position: 'absolute', top: 0, left: 0 }}
-              />
-            ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface overflow-hidden group">
-                {event.thumbnail_url ? (
-                  <img src={event.thumbnail_url} alt={event.title} className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-1000" />
-                ) : (
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-surface-bright" />
-                )}
-                
-                <div className="relative z-10 p-8 text-center space-y-6">
-                  {event.youtube_id || event.stream_url ? (
-                    <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mx-auto backdrop-blur-xl border border-white/20">
-                      <Clock className="w-10 h-10 text-primary" />
-                    </div>
-                  ) : (
-                    <Youtube className="w-16 h-16 text-gray-800 mx-auto" />
-                  )}
-                  <div className="space-y-2">
-                    <h3 className="text-3xl font-display font-bold text-white tracking-tight">
-                      {isLive ? "Stream starting soon..." : "Upcoming Live Session"}
-                    </h3>
-                    <p className="text-gray-400 font-medium tracking-wide max-w-sm mx-auto uppercase text-xs">
-                      {format(new Date(event.start_time), 'MMMM d, yyyy @ HH:mm')}
-                    </p>
-                  </div>
-                </div>
+        {/* Main Watch Area */}
+        <div className="flex-grow flex flex-col relative z-10 border-r border-white/5 overflow-hidden">
+          {/* Signal Indicator Overlay */}
+          <div className="absolute top-6 left-6 z-20 flex items-center space-x-3 pointer-events-none drop-shadow-2xl">
+            <div className={cn(
+              "px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.3em] flex items-center space-x-3 backdrop-blur-xl border transition-all duration-500",
+              (isPlayingFideTv && isFideTvLive) || !isPlayingFideTv 
+                ? "bg-red-600/90 text-white border-red-500/50" 
+                : "bg-black/60 text-white border-white/10"
+            )}>
+              {((isPlayingFideTv && isFideTvLive) || !isPlayingFideTv) && <div className="w-2 h-2 bg-white rounded-full animate-pulse shadow-[0_0_10px_white]" />}
+              <span>
+                {isPlayingFideTv 
+                  ? (isFideTvLive ? 'Live Broadcast' : 'Offline') 
+                  : 'Live Channel'}
+              </span>
+            </div>
+            {isPlayingFideTv && isFideTvLive && (
+              <div className="hidden sm:flex px-4 py-2 bg-black/60 backdrop-blur-xl rounded-full text-[10px] font-black text-white uppercase tracking-[0.3em] border border-white/10 items-center shadow-lg transition-all">
+                <div className="w-1 h-1 bg-green-500 rounded-full mr-2 shadow-[0_0_8px_#22c55e]" />
+                Studio Link High
               </div>
             )}
-
-            {/* Status Overlay */}
-            <div className="absolute top-6 left-6 flex space-x-3 pointer-events-none">
-              <div className={cn(
-                "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] flex items-center space-x-2 shadow-2xl",
-                isLive ? "bg-red-600 text-white" : "bg-primary text-white"
-              )}>
-                {isLive && <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />}
-                <span>{isLive ? 'Live Now' : 'Upcoming'}</span>
-              </div>
-              <div className="px-4 py-1.5 glass rounded-full text-[10px] font-bold text-white uppercase tracking-widest leading-none flex items-center">
-                {event.id.slice(0, 8)}
-              </div>
-            </div>
           </div>
 
-          <div className="p-8 lg:p-12 space-y-8 bg-background border-r border-white/5 overflow-y-auto">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-              <div className="space-y-4">
-                <h1 className="text-4xl lg:text-5xl font-display font-bold text-white leading-tight">
-                  {event.title}
-                </h1>
-                <div className="flex flex-wrap items-center gap-6 text-sm">
-                  <div className="flex items-center space-x-2 text-gray-400">
-                    <Clock className="w-4 h-4 text-primary" />
-                    <span>{format(new Date(event.start_time), 'MMM d, yyyy • HH:mm')}</span>
-                  </div>
-                  <div className="flex items-center space-x-2 text-gray-400">
-                    <Users className="w-4 h-4 text-primary" />
-                    <span>{ytStats ? `${ytStats.viewers} watching` : '0 watching'}</span>
-                  </div>
+          {/* Player Container */}
+          <div className="relative w-full aspect-video lg:aspect-auto flex-grow bg-black group/player">
+            {playerError ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0a0a] z-30">
+                <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+                <h3 className="text-xl font-bold mb-2">Stream Unavailable</h3>
+                <p className="text-gray-400 text-sm mb-6 px-8 text-center">
+                  This channel is currently having trouble loading. It might be offline or restricted in your region.
+                </p>
+                <div className="flex gap-4">
+                  <button 
+                    onClick={() => {
+                       setPlayerError(false);
+                       setActiveChannelId(activeChannelId); // Force re-render
+                    }}
+                    className="px-6 py-2 bg-white/10 hover:bg-white/20 rounded-full text-xs font-bold uppercase tracking-widest border border-white/10 transition-all"
+                  >
+                    Retry Loading
+                  </button>
+                  <a 
+                    href={activeChannel.url} 
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="px-6 py-2 bg-primary hover:bg-primary/80 rounded-full text-xs font-bold uppercase tracking-widest transition-all"
+                  >
+                    Open Source
+                  </a>
                 </div>
               </div>
-              
-              <div className="flex space-x-3">
-                <button className="flex-1 md:flex-none px-6 py-3 glass rounded-xl text-white text-xs font-bold uppercase tracking-widest flex items-center justify-center space-x-2 hover:bg-white/10 transition-all">
-                  <Share2 className="w-4 h-4 text-primary" />
-                  <span>Share</span>
+            ) : null}
+
+            {(!isPlayingFideTv || (isPlayingFideTv && customBroadcast.url && isFideTvLive)) ? (
+              activeChannel.url?.includes('<iframe') ? (
+                <div 
+                  className="w-full h-full absolute inset-0 overflow-hidden" 
+                >
+                   <div 
+                     className="w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:border-none"
+                     dangerouslySetInnerHTML={{ 
+                       __html: activeChannel.url.replace('<iframe', '<iframe sandbox="allow-scripts allow-same-origin allow-presentation allow-forms" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"') 
+                     }} 
+                   />
+                </div>
+              ) : (
+                <Player
+                  key={activeChannel.id}
+                  url={activeChannel.url}
+                  width="100%"
+                  height="100%"
+                  playing={true}
+                  controls={true}
+                  muted={true}
+                  playsinline={true}
+                  onReady={handlePlayerReady}
+                  onError={handlePlayerError}
+                  config={{
+                    youtube: {
+                      playerVars: { 
+                        showinfo: 0, 
+                        modestbranding: 1, 
+                        rel: 0, 
+                        origin: typeof window !== 'undefined' ? window.location.origin : '',
+                        autoplay: 1,
+                        enablejsapi: 1
+                      }
+                    },
+                    file: {
+                      attributes: {
+                        controlsList: "nodownload",
+                        playsInline: true,
+                        autoPlay: true,
+                        referrerPolicy: "no-referrer",
+                        crossOrigin: "anonymous"
+                      },
+                      forceHLS: activeChannel.url?.toLowerCase().includes('.m3u8') || 
+                               activeChannel.url?.toLowerCase().includes('playlist') || 
+                               activeChannel.url?.toLowerCase().includes('/hls/'),
+                      hlsOptions: {
+                        enableWorker: false,
+                        lowLatencyMode: true,
+                        backBufferLength: 60,
+                        manifestLoadingMaxRetry: 10,
+                        levelLoadingMaxRetry: 10,
+                        xhrSetup: (xhr: any) => {
+                          xhr.withCredentials = false;
+                        }
+                      }
+                    }
+                  }}
+                  style={{ position: 'absolute', top: 0, left: 0 }}
+                />
+              )
+            ) : (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0a0a] overflow-hidden">
+                  <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] pointer-events-none" />
+                  {customBroadcast.thumbnail && (
+                    <img src={customBroadcast.thumbnail} alt="Offline" className="absolute inset-0 w-full h-full object-cover opacity-20 grayscale" />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent" />
+                  
+                  <div className="relative z-10 flex flex-col items-center justify-center text-center p-8 space-y-6">
+                    <div className="w-24 h-24 rounded-full bg-white/5 border border-white/10 flex items-center justify-center backdrop-blur-lg">
+                      <Tv className="w-10 h-10 text-gray-500" />
+                    </div>
+                    <div>
+                      <h2 className="text-4xl font-display font-black tracking-tighter uppercase mb-2 text-white">Broadcast Offline</h2>
+                      <p className="text-gray-400 max-w-md mx-auto text-sm">
+                        {event ? `Next Event: ${format(new Date(event.start_time), 'MMM d, yyyy @ HH:mm')}` : 'No upcoming events scheduled. Please check out other live channels.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+            )}
+            
+            {/* Share action overlay */}
+            <div className="absolute top-6 right-6 flex space-x-3 z-20 pointer-events-auto">
+                <button 
+                onClick={handleShare}
+                className="p-3 bg-black/40 hover:bg-primary backdrop-blur-xl rounded-full text-white border border-white/10 transition-all opacity-0 group-hover/player:opacity-100"
+                title="Share Channel"
+                >
+                  <Share2 className="w-5 h-5" />
                 </button>
-                {event.youtube_id && (
-                  <a 
-                    href={`https://youtube.com/live/${event.youtube_id}`} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex-1 md:flex-none px-6 py-3 bg-red-600 rounded-xl text-white text-xs font-bold uppercase tracking-widest flex items-center justify-center space-x-2 hover:bg-red-700 transition-all"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    <span>YouTube</span>
-                  </a>
+            </div>
+          </div>
+
+          {/* info bar under video */}
+          <div className="h-24 lg:h-32 bg-[#0a0a0a] border-t border-white/5 flex items-center px-6 lg:px-10 shrink-0 relative overflow-hidden">
+             {/* gradient flare */}
+             <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 blur-[100px] rounded-full" />
+             
+             <div className="flex items-center justify-between w-full relative z-10 gap-x-6">
+                 <div className="flex items-center gap-x-6">
+                    <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 shadow-lg">
+                       {activeChannel.icon ? <activeChannel.icon className="w-6 h-6 text-gray-400" /> : <Tv className="w-6 h-6 text-primary" />}
+                    </div>
+                    <div>
+                       <div className="flex items-center space-x-3 mb-1">
+                          <span className="px-2 py-0.5 bg-primary/20 text-primary uppercase font-bold text-[9px] rounded tracking-wider">
+                            {activeChannel.category}
+                          </span>
+                       </div>
+                       <h2 className="text-xl lg:text-3xl font-display font-bold tracking-tight line-clamp-1">
+                          {isPlayingFideTv && event?.title ? event.title : activeChannel.name}
+                       </h2>
+                    </div>
+                 </div>
+
+                 {isPlayingFideTv && isFideTvLive && ytStats && (
+                    <div className="hidden sm:flex items-center space-x-8 px-6 py-3 bg-white/5 rounded-2xl border border-white/5">
+                        <div className="flex items-center space-x-3">
+                           <Users className="w-5 h-5 text-gray-500" />
+                           <div className="flex flex-col">
+                              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Watching Now</span>
+                              <span className="text-lg font-bold">{ytStats.viewers}</span>
+                           </div>
+                        </div>
+                    </div>
+                 )}
+             </div>
+          </div>
+        </div>
+
+        {/* Sidebar / Interaction Panel */}
+        <div className="w-full lg:w-[450px] xl:w-[500px] flex-shrink-0 bg-[#050505] flex flex-col h-[500px] lg:h-full z-20 shadow-[-20px_0_40px_rgba(0,0,0,0.5)]">
+          {/* Tabs */}
+          <div className="flex w-full border-b border-white/10 shrink-0">
+             <button 
+                onClick={() => setActiveTab('channels')}
+                className={cn(
+                  "flex-1 py-5 text-[11px] font-bold uppercase tracking-[0.2em] transition-all relative",
+                  activeTab === 'channels' ? "text-white" : "text-gray-500 hover:text-white"
                 )}
+             >
+                Channel Guide
+                {activeTab === 'channels' && (
+                  <motion.div layoutId="activetab" className="absolute bottom-0 left-0 right-0 h-1 bg-primary" />
+                )}
+             </button>
+             <button 
+                onClick={() => setActiveTab('chat')}
+                className={cn(
+                  "flex-1 py-5 text-[11px] font-bold uppercase tracking-[0.2em] transition-all relative flex items-center justify-center space-x-2",
+                  activeTab === 'chat' ? "text-white" : "text-gray-500 hover:text-white"
+                )}
+             >
+                <span>Live Chat</span>
+                <MessageSquare className="w-3 h-3" />
+                {activeTab === 'chat' && (
+                  <motion.div layoutId="activetab" className="absolute bottom-0 left-0 right-0 h-1 bg-primary" />
+                )}
+             </button>
+          </div>
+
+          <div className="flex-grow overflow-hidden relative">
+            {/* Channels List */}
+            <div className={cn(
+               "absolute inset-0 overflow-y-auto custom-scrollbar flex flex-col transition-all duration-300",
+               activeTab === 'channels' ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0 pointer-events-none"
+            )}>
+              <div className="p-4 space-y-4">
+                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-500 px-2 pt-2">Your Broadcast</h3>
+                 
+                 {/* Main User Channel */}
+                 <button
+                    onClick={() => setActiveChannelId(customBroadcast.id)}
+                    className={cn(
+                      "w-full text-left p-3 rounded-2xl flex gap-x-4 items-center group transition-all duration-300 border",
+                      isPlayingFideTv 
+                        ? "bg-white/10 border-white/20 shadow-xl" 
+                        : "bg-white/5 border-transparent hover:bg-white/10"
+                    )}
+                 >
+                    <div className="w-24 h-16 rounded-lg overflow-hidden relative shrink-0">
+                        {customBroadcast.thumbnail && <img src={customBroadcast.thumbnail} className="w-full h-full object-cover" />}
+                        <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-all" />
+                        {isFideTvLive && (
+                           <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-red-600 rounded text-[8px] font-bold text-white uppercase tracking-wider">
+                              LIVE
+                           </div>
+                        )}
+                    </div>
+                    <div className="flex flex-col justify-center overflow-hidden">
+                       <span className="text-[10px] text-primary font-bold uppercase tracking-widest mb-0.5">Primary Set</span>
+                       <h4 className="text-sm font-bold text-white truncate w-full">{customBroadcast.name}</h4>
+                       <p className="text-xs text-gray-500 truncate w-full">{isPlayingFideTv && event?.title ? event.title : 'Official Stream'}</p>
+                    </div>
+                 </button>
+
+                 <div className="h-px w-full bg-white/5 my-4" />
+                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-500 px-2 pt-2">Live TV Networks</h3>
+
+                 <div className="space-y-3">
+                   {allChannels.filter(c => c.id !== 'fidetv').map((channel) => {
+                     const isSelected = activeChannelId === channel.id;
+                     return (
+                       <button
+                          key={channel.id}
+                          onClick={() => setActiveChannelId(channel.id)}
+                          className={cn(
+                            "w-full text-left p-3 rounded-2xl flex gap-x-4 items-center group transition-all duration-300 border",
+                            isSelected 
+                              ? "bg-white/10 border-white/20 shadow-xl" 
+                              : "bg-white/5 border-transparent hover:bg-white/10"
+                          )}
+                       >
+                          <div className="w-24 h-16 rounded-lg overflow-hidden relative shrink-0">
+                              <img src={channel.thumbnail} className="w-full h-full object-cover" />
+                              <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-all flex items-center justify-center">
+                                 <Play className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                              <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-red-600 rounded text-[8px] font-bold text-white uppercase tracking-wider">
+                                 LIVE
+                              </div>
+                          </div>
+                          <div className="flex flex-col justify-center overflow-hidden">
+                             <div className="flex items-center space-x-1.5 mb-0.5">
+                                <channel.icon className="w-3 h-3 text-gray-400" />
+                                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{channel.category}</span>
+                             </div>
+                             <h4 className="text-sm font-bold text-white truncate w-full">{channel.name}</h4>
+                             <p className="text-xs text-gray-500 truncate w-full">{channel.description}</p>
+                          </div>
+                       </button>
+                     );
+                   })}
+                 </div>
               </div>
             </div>
 
-            <div className="max-w-4xl">
-              <p className="text-gray-400 leading-relaxed text-lg font-light">
-                {event.description}
-              </p>
+            {/* Chat View */}
+            <div className={cn(
+               "absolute inset-0 bg-[#0a0a0a] flex flex-col transition-all duration-300",
+               activeTab === 'chat' ? "translate-x-0 opacity-100" : "translate-x-full opacity-0 pointer-events-none"
+            )}>
+              {!event ? (
+                 <div className="p-10 text-center flex flex-col items-center justify-center h-full">
+                    <MessageSquare className="w-10 h-10 text-gray-700 mb-4" />
+                    <p className="text-gray-500 text-sm">Live chat will be available when FideTV goes live.</p>
+                 </div>
+              ) : (
+                <>
+                  <div className="px-6 py-4 border-b border-white/5 bg-[#050505] shrink-0">
+                     <p className="text-[10px] uppercase font-bold text-gray-500 tracking-widest text-center">
+                       Chatting in: <span className="text-white">{event.title}</span>
+                     </p>
+                  </div>
+                  <div className="flex-grow overflow-hidden relative">
+                    <LiveChat eventId={event.id} />
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Sidebar Chat */}
-        <div className="w-full lg:w-[450px] flex-shrink-0 bg-background border-l border-white/5 p-4 lg:p-6 lg:h-full">
-          <LiveChat eventId={event.id} />
-        </div>
       </div>
     </div>
   );
 }
+
+// Ensure Play icon is imported
+import { Play } from 'lucide-react';
+

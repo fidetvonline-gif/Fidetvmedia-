@@ -3,7 +3,7 @@ import Layout from '@/components/Layout';
 import Home from '@/pages/Home';
 import About from '@/pages/About';
 import Services from '@/pages/Services';
-import Portfolio from '@/pages/Portfolio';
+import Content from '@/pages/Content';
 import Contact from '@/pages/Contact';
 import Live from '@/pages/Live';
 import Community from '@/pages/Community';
@@ -24,7 +24,8 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
           <Route path="/services" element={<Services />} />
-          <Route path="/portfolio" element={<Portfolio />} />
+          <Route path="/content" element={<Content />} />
+          <Route path="/portfolio" element={<Navigate to="/content" replace />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/live" element={<Live />} />
           <Route path="/community" element={<Community />} />

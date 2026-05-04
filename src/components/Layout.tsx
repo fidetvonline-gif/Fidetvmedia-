@@ -1,16 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, PlayCircle, Users, Briefcase, Info, Mail, LayoutDashboard, LogOut, User, Headset } from 'lucide-react';
+import { Menu, X, PlayCircle, Users, Briefcase, Info, Mail, LayoutDashboard, LogOut, User, Headset, Home as HomeIcon } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import FideTvLogo from '@/components/FideTvLogo';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const [user, setUser] = useState<any>(null);
   const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleScroll = () => setIsScrolled(window.scrollY > 50);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -30,18 +37,24 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   };
 
   const navLinks = [
+    { name: 'Home', path: '/', icon: HomeIcon },
     { name: 'Live', path: '/live', icon: PlayCircle },
+    { name: 'Content', path: '/content', icon: LayoutDashboard },
     { name: 'News', path: '/news', icon: LayoutDashboard },
     { name: 'Community', path: '/community', icon: Users },
     { name: 'Services', path: '/services', icon: Briefcase },
-    { name: 'Portfolio', path: '/portfolio', icon: LayoutDashboard },
     { name: 'About', path: '/about', icon: Info },
     { name: 'Contact', path: '/contact', icon: Mail },
   ];
 
   return (
     <div className="min-h-screen flex flex-col">
-      <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-white/5">
+      <nav className={cn(
+        "fixed top-0 left-0 right-0 z-50 transition-all duration-500",
+        isScrolled 
+          ? "bg-[#050505] border-b border-white/5 py-2 shadow-2xl" 
+          : "bg-[#050505] border-b border-white/5 py-4"
+      )}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20 items-center">
             <Link to="/" className="flex items-center space-x-2 group">
@@ -217,9 +230,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <h4 className="font-display font-bold text-sm uppercase tracking-widest text-primary mb-6">Explore</h4>
               <ul className="space-y-3 text-sm text-gray-400">
                 <li><Link to="/live" className="hover:text-white transition-colors">Live Events</Link></li>
+                <li><Link to="/content" className="hover:text-white transition-colors">Content Hub</Link></li>
                 <li><Link to="/news" className="hover:text-white transition-colors">Platform News</Link></li>
                 <li><Link to="/community" className="hover:text-white transition-colors">Community</Link></li>
-                <li><Link to="/portfolio" className="hover:text-white transition-colors">Portfolio</Link></li>
               </ul>
             </div>
 

@@ -298,9 +298,9 @@ export default function Profile() {
       <div className="h-64 sm:h-80 bg-surface-bright relative border-b border-white/5">
         <div className="absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 translate-y-1/2">
-          <div className="flex flex-col sm:flex-row items-end gap-6 sm:gap-10">
+          <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6 sm:gap-10">
             <div className="relative group">
-              <div className="w-32 h-32 sm:w-44 sm:h-44 bg-surface rounded-[2.5rem] border-4 border-background overflow-hidden shadow-2xl">
+              <div className="w-32 h-32 sm:w-44 sm:h-44 bg-surface rounded-[2rem] sm:rounded-[2.5rem] border-4 border-background overflow-hidden shadow-2xl relative z-10">
                 {profile?.avatar_url ? (
                   <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
@@ -328,22 +328,25 @@ export default function Profile() {
               </div>
             </div>
             
-            <div className="flex-grow pb-4 sm:pb-8 space-y-2 text-center sm:text-left">
-              <h1 className="text-3xl sm:text-4xl font-display font-bold text-white tracking-tight flex items-center justify-center sm:justify-start gap-3">
+            <div className="flex-grow pb-2 sm:pb-8 space-y-2 text-center sm:text-left">
+              <h1 className="text-2xl sm:text-4xl font-display font-bold text-white tracking-tight flex items-center justify-center sm:justify-start gap-3">
                 @{profile?.username || 'user'}
-                {profile?.is_verified && <Award className="w-6 h-6 text-primary" />}
+                {profile?.is_verified && <Award className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />}
               </h1>
-              <p className="text-gray-500 font-medium">Creative Media Enthusiast</p>
+              <p className="text-gray-500 font-medium text-sm sm:text-base">Creative Media Enthusiast</p>
             </div>
 
-            <div className="flex space-x-3 pb-4 sm:pb-8">
-              <button onClick={toggleEdit} className="px-6 py-3 glass rounded-2xl text-white text-xs font-bold uppercase tracking-widest flex items-center space-x-2 hover:bg-white/5 transition-all">
+            <div className="flex space-x-3 pb-2 sm:pb-8">
+              <button 
+                onClick={toggleEdit} 
+                className="px-5 sm:px-6 py-2.5 sm:py-3 bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl text-white text-[10px] font-black uppercase tracking-widest flex items-center space-x-2 hover:bg-white/10 transition-all"
+              >
                 {isEditing ? <X className="w-4 h-4 text-gray-400" /> : <Edit3 className="w-4 h-4 text-primary" />}
-                <span className="hidden sm:inline">{isEditing ? 'Cancel Edit' : 'Edit Profile'}</span>
+                <span>{isEditing ? 'Cancel' : 'Edit'}</span>
               </button>
               <button 
                 onClick={handleSignOut}
-                className="p-3 glass rounded-2xl text-gray-500 hover:text-red-500 transition-all"
+                className="p-2.5 sm:p-3 bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl text-gray-500 hover:text-red-500 transition-all"
               >
                 <LogOut className="w-5 h-5" />
               </button>

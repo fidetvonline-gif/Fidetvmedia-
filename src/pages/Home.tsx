@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence } from 'motion/react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Play, Calendar, Users, ArrowRight, Video, Zap, CheckCircle, Flame, Sparkles, Globe, Shield, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import ReactPlayer from 'react-player';
+import { PortfolioItem } from '@/types';
 
 const Player = ReactPlayer as any;
 
@@ -24,27 +25,49 @@ const staggerContainer = {
 };
 
 export default function Home() {
+  const navigate = useNavigate();
   const [certUrl, setCertUrl] = useState('');
   const [smedanUrl, setSmedanUrl] = useState('');
-  const [showVideoModal, setShowVideoModal] = useState(false);
+  const [playingVideo, setPlayingVideo] = useState<PortfolioItem | null>(null);
+  const [featuredPortfolio, setFeaturedPortfolio] = useState<PortfolioItem[]>([]);
   const videoRef = useRef<HTMLVideoElement>(null);
   const { scrollYProgress } = useScroll();
-  const yBg = useTransform(scrollYProgress, [0, 1], ['0%', '20%']);
+  const yBg = useTransform(scrollYProgress, [0, 1], ['0%', '30%']);
+  const opacityHero = useTransform(scrollYProgress, [0, 0.2], [1, 0]);
 
   useEffect(() => {
     fetchCertificates();
+    fetchFeaturedPortfolio();
   }, []);
 
-  useEffect(() => {
-    if (videoRef.current) {
-      const playPromise = videoRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise.catch((error) => {
-          console.warn('Video play was interrupted:', error);
-        });
+  const fetchFeaturedPortfolio = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('portfolio_items')
+        .select('*')
+        .eq('is_featured', true)
+        .order('created_at', { ascending: false });
+        
+      if (!error && data && data.length > 0) {
+        setFeaturedPortfolio(data);
+      } else {
+        // Fallback or empty state if table not setup yet
+        const defaultShows: unknown = [
+          { id: '1', title: 'Emeritus director of information has a message for us all', category: 'Campus Matters', image_url: `https://img.youtube.com/vi/0D-zn6YAqCY/maxresdefault.jpg`, youtube_id: '0D-zn6YAqCY', description: 'Emeritus director of information has a message for us all - Campus matters', is_featured: true, created_at: '' },
+          { id: '2', title: 'If Shallipopi & Davido Catch This Girl...', category: 'Interviews', image_url: `https://img.youtube.com/vi/VyxGvAzBQGY/maxresdefault.jpg`, youtube_id: 'VyxGvAzBQGY', description: 'If Shallipopi & Davido Catch This Girl, You Won\'t Believe What Happens..', is_featured: true, created_at: '' },
+          { id: '3', title: 'How can a girl who says she loves me be opening her eyes...', category: 'Love Affairs', image_url: `https://img.youtube.com/vi/w24bsyvgMjs/maxresdefault.jpg`, youtube_id: 'w24bsyvgMjs', description: 'How can a girl who says she loves me be opening her eyes every time we are kissing? - Love affair', is_featured: true, created_at: '' }
+        ];
+        setFeaturedPortfolio(defaultShows as PortfolioItem[]);
       }
+    } catch {
+      // ignore
     }
-  }, []);
+  };
+
+  // Video cleanup logic removed to avoid "media resource was aborted by the user agent"
+  // React / the browser handles video unmounting naturally without this.
+
+  // Hardcoded shows removed to use DB state
 
   const fetchCertificates = async () => {
     const cac = supabase.storage.from('event-thumbnails').getPublicUrl('cac_certificate').data.publicUrl;
@@ -101,27 +124,45 @@ export default function Home() {
     <div className="relative pb-32 overflow-hidden bg-background">
       {/* Video Modal */}
       <AnimatePresence>
-        {showVideoModal && (
+        {playingVideo && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 sm:p-8"
+            className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 sm:p-8"
+            onClick={() => setPlayingVideo(null)}
           >
-            <div className="relative w-full max-w-6xl aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/10">
+            <div 
+              className="relative w-full max-w-6xl aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/10"
+              onClick={e => e.stopPropagation()}
+            >
               <button
-                onClick={() => setShowVideoModal(false)}
-                className="absolute top-4 right-4 z-50 p-2 bg-black/50 hover:bg-white/10 rounded-full text-white backdrop-blur-md transition-all"
+                onClick={() => setPlayingVideo(null)}
+                className="absolute top-4 right-4 z-50 p-2 bg-black/50 hover:bg-white/10 rounded-full text-white backdrop-blur-md transition-all opacity-100"
               >
                 <X className="w-6 h-6" />
               </button>
-              <Player
-                url="https://youtube.com/watch?v=Fj-Yv0k-U04" // Placeholder ID: replace with actual Fidetvmedia promo
-                width="100%"
-                height="100%"
-                playing
-                controls
-              />
+              {playingVideo?.youtube_id ? (
+                  playingVideo.youtube_id.includes('<iframe') ? (
+                     <div className="w-full h-full [&>iframe]:w-full [&>iframe]:h-full" dangerouslySetInnerHTML={{ __html: playingVideo.youtube_id }} />
+                  ) : (
+                    <iframe 
+                      src={playingVideo.youtube_id.includes('http') ? playingVideo.youtube_id : `https://www.youtube.com/embed/${playingVideo.youtube_id}?autoplay=1&modestbranding=1&rel=0`}
+                      className="w-full h-full border-0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    ></iframe>
+                  )
+                ) : (
+                  <Player 
+                    url={playingVideo?.video_url}
+                    width="100%"
+                    height="100%"
+                    controls={true}
+                    playing={true}
+                    playsinline={true}
+                  />
+                )}
             </div>
           </motion.div>
         )}
@@ -132,35 +173,36 @@ export default function Home() {
       <div className="absolute top-1/3 right-1/4 w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-[150px] mix-blend-screen pointer-events-none" />
 
       {/* Hero Section */}
-      <section className="relative min-h-[100vh] flex flex-col justify-center pt-24 px-4 sm:px-6 lg:px-8">
-        <motion.div style={{ y: yBg }} className="absolute inset-0 z-0">
+      <section className="relative min-h-[75vh] flex flex-col justify-center py-10 px-4 sm:px-6 lg:px-8">
+        <motion.div style={{ y: yBg, opacity: opacityHero }} className="absolute inset-0 z-0">
           <video 
             ref={videoRef}
+            src="https://cdn.coverr.co/videos/coverr-camera-recording-a-music-festival-4663/1080p.mp4"
+            autoPlay
             loop 
             muted 
             playsInline
-            className="w-full h-full object-cover opacity-30 mix-blend-luminosity scale-105"
-          >
-            <source src="https://cdn.coverr.co/videos/coverr-camera-recording-a-music-festival-4663/1080p.mp4" type="video/mp4" />
-          </video>
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-r from-background via-transparent to-transparent" />
+            className="w-full h-full object-cover opacity-50 mix-blend-luminosity scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-background/20" />
+          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/40 to-transparent" />
         </motion.div>
 
-        <div className="relative z-10 max-w-7xl mx-auto w-full flex flex-col justify-center h-full gap-8">
+        <div className="relative z-10 max-w-7xl mx-auto w-full flex flex-col justify-center h-full gap-6 lg:gap-10">
           <motion.div
             initial={{ opacity: 0, filter: 'blur(10px)', y: 20 }}
             animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
-            transition={{ duration: 1, ease: 'easeOut' }}
+            transition={{ duration: 1.2, ease: 'easeOut' }}
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-6">
-              <Sparkles className="w-4 h-4 text-primary" />
-              <span className="text-xs font-bold uppercase tracking-widest text-white/80">The Next Era of Media</span>
+            <div className="inline-flex items-center gap-3 px-5 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-xl mb-8 shadow-2xl">
+              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+              <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.4em] text-white">FIDE TV MEDIA</span>
             </div>
-            <h1 className="text-6xl sm:text-8xl lg:text-[10rem] leading-[0.85] font-display font-black uppercase text-white tracking-tighter mix-blend-difference mb-8">
-              Creative<br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-orange-400">
-                Media.
+            
+            <h1 className="text-6xl sm:text-8xl lg:text-[10rem] xl:text-[12rem] leading-[0.8] font-display font-black uppercase text-white tracking-tighter mix-blend-difference mb-8">
+              INNOVATIVE<br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-orange-400 to-primary-light animate-gradient-x">
+                AGENCY.
               </span>
             </h1>
           </motion.div>
@@ -168,36 +210,90 @@ export default function Home() {
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4, duration: 0.8 }}
-            className="max-w-xl"
+            transition={{ delay: 0.6, duration: 1 }}
+            className="max-w-3xl"
           >
-            <p className="text-lg sm:text-xl text-gray-400 font-light mb-10 leading-relaxed">
-              FideTV is a premium media hub built for the next generation of digital storytelling. We stream, we produce, we connect the world.
+            <p className="text-lg sm:text-2xl text-gray-300 font-light mb-10 sm:mb-12 leading-relaxed tracking-tight border-l-4 border-primary pl-6">
+               FideTV is an innovative agency that specializes in various services to help individuals and businesses thrive in the digital landscape.
             </p>
 
-            <div className="flex flex-wrap gap-4">
-              <button
-                onClick={() => setShowVideoModal(true)}
-                className="group relative px-8 py-5 bg-white text-black font-bold uppercase tracking-widest text-sm flex items-center space-x-3 overflow-hidden rounded-2xl"
-              >
-                <div className="absolute inset-0 bg-primary translate-y-[100%] group-hover:translate-y-[0%] transition-transform duration-500 ease-out" />
-                <Play className="w-5 h-5 fill-current relative z-10 group-hover:text-white transition-colors duration-500" />
-                <span className="relative z-10 group-hover:text-white transition-colors duration-500">Watch Promo Video</span>
-              </button>
+            <div className="flex flex-col sm:flex-row flex-wrap gap-5 items-start sm:items-center">
               <Link
-                to="/live"
-                className="group px-8 py-5 border border-white/20 text-white font-bold uppercase tracking-widest text-sm flex items-center space-x-3 hover:border-white rounded-2xl transition-all"
+                to="/services"
+                className="group w-full sm:w-auto px-8 sm:px-10 py-5 bg-primary text-white font-black uppercase tracking-widest text-xs flex items-center justify-center space-x-4 hover:bg-primary/90 rounded-2xl transition-all shadow-xl shadow-primary/20"
               >
-                <Video className="w-5 h-5 group-hover:text-primary transition-colors" />
-                <span>Join Live Stream</span>
+                <span>Explore Services</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
+              
+              <button 
+                onClick={() => navigate('/live')}
+                className="group w-full sm:w-auto px-8 sm:px-10 py-5 bg-white/5 border border-white/10 backdrop-blur-md text-white font-black uppercase tracking-widest text-xs flex items-center justify-center space-x-3 hover:bg-white/10 rounded-2xl transition-all"
+              >
+                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Play className="w-4 h-4 fill-current ml-0.5" />
+                </div>
+                <span>Watch Live TV</span>
+              </button>
             </div>
           </motion.div>
         </div>
       </section>
 
+      {/* Featured Shows Horizontal Scroller */}
+      <section className="py-20 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-16">
+          <div className="flex flex-col sm:flex-row justify-between items-end gap-10">
+            <div className="space-y-6">
+              <span className="text-[10px] font-black uppercase text-primary tracking-[0.5em]">Original Programming</span>
+              <h2 className="text-6xl sm:text-8xl font-display font-medium text-white tracking-tighter leading-none italic">
+                Signature<br />Productions.
+              </h2>
+            </div>
+            <Link to="/content" className="group flex items-center space-x-4 px-8 py-4 border border-white/10 rounded-2xl hover:border-white transition-all text-[10px] font-black uppercase tracking-widest text-white">
+              <span>Enter Content Hub</span>
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
+            </Link>
+          </div>
+        </div>
+
+        <div className="flex gap-8 px-4 sm:px-10 overflow-x-auto pb-20 no-scrollbar snap-x">
+          {featuredPortfolio.map((show, i) => (
+            <motion.div
+              key={show.id || i}
+              initial={{ opacity: 0, x: 50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.1 }}
+              viewport={{ once: true }}
+              className="flex-shrink-0 w-[300px] sm:w-[500px] snap-start"
+            >
+              <div className="group relative aspect-[4/5] rounded-[3rem] overflow-hidden border border-white/5 bg-surface mb-8">
+                <img src={show.image_url || `https://images.unsplash.com/photo-1523050335392-9beffa5d2205?auto=format&fit=crop&q=80&w=500`} alt={show.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 opacity-60 group-hover:opacity-80" />
+                <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
+                <div className="absolute inset-0 p-8 sm:p-10 flex flex-col justify-end pointer-events-none">
+                   <div className="space-y-4">
+                      <span className="text-[10px] font-black uppercase text-primary tracking-[0.3em]">{show.category}</span>
+                      <h3 className="text-3xl sm:text-5xl font-display font-bold text-white tracking-tight leading-none">{show.title}</h3>
+                   </div>
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                   {show.youtube_id || show.video_url ? (
+                     <button onClick={() => setPlayingVideo(show)} className="w-16 h-16 sm:w-20 sm:h-20 bg-white/20 hover:bg-primary backdrop-blur-md rounded-full flex items-center justify-center text-white scale-90 group-hover:scale-100 transition-all duration-300 shadow-2xl pointer-events-auto">
+                       <Play className="w-8 h-8 sm:w-10 sm:h-10 fill-current ml-1 sm:ml-2" />
+                     </button>
+                   ) : null}
+                </div>
+              </div>
+              <p className="text-gray-500 font-light text-lg leading-relaxed px-6 italic">
+                "{show.description}"
+              </p>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
       {/* Metrics Section */}
-      <section className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-20">
+      <section className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10">
         <motion.div 
           variants={staggerContainer}
           initial="hidden"
@@ -261,7 +357,7 @@ export default function Home() {
       </section>
 
       {/* Bento Grid Services Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-40">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-24">
         <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-8">
           <div className="space-y-6">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/20 text-primary text-xs font-bold uppercase tracking-widest">
@@ -312,7 +408,7 @@ export default function Home() {
       </section>
 
       {/* Heroic CTA Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-40">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-24">
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           whileInView={{ opacity: 1, scale: 1 }}

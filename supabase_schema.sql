@@ -21,6 +21,7 @@ CREATE TABLE public.community_members (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   community_id UUID REFERENCES public.communities(id) ON DELETE CASCADE NOT NULL,
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  role TEXT DEFAULT 'member' CHECK (role IN ('member', 'moderator', 'admin')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   UNIQUE(community_id, user_id)
 );
@@ -109,7 +110,34 @@ CREATE TABLE public.bookings (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 6. RLS (Row Level Security) Settings
+-- 6. Portfolio Items Table
+CREATE TABLE IF NOT EXISTS public.portfolio_items (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  title TEXT NOT NULL,
+  category TEXT NOT NULL,
+  description TEXT,
+  image_url TEXT,
+  video_url TEXT,
+  youtube_id TEXT,
+  is_featured BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 6.5 TV Channels Table
+CREATE TABLE IF NOT EXISTS public.tv_channels (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  category TEXT NOT NULL,
+  thumbnail TEXT,
+  url TEXT NOT NULL,
+  icon TEXT,
+  description TEXT,
+  is_active BOOLEAN DEFAULT true,
+  order_index INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 7. RLS (Row Level Security) Settings
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.posts ENABLE ROW LEVEL SECURITY;
@@ -119,6 +147,8 @@ ALTER TABLE public.communities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.community_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.news ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.post_likes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.portfolio_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tv_channels ENABLE ROW LEVEL SECURITY;
 
 -- 7. Policies
 -- Profiles: Users can read all, but only write their own
@@ -134,9 +164,18 @@ CREATE POLICY "Users can leave communities" ON public.community_members FOR DELE
 CREATE POLICY "Events are viewable by everyone" ON public.events FOR SELECT USING (true);
 CREATE POLICY "Only admin can manage events" ON public.events FOR ALL USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
 
--- Communities: Everyone can read, only admin can manage
+-- Communities: Everyone can read, only admin can create/delete, moderators can update
 CREATE POLICY "Communities viewable by everyone" ON public.communities FOR SELECT USING (true);
-CREATE POLICY "Only admin can manage communities" ON public.communities FOR ALL USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
+CREATE POLICY "Only global admin can create or delete communities" ON public.communities FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
+CREATE POLICY "Only global admin can delete communities" ON public.communities FOR DELETE USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
+CREATE POLICY "Moderators can update community details" ON public.communities FOR UPDATE USING (
+  EXISTS (
+    SELECT 1 FROM public.community_members
+    WHERE community_id = public.communities.id
+    AND user_id = auth.uid()
+    AND role IN ('moderator', 'admin')
+  ) OR (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com')
+);
 
 -- Posts: Everyone can read, signed in can write/delete own
 CREATE POLICY "Posts viewable by everyone" ON public.posts FOR SELECT USING (true);
@@ -163,6 +202,18 @@ CREATE POLICY "Admin can delete any comment" ON public.comments FOR DELETE USING
 -- Bookings: Only admin can see all, users can only insert
 CREATE POLICY "Only admin can view bookings" ON public.bookings FOR SELECT USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
 CREATE POLICY "Everyone can request booking" ON public.bookings FOR INSERT WITH CHECK (true);
+
+-- Portfolio Items: Everyone can see, only admin can manage
+DROP POLICY IF EXISTS "Portfolio items viewable by everyone" ON public.portfolio_items;
+CREATE POLICY "Portfolio items viewable by everyone" ON public.portfolio_items FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Only admin can manage portfolio items" ON public.portfolio_items;
+CREATE POLICY "Only admin can manage portfolio items" ON public.portfolio_items FOR ALL USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
+
+-- TV Channels: Everyone can see, only admin can manage
+DROP POLICY IF EXISTS "TV channels viewable by everyone" ON public.tv_channels;
+CREATE POLICY "TV channels viewable by everyone" ON public.tv_channels FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Only admin can manage TV channels" ON public.tv_channels;
+CREATE POLICY "Only admin can manage TV channels" ON public.tv_channels FOR ALL USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
 
 -- 8. Realtime (Enable replication for specific tables)
 ALTER PUBLICATION supabase_realtime ADD TABLE public.posts;

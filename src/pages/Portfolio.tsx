@@ -112,19 +112,20 @@ export default function Portfolio() {
                       <div className="flex space-x-3 opacity-0 group-hover:opacity-100 transition-opacity delay-100">
                         <button 
                           onClick={() => setPlayingVideo(project)}
-                          className="w-10 h-10 bg-white text-black rounded-full flex items-center justify-center hover:bg-primary hover:text-white transition-colors"
+                          className="w-full h-12 bg-white text-black font-black uppercase tracking-widest text-[10px] rounded-2xl flex items-center justify-center hover:bg-primary hover:text-white transition-all shadow-xl shadow-black/20"
                         >
-                          {project.type === 'video' ? <Play className="w-4 h-4 fill-current ml-0.5" /> : <ZoomIn className="w-4 h-4" />}
+                          {project.type === 'video' ? (
+                            <>
+                              <Play className="w-4 h-4 fill-current mr-2" />
+                              <span>Watch Now</span>
+                            </>
+                          ) : (
+                            <>
+                              <ZoomIn className="w-4 h-4 mr-2" />
+                              <span>View Project</span>
+                            </>
+                          )}
                         </button>
-                        {(project.youtube_id || project.stream_url) && (
-                          <a 
-                            href={project.youtube_id ? `https://youtube.com/watch?v=${project.youtube_id}` : project.stream_url} 
-                            target="_blank" rel="noopener noreferrer"
-                            className="w-10 h-10 bg-surface rounded-full flex items-center justify-center text-white hover:bg-primary transition-colors border border-white/10"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </a>
-                        )}
                       </div>
                    </div>
                 </div>

@@ -31,6 +31,7 @@ export interface CommunityMember {
   id: string;
   community_id: string;
   user_id: string;
+  role: 'member' | 'moderator' | 'admin';
   created_at: string;
 }
 
@@ -93,5 +94,30 @@ export interface Booking {
   feedback?: string;
   rating?: number;
   status: 'pending' | 'confirmed' | 'cancelled';
+  created_at: string;
+}
+
+export interface PortfolioItem {
+  id: string;
+  title: string;
+  category: string;
+  description?: string;
+  image_url?: string;
+  video_url?: string;
+  youtube_id?: string;
+  is_featured: boolean;
+  created_at: string;
+}
+
+export interface TvChannel {
+  id: string;
+  name: string;
+  category: string;
+  thumbnail?: string;
+  url: string;
+  icon?: string;
+  description?: string;
+  is_active: boolean;
+  order_index: number;
   created_at: string;
 }

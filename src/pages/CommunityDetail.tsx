@@ -4,9 +4,10 @@ import { supabase } from '@/lib/supabase';
 import { Community, Post } from '@/types';
 import PostCard from '@/components/PostCard';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Plus, Image as ImageIcon, Video, MessageSquare, Users, Globe, Info } from 'lucide-react';
+import { ArrowLeft, Plus, Image as ImageIcon, Video, MessageSquare, Users, Globe, Info, Edit3, Camera, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactPlayer from 'react-player';
+import { format } from 'date-fns';
 
 const Player = ReactPlayer as any;
 
@@ -19,7 +20,16 @@ export default function CommunityDetail() {
   const [newPostContent, setNewPostContent] = useState('');
   const [user, setUser] = useState<any>(null);
   const [isMember, setIsMember] = useState(false);
+  const [memberRole, setMemberRole] = useState<'member' | 'moderator' | 'admin' | null>(null);
   const [memberCount, setMemberCount] = useState(0);
+  const [moderators, setModerators] = useState<any[]>([]);
+
+  const [isEditingCommunity, setIsEditingCommunity] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editImageFile, setEditImageFile] = useState<File | null>(null);
+  const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
+  const [isUpdatingCommunity, setIsUpdatingCommunity] = useState(false);
 
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
@@ -38,11 +48,13 @@ export default function CommunityDetail() {
   const checkMembership = async (userId: string, communityId: string) => {
      const { data } = await supabase
        .from('community_members')
-       .select('id')
+       .select('role')
        .eq('user_id', userId)
        .eq('community_id', communityId)
        .maybeSingle();
+     
      setIsMember(!!data);
+     setMemberRole(data?.role || null);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -79,7 +91,7 @@ export default function CommunityDetail() {
 
   const fetchData = async () => {
     setLoading(true);
-    const [comRes, postRes, countRes] = await Promise.all([
+    const [comRes, postRes, countRes, modRes] = await Promise.all([
       supabase.from('communities').select('*').eq('id', id).single(),
       supabase
         .from('posts')
@@ -89,12 +101,22 @@ export default function CommunityDetail() {
       supabase
         .from('community_members')
         .select('id', { count: 'exact' })
+        .eq('community_id', id),
+      supabase
+        .from('community_members')
+        .select('profiles(username, avatar_url)')
         .eq('community_id', id)
+        .in('role', ['moderator', 'admin'])
     ]);
 
-    if (comRes.data) setCommunity(comRes.data);
+    if (comRes.data) {
+      setCommunity(comRes.data);
+      setEditName(comRes.data.name);
+      setEditDescription(comRes.data.description || '');
+    }
     if (postRes.data) setPosts(postRes.data as any);
     if (countRes.count !== null) setMemberCount(countRes.count);
+    if (modRes.data) setModerators(modRes.data.map(m => m.profiles));
     setLoading(false);
   };
 
@@ -139,6 +161,47 @@ export default function CommunityDetail() {
     setUploading(false);
   };
 
+  const handleUpdateCommunity = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!community || !user || !id) return;
+
+    setIsUpdatingCommunity(true);
+    let image_url = community.image_url;
+
+    if (editImageFile) {
+      const fileExt = editImageFile.name.split('.').pop();
+      const fileName = `${id}-${Math.random()}.${fileExt}`;
+      const filePath = `communities/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('event-thumbnails')
+        .upload(filePath, editImageFile);
+
+      if (!uploadError) {
+        image_url = supabase.storage.from('event-thumbnails').getPublicUrl(filePath).data.publicUrl;
+      }
+    }
+
+    const { error } = await supabase
+      .from('communities')
+      .update({
+        name: editName,
+        description: editDescription,
+        image_url
+      })
+      .eq('id', id);
+
+    if (!error) {
+      setIsEditingCommunity(false);
+      setEditImageFile(null);
+      setEditImagePreview(null);
+      fetchData();
+    }
+    setIsUpdatingCommunity(false);
+  };
+
+  const isModerator = memberRole === 'moderator' || memberRole === 'admin' || user?.email === 'fidetvonline@gmail.com';
+
   if (loading && !community) return <div className="max-w-4xl mx-auto py-40 text-center text-gray-500">Loading Hub...</div>;
   if (!community) return <div className="max-w-4xl mx-auto py-40 text-center text-gray-500">Hub not found.</div>;
 
@@ -148,6 +211,101 @@ export default function CommunityDetail() {
         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
         <span className="text-sm font-bold uppercase tracking-widest">Back to Communities</span>
       </Link>
+
+      <AnimatePresence>
+        {isEditingCommunity && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 sm:p-8"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-2xl bg-surface-bright rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/10 p-8 sm:p-12 space-y-8"
+            >
+              <button
+                onClick={() => setIsEditingCommunity(false)}
+                className="absolute top-6 right-6 p-2 bg-white/5 hover:bg-white/10 rounded-full text-white transition-all"
+              >
+                <X className="w-6 h-6" />
+              </button>
+
+              <div className="space-y-2">
+                <h2 className="text-3xl font-display font-medium text-white tracking-tight">Hub Settings</h2>
+                <p className="text-gray-500 text-sm">Update your community details and branding.</p>
+              </div>
+
+              <form onSubmit={handleUpdateCommunity} className="space-y-8">
+                <div className="flex flex-col sm:flex-row gap-8 items-center">
+                  <div className="relative group">
+                    <div className="w-32 h-32 bg-surface rounded-[2rem] border-2 border-white/5 overflow-hidden flex items-center justify-center text-primary">
+                      {editImagePreview || community.image_url ? (
+                        <img src={editImagePreview || community.image_url} className="w-full h-full object-cover" />
+                      ) : (
+                        <Users className="w-12 h-12" />
+                      )}
+                    </div>
+                    <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer rounded-[2rem]">
+                      <input 
+                        type="file" 
+                        className="hidden" 
+                        accept="image/*" 
+                        onChange={(e) => {
+                          if (e.target.files?.[0]) {
+                            setEditImageFile(e.target.files[0]);
+                            setEditImagePreview(URL.createObjectURL(e.target.files[0]));
+                          }
+                        }} 
+                      />
+                      <Camera className="w-8 h-8 text-white" />
+                    </label>
+                  </div>
+                  <div className="flex-grow space-y-4 w-full">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase text-gray-600 tracking-widest pl-1">Hub Name</label>
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white placeholder-gray-700 focus:outline-none focus:border-primary/40 transition-all"
+                        placeholder="Name of your community"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-gray-600 tracking-widest pl-1">Description</label>
+                  <textarea
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white placeholder-gray-700 focus:outline-none focus:border-primary/40 transition-all min-h-[120px] resize-none text-sm leading-relaxed"
+                    placeholder="What is this hub about?"
+                  />
+                </div>
+
+                <div className="flex justify-end pt-4">
+                  <button
+                    type="submit"
+                    disabled={isUpdatingCommunity || !editName.trim()}
+                    className="px-10 py-5 bg-primary text-white font-black uppercase tracking-[0.2em] text-xs rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/20 disabled:opacity-50 flex items-center space-x-3"
+                  >
+                    {isUpdatingCommunity ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Check className="w-4 h-4" />
+                    )}
+                    <span>{isUpdatingCommunity ? 'Saving...' : 'Update Hub'}</span>
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="flex flex-col md:flex-row gap-12 items-start">
         {/* Main Feed */}
@@ -175,6 +333,15 @@ export default function CommunityDetail() {
                 </div>
               </div>
               <div className="flex items-center space-x-4">
+                {isModerator && (
+                  <button
+                    onClick={() => setIsEditingCommunity(true)}
+                    className="w-14 h-14 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-gray-500 hover:text-primary hover:border-primary/20 transition-all shadow-xl"
+                    title="Edit Hub"
+                  >
+                    <Edit3 className="w-6 h-6" />
+                  </button>
+                )}
                 {user && (
                   <button
                     onClick={toggleMembership}
@@ -224,7 +391,7 @@ export default function CommunityDetail() {
                     {mediaFile?.type.startsWith('image') ? (
                       <img src={mediaPreview} className="w-full h-full object-cover" />
                     ) : (
-                      <video src={mediaPreview} className="w-full h-full object-cover" />
+                      <video src={mediaPreview} controls playsInline className="w-full h-full object-cover" />
                     )}
                     <button 
                       onClick={() => { setMediaFile(null); setMediaPreview(null); }}
@@ -299,15 +466,21 @@ export default function CommunityDetail() {
             <div className="space-y-4">
               <div className="space-y-1">
                 <p className="text-[10px] uppercase font-black text-gray-600">Established</p>
-                <p className="text-sm text-gray-300">April 2024</p>
+                <p className="text-sm text-gray-300">{community.created_at ? format(new Date(community.created_at), 'MMMM yyyy') : 'April 2024'}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] uppercase font-black text-gray-600">Privacy</p>
                 <p className="text-sm text-gray-300">Public Group</p>
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] uppercase font-black text-gray-600">Admin</p>
-                <p className="text-sm text-primary font-bold">@fidetv_admin</p>
+                <p className="text-[10px] uppercase font-black text-gray-600">Moderators</p>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {moderators.length > 0 ? moderators.map((mod, i) => (
+                    <span key={i} className="text-sm text-primary font-bold">@{mod.username}</span>
+                  )) : (
+                    <p className="text-sm text-gray-600 italic">No moderators assigned</p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
