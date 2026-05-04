@@ -16,6 +16,7 @@ import Profile from '@/pages/Profile';
 import Admin from '@/pages/Admin';
 import Policies from '@/pages/Policies';
 import ReloadPrompt from '@/components/ReloadPrompt';
+import InstallPrompt from '@/components/InstallPrompt';
 
 export default function App() {
   return (
@@ -42,6 +43,7 @@ export default function App() {
         </Routes>
       </Layout>
       <ReloadPrompt />
+      <InstallPrompt />
     </Router>
   );
 }

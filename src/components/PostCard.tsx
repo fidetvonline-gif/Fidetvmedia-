@@ -13,7 +13,7 @@ const Player = ReactPlayer as any;
 export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onDelete?: () => void, onUpdate?: () => void }) {
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(post.post_likes?.length || 0);
-  const [showComments, setShowComments] = useState(false);
+  const [showComments, setShowComments] = useState(true);
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [user, setUser] = useState<any>(null);
@@ -272,7 +272,7 @@ export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onD
             className="flex items-center space-x-2 text-gray-500 hover:text-primary transition-colors group"
           >
             <MessageCircle className="w-5 h-5 transition-transform group-hover:-translate-y-0.5" />
-            <span className="text-sm font-bold">{showComments ? 'Hide' : 'Comment'}</span>
+            <span className="text-sm font-bold">{comments.length}</span>
           </button>
         </div>
         

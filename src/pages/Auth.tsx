@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mail, Lock, User, ArrowRight, Github, Chrome, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function Auth() {
@@ -66,16 +66,6 @@ export default function Auth() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSocialLogin = async (provider: 'github' | 'google') => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-         redirectTo: window.location.origin
-      }
-    });
-    if (error) setError(error.message);
   };
 
   return (
@@ -186,32 +176,6 @@ export default function Auth() {
                     {!loading && <ArrowRight className="w-5 h-5" />}
                   </button>
                 </form>
-
-                <div className="relative py-4">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-white/5"></div>
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase tracking-widest">
-                    <span className="bg-[#121212] px-4 text-gray-600 font-bold">Or continue with</span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <button
-                    onClick={() => handleSocialLogin('github')}
-                    className="flex items-center justify-center space-x-2 py-4 glass rounded-2xl hover:bg-white/5 transition-all"
-                  >
-                    <Github className="w-5 h-5 text-white" />
-                    <span className="text-sm font-bold text-white uppercase tracking-widest">Github</span>
-                  </button>
-                  <button
-                    onClick={() => handleSocialLogin('google')}
-                    className="flex items-center justify-center space-x-2 py-4 glass rounded-2xl hover:bg-white/5 transition-all text-white"
-                  >
-                    <Chrome className="w-5 h-5" />
-                    <span className="text-sm font-bold uppercase tracking-widest">Google</span>
-                  </button>
-                </div>
               </motion.div>
             )}
           </AnimatePresence>
