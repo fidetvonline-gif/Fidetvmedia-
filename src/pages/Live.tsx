@@ -217,7 +217,12 @@ export default function Live() {
                    <div 
                      className="w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:border-none"
                      dangerouslySetInnerHTML={{ 
-                       __html: activeChannel.url.replace('<iframe', '<iframe sandbox="allow-scripts allow-same-origin allow-presentation allow-forms" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"') 
+                       __html: activeChannel.url
+                         .replace(/src="([^"]+)"/, (match, p1) => {
+                           const separator = p1.includes('?') ? '&' : '?';
+                           return `src="${p1}${separator}autoplay=1"`;
+                         })
+                         .replace('<iframe', '<iframe allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"') 
                      }} 
                    />
                 </div>

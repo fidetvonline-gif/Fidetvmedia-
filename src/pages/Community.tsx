@@ -5,14 +5,21 @@ import { motion } from 'motion/react';
 import { Search, Users, ArrowRight, Plus, MessageSquare, TrendingUp, Globe, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import FollowButton from '@/components/FollowButton';
 
 export default function Community() {
   const [communities, setCommunities] = useState<CommunityType[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [suggestedUsers, setSuggestedUsers] = useState<any[]>([]);
 
   useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setCurrentUser(user);
+    });
     fetchCommunities();
+    fetchSuggestedUsers();
   }, []);
 
   const fetchCommunities = async () => {
@@ -23,6 +30,17 @@ export default function Community() {
     
     if (data) setCommunities(data as any);
     setLoading(false);
+  };
+
+  const fetchSuggestedUsers = async () => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, username, full_name, avatar_url')
+      .limit(5);
+    
+    if (data) {
+      setSuggestedUsers(data);
+    }
   };
 
   const filtered = communities.filter(c => 
@@ -158,6 +176,33 @@ export default function Community() {
                 <div key={item.tag} className="group cursor-pointer">
                   <p className="text-sm font-bold text-white group-hover:text-primary transition-colors">{item.tag}</p>
                   <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mt-1">{item.posts} Discussions</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="glass rounded-[2.5rem] p-8 space-y-6">
+            <h3 className="font-display font-bold text-white text-lg flex items-center space-x-2">
+              <User className="w-5 h-5 text-primary" />
+              <span>Who to Follow</span>
+            </h3>
+            <div className="space-y-4">
+              {suggestedUsers.filter(u => u.id !== currentUser?.id).slice(0, 4).map(u => (
+                <div key={u.id} className="flex items-center justify-between group">
+                  <Link to={`/profile/${u.username}`} className="flex items-center space-x-3 overflow-hidden">
+                    <div className="w-10 h-10 rounded-full bg-surface-bright flex items-center justify-center shrink-0 border border-white/5 overflow-hidden">
+                      {u.avatar_url ? (
+                         <img src={u.avatar_url} alt={u.username} className="w-full h-full object-cover" />
+                      ) : (
+                         <User className="w-5 h-5 text-gray-500" />
+                      )}
+                    </div>
+                    <div className="flex flex-col overflow-hidden">
+                      <span className="text-sm font-bold text-white truncate group-hover:text-primary transition-colors">{u.full_name || u.username}</span>
+                      <span className="text-[10px] text-gray-500 uppercase tracking-widest truncate">@{u.username}</span>
+                    </div>
+                  </Link>
+                  <FollowButton targetUserId={u.id} className="scale-75 origin-right" />
                 </div>
               ))}
             </div>
