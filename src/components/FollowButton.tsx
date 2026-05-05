@@ -61,18 +61,35 @@ export default function FollowButton({ targetUserId, className, onFollowChange }
         setIsFollowing(false);
         onFollowChange?.(false);
       } else {
-        await supabase
+        const { error: followError } = await supabase
           .from('followers')
           .insert({
             follower_id: currentUser.id,
             following_id: targetUserId
           });
+        
+        if (followError) throw followError;
+
+        // Create notification
+        await supabase
+          .from('notifications')
+          .insert({
+            recipient_id: targetUserId,
+            actor_id: currentUser.id,
+            type: 'follow',
+            read: false
+          });
+
         setIsFollowing(true);
         onFollowChange?.(true);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert("Followers system not initialized. Tell FideTV to run the setup SQL!");
+      if (e.message?.includes('not found')) {
+        alert("Database tables 'followers' or 'notifications' are missing. Please run the setup SQL.");
+      } else {
+        alert("Error: " + e.message);
+      }
     } finally {
       setLoading(false);
     }

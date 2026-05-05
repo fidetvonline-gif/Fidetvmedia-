@@ -9,7 +9,6 @@ export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -20,10 +19,24 @@ export default function Auth() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        navigate('/profile');
+        checkProfile(session.user.id);
       }
     });
   }, [navigate]);
+
+  const checkProfile = async (userId: string) => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('id', userId)
+      .single();
+    
+    if (data?.username) {
+      navigate('/profile');
+    } else {
+      navigate('/onboarding');
+    }
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,33 +45,19 @@ export default function Auth() {
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (error) throw error;
-        navigate('/profile');
+        if (data.user) checkProfile(data.user.id);
       } else {
-        const { data, error } = await supabase.auth.signUp({
+        const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            data: {
-              username,
-            },
-          },
         });
         if (error) throw error;
         
-        // Create initial profile
-        if (data.user) {
-          const { error: profileError } = await supabase.from('profiles').insert({
-            id: data.user.id,
-            username: username,
-          });
-          if (profileError) console.error('Profile creation error:', profileError);
-        }
-
         setSuccess(true);
       }
     } catch (err: any) {
@@ -131,19 +130,6 @@ export default function Auth() {
                 )}
 
                 <form onSubmit={handleAuth} className="space-y-4">
-                  {!isLogin && (
-                    <div className="relative">
-                      <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                      <input
-                        type="text"
-                        required
-                        placeholder="Username"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        className="w-full bg-surface border border-white/5 rounded-2xl pl-12 pr-4 py-4 focus:outline-none focus:border-primary/30 transition-all text-white"
-                      />
-                    </div>
-                  )}
                   <div className="relative">
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                     <input

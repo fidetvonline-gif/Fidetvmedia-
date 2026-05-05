@@ -70,6 +70,19 @@ export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onD
       if (!error) {
         setIsLiked(true);
         setLikesCount(prev => prev + 1);
+
+        // Create notification for post owner
+        if (post.author_id !== user.id) {
+          await supabase
+            .from('notifications')
+            .insert({
+              recipient_id: post.author_id,
+              actor_id: user.id,
+              type: 'like',
+              resource_id: post.id,
+              read: false
+            });
+        }
       }
     }
   };
@@ -99,6 +112,19 @@ export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onD
     if (!error) {
       setNewComment('');
       fetchComments();
+
+      // Create notification for post owner
+      if (post.author_id !== user.id) {
+        await supabase
+          .from('notifications')
+          .insert({
+            recipient_id: post.author_id,
+            actor_id: user.id,
+            type: 'comment',
+            resource_id: post.id,
+            read: false
+          });
+      }
     }
   };
 
@@ -144,19 +170,19 @@ export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onD
     >
       <div className="flex justify-between items-start">
         <div className="flex items-center space-x-4">
-          <div className="w-12 h-12 bg-surface-bright rounded-2xl flex items-center justify-center overflow-hidden border border-white/10 group cursor-pointer">
+          <Link to={`/profile/${post.profiles?.username}`} className="w-12 h-12 bg-surface-bright rounded-2xl flex items-center justify-center overflow-hidden border border-white/10 group cursor-pointer">
             {post.profiles?.avatar_url ? (
               <img src={post.profiles.avatar_url} alt={post.profiles.username} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
             ) : (
               <User className="w-6 h-6 text-gray-600" />
             )}
-          </div>
+          </Link>
           <div>
             <div className="flex items-center gap-3">
-              <h4 className="font-display font-bold text-white group-hover:text-primary transition-colors cursor-pointer flex items-center gap-2">
+              <Link to={`/profile/${post.profiles?.username}`} className="font-display font-bold text-white hover:text-primary transition-colors cursor-pointer flex items-center gap-2">
                 {post.profiles?.username || 'Anonymous'}
                 {post.profiles?.is_verified && <Award className="w-3 h-3 text-primary" />}
-              </h4>
+              </Link>
               {user && user.id !== post.author_id && (
                 <Link to="/messages" className="bg-white/5 hover:bg-white/10 px-2 py-1 rounded-md text-[10px] text-gray-400 hover:text-white uppercase font-black items-center gap-1 flex transition-colors shadow-sm">
                   <Send className="w-3 h-3" /> Message
@@ -330,19 +356,19 @@ export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onD
                 <div className="text-center p-4 text-gray-600 text-xs">Loading comments...</div>
               ) : comments.map(comment => (
                 <div key={comment.id} className="flex gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-surface flex items-center justify-center overflow-hidden shrink-0 border border-white/5">
+                  <Link to={`/profile/${comment.profiles?.username}`} className="w-8 h-8 rounded-lg bg-surface flex items-center justify-center overflow-hidden shrink-0 border border-white/5">
                     {comment.profiles?.avatar_url ? (
                       <img src={comment.profiles.avatar_url} className="w-full h-full object-cover" />
                     ) : (
                       <User className="w-4 h-4 text-gray-600" />
                     )}
-                  </div>
+                  </Link>
                   <div className="flex-grow bg-white/5 rounded-2xl px-4 py-3">
                     <div className="flex justify-between items-center mb-1">
-                      <span className="text-[10px] font-black text-white uppercase flex items-center gap-1">
+                      <Link to={`/profile/${comment.profiles?.username}`} className="text-[10px] font-black text-white uppercase flex items-center gap-1 hover:text-primary transition-colors">
                         {comment.profiles?.username}
                         {comment.profiles?.is_verified && <Award className="w-2 h-2 text-primary" />}
-                      </span>
+                      </Link>
                       <span className="text-[9px] text-gray-600">{formatDistanceToNow(new Date(comment.created_at))} ago</span>
                     </div>
                     <p className="text-sm text-gray-400">{comment.content}</p>

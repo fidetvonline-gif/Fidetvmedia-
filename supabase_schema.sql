@@ -240,11 +240,29 @@ CREATE TABLE public.direct_messages (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- 11. Notifications Table
+CREATE TABLE public.notifications (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  recipient_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  actor_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('follow', 'like', 'comment', 'post', 'mention')),
+  resource_id UUID, -- Optional ID of the related object (post_id, etc.)
+  read BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 ALTER TABLE public.direct_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can insert their own messages" ON public.direct_messages FOR INSERT WITH CHECK (auth.uid() = sender_id);
 CREATE POLICY "Users can read their own messages" ON public.direct_messages FOR SELECT USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
 CREATE POLICY "Users can update their received messages" ON public.direct_messages FOR UPDATE USING (auth.uid() = receiver_id);
 CREATE POLICY "Users can delete messages" ON public.direct_messages FOR DELETE USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
 
+CREATE POLICY "Users can view their own notifications" ON public.notifications FOR SELECT USING (auth.uid() = recipient_id);
+CREATE POLICY "Users can update their own notifications" ON public.notifications FOR UPDATE USING (auth.uid() = recipient_id);
+CREATE POLICY "Users can delete their own notifications" ON public.notifications FOR DELETE USING (auth.uid() = recipient_id);
+CREATE POLICY "System/Users can insert notifications" ON public.notifications FOR INSERT WITH CHECK (true); -- Usually inserted by app logic
+
 ALTER PUBLICATION supabase_realtime ADD TABLE public.direct_messages;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;

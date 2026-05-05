@@ -1,24 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { 
   User, Settings, Grid, Heart, MessageSquare, LogOut, Camera, 
   Edit3, AlertTriangle, Twitter, Instagram, Linkedin, X, Check, 
-  ShieldCheck, ShieldAlert, Award, FileText, Calendar, Star, Send, CheckCircle2
+  ShieldCheck, ShieldAlert, Award, FileText, Calendar, Star, Send, CheckCircle2,
+  Users
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
 import PostCard from '@/components/PostCard';
+import FollowButton from '@/components/FollowButton';
 import { Post, Profile as ProfileType, Booking } from '@/types';
 import { format } from 'date-fns';
 
 export default function Profile() {
+  const { username: urlUsername } = useParams();
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<ProfileType | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [bookings, setBookings] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'posts' | 'liked' | 'bookings'>('posts');
   const [loading, setLoading] = useState(true);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [submittingFeedback, setSubmittingFeedback] = useState<string | null>(null);
   const [feedbackText, setFeedbackText] = useState('');
   const [rating, setRating] = useState(0);
@@ -43,21 +49,56 @@ export default function Profile() {
   useEffect(() => {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      const currentUser = session?.user || null;
+      setUser(currentUser);
+
+      if (urlUsername) {
+        await fetchUserProfileByUsername(urlUsername, currentUser);
+      } else if (currentUser) {
+        await fetchProfile(currentUser);
+        setIsOwnProfile(true);
+      } else {
         navigate('/auth');
         return;
       }
-      setUser(session.user);
-      await Promise.all([
-        fetchProfile(session.user),
-        fetchUserPosts(session.user.id),
-        fetchUserBookings(session.user.id)
-      ]);
       setLoading(false);
     };
 
     checkUser();
-  }, [navigate]);
+  }, [navigate, urlUsername]);
+
+  const fetchUserProfileByUsername = async (username: string, currentUser: any) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('username', username)
+      .single();
+
+    if (data) {
+      setProfile(data);
+      setIsOwnProfile(currentUser?.id === data.id);
+      
+      await Promise.all([
+        fetchUserPosts(data.id),
+        fetchFollowerCounts(data.id)
+      ]);
+    } else {
+      setLoading(false);
+    }
+  };
+
+  const fetchFollowerCounts = async (profileId: string) => {
+    try {
+      const [followers, following] = await Promise.all([
+        supabase.from('followers').select('*', { count: 'exact', head: true }).eq('following_id', profileId),
+        supabase.from('followers').select('*', { count: 'exact', head: true }).eq('follower_id', profileId)
+      ]);
+      setFollowerCount(followers.count || 0);
+      setFollowingCount(following.count || 0);
+    } catch (e) {
+      console.warn("Followers count error", e);
+    }
+  };
 
   const fetchUserBookings = async (userId: string) => {
     const { data, error } = await supabase
@@ -205,6 +246,11 @@ export default function Profile() {
         social_instagram: data.social_instagram || '',
         social_linkedin: data.social_linkedin || ''
       });
+      await Promise.all([
+        fetchUserPosts(data.id),
+        fetchUserBookings(data.id),
+        fetchFollowerCounts(data.id)
+      ]);
     }
   };
 
@@ -333,23 +379,42 @@ export default function Profile() {
                 @{profile?.username || 'user'}
                 {profile?.is_verified && <Award className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />}
               </h1>
-              <p className="text-gray-500 font-medium text-sm sm:text-base">Creative Media Enthusiast</p>
+              <div className="flex items-center justify-center sm:justify-start space-x-6 text-gray-500 font-medium text-sm sm:text-base">
+                 <div className="flex items-center space-x-1">
+                    <span className="text-white font-bold">{followerCount}</span>
+                    <span className="text-[10px] uppercase tracking-widest text-gray-600">Followers</span>
+                 </div>
+                 <div className="flex items-center space-x-1">
+                    <span className="text-white font-bold">{followingCount}</span>
+                    <span className="text-[10px] uppercase tracking-widest text-gray-600">Following</span>
+                 </div>
+              </div>
             </div>
 
             <div className="flex space-x-3 pb-2 sm:pb-8">
-              <button 
-                onClick={toggleEdit} 
-                className="px-5 sm:px-6 py-2.5 sm:py-3 bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl text-white text-[10px] font-black uppercase tracking-widest flex items-center space-x-2 hover:bg-white/10 transition-all"
-              >
-                {isEditing ? <X className="w-4 h-4 text-gray-400" /> : <Edit3 className="w-4 h-4 text-primary" />}
-                <span>{isEditing ? 'Cancel' : 'Edit'}</span>
-              </button>
-              <button 
-                onClick={handleSignOut}
-                className="p-2.5 sm:p-3 bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl text-gray-500 hover:text-red-500 transition-all"
-              >
-                <LogOut className="w-5 h-5" />
-              </button>
+              {isOwnProfile ? (
+                <>
+                  <button 
+                    onClick={toggleEdit} 
+                    className="px-5 sm:px-6 py-2.5 sm:py-3 bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl text-white text-[10px] font-black uppercase tracking-widest flex items-center space-x-2 hover:bg-white/10 transition-all"
+                  >
+                    {isEditing ? <X className="w-4 h-4 text-gray-400" /> : <Edit3 className="w-4 h-4 text-primary" />}
+                    <span>{isEditing ? 'Cancel' : 'Edit'}</span>
+                  </button>
+                  <button 
+                    onClick={handleSignOut}
+                    className="p-2.5 sm:p-3 bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl text-gray-500 hover:text-red-500 transition-all"
+                  >
+                    <LogOut className="w-5 h-5" />
+                  </button>
+                </>
+              ) : (
+                <FollowButton 
+                  targetUserId={profile?.id || ''} 
+                  className="sm:px-8 sm:py-4 rounded-2xl" 
+                  onFollowChange={(active) => setFollowerCount(prev => active ? prev + 1 : prev - 1)}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -478,7 +543,7 @@ export default function Profile() {
                      </div>
                      <p className="text-[10px] text-gray-500 font-medium leading-relaxed">Your request is being processed by our team. We'll notify you once it's approved.</p>
                   </div>
-                ) : (
+                ) : isOwnProfile ? (
                   <div className="space-y-4">
                      <p className="text-xs text-gray-500 leading-relaxed font-medium">Get a verification badge to build trust and unlock advanced platform features.</p>
                      <button 
@@ -488,13 +553,17 @@ export default function Profile() {
                        Request Badge
                      </button>
                   </div>
+                ) : (
+                  <div className="p-6 bg-white/5 border border-dashed border-white/10 rounded-[2rem] text-center">
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest italic">Standard Profile</p>
+                  </div>
                 )}
              </div>
           </div>
 
           {/* User Feed */}
           <div className="flex-grow space-y-8">
-             <div className="flex items-center space-x-8 border-b border-white/5 pb-4">
+              <div className="flex items-center space-x-8 border-b border-white/5 pb-4">
                 <button 
                   onClick={() => setActiveTab('posts')}
                   className={cn(
@@ -505,16 +574,18 @@ export default function Profile() {
                   <Grid className="w-4 h-4" />
                   <span>Posts</span>
                 </button>
-                <button 
-                  onClick={() => setActiveTab('bookings')}
-                  className={cn(
-                    "flex items-center space-x-2 pb-4 font-bold text-sm uppercase tracking-widest leading-none transition-all",
-                    activeTab === 'bookings' ? "text-primary border-b-2 border-primary" : "text-gray-500 hover:text-white"
-                  )}
-                >
-                  <Calendar className="w-4 h-4" />
-                  <span>My Bookings</span>
-                </button>
+                {isOwnProfile && (
+                  <button 
+                    onClick={() => setActiveTab('bookings')}
+                    className={cn(
+                      "flex items-center space-x-2 pb-4 font-bold text-sm uppercase tracking-widest leading-none transition-all",
+                      activeTab === 'bookings' ? "text-primary border-b-2 border-primary" : "text-gray-500 hover:text-white"
+                    )}
+                  >
+                    <Calendar className="w-4 h-4" />
+                    <span>My Bookings</span>
+                  </button>
+                )}
                 <button 
                   onClick={() => setActiveTab('liked')}
                   className={cn(

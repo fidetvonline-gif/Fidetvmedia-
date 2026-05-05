@@ -15,6 +15,7 @@ import Auth from '@/pages/Auth';
 import Profile from '@/pages/Profile';
 import Messages from '@/pages/Messages';
 import Admin from '@/pages/Admin';
+import Onboarding from '@/pages/Onboarding';
 import Policies from '@/pages/Policies';
 import ReloadPrompt from '@/components/ReloadPrompt';
 import InstallPrompt from '@/components/InstallPrompt';
@@ -38,7 +39,9 @@ export default function App() {
           <Route path="/news/:slug" element={<NewsDetail />} />
           <Route path="/booking" element={<Booking />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/profile/:username" element={<Profile />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/policies" element={<Policies />} />

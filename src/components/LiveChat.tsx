@@ -129,7 +129,9 @@ export default function LiveChat({ eventId }: { eventId: string }) {
               msg.author_id === user?.id ? "items-end" : "items-start"
             )}>
               <div className="flex items-center space-x-2 mb-1">
-                <span className="text-[10px] font-bold text-gray-500">{msg.profiles?.username || 'User'}</span>
+                <Link to={`/profile/${msg.profiles?.username}`} className="text-[10px] font-bold text-gray-500 hover:text-primary transition-colors cursor-pointer">
+                  {msg.profiles?.username || 'User'}
+                </Link>
                 <span className="text-[8px] text-gray-600 tracking-tighter uppercase">{format(new Date(msg.created_at), 'HH:mm')}</span>
               </div>
               <div className={cn(

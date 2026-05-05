@@ -5,6 +5,7 @@ import { Menu, X, PlayCircle, Users, Briefcase, Info, Mail, LayoutDashboard, Log
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import FideTvLogo from '@/components/FideTvLogo';
+import NotificationTray from '@/components/NotificationTray';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -22,14 +23,36 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        checkProfile(session.user.id);
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        checkProfile(session.user.id);
+      }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [location.pathname]);
+
+  const checkProfile = async (userId: string) => {
+    // Only check if not on auth or onboarding or policies pages
+    const publicPaths = ['/auth', '/onboarding', '/policies', '/about', '/contact', '/services'];
+    if (publicPaths.includes(location.pathname)) return;
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('id', userId)
+      .single();
+    
+    if (error || !data?.username) {
+      navigate('/onboarding');
+    }
+  };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -92,6 +115,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
               {user ? (
                 <div className="flex items-center space-x-4">
+                  <NotificationTray />
                   <Link to="/profile" className="p-2 hover:bg-white/5 rounded-full transition-colors">
                     <User className="w-5 h-5 text-gray-400" />
                   </Link>
