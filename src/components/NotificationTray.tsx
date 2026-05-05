@@ -71,7 +71,7 @@ export default function NotificationTray() {
         if (Notification.permission === 'granted' && !document.hasFocus()) {
            new Notification(`${actor?.username} ${getVerb(newNotif.type)}`, {
              body: `Check your FideTV notifications for more details.`,
-             icon: actor?.avatar_url || '/pwa-192x192.png'
+             icon: actor?.avatar_url || '/icon.svg'
            });
         }
       })

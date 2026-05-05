@@ -58,7 +58,7 @@ export default function MessageNotifier() {
            const text = payload.new.is_view_once ? 'Sent you a view-once message' : payload.new.content;
            new Notification(`New message from ${senderName}`, {
              body: text,
-             icon: '/pwa-192x192.png' // Adjust if needed
+             icon: '/icon.svg' // Adjust if needed
            });
         }
       })

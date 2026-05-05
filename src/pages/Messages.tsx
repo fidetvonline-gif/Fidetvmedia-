@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Send, User, Check, CheckCheck, EyeOff, X, Eye, Paperclip, Image as ImageIcon, Trash2, Loader2 } from 'lucide-react';
+import { Search, Send, User, Check, CheckCheck, EyeOff, X, Eye, Paperclip, Image as ImageIcon, Trash2, Loader2, MessageSquare } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function Messages() {
@@ -104,14 +104,23 @@ export default function Messages() {
     setNewMessage('');
     setIsViewOnce(false);
 
-    const { error } = await supabase.from('direct_messages').insert({
+    const { data: msgData, error } = await supabase.from('direct_messages').insert({
       sender_id: user.id,
       receiver_id: activeChat.id,
       content: msgContent,
       is_view_once: msgIsViewOnce
-    });
+    }).select().single();
 
-    if (error) {
+    if (!error && msgData) {
+      // Notify recipient
+      await supabase.from('notifications').insert({
+        recipient_id: activeChat.id,
+        actor_id: user.id,
+        type: 'direct_message',
+        resource_id: msgData.id,
+        read: false
+      });
+    } else if (error) {
       console.error("Error sending message:", error);
     }
   };
@@ -126,7 +135,7 @@ export default function Messages() {
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('message-attachments')
         .upload(filePath, file);
 
@@ -138,13 +147,24 @@ export default function Messages() {
 
       const isImage = file.type.startsWith('image/');
       
-      await supabase.from('direct_messages').insert({
+      const { data: msgData, error: msgError } = await supabase.from('direct_messages').insert({
         sender_id: user.id,
         receiver_id: activeChat.id,
         media_url: publicUrl,
         media_type: isImage ? 'image' : 'file',
         is_view_once: isViewOnce
-      });
+      }).select().single();
+
+      if (!msgError && msgData) {
+        // Notify recipient
+        await supabase.from('notifications').insert({
+          recipient_id: activeChat.id,
+          actor_id: user.id,
+          type: 'direct_message',
+          resource_id: msgData.id,
+          read: false
+        });
+      }
 
       setIsViewOnce(false);
     } catch (err: any) {
@@ -255,58 +275,87 @@ export default function Messages() {
       <div className="bg-surface/50 border border-white/5 rounded-[2rem] overflow-hidden flex h-full backdrop-blur-md">
         
         {/* Sidebar */}
-        <div className={`w-full md:w-80 border-r border-white/5 flex flex-col pb-4 ${activeChat ? 'hidden md:flex' : 'flex'}`}>
-          <div className="p-6">
-            <h1 className="text-2xl font-display font-black text-white mb-6">Messages</h1>
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+        <div className={`
+          w-full md:w-96 border-r border-white/5 flex flex-col z-20 transition-all
+          ${activeChat ? 'hidden md:flex' : 'flex'}
+        `}>
+          <div className="p-8 border-b border-white/10 space-y-6">
+            <div className="flex items-center justify-between">
+              <h1 className="text-3xl font-display font-black text-white tracking-tighter">Inbox.</h1>
+              <div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center border border-primary/20">
+                <MessageSquare className="w-5 h-5 text-primary" />
+              </div>
+            </div>
+            
+            <div className="relative group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-primary transition-colors" />
               <input
                 type="text"
-                placeholder="Search users..."
+                placeholder="Search conversations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-black/40 border border-white/10 rounded-xl pl-11 pr-4 py-3 text-sm text-white focus:outline-none focus:border-primary/50 transition-colors"
+                className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-sm text-white focus:border-primary/50 transition-all outline-none"
               />
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4 space-y-2">
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-2">
             {loading ? (
-              <div className="text-center p-4 text-sm text-gray-500">Loading...</div>
+              <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-600">Syncing Messages</span>
+              </div>
             ) : displayContacts.length > 0 ? (
               displayContacts.map((contact: any) => {
                 const isActive = activeChat?.id === contact.profile.id;
                 const unread = contact.lastMessage && contact.lastMessage.receiver_id === user.id && !contact.lastMessage.is_view_once && !contact.lastMessage.is_viewed;
+
                 return (
                   <button
                     key={contact.profile.id}
                     onClick={() => setActiveChat(contact.profile)}
-                    className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all ${isActive ? 'bg-primary/20 border border-primary/30' : 'hover:bg-white/5 border border-transparent'}`}
+                    className={`
+                      w-full flex items-center justify-between p-4 rounded-3xl transition-all relative group
+                      ${isActive 
+                        ? 'bg-primary/20 border border-primary/30 shadow-xl shadow-primary/5' 
+                        : 'hover:bg-white/5 border border-transparent hover:border-white/5'
+                      }
+                    `}
                   >
-                    <div className="flex items-center gap-3 overflow-hidden text-left">
+                    {unread && <div className="absolute left-2 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-primary rounded-full shadow-[0_0_12px_#FFD700]" />}
+                    
+                    <div className="flex items-center gap-4 overflow-hidden text-left relative z-10">
                       <div className="relative">
-                        <div className="w-12 h-12 rounded-full overflow-hidden bg-primary/20 shrink-0">
+                        <div className="w-14 h-14 rounded-[1.25rem] overflow-hidden bg-surface-bright shrink-0 border border-white/10 group-hover:scale-105 transition-transform duration-500">
                           {contact.profile.avatar_url ? (
                             <img src={contact.profile.avatar_url} alt={contact.profile.username} className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
-                              <User className="w-5 h-5 text-primary" />
+                              <User className="w-6 h-6 text-primary" />
                             </div>
                           )}
                         </div>
                         {unread && (
-                          <div className="absolute top-0 right-0 w-3 h-3 bg-primary rounded-full border-2 border-[#1a1a1a]" />
+                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full border-2 border-black flex" />
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="font-bold text-white text-sm truncate">
-                          {contact.profile.full_name || contact.profile.username}
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="font-bold text-white text-[15px] truncate max-w-[120px]">
+                            {contact.profile.full_name || contact.profile.username}
+                          </span>
+                          {contact.lastMessage && (
+                            <span className="text-[9px] text-gray-600 font-bold uppercase tracking-tighter shrink-0">
+                              {formatDistanceToNow(new Date(contact.lastMessage.created_at))}
+                            </span>
+                          )}
                         </div>
                         {contact.lastMessage && (
-                          <div className={`text-xs truncate ${unread ? 'text-white font-medium' : 'text-gray-500'}`}>
+                          <div className={`text-xs truncate ${unread ? 'text-white font-bold' : 'text-gray-500'}`}>
+                            {contact.lastMessage.sender_id === user.id && <span className="text-primary mr-1">You:</span>}
                             {contact.lastMessage.is_view_once 
-                              ? (contact.lastMessage.sender_id === user.id ? 'You sent a view-once message' : 'Received a view-once message')
-                              : contact.lastMessage.content}
+                              ? 'Sent a view-once message'
+                              : contact.lastMessage.content || 'Sent an attachment'}
                           </div>
                         )}
                       </div>
@@ -315,8 +364,11 @@ export default function Messages() {
                 );
               })
             ) : (
-              <div className="text-center p-8 text-gray-500 text-sm">
-                No users found.
+              <div className="text-center py-12 space-y-4">
+                <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto">
+                   <Search className="w-6 h-6 text-gray-700" />
+                </div>
+                <p className="text-gray-600 text-[10px] font-black uppercase tracking-[0.2em]">No Users Found</p>
               </div>
             )}
           </div>
@@ -372,12 +424,12 @@ export default function Messages() {
                 }
 
                 return (
-                  <div key={msg.id} className={`flex flex-col group ${isMine ? 'items-end' : 'items-start'}`}>
-                    <div className="flex items-center gap-2 max-w-[85%]">
-                      {isMine && !msg.is_view_once && (
+                  <div key={msg.id} className={`flex flex-col group ${isMine ? 'items-end' : 'items-start'} mb-4`}>
+                    <div className="flex items-center gap-3 max-w-[85%] relative">
+                      {isMine && !msg.is_view_once && !msg.is_deleted && (
                         <button 
                           onClick={() => undoMessage(msg.id)}
-                          className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-red-500 transition-opacity"
+                          className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-red-500 transition-all hover:scale-110"
                           title="Undo message"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -386,56 +438,85 @@ export default function Messages() {
                       
                       {msg.is_view_once ? (
                         <div className={`
-                          p-1 rounded-2xl flex flex-col gap-1
-                          ${isMine ? 'bg-primary/20 border border-primary/30' : 'bg-white/5 border border-white/10'}
+                          p-1 rounded-3xl flex flex-col gap-1 transition-all
+                          ${isMine ? 'bg-primary/20 border border-primary/30 shadow-lg shadow-primary/5' : 'bg-white/5 border border-white/10'}
                         `}>
                           {isMine ? (
-                            <div className="px-4 py-3 text-sm text-gray-300 flex items-center gap-2">
-                              <EyeOff className="w-4 h-4 text-primary" />
-                              View-once message sent
-                              {msg.is_viewed && <span className="text-[10px] bg-black/40 px-2 py-0.5 rounded text-gray-500 uppercase tracking-widest ml-2">Opened</span>}
+                            <div className="px-5 py-4 text-sm text-gray-300 flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                                <EyeOff className="w-4 h-4 text-primary" />
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="font-medium">View-once sent</span>
+                                {msg.is_viewed && <span className="text-[9px] text-primary/70 font-black uppercase tracking-tighter">Recipient opened</span>}
+                              </div>
                             </div>
                           ) : msg.is_viewed ? (
-                            <div className="px-4 py-3 text-sm text-gray-500 flex items-center gap-2 italic">
+                            <div className="px-5 py-4 text-sm text-gray-500 flex items-center gap-3 italic">
                               <EyeOff className="w-4 h-4 opacity-50" />
                               Message viewed
                             </div>
                           ) : (
                             <button 
                               onClick={() => handleViewMessage(msg.id)}
-                              className="px-6 py-4 text-sm text-white font-bold flex items-center gap-3 hover:bg-white/5 rounded-xl transition-colors group"
+                              className="px-6 py-4 text-sm text-white font-bold flex items-center gap-4 hover:bg-white/5 rounded-2xl transition-all group/btn"
                             >
-                              <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg shadow-primary/20">
-                                <Eye className="w-5 h-5" />
+                              <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center group-hover/btn:scale-110 transition-transform shadow-xl shadow-primary/20">
+                                <Eye className="w-6 h-6" />
                               </div>
-                              Tap to view (View Once)
+                              <div className="flex flex-col items-start">
+                                <span>Tap to view</span>
+                                <span className="text-[10px] text-gray-500 font-normal">Disappears after viewing</span>
+                              </div>
                             </button>
                           )}
                         </div>
                       ) : (
                         <div className={`
-                          px-5 py-3 rounded-2xl text-sm overflow-hidden
-                          ${isMine ? 'bg-primary text-white rounded-br-sm' : 'bg-white/10 text-white border border-white/5 rounded-bl-sm'}
+                          px-5 py-3.5 rounded-[1.5rem] text-[15px] leading-relaxed relative overflow-hidden transition-all
+                          ${isMine 
+                            ? 'bg-primary text-white rounded-tr-none shadow-xl shadow-primary/10' 
+                            : 'bg-surface-bright text-gray-100 border border-white/5 rounded-tl-none shadow-lg'
+                          }
                         `}>
                           {msg.media_url && (
-                            <div className="mb-2">
+                            <div className="mb-3 -mx-1 -mt-1">
                               {msg.media_type === 'image' ? (
-                                <img src={msg.media_url} alt="Shared media" className="max-w-full rounded-lg h-auto max-h-60 object-cover" />
+                                <div className="rounded-2xl overflow-hidden border border-white/10">
+                                  <img src={msg.media_url} alt="Shared" className="w-full h-auto max-h-[300px] object-cover hover:scale-105 transition-transform duration-500" />
+                                </div>
                               ) : (
-                                <a href={msg.media_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-3 bg-black/20 rounded-lg text-white hover:bg-black/30 transition-colors">
-                                  <Paperclip className="w-4 h-4" />
-                                  <span className="truncate max-w-[150px]">View Attachment</span>
+                                <a href={msg.media_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-4 bg-black/30 rounded-2xl text-white hover:bg-black/50 transition-all border border-white/5">
+                                  <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+                                    <Paperclip className="w-5 h-5 text-primary" />
+                                  </div>
+                                  <div className="flex flex-col overflow-hidden">
+                                    <span className="text-sm font-bold truncate">Attachment</span>
+                                    <span className="text-[10px] text-gray-500 uppercase font-black">Download File</span>
+                                  </div>
                                 </a>
                               )}
                             </div>
                           )}
-                          {msg.content && <p>{msg.content}</p>}
+                          {msg.content && <p className="whitespace-pre-wrap">{msg.content}</p>}
                         </div>
                       )}
                     </div>
-                    <span className="text-[10px] text-gray-500 mt-1 uppercase tracking-widest px-1">
-                      {formatDistanceToNow(new Date(msg.created_at))} ago
-                    </span>
+                    
+                    <div className={`flex items-center gap-2 mt-1.5 px-2 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
+                      <span className="text-[10px] text-gray-600 font-medium uppercase tracking-widest">
+                        {formatDistanceToNow(new Date(msg.created_at))} ago
+                      </span>
+                      {isMine && !msg.is_deleted && (
+                        <div className="flex items-center gap-1">
+                          {msg.is_viewed ? (
+                            <CheckCheck className="w-3 h-3 text-primary" />
+                          ) : (
+                            <Check className="w-3 h-3 text-gray-600" />
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })}

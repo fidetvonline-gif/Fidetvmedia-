@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Play, Calendar, Users, ArrowRight, Video, Zap, CheckCircle, Flame, Sparkles, Globe, Shield, X } from 'lucide-react';
+import { Play, Calendar, Users, ArrowRight, Video, Zap, CheckCircle, Flame, Sparkles, Globe, Shield, X, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import ReactPlayer from 'react-player';
 import { PortfolioItem } from '@/types';
+import { format } from 'date-fns';
 
 const Player = ReactPlayer as any;
 
@@ -38,7 +39,21 @@ export default function Home() {
   useEffect(() => {
     fetchCertificates();
     fetchFeaturedPortfolio();
+    fetchUpcomingEvents();
   }, []);
+
+  const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
+
+  const fetchUpcomingEvents = async () => {
+    const { data } = await supabase
+      .from('events')
+      .select('*')
+      .or('status.eq.live,status.eq.upcoming')
+      .order('status', { ascending: false })
+      .order('start_time', { ascending: true })
+      .limit(3);
+    if (data) setUpcomingEvents(data);
+  };
 
   const fetchFeaturedPortfolio = async () => {
     try {
@@ -355,6 +370,124 @@ export default function Home() {
           </motion.div>
         )}
       </section>
+
+      {/* Upcoming Events Section */}
+      {upcomingEvents.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-24">
+          <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
+            <div className="space-y-4">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/20 text-primary text-xs font-bold uppercase tracking-widest">
+                <Calendar className="w-4 h-4" />
+                Live Broadcast
+              </div>
+              <h3 className="text-5xl sm:text-7xl font-display font-bold text-white tracking-tight">
+                Upcoming <span className="text-gray-600">Events.</span>
+              </h3>
+            </div>
+            <Link to="/live" className="group flex items-center space-x-3 bg-white/5 hover:bg-white/10 border border-white/10 px-8 py-4 rounded-full text-white font-bold uppercase tracking-widest text-sm transition-all">
+              <span>Full Schedule</span>
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {upcomingEvents.map((ev, i) => (
+              <motion.div
+                key={ev.id}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="group relative h-[450px] rounded-[3rem] overflow-hidden border border-white/5 bg-surface hover:border-primary/30 transition-all"
+              >
+                <img 
+                  src={ev.thumbnail_url || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=2070'} 
+                  alt={ev.title} 
+                  className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-all duration-700" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent" />
+                
+                <div className="absolute top-8 left-8 flex gap-3">
+                  <div className="px-4 py-2 bg-black/60 backdrop-blur-xl border border-white/10 rounded-full flex items-center gap-2">
+                    <div className={cn("w-2 h-2 rounded-full", ev.status === 'live' ? "bg-red-500 animate-pulse shadow-[0_0_8px_#ef4444]" : "bg-primary")} />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-white">{ev.status}</span>
+                  </div>
+                </div>
+
+                <div className="absolute bottom-8 left-8 right-8 space-y-4">
+                  <div className="flex items-center gap-2 text-gray-400 text-[10px] font-medium uppercase tracking-widest">
+                    <Calendar className="w-4 h-4 text-primary" />
+                    <span>{format(new Date(ev.start_time), 'MMM dd, yyyy • HH:mm')}</span>
+                  </div>
+                  <h3 className="text-2xl font-display font-medium text-white line-clamp-2">{ev.title}</h3>
+                  <Link to="/live" className="inline-flex items-center justify-center w-12 h-12 bg-primary rounded-2xl transition-all shadow-xl text-white hover:scale-110">
+                    <Play className="w-5 h-5 fill-current ml-1" />
+                  </Link>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Upcoming Events Section */}
+      {upcomingEvents.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-24">
+          <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
+            <div className="space-y-4">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/20 text-primary text-xs font-bold uppercase tracking-widest">
+                <Calendar className="w-4 h-4" />
+                Live Broadcast
+              </div>
+              <h3 className="text-5xl sm:text-7xl font-display font-bold text-white tracking-tight">
+                Upcoming <span className="text-gray-600">Events.</span>
+              </h3>
+            </div>
+            <Link to="/live" className="group flex items-center space-x-3 bg-white/5 hover:bg-white/10 border border-white/10 px-8 py-4 rounded-full text-white font-bold uppercase tracking-widest text-sm transition-all">
+              <span>Full Schedule</span>
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {upcomingEvents.map((ev, i) => (
+              <motion.div
+                key={ev.id}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="group relative h-[450px] rounded-[3rem] overflow-hidden border border-white/5 bg-surface hover:border-primary/30 transition-all"
+              >
+                <img 
+                  src={ev.thumbnail_url || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=2070'} 
+                  alt={ev.title} 
+                  className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-all duration-700" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent" />
+                
+                <div className="absolute top-8 left-8 flex gap-3">
+                  <div className="px-4 py-2 bg-black/60 backdrop-blur-xl border border-white/10 rounded-full flex items-center gap-2">
+                    <div className={cn("w-2 h-2 rounded-full", ev.status === 'live' ? "bg-red-500 animate-pulse shadow-[0_0_8px_#ef4444]" : "bg-primary")} />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-white">{ev.status}</span>
+                  </div>
+                </div>
+
+                <div className="absolute bottom-8 left-8 right-8 space-y-4">
+                  <div className="flex items-center gap-2 text-gray-400 text-[10px] font-medium uppercase tracking-widest">
+                    <Calendar className="w-4 h-4 text-primary" />
+                    <span>{format(new Date(ev.start_time), 'MMM dd, yyyy • HH:mm')}</span>
+                  </div>
+                  <h3 className="text-2xl font-display font-medium text-white line-clamp-2">{ev.title}</h3>
+                  <Link to="/live" className="inline-flex items-center justify-center w-12 h-12 bg-primary rounded-2xl transition-all shadow-xl text-white hover:scale-110">
+                    <Play className="w-5 h-5 fill-current ml-1" />
+                  </Link>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Bento Grid Services Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-24">

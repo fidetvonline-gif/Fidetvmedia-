@@ -101,6 +101,17 @@ export default function Portfolio() {
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-40"
                   referrerPolicy="no-referrer"
                 />
+
+                <div className="absolute top-6 left-6 z-10 flex flex-col gap-2">
+                   <span className="px-3 py-1 bg-black/60 backdrop-blur-md border border-white/10 rounded-full text-[9px] font-black uppercase tracking-[0.2em] text-primary">
+                     {project.category}
+                   </span>
+                   {project.status && project.status === 'offline' && (
+                     <span className="px-3 py-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">
+                       Recap Available
+                     </span>
+                   )}
+                </div>
                 
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60 transition-opacity group-hover:opacity-100" />
                 

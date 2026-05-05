@@ -278,7 +278,7 @@ CREATE TABLE public.notifications (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   recipient_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
   actor_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-  type TEXT NOT NULL CHECK (type IN ('follow', 'like', 'comment', 'post', 'mention')),
+  type TEXT NOT NULL CHECK (type IN ('follow', 'like', 'comment', 'post', 'mention', 'direct_message')),
   resource_id UUID, -- Optional ID of the related object (post_id, etc.)
   read BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
