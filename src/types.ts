@@ -121,3 +121,18 @@ export interface TvChannel {
   order_index: number;
   created_at: string;
 }
+
+export interface DirectMessage {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  content?: string;
+  media_url?: string;
+  media_type?: 'image' | 'file';
+  is_view_once: boolean;
+  is_viewed: boolean;
+  is_deleted: boolean;
+  created_at: string;
+  sender?: Profile;
+  receiver?: Profile;
+}

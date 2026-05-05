@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { Community, Post } from '@/types';
 import PostCard from '@/components/PostCard';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Plus, Image as ImageIcon, Video, MessageSquare, Users, Globe, Info, Edit3, Camera, Check, X } from 'lucide-react';
+import { ArrowLeft, Plus, Image as ImageIcon, Video, MessageSquare, Users, Globe, Info, Edit3, Camera, Check, X, Shield, UserMinus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactPlayer from 'react-player';
 import { format } from 'date-fns';
@@ -30,6 +30,8 @@ export default function CommunityDetail() {
   const [editImageFile, setEditImageFile] = useState<File | null>(null);
   const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
   const [isUpdatingCommunity, setIsUpdatingCommunity] = useState(false);
+  const [isManagingMembers, setIsManagingMembers] = useState(false);
+  const [communityMembers, setCommunityMembers] = useState<any[]>([]);
 
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
@@ -118,6 +120,49 @@ export default function CommunityDetail() {
     if (countRes.count !== null) setMemberCount(countRes.count);
     if (modRes.data) setModerators(modRes.data.map(m => m.profiles));
     setLoading(false);
+  };
+
+  const fetchMembers = async () => {
+    if (!id) return;
+    const { data } = await supabase
+      .from('community_members')
+      .select('*, profiles(username, avatar_url, full_name)')
+      .eq('community_id', id);
+    if (data) setCommunityMembers(data);
+  };
+
+  useEffect(() => {
+    if (isManagingMembers) {
+      fetchMembers();
+    }
+  }, [isManagingMembers]);
+
+  const updateMemberRole = async (userId: string, newRole: string) => {
+    if (!id) return;
+    const { error } = await supabase
+      .from('community_members')
+      .update({ role: newRole })
+      .eq('community_id', id)
+      .eq('user_id', userId);
+    
+    if (!error) {
+      fetchMembers();
+      fetchData();
+    }
+  };
+
+  const removeMember = async (userId: string) => {
+    if (!id) return;
+    const { error } = await supabase
+      .from('community_members')
+      .delete()
+      .eq('community_id', id)
+      .eq('user_id', userId);
+    
+    if (!error) {
+      fetchMembers();
+      fetchData();
+    }
   };
 
   const handleCreatePost = async (e: React.FormEvent) => {
@@ -213,6 +258,79 @@ export default function CommunityDetail() {
       </Link>
 
       <AnimatePresence>
+        {isManagingMembers && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 sm:p-8"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-2xl bg-surface-bright rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/10 p-8 sm:p-12 space-y-8"
+            >
+              <button
+                onClick={() => setIsManagingMembers(false)}
+                className="absolute top-6 right-6 p-2 bg-white/5 hover:bg-white/10 rounded-full text-white transition-all"
+              >
+                <X className="w-6 h-6" />
+              </button>
+
+              <div className="space-y-2">
+                <h2 className="text-3xl font-display font-medium text-white tracking-tight">Manage Members</h2>
+                <p className="text-gray-500 text-sm">Control who can moderate or participate in your community.</p>
+              </div>
+
+              <div className="max-h-[50vh] overflow-y-auto space-y-4 pr-4 custom-scrollbar">
+                {communityMembers.map((member) => (
+                  <div key={member.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-white/10 transition-all">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-full overflow-hidden bg-primary/20 shrink-0">
+                        {member.profiles?.avatar_url ? (
+                          <img src={member.profiles.avatar_url} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Users className="w-5 h-5 text-primary" />
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-white font-bold text-sm">{member.profiles?.full_name || member.profiles?.username}</p>
+                        <p className="text-xs text-gray-500">@{member.profiles?.username}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <select 
+                        value={member.role}
+                        onChange={(e) => updateMemberRole(member.user_id, e.target.value)}
+                        disabled={member.user_id === user?.id && member.role === 'admin'} // Can't demote self from admin easily
+                        className="bg-black/40 border border-white/10 rounded-lg text-xs text-white px-3 py-2 outline-none focus:border-primary/50"
+                      >
+                        <option value="member">Member</option>
+                        <option value="moderator">Moderator</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                      
+                      {member.user_id !== user?.id && (
+                        <button 
+                          onClick={() => removeMember(member.user_id)}
+                          className="p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-all"
+                          title="Remove Member"
+                        >
+                          <UserMinus className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
         {isEditingCommunity && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -333,6 +451,15 @@ export default function CommunityDetail() {
                 </div>
               </div>
               <div className="flex items-center space-x-4">
+                {isModerator && (
+                  <button
+                    onClick={() => setIsManagingMembers(true)}
+                    className="w-14 h-14 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-gray-500 hover:text-primary hover:border-primary/20 transition-all shadow-xl"
+                    title="Manage Members"
+                  >
+                    <Shield className="w-6 h-6" />
+                  </button>
+                )}
                 {isModerator && (
                   <button
                     onClick={() => setIsEditingCommunity(true)}

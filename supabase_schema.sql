@@ -161,13 +161,36 @@ CREATE POLICY "Admin can manage all profiles" ON public.profiles FOR ALL USING (
 CREATE POLICY "Community members viewable by everyone" ON public.community_members FOR SELECT USING (true);
 CREATE POLICY "Authenticated users can join communities" ON public.community_members FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 CREATE POLICY "Users can leave communities" ON public.community_members FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Admins/Moderators can manage member roles" ON public.community_members FOR UPDATE USING (
+  EXISTS (
+    SELECT 1 FROM public.community_members
+    WHERE community_id = community_id
+    AND user_id = auth.uid()
+    AND role IN ('moderator', 'admin')
+  ) OR (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com')
+);
+CREATE POLICY "Admins/Moderators can remove members" ON public.community_members FOR DELETE USING (
+  EXISTS (
+    SELECT 1 FROM public.community_members
+    WHERE community_id = community_id
+    AND user_id = auth.uid()
+    AND role IN ('moderator', 'admin')
+  ) OR (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com')
+);
 CREATE POLICY "Events are viewable by everyone" ON public.events FOR SELECT USING (true);
 CREATE POLICY "Only admin can manage events" ON public.events FOR ALL USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
 
 -- Communities: Everyone can read, only admin can create/delete, moderators can update
 CREATE POLICY "Communities viewable by everyone" ON public.communities FOR SELECT USING (true);
-CREATE POLICY "Only global admin can create or delete communities" ON public.communities FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
-CREATE POLICY "Only global admin can delete communities" ON public.communities FOR DELETE USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
+CREATE POLICY "Only global admin can create communities" ON public.communities FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
+CREATE POLICY "Admins can delete their own communities or global admin" ON public.communities FOR DELETE USING (
+  EXISTS (
+    SELECT 1 FROM public.community_members
+    WHERE community_id = public.communities.id
+    AND user_id = auth.uid()
+    AND role = 'admin'
+  ) OR (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com')
+);
 CREATE POLICY "Moderators can update community details" ON public.communities FOR UPDATE USING (
   EXISTS (
     SELECT 1 FROM public.community_members
@@ -181,8 +204,15 @@ CREATE POLICY "Moderators can update community details" ON public.communities FO
 CREATE POLICY "Posts viewable by everyone" ON public.posts FOR SELECT USING (true);
 CREATE POLICY "Authenticated users can create posts" ON public.posts FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 CREATE POLICY "Users can update own posts" ON public.posts FOR UPDATE USING (auth.uid() = author_id);
-CREATE POLICY "Users can delete own posts" ON public.posts FOR DELETE USING (auth.uid() = author_id);
-CREATE POLICY "Admin can delete any post" ON public.posts FOR DELETE USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
+CREATE POLICY "Users/Moderators can delete posts" ON public.posts FOR DELETE USING (
+  auth.uid() = author_id OR 
+  EXISTS (
+    SELECT 1 FROM public.community_members
+    WHERE community_id = public.posts.community_id
+    AND user_id = auth.uid()
+    AND role IN ('moderator', 'admin')
+  ) OR (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com')
+);
 
 -- Post Likes: Everyone can see, authenticated can like/unlike
 CREATE POLICY "Likes viewable by everyone" ON public.post_likes FOR SELECT USING (true);
@@ -234,9 +264,12 @@ CREATE TABLE public.direct_messages (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   sender_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
   receiver_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-  content TEXT NOT NULL,
+  content TEXT,
+  media_url TEXT,
+  media_type TEXT,
   is_view_once BOOLEAN DEFAULT false,
   is_viewed BOOLEAN DEFAULT false,
+  is_deleted BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -256,13 +289,21 @@ ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can insert their own messages" ON public.direct_messages FOR INSERT WITH CHECK (auth.uid() = sender_id);
 CREATE POLICY "Users can read their own messages" ON public.direct_messages FOR SELECT USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
-CREATE POLICY "Users can update their received messages" ON public.direct_messages FOR UPDATE USING (auth.uid() = receiver_id);
+CREATE POLICY "Users can update their own received messages (mark as viewed)" ON public.direct_messages FOR UPDATE USING (auth.uid() = receiver_id);
+CREATE POLICY "Users can soft-delete their own sent messages" ON public.direct_messages FOR UPDATE USING (auth.uid() = sender_id);
 CREATE POLICY "Users can delete messages" ON public.direct_messages FOR DELETE USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
 
 CREATE POLICY "Users can view their own notifications" ON public.notifications FOR SELECT USING (auth.uid() = recipient_id);
 CREATE POLICY "Users can update their own notifications" ON public.notifications FOR UPDATE USING (auth.uid() = recipient_id);
 CREATE POLICY "Users can delete their own notifications" ON public.notifications FOR DELETE USING (auth.uid() = recipient_id);
-CREATE POLICY "System/Users can insert notifications" ON public.notifications FOR INSERT WITH CHECK (true); -- Usually inserted by app logic
+CREATE POLICY "System/Users can insert notifications" ON public.notifications FOR INSERT WITH CHECK (true);
 
 ALTER PUBLICATION supabase_realtime ADD TABLE public.direct_messages;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+
+-- 12. Storage buckets for messages
+INSERT INTO storage.buckets (id, name, public) VALUES ('message-attachments', 'message-attachments', true) ON CONFLICT (id) DO NOTHING;
+CREATE POLICY "Public Access Attachments" ON storage.objects FOR SELECT USING ( bucket_id = 'message-attachments' );
+CREATE POLICY "Upload Access Attachments" ON storage.objects FOR INSERT WITH CHECK ( bucket_id = 'message-attachments' );
+CREATE POLICY "Update Access Attachments" ON storage.objects FOR UPDATE WITH CHECK ( bucket_id = 'message-attachments' );
+CREATE POLICY "Delete Access Attachments" ON storage.objects FOR DELETE USING ( bucket_id = 'message-attachments' );

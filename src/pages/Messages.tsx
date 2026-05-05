@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Send, User, Check, CheckCheck, EyeOff, X, Eye } from 'lucide-react';
+import { Search, Send, User, Check, CheckCheck, EyeOff, X, Eye, Paperclip, Image as ImageIcon, Trash2, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function Messages() {
@@ -13,11 +13,14 @@ export default function Messages() {
   const [isViewOnce, setIsViewOnce] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [deletingConversation, setDeletingConversation] = useState(false);
   
   const [viewingMessageId, setViewingMessageId] = useState<string | null>(null);
   const [viewedTimeout, setViewedTimeout] = useState<NodeJS.Timeout | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchUser();
@@ -111,6 +114,74 @@ export default function Messages() {
     if (error) {
       console.error("Error sending message:", error);
     }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user || !activeChat) return;
+
+    try {
+      setUploading(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('message-attachments')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('message-attachments')
+        .getPublicUrl(filePath);
+
+      const isImage = file.type.startsWith('image/');
+      
+      await supabase.from('direct_messages').insert({
+        sender_id: user.id,
+        receiver_id: activeChat.id,
+        media_url: publicUrl,
+        media_type: isImage ? 'image' : 'file',
+        is_view_once: isViewOnce
+      });
+
+      setIsViewOnce(false);
+    } catch (err: any) {
+      console.error('Upload error:', err);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const undoMessage = async (msgId: string) => {
+    const { error } = await supabase
+      .from('direct_messages')
+      .update({ is_deleted: true })
+      .eq('id', msgId)
+      .eq('sender_id', user.id);
+
+    if (error) {
+      console.error("Error undoing message:", error);
+    }
+  };
+
+  const deleteConversation = async () => {
+    if (!user || !activeChat) return;
+    if (!window.confirm("Are you sure you want to delete this entire conversation? This cannot be undone.")) return;
+
+    setDeletingConversation(true);
+    const { error } = await supabase
+      .from('direct_messages')
+      .delete()
+      .or(`and(sender_id.eq.${user.id},receiver_id.eq.${activeChat.id}),and(sender_id.eq.${activeChat.id},receiver_id.eq.${user.id})`);
+
+    if (!error) {
+      setActiveChat(null);
+      fetchData(user.id);
+    }
+    setDeletingConversation(false);
   };
 
   const handleViewMessage = async (msgId: string) => {
@@ -275,6 +346,14 @@ export default function Messages() {
                 <h3 className="font-bold text-white">{activeChat.full_name || activeChat.username}</h3>
                 <p className="text-xs text-gray-400">@{activeChat.username}</p>
               </div>
+              <button 
+                onClick={deleteConversation}
+                disabled={deletingConversation}
+                className="ml-auto p-2 text-gray-500 hover:text-red-500 transition-colors"
+                title="Delete Conversation"
+              >
+                {deletingConversation ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
+              </button>
             </div>
 
             {/* Messages */}
@@ -282,44 +361,78 @@ export default function Messages() {
               {activeChatMessages.map((msg: any) => {
                 const isMine = msg.sender_id === user.id;
                 
+                if (msg.is_deleted) {
+                  return (
+                    <div key={msg.id} className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
+                      <div className="px-4 py-2 rounded-xl bg-white/5 text-gray-500 text-xs italic border border-white/5">
+                        {isMine ? 'You unsent a message' : 'Message unsent'}
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
-                  <div key={msg.id} className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
-                    {msg.is_view_once ? (
-                      <div className={`
-                        p-1 rounded-2xl max-w-[80%] flex flex-col gap-1
-                        ${isMine ? 'bg-primary/20 border border-primary/30' : 'bg-white/5 border border-white/10'}
-                      `}>
-                        {isMine ? (
-                          <div className="px-4 py-3 text-sm text-gray-300 flex items-center gap-2">
-                            <EyeOff className="w-4 h-4 text-primary" />
-                            View-once message sent
-                            {msg.is_viewed && <span className="text-[10px] bg-black/40 px-2 py-0.5 rounded text-gray-500 uppercase tracking-widest ml-2">Opened</span>}
-                          </div>
-                        ) : msg.is_viewed ? (
-                          <div className="px-4 py-3 text-sm text-gray-500 flex items-center gap-2 italic">
-                            <EyeOff className="w-4 h-4 opacity-50" />
-                            Message viewed
-                          </div>
-                        ) : (
-                          <button 
-                            onClick={() => handleViewMessage(msg.id)}
-                            className="px-6 py-4 text-sm text-white font-bold flex items-center gap-3 hover:bg-white/5 rounded-xl transition-colors group"
-                          >
-                            <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg shadow-primary/20">
-                              <Eye className="w-5 h-5" />
+                  <div key={msg.id} className={`flex flex-col group ${isMine ? 'items-end' : 'items-start'}`}>
+                    <div className="flex items-center gap-2 max-w-[85%]">
+                      {isMine && !msg.is_view_once && (
+                        <button 
+                          onClick={() => undoMessage(msg.id)}
+                          className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-red-500 transition-opacity"
+                          title="Undo message"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      
+                      {msg.is_view_once ? (
+                        <div className={`
+                          p-1 rounded-2xl flex flex-col gap-1
+                          ${isMine ? 'bg-primary/20 border border-primary/30' : 'bg-white/5 border border-white/10'}
+                        `}>
+                          {isMine ? (
+                            <div className="px-4 py-3 text-sm text-gray-300 flex items-center gap-2">
+                              <EyeOff className="w-4 h-4 text-primary" />
+                              View-once message sent
+                              {msg.is_viewed && <span className="text-[10px] bg-black/40 px-2 py-0.5 rounded text-gray-500 uppercase tracking-widest ml-2">Opened</span>}
                             </div>
-                            Tap to view (View Once)
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <div className={`
-                        px-5 py-3 rounded-2xl max-w-[80%] text-sm
-                        ${isMine ? 'bg-primary text-white rounded-br-sm' : 'bg-white/10 text-white border border-white/5 rounded-bl-sm'}
-                      `}>
-                        {msg.content}
-                      </div>
-                    )}
+                          ) : msg.is_viewed ? (
+                            <div className="px-4 py-3 text-sm text-gray-500 flex items-center gap-2 italic">
+                              <EyeOff className="w-4 h-4 opacity-50" />
+                              Message viewed
+                            </div>
+                          ) : (
+                            <button 
+                              onClick={() => handleViewMessage(msg.id)}
+                              className="px-6 py-4 text-sm text-white font-bold flex items-center gap-3 hover:bg-white/5 rounded-xl transition-colors group"
+                            >
+                              <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg shadow-primary/20">
+                                <Eye className="w-5 h-5" />
+                              </div>
+                              Tap to view (View Once)
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className={`
+                          px-5 py-3 rounded-2xl text-sm overflow-hidden
+                          ${isMine ? 'bg-primary text-white rounded-br-sm' : 'bg-white/10 text-white border border-white/5 rounded-bl-sm'}
+                        `}>
+                          {msg.media_url && (
+                            <div className="mb-2">
+                              {msg.media_type === 'image' ? (
+                                <img src={msg.media_url} alt="Shared media" className="max-w-full rounded-lg h-auto max-h-60 object-cover" />
+                              ) : (
+                                <a href={msg.media_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-3 bg-black/20 rounded-lg text-white hover:bg-black/30 transition-colors">
+                                  <Paperclip className="w-4 h-4" />
+                                  <span className="truncate max-w-[150px]">View Attachment</span>
+                                </a>
+                              )}
+                            </div>
+                          )}
+                          {msg.content && <p>{msg.content}</p>}
+                        </div>
+                      )}
+                    </div>
                     <span className="text-[10px] text-gray-500 mt-1 uppercase tracking-widest px-1">
                       {formatDistanceToNow(new Date(msg.created_at))} ago
                     </span>
@@ -332,6 +445,20 @@ export default function Messages() {
             {/* Input */}
             <div className="p-4 bg-surface/50 border-t border-white/5">
               <form onSubmit={handleSendMessage} className="flex items-end gap-2">
+                <input
+                  type="file"
+                  hidden
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="w-12 h-12 shrink-0 bg-white/5 text-gray-400 rounded-full flex items-center justify-center hover:bg-white/10 hover:text-white transition-all mb-px"
+                >
+                  {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Paperclip className="w-5 h-5" />}
+                </button>
                 <div className="flex-1 bg-black/40 border border-white/10 rounded-2xl overflow-hidden focus-within:border-primary/50 transition-colors">
                   <textarea
                     value={newMessage}
