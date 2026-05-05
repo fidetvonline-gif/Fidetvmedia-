@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Event, Community, News, Booking, Profile, PortfolioItem, TvChannel } from '@/types';
+import { Event, Community, News, Booking, Profile, PortfolioItem, TvChannel, Service } from '@/types';
 import { 
   LayoutDashboard, Radio, MessageSquare, Users, Settings, Plus, 
   Edit2, Trash2, Globe, Youtube, ToggleLeft, ToggleRight, 
   Sparkles, Camera, Eye, Newspaper, BookOpen, Clock, CheckCircle2, XCircle,
-  ShieldCheck, ShieldAlert, Award, Headset, Briefcase, Tv
+  ShieldCheck, ShieldAlert, Award, Headset, Briefcase, Tv, Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -14,12 +14,13 @@ import { GoogleGenAI } from "@google/genai";
 import { fetchYouTubeStats, YouTubeStats } from '@/services/youtubeService';
 import { DEFAULT_CHANNELS } from '@/constants/channels';
 
-type AdminTab = 'overview' | 'events' | 'news' | 'communities' | 'bookings' | 'users' | 'support' | 'portfolio' | 'channels';
+type AdminTab = 'overview' | 'events' | 'news' | 'communities' | 'bookings' | 'users' | 'support' | 'portfolio' | 'channels' | 'services';
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [events, setEvents] = useState<Event[]>([]);
   const [channels, setChannels] = useState<TvChannel[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
   const [news, setNews] = useState<News[]>([]);
   const [communities, setCommunities] = useState<Community[]>([]);
@@ -49,6 +50,9 @@ export default function Admin() {
   // PORTFOLIO Form State
   const [category, setCategory] = useState('Featured');
   const [isFeatured, setIsFeatured] = useState(true);
+  const [features, setFeatures] = useState<string[]>([]);
+  const [icon, setIcon] = useState('Video');
+  const [price, setPrice] = useState('');
 
   // NEWS Form State
   const [slug, setSlug] = useState('');
@@ -105,7 +109,8 @@ export default function Admin() {
         fetchSupportChats(),
         fetchCommunityStats(),
         fetchPortfolio(),
-        fetchChannels()
+        fetchChannels(),
+        fetchServices()
       ]);
     }
     if (activeTab === 'events') await fetchEvents();
@@ -116,7 +121,13 @@ export default function Admin() {
     if (activeTab === 'support') await fetchSupportChats();
     if (activeTab === 'portfolio') await fetchPortfolio();
     if (activeTab === 'channels') await fetchChannels();
+    if (activeTab === 'services') await fetchServices();
     setLoading(false);
+  };
+
+  const fetchServices = async () => {
+    const { data } = await supabase.from('services').select('*').order('order_index');
+    if (data) setServices(data);
   };
 
   const fetchChannels = async () => {
@@ -273,6 +284,9 @@ export default function Admin() {
     } else if (activeTab === 'channels') {
       table = 'tv_channels';
       payload = { name: title, category, description, url: streamUrl, thumbnail: imageUrl, is_active: status === 'live' };
+    } else if (activeTab === 'services') {
+      table = 'services';
+      payload = { title, description, icon, features, price, order_index: portfolio.length };
     }
 
     if (!table) return;
@@ -318,6 +332,7 @@ export default function Admin() {
     setStreamUrl(''); setStartTime(''); setStatus('upcoming');
     setSlug(''); setIsPublished(false); setNewsGallery([]); setEditingId(null);
     setCategory('Featured'); setIsFeatured(true);
+    setFeatures([]); setIcon('Video'); setPrice('');
   };
 
   const generateWithAI = async () => {
@@ -367,6 +382,7 @@ export default function Admin() {
           {[
             { id: 'overview', name: 'Overview', icon: LayoutDashboard },
             { id: 'channels', name: 'TV Channels', icon: Tv },
+            { id: 'services', name: 'Services', icon: Zap },
             { id: 'portfolio', name: 'Portfolio & Shows', icon: Briefcase },
             { id: 'events', name: 'Events', icon: Radio },
             { id: 'news', name: 'News & Blog', icon: Newspaper },
@@ -695,6 +711,92 @@ export default function Admin() {
             </div>
           )}
 
+          {activeTab === 'services' && (
+            <div className="space-y-8">
+              <div className="flex justify-end">
+                <button 
+                  onClick={async () => {
+                    if (confirm('Import current default services to database?')) {
+                      const defaultServices = [
+                        {
+                          title: 'Video Production',
+                          icon: 'Video',
+                          description: 'From concept to final cut, we create cinematic video content that tells your story with power and precision.',
+                          features: ['4K Cinematography', 'Professional Editing', 'Motion Graphics', 'Sound Design'],
+                          price: 'Starting at ₦1,500,000'
+                        },
+                        {
+                          title: 'Live Streaming',
+                          icon: 'Radio',
+                          description: 'Ultra-low latency, multi-camera broadcasting for concerts, conferences, and virtual events.',
+                          features: ['Multi-platform Stream', 'Live Tech Support', 'Interaction Tools', 'HD Quality'],
+                          price: 'Starting at ₦2,000,000'
+                        },
+                        {
+                          title: 'Event Coverage',
+                          icon: 'Camera',
+                          description: 'Comprehensive media coverage for large-scale events, combining photography and videography.',
+                          features: ['Full Day Coverage', 'Quick Turnaround', 'High-Res Photos', 'Highlight Reels'],
+                          price: 'Starting at ₦3,000,000'
+                        },
+                        {
+                          title: 'Interviews & Podcasts',
+                          icon: 'Mic',
+                          description: 'Professional sets and high-end audio for crisp, engaging talk content and interviews.',
+                          features: ['Multi-Mic Setup', 'Video Recording', 'Lighting Design', 'Post Production'],
+                          price: 'Starting at ₦800,000'
+                        }
+                      ];
+                      for (const s of defaultServices) {
+                        await supabase.from('services').insert(s);
+                      }
+                      fetchServices();
+                    }
+                  }}
+                  className="px-6 py-3 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold uppercase tracking-widest text-primary border border-primary/20 transition-all font-mono"
+                >
+                  Seed Services Dataset
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {services.map((item, i) => (
+                  <div key={item.id} className="glass rounded-[2rem] p-8 space-y-6 group border-white/5 hover:border-white/10 transition-all">
+                    <div className="flex justify-between items-start">
+                      <div className="w-16 h-16 bg-surface-bright rounded-2xl flex items-center justify-center border border-white/5 text-primary">
+                        <Zap className="w-8 h-8" />
+                      </div>
+                      <div className="flex space-x-2">
+                        <button onClick={() => { 
+                          setEditingId(item.id); 
+                          setTitle(item.title); 
+                          setDescription(item.description || ''); 
+                          setIcon(item.icon || 'Video');
+                          setFeatures(item.features || []);
+                          setPrice(item.price);
+                          setIsEditing(true); 
+                        }} className="p-2 text-gray-600 hover:text-white"><Edit2 className="w-4 h-4" /></button>
+                        <button onClick={() => handleDelete('services', item.id)} className="p-2 text-gray-600 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-xl font-bold text-white group-hover:text-primary transition-colors">{item.title}</h3>
+                      <p className="text-sm text-gray-500 line-clamp-2">{item.description}</p>
+                      <div className="pt-2">
+                        <span className="text-lg font-display font-bold text-primary">{item.price}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {services.length === 0 && !loading && (
+                   <div className="col-span-full py-20 text-center glass border-dashed">
+                      <Zap className="w-12 h-12 text-gray-800 mx-auto mb-4" />
+                      <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">No Services Defined</p>
+                   </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {activeTab === 'portfolio' && (
             <div className="space-y-8">
               <div className="flex justify-end">
@@ -1018,7 +1120,7 @@ export default function Admin() {
               <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl bg-surface rounded-[3rem] border border-white/5 z-[101] p-10 max-h-[90vh] overflow-y-auto custom-scrollbar">
                  <h2 className="text-3xl font-display font-bold text-white mb-8 tracking-tighter">
                    {editingId ? 'Edit' : 'Create'} <span className="text-primary">
-                     {activeTab === 'events' ? 'Event' : activeTab === 'communities' ? 'Community' : activeTab === 'news' ? 'Article' : activeTab === 'portfolio' ? 'Portfolio Item' : activeTab === 'channels' ? 'TV Channel' : activeTab}
+                     {activeTab === 'events' ? 'Event' : activeTab === 'communities' ? 'Community' : activeTab === 'news' ? 'Article' : activeTab === 'portfolio' ? 'Portfolio Item' : activeTab === 'channels' ? 'TV Channel' : activeTab === 'services' ? 'Service' : activeTab}
                    </span>
                  </h2>
                  <form onSubmit={handleSave} className="space-y-6">
@@ -1056,6 +1158,64 @@ export default function Admin() {
                          <div className="space-y-2">
                             <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">Stream URL (.m3u8, .mp4, YouTube URL, or &lt;iframe&gt;)</label>
                             <input value={streamUrl} onChange={e => setStreamUrl(e.target.value)} required placeholder="https://... or <iframe src='...'></iframe>" className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white focus:border-primary/50 transition-colors" />
+                         </div>
+                      </div>
+                    )}
+
+                    {activeTab === 'services' && (
+                      <div className="grid grid-cols-1 gap-6">
+                         <div className="grid grid-cols-2 gap-4">
+                           <div className="space-y-2">
+                              <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">Price / Investment</label>
+                              <input value={price} onChange={e => setPrice(e.target.value)} required placeholder="e.g. Starting at ₦1,500,000" className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white focus:border-primary/50 transition-colors" />
+                           </div>
+                           <div className="space-y-2">
+                              <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">Icon (Lucide Name)</label>
+                              <select value={icon} onChange={e => setIcon(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white focus:border-primary/50 transition-colors">
+                                <option value="Video">Video</option>
+                                <option value="Radio">Radio</option>
+                                <option value="Camera">Camera</option>
+                                <option value="Mic">Mic</option>
+                                <option value="Zap">Zap</option>
+                                <option value="Globe">Globe</option>
+                              </select>
+                           </div>
+                         </div>
+                         <div className="space-y-4">
+                            <div className="flex justify-between items-center px-4">
+                               <label className="text-[10px] uppercase font-black tracking-widest text-gray-500">Service Features</label>
+                               <button 
+                                 type="button" 
+                                 onClick={() => setFeatures([...features, ''])}
+                                 className="text-[10px] font-black text-primary hover:text-white uppercase tracking-widest flex items-center space-x-1"
+                               >
+                                 <Plus className="w-3 h-3" />
+                                 <span>Add Feature</span>
+                               </button>
+                            </div>
+                            <div className="space-y-3">
+                               {features.map((feat, idx) => (
+                                 <div key={idx} className="flex gap-3">
+                                    <input 
+                                      value={feat} 
+                                      onChange={e => {
+                                        const newF = [...features];
+                                        newF[idx] = e.target.value;
+                                        setFeatures(newF);
+                                      }} 
+                                      placeholder="e.g. 4K Cinematography" 
+                                      className="flex-grow bg-black/40 border border-white/10 rounded-xl p-4 text-white text-xs" 
+                                    />
+                                    <button 
+                                      type="button" 
+                                      onClick={() => setFeatures(features.filter((_, i) => i !== idx))}
+                                      className="p-4 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-colors"
+                                    >
+                                       <Trash2 className="w-4 h-4" />
+                                    </button>
+                                 </div>
+                               ))}
+                            </div>
                          </div>
                       </div>
                     )}

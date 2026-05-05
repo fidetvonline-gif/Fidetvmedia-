@@ -136,3 +136,14 @@ export interface DirectMessage {
   sender?: Profile;
   receiver?: Profile;
 }
+
+export interface Service {
+  id: string;
+  title: string;
+  description?: string;
+  icon?: string;
+  features: string[];
+  price: string;
+  order_index: number;
+  created_at: string;
+}

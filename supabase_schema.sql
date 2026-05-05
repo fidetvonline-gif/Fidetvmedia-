@@ -307,3 +307,19 @@ CREATE POLICY "Public Access Attachments" ON storage.objects FOR SELECT USING ( 
 CREATE POLICY "Upload Access Attachments" ON storage.objects FOR INSERT WITH CHECK ( bucket_id = 'message-attachments' );
 CREATE POLICY "Update Access Attachments" ON storage.objects FOR UPDATE WITH CHECK ( bucket_id = 'message-attachments' );
 CREATE POLICY "Delete Access Attachments" ON storage.objects FOR DELETE USING ( bucket_id = 'message-attachments' );
+
+-- 13. Services Table
+CREATE TABLE public.services (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT,
+  icon TEXT, -- Name of the lucide icon
+  features TEXT[] DEFAULT '{}',
+  price TEXT NOT NULL,
+  order_index INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Services are viewable by everyone" ON public.services FOR SELECT USING (true);
+CREATE POLICY "Only admin can manage services" ON public.services FOR ALL USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
