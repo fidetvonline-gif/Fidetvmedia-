@@ -42,6 +42,14 @@ export default function SplashScreen() {
             />
           </div>
 
+          {/* Flash Effect */}
+          <motion.div
+             initial={{ opacity: 1 }}
+             animate={{ opacity: 0 }}
+             transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
+             className="absolute inset-0 z-50 bg-white pointer-events-none mix-blend-overlay"
+          />
+
           <div className="relative z-10 flex flex-col items-center justify-center">
             {/* Logo Mark or Icon */}
             <motion.div

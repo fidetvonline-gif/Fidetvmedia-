@@ -27,9 +27,9 @@ export default function InstallPrompt() {
       e.preventDefault();
       // Stash the event so it can be triggered later.
       setDeferredPrompt(e);
-      // Show the prompt if we haven't dismissed it
+      // Automatically prompt without checking local storage explicitly if we are sure it's valid to prompt
       if (!localStorage.getItem('installPromptDismissed')) {
-        setShowPrompt(true);
+        setTimeout(() => setShowPrompt(true), 500);
       }
     };
 
@@ -40,14 +40,14 @@ export default function InstallPrompt() {
        // Only show after a slight delay to let the app load
        setTimeout(() => {
          setShowPrompt(true);
-       }, 2500);
+       }, 500);
     } else if (!isIOSDevice && !localStorage.getItem('installPromptDismissed')) {
-       // Always prompt if it's android/web but hasn't dismissed yet, wait 3 seconds
+       // Always prompt if it's android/web but hasn't dismissed yet
        setTimeout(() => {
          if (!isStandaloneMode) {
            setShowPrompt(true);
          }
-       }, 3000);
+       }, 1000);
     }
 
     return () => {

@@ -11,10 +11,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [isStandalone, setIsStandalone] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
+    const standsAlone = window.matchMedia('(display-mode: standalone)').matches 
+      || (window.navigator as any).standalone 
+      || document.referrer.includes('android-app://');
+    setIsStandalone(standsAlone);
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
@@ -69,7 +74,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { name: 'About', path: '/about', icon: Info },
     { name: 'Contact', path: '/contact', icon: Mail },
     { name: 'Messages', path: '/messages', icon: Mail },
-    { name: 'Download', path: '/download', icon: DownloadCloud },
   ];
 
   return (
@@ -262,14 +266,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </ul>
             </div>
 
-            <div>
-              <h4 className="font-display font-bold text-sm uppercase tracking-widest text-primary mb-6">Services</h4>
-              <ul className="space-y-3 text-sm text-gray-400">
-                <li><Link to="/services" className="hover:text-white transition-colors">Video Production</Link></li>
-                <li><Link to="/services" className="hover:text-white transition-colors">Event Coverage</Link></li>
-                <li><Link to="/services" className="hover:text-white transition-colors">Live Streaming</Link></li>
-              </ul>
-            </div>
+            {!isStandalone && (
+              <div>
+                <h4 className="font-display font-bold text-sm uppercase tracking-widest text-primary mb-6">Resources</h4>
+                <ul className="space-y-3 text-sm text-gray-400">
+                  <li><Link to="/services" className="hover:text-white transition-colors">Services</Link></li>
+                  <li><Link to="/download" className="hover:text-white transition-colors">Download App</Link></li>
+                  <li><Link to="/download" className="hover:text-white transition-colors">FAQ</Link></li>
+                </ul>
+              </div>
+            )}
 
             <div>
               <h4 className="font-display font-bold text-sm uppercase tracking-widest text-primary mb-6">Connect</h4>
