@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, PlayCircle, Users, Briefcase, Info, Mail, LayoutDashboard, LogOut, User, Headset, Home as HomeIcon } from 'lucide-react';
+import { Menu, X, PlayCircle, Users, Briefcase, Info, Mail, LayoutDashboard, LogOut, User, Headset, Home as HomeIcon, DownloadCloud } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import FideTvLogo from '@/components/FideTvLogo';
@@ -69,6 +69,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { name: 'About', path: '/about', icon: Info },
     { name: 'Contact', path: '/contact', icon: Mail },
     { name: 'Messages', path: '/messages', icon: Mail },
+    { name: 'Download', path: '/download', icon: DownloadCloud },
   ];
 
   return (

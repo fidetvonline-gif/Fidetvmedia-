@@ -17,13 +17,16 @@ import Messages from '@/pages/Messages';
 import Admin from '@/pages/Admin';
 import Onboarding from '@/pages/Onboarding';
 import Policies from '@/pages/Policies';
+import DownloadApp from '@/pages/DownloadApp';
 import ReloadPrompt from '@/components/ReloadPrompt';
 import InstallPrompt from '@/components/InstallPrompt';
 import MessageNotifier from '@/components/MessageNotifier';
+import SplashScreen from '@/components/SplashScreen';
 
 export default function App() {
   return (
     <Router>
+      <SplashScreen />
       <Layout>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -45,6 +48,7 @@ export default function App() {
           <Route path="/messages" element={<Messages />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/policies" element={<Policies />} />
+          <Route path="/download" element={<DownloadApp />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
