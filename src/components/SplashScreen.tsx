@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import FideTvLogo from '@/components/FideTvLogo';
 
 export default function SplashScreen() {
   const [show, setShow] = useState(true);
@@ -58,8 +59,10 @@ export default function SplashScreen() {
               transition={{ duration: 0.8, ease: "easeOut" }}
               className="mb-8"
             >
-              <div className="w-24 h-24 bg-primary rounded-3xl rotate-45 flex items-center justify-center shadow-[0_0_40px_rgba(var(--primary-rgb),0.4)]">
-                 <div className="-rotate-45 text-white font-black text-4xl font-display">F</div>
+              <div className="w-24 h-24 bg-primary/10 rounded-3xl rotate-45 flex items-center justify-center border border-primary/20 shadow-[0_0_40px_rgba(var(--primary-rgb),0.2)]">
+                 <div className="-rotate-45 text-primary">
+                    <FideTvLogo className="w-12 h-12" />
+                 </div>
               </div>
             </motion.div>
 

@@ -63,8 +63,11 @@ export interface News {
   id: string;
   title: string;
   slug: string;
+  excerpt?: string;
   description?: string;
   content: string;
+  category?: string;
+  tags?: string[];
   image_url?: string;
   image_urls?: string[];
   author_id: string;

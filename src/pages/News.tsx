@@ -34,11 +34,11 @@ export default function News() {
             <span>Updates & Insights</span>
           </div>
           <h1 className="text-5xl md:text-7xl font-display font-medium text-white tracking-tighter">
-            FideTV <span className="text-gray-600">Studio News.</span>
+            FideTV <span className="text-gray-600">Blog Studio.</span>
           </h1>
         </div>
         <p className="max-w-md text-gray-400 text-lg font-light leading-relaxed">
-          Stay updated with the latest in media production, broadcasting technology, and community highlights.
+          Stay updated with the latest in media production, broadcasting technology, community highlights, and industry insights.
         </p>
       </div>
 
@@ -57,9 +57,9 @@ export default function News() {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.1 }}
               viewport={{ once: true }}
-              className="group glass rounded-[2.5rem] overflow-hidden border-white/5 hover:bg-white/5 transition-all duration-500"
+              className="group glass rounded-[2.5rem] overflow-hidden border-white/5 hover:bg-white/5 transition-all duration-500 flex flex-col"
             >
-              <Link to={`/news/${item.slug}`} className="block h-full">
+              <Link to={`/news/${item.slug}`} className="flex flex-col h-full">
                 <div className="relative aspect-[16/10] overflow-hidden bg-surface">
                   {item.image_url ? (
                     <img src={item.image_url} alt={item.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
@@ -69,27 +69,30 @@ export default function News() {
                     </div>
                   )}
                   <div className="absolute top-6 left-6 flex space-x-2">
-                    <span className="bg-primary/20 backdrop-blur-md text-primary text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full border border-primary/20">
-                      Editorial
+                    <span className="bg-primary/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full border border-white/10 shadow-lg">
+                      {item.category || 'Editorial'}
                     </span>
                   </div>
                 </div>
-                <div className="p-8 space-y-4">
+                <div className="p-8 space-y-4 flex flex-col flex-grow">
                   <div className="flex items-center space-x-4 text-[10px] uppercase font-black tracking-widest text-gray-500">
                     <div className="flex items-center space-x-1">
                       <Calendar className="w-3 h-3" />
                       <span>{format(new Date(item.created_at), 'MMMM dd, yyyy')}</span>
                     </div>
                   </div>
-                  <h3 className="text-2xl font-bold text-white group-hover:text-primary transition-colors line-clamp-2">
+                  <h3 className="text-2xl font-bold text-white group-hover:text-primary transition-colors line-clamp-2 leading-tight">
                     {item.title}
                   </h3>
-                  <div className="pt-4 flex items-center justify-between">
+                  <p className="text-gray-500 text-sm line-clamp-2 leading-relaxed flex-grow">
+                    {item.excerpt || item.description}
+                  </p>
+                  <div className="pt-6 flex items-center justify-between border-t border-white/5">
                     <div className="flex items-center space-x-2">
-                      <div className="w-6 h-6 rounded-full bg-surface-bright flex items-center justify-center text-[10px] font-bold text-gray-400">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
                         {item.profiles?.username?.[0] || 'A'}
                       </div>
-                      <span className="text-xs text-gray-400">{item.profiles?.username || 'Admin'}</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{item.profiles?.username || 'Admin'}</span>
                     </div>
                     <ArrowRight className="w-5 h-5 text-gray-700 group-hover:text-primary group-hover:translate-x-1 transition-all" />
                   </div>

@@ -54,9 +54,12 @@ export default function Admin() {
   const [icon, setIcon] = useState('Video');
   const [price, setPrice] = useState('');
 
-  // NEWS Form State
+  // NEWS / BLOG Form State
   const [slug, setSlug] = useState('');
+  const [excerpt, setExcerpt] = useState('');
   const [content, setContent] = useState('');
+  const [blogCategory, setBlogCategory] = useState('News');
+  const [blogTags, setBlogTags] = useState<string[]>([]);
   const [isPublished, setIsPublished] = useState(false);
   const [newsGallery, setNewsGallery] = useState<string[]>([]);
 
@@ -274,7 +277,19 @@ export default function Admin() {
       payload = { title, description, youtube_id: youtubeId, stream_url: streamUrl, thumbnail_url: imageUrl, start_time: startTime, status };
     } else if (activeTab === 'news') {
       table = 'news';
-      payload = { title, slug, description, content, image_url: imageUrl, image_urls: newsGallery, is_published: isPublished, author_id: session.user.id };
+      payload = { 
+        title, 
+        slug, 
+        excerpt,
+        description, 
+        content, 
+        category: blogCategory,
+        tags: blogTags,
+        image_url: imageUrl, 
+        image_urls: newsGallery, 
+        is_published: isPublished, 
+        author_id: session.user.id 
+      };
     } else if (activeTab === 'communities') {
       table = 'communities';
       payload = { name: title, description, image_url: imageUrl };
@@ -328,9 +343,9 @@ export default function Admin() {
   };
 
   const resetForm = () => {
-    setTitle(''); setDescription(''); setContent(''); setImageUrl(''); setYoutubeId('');
+    setTitle(''); setDescription(''); setExcerpt(''); setContent(''); setImageUrl(''); setYoutubeId('');
     setStreamUrl(''); setStartTime(''); setStatus('upcoming');
-    setSlug(''); setIsPublished(false); setNewsGallery([]); setEditingId(null);
+    setSlug(''); setBlogCategory('News'); setBlogTags([]); setIsPublished(false); setNewsGallery([]); setEditingId(null);
     setCategory('Featured'); setIsFeatured(true);
     setFeatures([]); setIcon('Video'); setPrice('');
   };
@@ -385,7 +400,7 @@ export default function Admin() {
             { id: 'services', name: 'Services', icon: Zap },
             { id: 'portfolio', name: 'Portfolio & Shows', icon: Briefcase },
             { id: 'events', name: 'Events', icon: Radio },
-            { id: 'news', name: 'News & Blog', icon: Newspaper },
+            { id: 'news', name: 'Blog Studio', icon: Newspaper },
             { id: 'communities', name: 'Communities', icon: Users },
             { id: 'users', name: 'Users', icon: ShieldCheck },
             { id: 'bookings', name: 'Bookings', icon: BookOpen },
@@ -909,36 +924,54 @@ export default function Admin() {
           {activeTab === 'news' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {news.map(n => (
-                <div key={n.id} className="glass rounded-[2rem] p-6 space-y-4 group border-white/5 hover:border-white/10 transition-all">
+                <div key={n.id} className="glass rounded-[2rem] p-6 space-y-4 group border-white/5 hover:border-white/10 transition-all flex flex-col">
                   <div className="relative aspect-video rounded-xl overflow-hidden bg-surface-bright">
                     {n.image_url && <img src={n.image_url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />}
-                    <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black uppercase text-white tracking-widest border border-white/10">
-                      {n.is_published ? 'Visible' : 'Draft'}
+                    <div className="absolute top-4 left-4 flex gap-2">
+                      <div className={cn(
+                        "bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black uppercase text-white tracking-widest border",
+                        n.is_published ? "border-green-500/50 text-green-500" : "border-yellow-500/50 text-yellow-500"
+                      )}>
+                        {n.is_published ? 'Published' : 'Draft'}
+                      </div>
+                      {n.category && (
+                        <div className="bg-primary/90 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black uppercase text-white tracking-widest border border-white/10">
+                          {n.category}
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <h3 className="text-white font-bold group-hover:text-primary transition-colors">{n.title}</h3>
-                    <p className="text-[10px] text-gray-600 font-black tracking-widest uppercase">/news/{n.slug}</p>
+                  <div className="space-y-2 flex-grow">
+                    <h3 className="text-white font-bold group-hover:text-primary transition-colors line-clamp-2">{n.title}</h3>
+                    <p className="text-[10px] text-gray-500 leading-relaxed line-clamp-2">{n.excerpt || n.description}</p>
+                    <div className="flex flex-wrap gap-1 mt-2">
+                       {n.tags?.slice(0, 3).map((t, i) => (
+                         <span key={i} className="text-[8px] bg-white/5 px-2 py-0.5 rounded text-gray-400 font-bold uppercase">#{t}</span>
+                       ))}
+                    </div>
                   </div>
                   <div className="flex justify-between items-center pt-4 border-t border-white/5">
                     <div className="flex items-center space-x-2">
                        <Clock className="w-3 h-3 text-gray-600" />
-                       <span className="text-[10px] text-gray-600">{format(new Date(n.created_at), 'MMM dd')}</span>
+                       <span className="text-[10px] text-gray-600 font-mono">{format(new Date(n.created_at), 'MMM dd, yyyy')}</span>
                     </div>
-                      <div className="flex space-x-2">
-                         <button onClick={() => { 
-                           setEditingId(n.id); 
-                           setTitle(n.title); 
-                           setSlug(n.slug); 
-                           setImageUrl(n.image_url || ''); 
-                           setNewsGallery((n as any).image_urls || []);
-                           setDescription(n.description || '');
-                           setContent(n.content); 
-                           setIsPublished(n.is_published); 
-                           setIsEditing(true); 
-                         }} className="p-2 text-gray-500 hover:text-white"><Edit2 className="w-4 h-4" /></button>
-                         <button onClick={() => handleDelete('news', n.id)} className="p-2 text-gray-500 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
-                      </div>
+                    <div className="flex space-x-2">
+                       <button onClick={() => { 
+                         setEditingId(n.id); 
+                         setTitle(n.title); 
+                         setSlug(n.slug); 
+                         setImageUrl(n.image_url || ''); 
+                         setNewsGallery((n as any).image_urls || []);
+                         setDescription(n.description || '');
+                         setExcerpt(n.excerpt || '');
+                         setContent(n.content); 
+                         setBlogCategory(n.category || 'News');
+                         setBlogTags(n.tags || []);
+                         setIsPublished(n.is_published); 
+                         setIsEditing(true); 
+                       }} className="p-2 text-gray-500 hover:text-white bg-white/5 rounded-lg transition-colors"><Edit2 className="w-4 h-4" /></button>
+                       <button onClick={() => handleDelete('news', n.id)} className="p-2 text-gray-500 hover:text-red-500 bg-white/5 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1124,6 +1157,113 @@ export default function Admin() {
                    </span>
                  </h2>
                  <form onSubmit={handleSave} className="space-y-6">
+                   {activeTab === 'news' ? (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                      {/* Main Editor */}
+                      <div className="lg:col-span-2 space-y-6">
+                        <div className="space-y-2">
+                           <label className="text-[10px] uppercase font-black tracking-widest text-primary ml-4">Article Title</label>
+                           <input value={title} onChange={e => setTitle(e.target.value)} required placeholder="Enter broad title..." className="w-full bg-black/40 border border-white/10 rounded-2xl p-6 text-xl font-bold text-white focus:border-primary transition-all shadow-inner" />
+                        </div>
+
+                        <div className="space-y-2">
+                           <div className="flex justify-between items-center px-4 mb-2">
+                              <label className="text-[10px] uppercase font-black tracking-widest text-gray-500">Short Excerpt</label>
+                              <button type="button" onClick={generateWithAI} className="flex items-center space-x-2 text-[10px] font-black text-primary hover:text-white transition-colors">
+                                 <Sparkles className="w-3 h-3" /><span>AI Generate Excerpt</span>
+                              </button>
+                           </div>
+                           <textarea value={excerpt} onChange={e => setExcerpt(e.target.value)} placeholder="Catchy summary for cards..." className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white text-sm min-h-[80px] resize-none focus:border-primary transition-colors" />
+                        </div>
+
+                        <div className="space-y-2">
+                           <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">Full Content (Markdown Supported)</label>
+                           <textarea value={content} onChange={e => setContent(e.target.value)} required placeholder="Once upon a time in FideTV..." className="w-full bg-black/40 border border-white/10 rounded-3xl p-8 text-white min-h-[400px] resize-none focus:border-primary transition-colors font-mono text-sm leading-relaxed" />
+                        </div>
+                      </div>
+
+                      {/* Side Settings */}
+                      <div className="space-y-8 bg-black/20 p-6 rounded-[2.5rem] border border-white/5 h-fit">
+                        <div className="space-y-4">
+                           <h3 className="text-[10px] uppercase font-black tracking-widest text-gray-400 px-2 border-b border-white/5 pb-2">Publishing</h3>
+                           <div className="flex items-center justify-between p-4 bg-surface-bright/50 rounded-2xl border border-white/5">
+                              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Status</span>
+                              <div className="flex items-center gap-2">
+                                <div className={cn("w-2 h-2 rounded-full", isPublished ? "bg-green-500" : "bg-yellow-500")} />
+                                <span className="text-[10px] font-black text-white">{isPublished ? 'PUBLISHED' : 'DRAFT'}</span>
+                              </div>
+                           </div>
+                           <button 
+                             type="button"
+                             onClick={() => setIsPublished(!isPublished)}
+                             className={cn(
+                               "w-full py-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
+                               isPublished 
+                                 ? "bg-yellow-500/10 border-yellow-500/20 text-yellow-500 hover:bg-yellow-500/20" 
+                                 : "bg-green-500/10 border-green-500/20 text-green-500 hover:bg-green-500/20"
+                             )}
+                           >
+                             {isPublished ? 'Revert to Draft' : 'Publish Article'}
+                           </button>
+                        </div>
+
+                        <div className="space-y-4">
+                           <h3 className="text-[10px] uppercase font-black tracking-widest text-gray-400 px-2 border-b border-white/5 pb-2">Organization</h3>
+                           <div className="space-y-2">
+                              <label className="text-[8px] font-black uppercase text-gray-600 ml-2">Category</label>
+                              <select 
+                                value={blogCategory} 
+                                onChange={e => setBlogCategory(e.target.value)}
+                                className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white text-xs font-bold uppercase tracking-wider"
+                              >
+                                <option value="News">General News</option>
+                                <option value="Entertainment">Entertainment</option>
+                                <option value="Tech">Broadcasting Tech</option>
+                                <option value="Lifestyle">Lifestyle</option>
+                                <option value="Community">Community Spotlight</option>
+                                <option value="Opinion">Opinion Pieces</option>
+                                <option value="Industry">Industry News</option>
+                              </select>
+                           </div>
+
+                           <div className="space-y-2">
+                              <label className="text-[8px] font-black uppercase text-gray-600 ml-2">Permalink Slug</label>
+                              <input value={slug} onChange={e => setSlug(e.target.value)} placeholder="url-friendly-slug" className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white text-[10px] font-mono" />
+                           </div>
+                        </div>
+
+                        <div className="space-y-4">
+                           <h3 className="text-[10px] uppercase font-black tracking-widest text-gray-400 px-2 border-b border-white/5 pb-2">Featured Image</h3>
+                           <div className="relative aspect-video rounded-2xl overflow-hidden bg-black/40 border-2 border-dashed border-white/5 flex flex-col items-center justify-center group cursor-pointer" onClick={() => document.getElementById('blog-upload')?.click()}>
+                              {imageUrl ? (
+                                <>
+                                  <img src={imageUrl} className="w-full h-full object-cover" />
+                                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Camera className="w-6 h-6 text-white" />
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <Camera className="w-6 h-6 text-gray-600 mb-2" />
+                                  <span className="text-[8px] font-black text-gray-600 uppercase tracking-widest">Select Image</span>
+                                </>
+                              )}
+                              <input id="blog-upload" type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'event-thumbnails', `blog/${Date.now()}`, setImageUrl)} />
+                           </div>
+                           <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="Or paste external URL..." className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white text-[8px]" />
+                        </div>
+
+                        <div className="space-y-4">
+                           <h3 className="text-[10px] uppercase font-black tracking-widest text-gray-400 px-2 border-b border-white/5 pb-2">Actions</h3>
+                           <div className="flex gap-2">
+                              <button type="button" onClick={() => setIsEditing(false)} className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-gray-500 font-bold uppercase tracking-widest text-[10px] rounded-xl transition-all">Cancel</button>
+                              <button type="submit" className="flex-1 py-4 bg-primary text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all">Save Changes</button>
+                           </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
                     <div className="space-y-2">
                        <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">{activeTab === 'communities' ? 'Hub Name' : 'Title'}</label>
                        <input value={title} onChange={e => setTitle(e.target.value)} required placeholder="Enter name/title..." className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white focus:border-primary/50 transition-colors" />
@@ -1144,7 +1284,7 @@ export default function Admin() {
                          </div>
                          <div className="space-y-2">
                             <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">YouTube ID (Optional)</label>
-                            <input value={youtubeId} onChange={e => setYoutubeId(e.target.value)} placeholder="e.g. dQw4w9WgXcQ" className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white focus:border-primary/50 transition-colors" />
+                            <input value={youtubeId} onChange={e => setYouTubeId(e.target.value)} placeholder="e.g. dQw4w9WgXcQ" className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white focus:border-primary/50 transition-colors" />
                          </div>
                       </div>
                     )}
@@ -1329,6 +1469,8 @@ export default function Admin() {
                           Confirm & Save
                        </button>
                     </div>
+                  </div>
+                )}
                  </form>
               </motion.div>
             </>

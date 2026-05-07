@@ -68,7 +68,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { name: 'Home', path: '/', icon: HomeIcon },
     { name: 'Live', path: '/live', icon: PlayCircle },
     { name: 'Content', path: '/content', icon: LayoutDashboard },
-    { name: 'News', path: '/news', icon: LayoutDashboard },
+    { name: 'Blog', path: '/news', icon: LayoutDashboard },
     { name: 'Community', path: '/community', icon: Users },
     { name: 'Services', path: '/services', icon: Briefcase },
     { name: 'About', path: '/about', icon: Info },
@@ -261,7 +261,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <ul className="space-y-3 text-sm text-gray-400">
                 <li><Link to="/live" className="hover:text-white transition-colors">Live Events</Link></li>
                 <li><Link to="/content" className="hover:text-white transition-colors">Content Hub</Link></li>
-                <li><Link to="/news" className="hover:text-white transition-colors">Platform News</Link></li>
+                <li><Link to="/news" className="hover:text-white transition-colors">FideTV Blog</Link></li>
                 <li><Link to="/community" className="hover:text-white transition-colors">Community</Link></li>
               </ul>
             </div>
