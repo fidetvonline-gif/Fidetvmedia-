@@ -326,3 +326,16 @@ CREATE TABLE public.services (
 ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Services are viewable by everyone" ON public.services FOR SELECT USING (true);
 CREATE POLICY "Only admin can manage services" ON public.services FOR ALL USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
+
+-- 14. Site Settings Table
+CREATE TABLE public.site_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Settings are viewable by everyone" ON public.site_settings FOR SELECT USING (true);
+CREATE POLICY "Only admin can manage site_settings" ON public.site_settings FOR ALL USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
+
+INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://www.youtube.com/watch?v=0D-zn6YAqCY') ON CONFLICT (key) DO NOTHING;

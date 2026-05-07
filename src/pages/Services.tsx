@@ -20,13 +20,27 @@ const ICON_MAP: Record<string, any> = {
 export default function Services() {
   const [showShowreel, setShowShowreel] = useState(false);
   const [services, setServices] = useState<Service[]>([]);
+  const [showreelUrl, setShowreelUrl] = useState('https://www.youtube.com/watch?v=0D-zn6YAqCY');
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     fetchServices();
+    fetchShowreel();
     checkAdmin();
   }, []);
+
+  const fetchShowreel = async () => {
+    const { data } = await supabase
+      .from('site_settings')
+      .select('value')
+      .eq('key', 'showreel_url')
+      .single();
+    
+    if (data?.value) {
+      setShowreelUrl(data.value);
+    }
+  };
 
   const checkAdmin = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -111,7 +125,7 @@ export default function Services() {
                 <X className="w-6 h-6" />
               </button>
               <Player
-                url="https://www.youtube.com/watch?v=Fj-Yv0k-U04" // PlaceholderID
+                url={showreelUrl}
                 width="100%"
                 height="100%"
                 playing

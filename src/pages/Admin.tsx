@@ -14,7 +14,7 @@ import { GoogleGenAI } from "@google/genai";
 import { fetchYouTubeStats, YouTubeStats } from '@/services/youtubeService';
 import { DEFAULT_CHANNELS } from '@/constants/channels';
 
-type AdminTab = 'overview' | 'events' | 'news' | 'communities' | 'bookings' | 'users' | 'support' | 'portfolio' | 'channels' | 'services';
+type AdminTab = 'overview' | 'events' | 'news' | 'communities' | 'bookings' | 'users' | 'support' | 'portfolio' | 'channels' | 'services' | 'site';
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
@@ -26,6 +26,7 @@ export default function Admin() {
   const [communities, setCommunities] = useState<Community[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [siteSettings, setSiteSettings] = useState<Record<string, string>>({});
   const [supportChats, setSupportChats] = useState<any[]>([]);
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [adminReply, setAdminReply] = useState('');
@@ -113,7 +114,8 @@ export default function Admin() {
         fetchCommunityStats(),
         fetchPortfolio(),
         fetchChannels(),
-        fetchServices()
+        fetchServices(),
+        fetchSiteSettings()
       ]);
     }
     if (activeTab === 'events') await fetchEvents();
@@ -125,7 +127,29 @@ export default function Admin() {
     if (activeTab === 'portfolio') await fetchPortfolio();
     if (activeTab === 'channels') await fetchChannels();
     if (activeTab === 'services') await fetchServices();
+    if (activeTab === 'site') await fetchSiteSettings();
     setLoading(false);
+  };
+
+  const fetchSiteSettings = async () => {
+    const { data } = await supabase.from('site_settings').select('*');
+    if (data) {
+      const settings = data.reduce((acc: any, curr: any) => {
+        acc[curr.key] = curr.value;
+        return acc;
+      }, {});
+      setSiteSettings(settings);
+    }
+  };
+
+  const saveSiteSetting = async (key: string, value: string) => {
+    const { error } = await supabase.from('site_settings').upsert({ key, value, updated_at: new Date().toISOString() });
+    if (!error) {
+      setSiteSettings(prev => ({ ...prev, [key]: value }));
+      alert('Setting saved!');
+    } else {
+      alert('Error saving setting: ' + error.message);
+    }
   };
 
   const fetchServices = async () => {
@@ -404,7 +428,8 @@ export default function Admin() {
             { id: 'communities', name: 'Communities', icon: Users },
             { id: 'users', name: 'Users', icon: ShieldCheck },
             { id: 'bookings', name: 'Bookings', icon: BookOpen },
-            { id: 'support', name: 'Support', icon: MessageSquare }
+            { id: 'support', name: 'Support', icon: MessageSquare },
+            { id: 'site', name: 'Site Setup', icon: Settings }
           ].map(tab => (
             <button
               key={tab.id}
@@ -424,6 +449,55 @@ export default function Admin() {
 
        {/* Content Rendering */}
        <div className="space-y-12">
+          {activeTab === 'site' && (
+            <div className="space-y-12">
+              <div className="glass rounded-[2.5rem] p-10 border-white/5 space-y-10">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center border border-primary/20">
+                    <Youtube className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-display font-bold text-white uppercase tracking-tight">Showreel Configuration</h2>
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Manage the video featured on the services page.</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <label className="text-[10px] uppercase font-black tracking-[0.2em] text-gray-600 block ml-4">Youtube showreel URL</label>
+                  <div className="flex gap-4">
+                    <input 
+                      value={siteSettings.showreel_url || ''} 
+                      onChange={(e) => setSiteSettings(prev => ({ ...prev, showreel_url: e.target.value }))}
+                      placeholder="https://www.youtube.com/watch?v=..."
+                      className="flex-grow bg-black/40 border border-white/10 rounded-2xl p-6 text-sm text-white focus:border-primary/50 transition-colors" 
+                    />
+                    <button 
+                      onClick={() => saveSiteSetting('showreel_url', siteSettings.showreel_url)}
+                      className="px-10 bg-primary text-white font-black uppercase tracking-widest text-[10px] rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/20"
+                    >
+                      Update URL
+                    </button>
+                  </div>
+                  <p className="text-[9px] text-gray-600 px-4">This video will appear in the "Watch our Live Showreel" section on the Services page.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                 <div className="glass rounded-[2.5rem] p-10 border-white/5 space-y-6">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-white border-b border-white/5 pb-4">Branding Accent</h3>
+                    <p className="text-xs text-gray-500 leading-relaxed italic">More global site settings like primary colors or branding assets can be added here in the future.</p>
+                 </div>
+                 <div className="glass rounded-[2.5rem] p-10 border-white/5 space-y-6">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-white border-b border-white/5 pb-4">System Maintenance</h3>
+                    <div className="flex items-center justify-between p-4 bg-white/2 rounded-2xl border border-white/5">
+                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Database Version</span>
+                       <span className="text-[10px] font-mono text-primary font-bold">PROD-v2.1</span>
+                    </div>
+                 </div>
+              </div>
+            </div>
+          )}
+
           {activeTab === 'support' && (
             <div className="flex gap-8 h-[600px]">
               {/* Chat Sidebar */}
