@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ReactPlayer from 'react-player';
 import { supabase } from '@/lib/supabase';
 import { Event } from '@/types';
@@ -23,6 +23,32 @@ export default function Live() {
   const [activeTab, setActiveTab] = useState<'channels' | 'chat'>('channels');
   const [playerError, setPlayerError] = useState(false);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
+
+  const [isPiP, setIsPiP] = useState(false);
+  const [isPiPDismissed, setIsPiPDismissed] = useState(false);
+  const playerContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          // If the player container is not intersecting (visible), enable PiP
+          if (!entry.isIntersecting) {
+             setIsPiP(true);
+          } else {
+             setIsPiP(false);
+             setIsPiPDismissed(false); // Reset dismissal when it comes back into view
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+
+    if (playerContainerRef.current) {
+      observer.observe(playerContainerRef.current);
+    }
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     setPlayerError(false);
@@ -179,7 +205,28 @@ export default function Live() {
           </div>
 
           {/* Player Container */}
-          <div className="relative w-full aspect-video lg:aspect-auto flex-grow bg-black group/player">
+          <div ref={playerContainerRef} className="relative w-full aspect-video lg:aspect-auto flex-grow bg-black group/player">
+            <div className={cn(
+               "transition-all duration-300 z-[999]",
+               isPiP && !isPiPDismissed 
+                 ? "fixed bottom-4 right-4 sm:bottom-8 sm:right-8 w-64 sm:w-96 aspect-video rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden border-2 border-border-custom bg-black scale-100 group/pip" 
+                 : "absolute inset-0 w-full h-full scale-100",
+               isPiP && isPiPDismissed ? "opacity-0 pointer-events-none" : "opacity-100"
+            )}>
+              {isPiP && !isPiPDismissed && (
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    setIsPiPDismissed(true);
+                  }}
+                  className="absolute top-2 right-2 w-8 h-8 bg-black/60 hover:bg-red-500 text-white rounded-full flex items-center justify-center z-[100] opacity-0 group-hover/pip:opacity-100 transition-all backdrop-blur-sm"
+                  title="Close Mini-Player"
+                >
+                  <AlertCircle className="w-4 h-4 hidden" /> {/* Dummy icon so we can cleanly replace with an X or just use text if we want. Actually a simple text 'X' is fine here */}
+                  <span className="text-xs font-bold font-sans">✕</span>
+                </button>
+              )}
             {playerError ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface z-30">
                 <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
@@ -296,6 +343,7 @@ export default function Live() {
                   </div>
                 </div>
             )}
+            </div>
             
             {/* Share action overlay */}
             <div className="absolute top-6 right-6 flex space-x-3 z-20 pointer-events-auto">
