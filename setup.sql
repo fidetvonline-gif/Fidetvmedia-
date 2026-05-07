@@ -29,4 +29,19 @@ VALUES
 ('NTA News 24', 'Nigeria', 'https://www.youtube.com/watch?v=2SgEqv8S5dY', 'https://images.unsplash.com/photo-1493612276216-ee3925520721?q=80&w=800', 'Nigeria Television Authority 24-hour news.', 'Tv', 6),
 ('Red Bull TV', 'Sports', 'https://rbmn-live.akamaized.net/hls/live/590964/BoRB-AT/master.m3u8', 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=800', '24/7 Live Action Sports and Lifestyle.', 'MonitorPlay', 7),
 ('Al Jazeera English', 'News', 'https://live-hls-web-aje.getaj.net/AJE/index.m3u8', 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=800', 'Breaking news and world events happening right now.', 'Globe', 8),
-('France 24', 'News', 'https://static.france24.com/live/F24_EN_HI_HLS/live_web.m3u8', 'https://images.unsplash.com/photo-1493612276216-ee3925520721?q=80&w=800', 'International news broadcasting from Paris, France.', 'Globe', 9);
+-- 4. Create the services table
+CREATE TABLE IF NOT EXISTS public.services (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT,
+  icon TEXT, 
+  features TEXT[] DEFAULT '{}',
+  price TEXT NOT NULL,
+  order_index INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 5. Enable RLS and add policies for services
+ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Services are viewable by everyone" ON public.services FOR SELECT USING (true);
+CREATE POLICY "Only admin can manage services" ON public.services FOR ALL USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
