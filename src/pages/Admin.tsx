@@ -301,7 +301,7 @@ export default function Admin() {
       payload = { name: title, category, description, url: streamUrl, thumbnail: imageUrl, is_active: status === 'live' };
     } else if (activeTab === 'services') {
       table = 'services';
-      payload = { title, description, icon, features, price, order_index: portfolio.length };
+      payload = { title, description, icon, features, price, order_index: services.length };
     }
 
     if (!table) return;
@@ -738,34 +738,42 @@ export default function Admin() {
                           icon: 'Video',
                           description: 'From concept to final cut, we create cinematic video content that tells your story with power and precision.',
                           features: ['4K Cinematography', 'Professional Editing', 'Motion Graphics', 'Sound Design'],
-                          price: 'Starting at ₦1,500,000'
+                          price: 'Starting at ₦1,500,000',
+                          order_index: 0
                         },
                         {
                           title: 'Live Streaming',
                           icon: 'Radio',
                           description: 'Ultra-low latency, multi-camera broadcasting for concerts, conferences, and virtual events.',
                           features: ['Multi-platform Stream', 'Live Tech Support', 'Interaction Tools', 'HD Quality'],
-                          price: 'Starting at ₦2,000,000'
+                          price: 'Starting at ₦2,000,000',
+                          order_index: 1
                         },
                         {
                           title: 'Event Coverage',
                           icon: 'Camera',
                           description: 'Comprehensive media coverage for large-scale events, combining photography and videography.',
                           features: ['Full Day Coverage', 'Quick Turnaround', 'High-Res Photos', 'Highlight Reels'],
-                          price: 'Starting at ₦3,000,000'
+                          price: 'Starting at ₦3,000,000',
+                          order_index: 2
                         },
                         {
                           title: 'Interviews & Podcasts',
                           icon: 'Mic',
                           description: 'Professional sets and high-end audio for crisp, engaging talk content and interviews.',
                           features: ['Multi-Mic Setup', 'Video Recording', 'Lighting Design', 'Post Production'],
-                          price: 'Starting at ₦800,000'
+                          price: 'Starting at ₦800,000',
+                          order_index: 3
                         }
                       ];
-                      for (const s of defaultServices) {
-                        await supabase.from('services').insert(s);
+                      
+                      const { error } = await supabase.from('services').insert(defaultServices);
+                      if (error) {
+                        alert('Error seeding services: ' + error.message);
+                      } else {
+                        alert('Services seeded successfully!');
+                        fetchServices();
                       }
-                      fetchServices();
                     }
                   }}
                   className="px-6 py-3 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold uppercase tracking-widest text-primary border border-primary/20 transition-all font-mono"
@@ -826,13 +834,16 @@ export default function Admin() {
                             { title: 'Love affair: hubby said we buy a land together...', category: 'Love Affairs', image_url: `https://img.youtube.com/vi/4m-9f9saFbA/maxresdefault.jpg`, youtube_id: '4m-9f9saFbA', description: 'Love affair: hubby said we buy a land together, he said it\'s going to be fifty fifty', is_featured: true },
                             { title: 'This one Sabi book oh 😂😂', category: 'Campus Matters', image_url: `https://img.youtube.com/vi/jrjpYn_nX8Q/maxresdefault.jpg`, youtube_id: 'jrjpYn_nX8Q', description: 'This one Sabi book oh 😂😂 || FIDE TV', is_featured: true },
                         ];
-                        for (const vid of defaultVideos) {
-                          await supabase.from('portfolio_items').insert(vid);
+                        const { error } = await supabase.from('portfolio_items').insert(defaultVideos);
+                        if (error) {
+                          alert('Error seeding videos: ' + error.message);
+                        } else {
+                          alert('Videos seeded successfully!');
+                          fetchPortfolio();
                         }
-                        fetchPortfolio();
                       }
                     }}
-                    className="px-6 py-3 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold uppercase tracking-widest text-primary border border-primary/20 transition-all"
+                    className="px-6 py-3 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold uppercase tracking-widest text-primary border border-primary/20 transition-all font-mono"
                   >
                     Seed YouTube Videos
                   </button>
@@ -1269,22 +1280,15 @@ export default function Admin() {
                        <input value={title} onChange={e => setTitle(e.target.value)} required placeholder="Enter name/title..." className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white focus:border-primary/50 transition-colors" />
                     </div>
 
-                    {activeTab === 'news' && (
-                      <div className="space-y-2 text-xs uppercase text-gray-500 font-bold border-white/5 border-b pb-6 mb-6">
-                         <label className="px-4">Article Slug (e.g. new-platform-update)</label>
-                         <input value={slug} onChange={e => setSlug(e.target.value)} required className="w-full bg-black/40 border-white/10 rounded-2xl p-5 mt-2" />
-                      </div>
-                    )}
-
                     {activeTab === 'portfolio' && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                         <div className="space-y-2">
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-2">
                             <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">Category</label>
                             <input value={category} onChange={e => setCategory(e.target.value)} required placeholder="e.g. Signature Productions" className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white focus:border-primary/50 transition-colors" />
                          </div>
                          <div className="space-y-2">
                             <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">YouTube ID (Optional)</label>
-                            <input value={youtubeId} onChange={e => setYouTubeId(e.target.value)} placeholder="e.g. dQw4w9WgXcQ" className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white focus:border-primary/50 transition-colors" />
+                            <input value={youtubeId} onChange={e => setYoutubeId(e.target.value)} placeholder="e.g. dQw4w9WgXcQ" className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white focus:border-primary/50 transition-colors" />
                          </div>
                       </div>
                     )}
@@ -1362,24 +1366,17 @@ export default function Admin() {
 
                     <div className="space-y-2">
                        <div className="flex justify-between items-center px-4 mb-2">
-                          <label className="text-[10px] uppercase font-black tracking-widest text-gray-500">{activeTab === 'news' ? 'Short Summary' : 'Description'}</label>
+                          <label className="text-[10px] uppercase font-black tracking-widest text-gray-500">Description</label>
                           <button type="button" onClick={generateWithAI} className="flex items-center space-x-2 text-[10px] font-black text-primary hover:text-white transition-colors">
                              <Sparkles className="w-3 h-3" /><span>AI Optimize</span>
                           </button>
                        </div>
-                       <textarea value={description} onChange={e => setDescription(e.target.value)} required placeholder={activeTab === 'news' ? 'Brief catch-phrase for the article...' : 'Describe this hub/event...'} className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white min-h-[100px] resize-none focus:border-primary/50 transition-colors" />
+                       <textarea value={description} onChange={e => setDescription(e.target.value)} required placeholder="Describe this hub/event..." className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white min-h-[100px] resize-none focus:border-primary/50 transition-colors" />
                     </div>
-
-                    {activeTab === 'news' && (
-                      <div className="space-y-2">
-                         <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">Full Article Body (Markdown)</label>
-                         <textarea value={content} onChange={e => setContent(e.target.value)} required placeholder="Write the complete article content here..." className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white min-h-[300px] resize-none focus:border-primary/50 transition-colors" />
-                      </div>
-                    )}
 
                     <div className="space-y-4">
                        <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">
-                         {activeTab === 'news' ? 'Article Thumbnail' : 'Media Accent'}
+                         Media Accent
                        </label>
                        <div className="flex gap-4">
                           <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="Paste Image URL..." className="flex-grow bg-black/40 border border-white/10 rounded-2xl p-5 text-white text-xs" />
@@ -1389,45 +1386,6 @@ export default function Admin() {
                           </label>
                        </div>
                     </div>
-
-                    {activeTab === 'news' && (
-                      <div className="space-y-6 pt-4 border-t border-white/5">
-                         <div className="flex justify-between items-center px-4">
-                            <label className="text-[10px] uppercase font-black tracking-widest text-gray-500">Gallery Images (Multi)</label>
-                            <button 
-                              type="button" 
-                              onClick={() => setNewsGallery([...newsGallery, ''])}
-                              className="text-[10px] font-black text-primary hover:text-white uppercase tracking-widest flex items-center space-x-1"
-                            >
-                              <Plus className="w-3 h-3" />
-                              <span>Add Image</span>
-                            </button>
-                         </div>
-                         <div className="space-y-3">
-                            {newsGallery.map((url, idx) => (
-                              <div key={idx} className="flex gap-3">
-                                 <input 
-                                   value={url} 
-                                   onChange={e => {
-                                     const newG = [...newsGallery];
-                                     newG[idx] = e.target.value;
-                                     setNewsGallery(newG);
-                                   }} 
-                                   placeholder="Additional image URL..." 
-                                   className="flex-grow bg-black/40 border border-white/10 rounded-xl p-4 text-white text-xs" 
-                                 />
-                                 <button 
-                                   type="button" 
-                                   onClick={() => setNewsGallery(newsGallery.filter((_, i) => i !== idx))}
-                                   className="p-4 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-colors"
-                                 >
-                                    <Trash2 className="w-4 h-4" />
-                                 </button>
-                              </div>
-                            ))}
-                         </div>
-                      </div>
-                    )}
 
                     {activeTab === 'events' && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1439,13 +1397,6 @@ export default function Admin() {
                             <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">Start Time</label>
                             <input type="datetime-local" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full bg-black/40 border-white/10 rounded-2xl p-5" />
                          </div>
-                      </div>
-                    )}
-
-                    {activeTab === 'news' && (
-                      <div className="flex items-center space-x-4 p-4 glass rounded-2xl">
-                         <input type="checkbox" id="pub" checked={isPublished} onChange={e => setIsPublished(e.target.checked)} className="w-5 h-5 accent-primary" />
-                         <label htmlFor="pub" className="text-xs font-bold text-gray-300 uppercase tracking-widest">Publish Immediately</label>
                       </div>
                     )}
 
