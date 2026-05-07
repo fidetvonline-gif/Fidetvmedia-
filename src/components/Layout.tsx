@@ -241,69 +241,71 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </AnimatePresence>
       </main>
 
-      <footer className="bg-surface border-t border-white/5 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
-            <div className="space-y-4">
-              <div className="flex items-center space-x-2 cursor-default group">
-                <div className="w-8 h-8 text-white flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
-                  <FideTvLogo className="w-full h-full" />
+      {location.pathname !== '/messages' && (
+        <footer className="bg-surface border-t border-white/5 py-12">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2 cursor-default group">
+                  <div className="w-8 h-8 text-white flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
+                    <FideTvLogo className="w-full h-full" />
+                  </div>
+                  <span className="font-display font-bold text-xl text-white">FideTv</span>
                 </div>
-                <span className="font-display font-bold text-xl text-white">FideTv</span>
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  Empowering creativity through digital media. Live streaming, professional event coverage, and creative production.
+                </p>
               </div>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Empowering creativity through digital media. Live streaming, professional event coverage, and creative production.
-              </p>
-            </div>
-            
-            <div>
-              <h4 className="font-display font-bold text-sm uppercase tracking-widest text-primary mb-6">Explore</h4>
-              <ul className="space-y-3 text-sm text-gray-400">
-                <li><Link to="/live" className="hover:text-white transition-colors">Live Events</Link></li>
-                <li><Link to="/content" className="hover:text-white transition-colors">Content Hub</Link></li>
-                <li><Link to="/news" className="hover:text-white transition-colors">FideTV Blog</Link></li>
-                <li><Link to="/community" className="hover:text-white transition-colors">Community</Link></li>
-              </ul>
-            </div>
-
-            {!isStandalone && (
+              
               <div>
-                <h4 className="font-display font-bold text-sm uppercase tracking-widest text-primary mb-6">Resources</h4>
+                <h4 className="font-display font-bold text-sm uppercase tracking-widest text-primary mb-6">Explore</h4>
                 <ul className="space-y-3 text-sm text-gray-400">
-                  <li><Link to="/services" className="hover:text-white transition-colors">Services</Link></li>
-                  <li><Link to="/download" className="hover:text-white transition-colors">Download App</Link></li>
-                  <li><Link to="/download" className="hover:text-white transition-colors">FAQ</Link></li>
+                  <li><Link to="/live" className="hover:text-white transition-colors">Live Events</Link></li>
+                  <li><Link to="/content" className="hover:text-white transition-colors">Content Hub</Link></li>
+                  <li><Link to="/news" className="hover:text-white transition-colors">FideTV Blog</Link></li>
+                  <li><Link to="/community" className="hover:text-white transition-colors">Community</Link></li>
                 </ul>
               </div>
-            )}
 
-            <div>
-              <h4 className="font-display font-bold text-sm uppercase tracking-widest text-primary mb-6">Connect</h4>
-              <ul className="space-y-3 text-sm text-gray-400">
-                <li><a href="https://youtube.com/@fidetvmedia?si=JkdixDjpkGPah9ay" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">YouTube Channel</a></li>
-                <li><a href="mailto:fidetvonline@gmail.com" className="hover:text-white transition-colors">fidetvonline@gmail.com</a></li>
-                <li><a href="https://wa.me/2348108889805" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">WhatsApp: 08108889805</a></li>
-                <li><a href="tel:08124323608" className="hover:text-white transition-colors">Call: 08124323608</a></li>
-                <li><Link to="/contact" className="hover:text-white transition-colors">Community Links</Link></li>
-              </ul>
+              {!isStandalone && (
+                <div>
+                  <h4 className="font-display font-bold text-sm uppercase tracking-widest text-primary mb-6">Resources</h4>
+                  <ul className="space-y-3 text-sm text-gray-400">
+                    <li><Link to="/services" className="hover:text-white transition-colors">Services</Link></li>
+                    <li><Link to="/download" className="hover:text-white transition-colors">Download App</Link></li>
+                    <li><Link to="/download" className="hover:text-white transition-colors">FAQ</Link></li>
+                  </ul>
+                </div>
+              )}
+
+              <div>
+                <h4 className="font-display font-bold text-sm uppercase tracking-widest text-primary mb-6">Connect</h4>
+                <ul className="space-y-3 text-sm text-gray-400">
+                  <li><a href="https://youtube.com/@fidetvmedia?si=JkdixDjpkGPah9ay" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">YouTube Channel</a></li>
+                  <li><a href="mailto:fidetvonline@gmail.com" className="hover:text-white transition-colors">fidetvonline@gmail.com</a></li>
+                  <li><a href="https://wa.me/2348108889805" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">WhatsApp: 08108889805</a></li>
+                  <li><a href="tel:08124323608" className="hover:text-white transition-colors">Call: 08124323608</a></li>
+                  <li><Link to="/contact" className="hover:text-white transition-colors">Community Links</Link></li>
+                </ul>
+              </div>
+            </div>
+            
+            <div className="mt-12 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+              <p className="text-gray-500 text-xs text-center md:text-left">
+                &copy; {new Date().getFullYear()} Fidetvmedia Creative Platform. All rights reserved.
+              </p>
+              <div className="flex space-x-6 text-xs text-gray-500 uppercase tracking-widest">
+                <Link to="/profile" className="hover:text-primary transition-colors flex items-center gap-2">
+                  <Headset className="w-3 h-3" />
+                  Support
+                </Link>
+                <Link to="/policies" className="hover:text-primary transition-colors">Privacy</Link>
+                <Link to="/policies" className="hover:text-primary transition-colors">Terms</Link>
+              </div>
             </div>
           </div>
-          
-          <div className="mt-12 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-            <p className="text-gray-500 text-xs text-center md:text-left">
-              &copy; {new Date().getFullYear()} Fidetvmedia Creative Platform. All rights reserved.
-            </p>
-            <div className="flex space-x-6 text-xs text-gray-500 uppercase tracking-widest">
-              <Link to="/profile" className="hover:text-primary transition-colors flex items-center gap-2">
-                <Headset className="w-3 h-3" />
-                Support
-              </Link>
-              <Link to="/policies" className="hover:text-primary transition-colors">Privacy</Link>
-              <Link to="/policies" className="hover:text-primary transition-colors">Terms</Link>
-            </div>
-          </div>
-        </div>
-      </footer>
+        </footer>
+      )}
     </div>
   );
 }

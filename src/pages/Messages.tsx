@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Send, User, Check, CheckCheck, EyeOff, X, Eye, Paperclip, Image as ImageIcon, Trash2, Loader2, MessageSquare } from 'lucide-react';
+import { Search, Send, User, Check, CheckCheck, EyeOff, X, Eye, Paperclip, Image as ImageIcon, Trash2, Loader2, MessageSquare, DownloadCloud, Zap } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function Messages() {
@@ -175,15 +175,20 @@ export default function Messages() {
     }
   };
 
-  const undoMessage = async (msgId: string) => {
+  const deleteMessage = async (msgId: string) => {
+    if (!window.confirm("Delete this message permanently?")) return;
+    
     const { error } = await supabase
       .from('direct_messages')
-      .update({ is_deleted: true })
+      .delete()
       .eq('id', msgId)
-      .eq('sender_id', user.id);
+      .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
 
     if (error) {
-      console.error("Error undoing message:", error);
+      console.error("Error deleting message:", error);
+    } else {
+      // Optistically remove from UI or wait for subscription
+      setMessages(messages.filter(m => m.id !== msgId));
     }
   };
 
@@ -199,7 +204,10 @@ export default function Messages() {
 
     if (!error) {
       setActiveChat(null);
-      fetchData(user.id);
+      setMessages(messages.filter(m => 
+        !((m.sender_id === user.id && m.receiver_id === activeChat.id) || 
+          (m.sender_id === activeChat.id && m.receiver_id === user.id))
+      ));
     }
     setDeletingConversation(false);
   };
@@ -271,8 +279,9 @@ export default function Messages() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 h-[calc(100vh-80px)]">
-      <div className="bg-surface/50 border border-white/5 rounded-[2rem] overflow-hidden flex h-full backdrop-blur-md">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 h-[calc(100vh-100px)]">
+      <div className="bg-[#0A0A0A] border border-white/10 rounded-[2.5rem] overflow-hidden flex h-full shadow-2xl relative">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
         
         {/* Sidebar */}
         <div className={`
@@ -409,28 +418,35 @@ export default function Messages() {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {activeChatMessages.map((msg: any) => {
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 flex flex-col">
+              {activeChatMessages.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-8 opacity-40">
+                  <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6">
+                    <Zap className="w-8 h-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-display font-bold text-white mb-2">No messages yet</h3>
+                  <p className="text-gray-500 text-xs uppercase tracking-widest">Start the conversation with @{activeChat.username}</p>
+                </div>
+              ) : activeChatMessages.map((msg: any) => {
                 const isMine = msg.sender_id === user.id;
                 
-                if (msg.is_deleted) {
-                  return (
-                    <div key={msg.id} className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
-                      <div className="px-4 py-2 rounded-xl bg-white/5 text-gray-500 text-xs italic border border-white/5">
-                        {isMine ? 'You unsent a message' : 'Message unsent'}
-                      </div>
-                    </div>
-                  );
-                }
-
                 return (
-                  <div key={msg.id} className={`flex flex-col group ${isMine ? 'items-end' : 'items-start'} mb-4`}>
+                  <div key={msg.id} className={`flex flex-col group ${isMine ? 'items-end' : 'items-start'} mb-4 animate-in fade-in slide-in-from-bottom-2 duration-300`}>
                     <div className="flex items-center gap-3 max-w-[85%] relative">
-                      {isMine && !msg.is_view_once && !msg.is_deleted && (
+                      {isMine && !msg.is_view_once && (
                         <button 
-                          onClick={() => undoMessage(msg.id)}
+                          onClick={() => deleteMessage(msg.id)}
                           className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-red-500 transition-all hover:scale-110"
-                          title="Undo message"
+                          title="Delete message"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      {!isMine && (
+                         <button 
+                          onClick={() => deleteMessage(msg.id)}
+                          className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-red-500 transition-all hover:scale-110 order-last"
+                          title="Delete message for me"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -472,27 +488,40 @@ export default function Messages() {
                           )}
                         </div>
                       ) : (
-                        <div className={`
-                          px-5 py-3.5 rounded-[1.5rem] text-[15px] leading-relaxed relative overflow-hidden transition-all
-                          ${isMine 
-                            ? 'bg-primary text-white rounded-tr-none shadow-xl shadow-primary/10' 
-                            : 'bg-surface-bright text-gray-100 border border-white/5 rounded-tl-none shadow-lg'
-                          }
-                        `}>
+                      <div className={`
+                        px-5 py-4 rounded-[2rem] text-[15px] leading-relaxed relative overflow-hidden transition-all
+                        ${isMine 
+                          ? 'bg-primary text-white rounded-tr-none shadow-[0_10px_30px_rgba(255,215,0,0.1)]' 
+                          : 'bg-[#151515] text-gray-100 border border-white/5 rounded-tl-none shadow-lg'
+                        }
+                      `}>
                           {msg.media_url && (
-                            <div className="mb-3 -mx-1 -mt-1">
+                            <div className="mb-3 -mx-1 -mt-1 group/media">
                               {msg.media_type === 'image' ? (
-                                <div className="rounded-2xl overflow-hidden border border-white/10">
-                                  <img src={msg.media_url} alt="Shared" className="w-full h-auto max-h-[300px] object-cover hover:scale-105 transition-transform duration-500" />
+                                <div className="rounded-2xl overflow-hidden border border-white/10 relative">
+                                  <img src={msg.media_url} alt="Shared" className="w-full h-auto max-h-[400px] object-cover hover:scale-105 transition-transform duration-700 ease-out" />
+                                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity flex items-center justify-center">
+                                    <a href={msg.media_url} target="_blank" rel="noopener noreferrer" className="p-3 bg-white text-black rounded-full shadow-2xl scale-0 group-hover/media:scale-100 transition-transform">
+                                      <ImageIcon className="w-5 h-5" />
+                                    </a>
+                                  </div>
                                 </div>
                               ) : (
-                                <a href={msg.media_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-4 bg-black/30 rounded-2xl text-white hover:bg-black/50 transition-all border border-white/5">
-                                  <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
-                                    <Paperclip className="w-5 h-5 text-primary" />
+                                <a 
+                                  href={msg.media_url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  className="flex items-center gap-4 p-5 bg-black/40 rounded-2xl text-white hover:bg-black/60 transition-all border border-white/10 group/file"
+                                >
+                                  <div className="w-12 h-12 bg-primary/20 rounded-xl flex items-center justify-center group-hover/file:bg-primary transition-all duration-300">
+                                    <Paperclip className="w-6 h-6 text-primary group-hover/file:text-white" />
                                   </div>
-                                  <div className="flex flex-col overflow-hidden">
-                                    <span className="text-sm font-bold truncate">Attachment</span>
-                                    <span className="text-[10px] text-gray-500 uppercase font-black">Download File</span>
+                                  <div className="flex flex-col min-w-0 flex-1">
+                                    <span className="text-sm font-bold truncate">File Attachment</span>
+                                    <span className="text-[10px] text-gray-500 uppercase font-black tracking-widest mt-0.5 group-hover/file:text-primary transition-colors">Click to Download</span>
+                                  </div>
+                                  <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center opacity-0 group-hover/file:opacity-100 transition-opacity">
+                                    <DownloadCloud className="w-4 h-4" />
                                   </div>
                                 </a>
                               )}
@@ -581,14 +610,22 @@ export default function Messages() {
             </div>
           </div>
         ) : (
-          <div className="hidden md:flex flex-1 items-center justify-center flex-col text-center p-8 bg-black/20">
-            <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6">
-              <Send className="w-10 h-10 text-primary opacity-50 ml-1" />
-            </div>
-            <h2 className="text-2xl font-display font-black text-white mb-3">Your Messages</h2>
-            <p className="text-gray-400 text-sm max-w-sm">
-              Select a conversation from the sidebar or search for a user to start messaging securely.
-            </p>
+          <div className="hidden md:flex flex-1 items-center justify-center flex-col text-center p-8 bg-black/40 relative overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,215,0,0.05)_0%,transparent_70%)]" />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.5 }}
+              className="relative z-10"
+            >
+              <div className="w-32 h-32 bg-primary/10 rounded-[2.5rem] flex items-center justify-center mb-8 mx-auto border border-primary/20 rotate-12 group-hover:rotate-0 transition-transform duration-500">
+                <MessageSquare className="w-12 h-12 text-primary opacity-60" />
+              </div>
+              <h2 className="text-3xl font-display font-black text-white mb-4 tracking-tighter italic">Select a conversation</h2>
+              <p className="text-gray-500 text-sm max-w-xs mx-auto leading-relaxed font-medium uppercase tracking-[0.2em]">
+                Pick a contact from the sidebar or use search to start a new chat session.
+              </p>
+            </motion.div>
           </div>
         )}
       </div>
