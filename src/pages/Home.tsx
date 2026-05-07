@@ -209,12 +209,12 @@ export default function Home() {
             animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
             transition={{ duration: 1.2, ease: 'easeOut' }}
           >
-            <div className="inline-flex items-center gap-3 px-5 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-xl mb-8 shadow-2xl">
+            <div className="inline-flex items-center gap-3 px-5 py-2 rounded-full bg-surface-bright/20 border border-border-custom backdrop-blur-xl mb-8 shadow-2xl">
               <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.4em] text-white">FIDE TV MEDIA</span>
+              <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.4em] text-foreground">FIDE TV MEDIA</span>
             </div>
             
-            <h1 className="text-6xl sm:text-8xl lg:text-[10rem] xl:text-[12rem] leading-[0.8] font-display font-black uppercase text-white tracking-tighter mix-blend-difference mb-8">
+            <h1 className="text-6xl sm:text-8xl lg:text-[10rem] xl:text-[12rem] leading-[0.8] font-display font-black uppercase text-foreground tracking-tighter mix-blend-difference mb-8">
               INNOVATIVE<br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-orange-400 to-primary-light animate-gradient-x">
                 AGENCY.
@@ -243,9 +243,9 @@ export default function Home() {
               
               <button 
                 onClick={() => navigate('/live')}
-                className="group w-full sm:w-auto px-8 sm:px-10 py-5 bg-white/5 border border-white/10 backdrop-blur-md text-white font-black uppercase tracking-widest text-xs flex items-center justify-center space-x-3 hover:bg-white/10 rounded-2xl transition-all"
+                className="group w-full sm:w-auto px-8 sm:px-10 py-5 bg-surface-bright border border-border-custom backdrop-blur-md text-foreground font-black uppercase tracking-widest text-xs flex items-center justify-center space-x-3 hover:bg-surface rounded-2xl transition-all shadow-lg"
               >
-                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <div className="w-8 h-8 rounded-full bg-foreground/10 flex items-center justify-center group-hover:scale-110 transition-transform">
                   <Play className="w-4 h-4 fill-current ml-0.5" />
                 </div>
                 <span>Watch Live TV</span>
@@ -261,11 +261,11 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row justify-between items-end gap-10">
             <div className="space-y-6">
               <span className="text-[10px] font-black uppercase text-primary tracking-[0.5em]">Original Programming</span>
-              <h2 className="text-6xl sm:text-8xl font-display font-medium text-white tracking-tighter leading-none italic">
+              <h2 className="text-6xl sm:text-8xl font-display font-medium text-foreground tracking-tighter leading-none italic">
                 Signature<br />Productions.
               </h2>
             </div>
-            <Link to="/content" className="group flex items-center space-x-4 px-8 py-4 border border-white/10 rounded-2xl hover:border-white transition-all text-[10px] font-black uppercase tracking-widest text-white">
+            <Link to="/content" className="group flex items-center space-x-4 px-8 py-4 border border-border-custom rounded-2xl hover:border-foreground/20 transition-all text-[10px] font-black uppercase tracking-widest text-foreground">
               <span>Enter Content Hub</span>
               <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
             </Link>
@@ -282,18 +282,18 @@ export default function Home() {
               viewport={{ once: true }}
               className="flex-shrink-0 w-[300px] sm:w-[500px] snap-start"
             >
-              <div className="group relative aspect-[4/5] rounded-[3rem] overflow-hidden border border-white/5 bg-surface mb-8">
+              <div className="group relative aspect-[4/5] rounded-[3rem] overflow-hidden border border-border-custom bg-surface mb-8">
                 <img src={show.image_url || `https://images.unsplash.com/photo-1523050335392-9beffa5d2205?auto=format&fit=crop&q=80&w=500`} alt={show.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 opacity-60 group-hover:opacity-80" />
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
                 <div className="absolute inset-0 p-8 sm:p-10 flex flex-col justify-end pointer-events-none">
                    <div className="space-y-4">
                       <span className="text-[10px] font-black uppercase text-primary tracking-[0.3em]">{show.category}</span>
-                      <h3 className="text-3xl sm:text-5xl font-display font-bold text-white tracking-tight leading-none">{show.title}</h3>
+                      <h3 className="text-3xl sm:text-5xl font-display font-bold text-foreground tracking-tight leading-none">{show.title}</h3>
                    </div>
                 </div>
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                    {show.youtube_id || show.video_url ? (
-                     <button onClick={() => setPlayingVideo(show)} className="w-16 h-16 sm:w-20 sm:h-20 bg-white/20 hover:bg-primary backdrop-blur-md rounded-full flex items-center justify-center text-white scale-90 group-hover:scale-100 transition-all duration-300 shadow-2xl pointer-events-auto">
+                     <button onClick={() => setPlayingVideo(show)} className="w-16 h-16 sm:w-20 sm:h-20 bg-foreground/20 hover:bg-primary backdrop-blur-md rounded-full flex items-center justify-center text-white scale-90 group-hover:scale-100 transition-all duration-300 shadow-2xl pointer-events-auto">
                        <Play className="w-8 h-8 sm:w-10 sm:h-10 fill-current ml-1 sm:ml-2" />
                      </button>
                    ) : null}
@@ -325,11 +325,11 @@ export default function Home() {
             <motion.div
               variants={fadeInUp}
               key={i}
-              className="p-6 sm:p-8 bg-surface-bright/40 backdrop-blur-xl border border-white/10 rounded-3xl hover:bg-surface-bright/60 transition-colors"
+              className="p-6 sm:p-8 bg-surface border border-border-custom rounded-3xl hover:bg-surface-bright transition-colors shadow-sm"
             >
               <stat.icon className="w-6 h-6 text-primary mb-6" />
-              <h3 className="text-3xl sm:text-5xl font-display font-bold text-white mb-2">{stat.value}</h3>
-              <p className="text-xs text-gray-500 font-bold tracking-widest uppercase">{stat.label}</p>
+              <h3 className="text-3xl sm:text-5xl font-display font-bold text-foreground mb-2">{stat.value}</h3>
+              <p className="text-xs text-foreground/40 font-bold tracking-widest uppercase">{stat.label}</p>
             </motion.div>
           ))}
         </motion.div>
@@ -347,20 +347,20 @@ export default function Home() {
                    <Shield className="w-8 h-8 text-green-500" />
                  </div>
                  <div>
-                   <h4 className="text-white font-bold text-lg sm:text-xl mb-2">Officially Registered & Recognized</h4>
-                   <p className="text-gray-400 text-sm max-w-xl">FIDE TV MEDIA is fully registered and certified. We are committed to professional and trusted media services.</p>
+                   <h4 className="text-foreground font-bold text-lg sm:text-xl mb-2">Officially Registered & Recognized</h4>
+                   <p className="text-foreground/60 text-sm max-w-xl italic">FIDE TV MEDIA is fully registered and certified. We are committed to professional and trusted media services.</p>
                  </div>
               </div>
               
               <div className="flex flex-wrap gap-4 w-full">
                 {certUrl && (
-                  <a href={certUrl} target="_blank" rel="noopener noreferrer" className="px-8 py-4 bg-white text-black text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-primary hover:text-white transition-all flex items-center space-x-2 flex-grow sm:flex-grow-0 justify-center">
+                  <a href={certUrl} target="_blank" rel="noopener noreferrer" className="px-8 py-4 bg-foreground text-background text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-primary hover:text-white transition-all flex items-center space-x-2 flex-grow sm:flex-grow-0 justify-center shadow-lg">
                     <span>View CAC Registration</span>
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </a>
                 )}
                 {smedanUrl && (
-                  <a href={smedanUrl} target="_blank" rel="noopener noreferrer" className="px-8 py-4 bg-white text-black text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-primary hover:text-white transition-all flex items-center space-x-2 flex-grow sm:flex-grow-0 justify-center">
+                  <a href={smedanUrl} target="_blank" rel="noopener noreferrer" className="px-8 py-4 bg-foreground text-background text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-primary hover:text-white transition-all flex items-center space-x-2 flex-grow sm:flex-grow-0 justify-center shadow-lg">
                     <span>View SMEDAN Certificate</span>
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </a>
@@ -380,11 +380,11 @@ export default function Home() {
                 <Calendar className="w-4 h-4" />
                 Live Broadcast
               </div>
-              <h3 className="text-5xl sm:text-7xl font-display font-bold text-white tracking-tight">
-                Upcoming <span className="text-gray-600">Events.</span>
+              <h3 className="text-5xl sm:text-7xl font-display font-bold text-foreground tracking-tight">
+                Upcoming <span className="text-foreground/40 italic">Events.</span>
               </h3>
             </div>
-            <Link to="/live" className="group flex items-center space-x-3 bg-white/5 hover:bg-white/10 border border-white/10 px-8 py-4 rounded-full text-white font-bold uppercase tracking-widest text-sm transition-all">
+            <Link to="/live" className="group flex items-center space-x-3 bg-surface border border-border-custom px-8 py-4 rounded-full text-foreground/60 hover:text-foreground font-bold uppercase tracking-widest text-sm transition-all shadow-sm">
               <span>Full Schedule</span>
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Link>
@@ -398,83 +398,24 @@ export default function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="group relative h-[450px] rounded-[3rem] overflow-hidden border border-white/5 bg-surface hover:border-primary/30 transition-all"
+                className="group relative h-[450px] rounded-[3rem] overflow-hidden border border-border-custom bg-surface hover:border-primary/30 transition-all shadow-lg"
               >
                 <img 
                   src={ev.thumbnail_url || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=2070'} 
                   alt={ev.title} 
                   className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-all duration-700" 
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
                 
                 <div className="absolute top-8 left-8 flex gap-3">
-                  <div className="px-4 py-2 bg-black/60 backdrop-blur-xl border border-white/10 rounded-full flex items-center gap-2">
+                  <div className="px-4 py-2 bg-background/60 backdrop-blur-xl border border-border-custom rounded-full flex items-center gap-2">
                     <div className={cn("w-2 h-2 rounded-full", ev.status === 'live' ? "bg-red-500 animate-pulse shadow-[0_0_8px_#ef4444]" : "bg-primary")} />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-white">{ev.status}</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-foreground">{ev.status}</span>
                   </div>
                 </div>
 
                 <div className="absolute bottom-8 left-8 right-8 space-y-4">
-                  <div className="flex items-center gap-2 text-gray-400 text-[10px] font-medium uppercase tracking-widest">
-                    <Calendar className="w-4 h-4 text-primary" />
-                    <span>{format(new Date(ev.start_time), 'MMM dd, yyyy • HH:mm')}</span>
-                  </div>
-                  <h3 className="text-2xl font-display font-medium text-white line-clamp-2">{ev.title}</h3>
-                  <Link to="/live" className="inline-flex items-center justify-center w-12 h-12 bg-primary rounded-2xl transition-all shadow-xl text-white hover:scale-110">
-                    <Play className="w-5 h-5 fill-current ml-1" />
-                  </Link>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Upcoming Events Section */}
-      {upcomingEvents.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-24">
-          <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/20 text-primary text-xs font-bold uppercase tracking-widest">
-                <Calendar className="w-4 h-4" />
-                Live Broadcast
-              </div>
-              <h3 className="text-5xl sm:text-7xl font-display font-bold text-white tracking-tight">
-                Upcoming <span className="text-gray-600">Events.</span>
-              </h3>
-            </div>
-            <Link to="/live" className="group flex items-center space-x-3 bg-white/5 hover:bg-white/10 border border-white/10 px-8 py-4 rounded-full text-white font-bold uppercase tracking-widest text-sm transition-all">
-              <span>Full Schedule</span>
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {upcomingEvents.map((ev, i) => (
-              <motion.div
-                key={ev.id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="group relative h-[450px] rounded-[3rem] overflow-hidden border border-white/5 bg-surface hover:border-primary/30 transition-all"
-              >
-                <img 
-                  src={ev.thumbnail_url || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=2070'} 
-                  alt={ev.title} 
-                  className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-all duration-700" 
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent" />
-                
-                <div className="absolute top-8 left-8 flex gap-3">
-                  <div className="px-4 py-2 bg-black/60 backdrop-blur-xl border border-white/10 rounded-full flex items-center gap-2">
-                    <div className={cn("w-2 h-2 rounded-full", ev.status === 'live' ? "bg-red-500 animate-pulse shadow-[0_0_8px_#ef4444]" : "bg-primary")} />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-white">{ev.status}</span>
-                  </div>
-                </div>
-
-                <div className="absolute bottom-8 left-8 right-8 space-y-4">
-                  <div className="flex items-center gap-2 text-gray-400 text-[10px] font-medium uppercase tracking-widest">
+                  <div className="flex items-center gap-2 text-foreground/60 text-[10px] font-medium uppercase tracking-widest">
                     <Calendar className="w-4 h-4 text-primary" />
                     <span>{format(new Date(ev.start_time), 'MMM dd, yyyy • HH:mm')}</span>
                   </div>
@@ -497,11 +438,11 @@ export default function Home() {
               <CheckCircle className="w-4 h-4" />
               Our Expertise
             </div>
-            <h3 className="text-5xl sm:text-7xl font-display font-bold text-white leading-[0.9] tracking-tight">
+            <h3 className="text-5xl sm:text-7xl font-display font-bold text-foreground leading-[0.9] tracking-tight">
               Elevating Every<br />Frame We Capture.
             </h3>
           </div>
-          <Link to="/services" className="group flex items-center space-x-3 bg-white/5 hover:bg-white/10 border border-white/10 px-8 py-4 rounded-full text-white font-bold uppercase tracking-widest text-sm transition-all">
+          <Link to="/services" className="group flex items-center space-x-3 bg-surface border border-border-custom px-8 py-4 rounded-full text-foreground/60 hover:text-foreground font-bold uppercase tracking-widest text-sm transition-all shadow-sm">
             <span>All Services</span>
             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </Link>
@@ -523,15 +464,15 @@ export default function Home() {
               {item.image && (
                 <div className="absolute inset-0 z-0">
                   <img src={item.image} alt={item.title} className="w-full h-full object-cover opacity-20 group-hover:opacity-40 group-hover:scale-105 transition-all duration-700" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent" />
                 </div>
               )}
-              <div className="relative z-10 w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center mb-12 backdrop-blur-md border border-white/10 text-white group-hover:-rotate-6 group-hover:scale-110 transition-all duration-500">
+              <div className="relative z-10 w-16 h-16 rounded-2xl bg-foreground/10 flex items-center justify-center mb-12 backdrop-blur-md border border-border-custom text-foreground group-hover:-rotate-6 group-hover:scale-110 transition-all duration-500">
                 <item.icon className="w-8 h-8" />
               </div>
               <div className="relative z-10 mt-auto">
-                <h4 className="text-2xl sm:text-3xl font-display font-bold text-white mb-3">{item.title}</h4>
-                <p className="text-gray-400 group-hover:text-gray-300 transition-colors leading-relaxed">
+                <h4 className="text-2xl sm:text-3xl font-display font-bold text-foreground mb-3">{item.title}</h4>
+                <p className="text-foreground/60 group-hover:text-foreground transition-colors leading-relaxed italic">
                   {item.description}
                 </p>
               </div>
@@ -561,7 +502,7 @@ export default function Home() {
             </p>
             <Link
               to="/contact"
-              className="inline-flex items-center space-x-4 bg-background text-white px-12 py-6 rounded-2xl font-black uppercase tracking-widest text-sm hover:scale-105 hover:shadow-2xl hover:shadow-background/50 transition-all"
+              className="inline-flex items-center space-x-4 bg-background text-foreground px-12 py-6 rounded-2xl font-black uppercase tracking-widest text-sm hover:scale-105 hover:shadow-2xl hover:shadow-background/50 transition-all font-display"
             >
               <span>Start a Project</span>
               <ArrowRight className="w-5 h-5" />

@@ -313,14 +313,14 @@ export default function Profile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen pb-32">
+    <div className="min-h-screen pb-32 bg-background text-foreground">
       {/* Verification Banner */}
       {!user?.email_confirmed_at && (
         <div className="bg-amber-500/10 border-b border-amber-500/20 py-3 px-4">
@@ -341,7 +341,7 @@ export default function Profile() {
       )}
 
       {/* Header / Cover */}
-      <div className="h-64 sm:h-80 bg-surface-bright relative border-b border-white/5">
+      <div className="h-64 sm:h-80 bg-surface relative border-b border-border-custom">
         <div className="absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 translate-y-1/2">
           <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6 sm:gap-10">
@@ -350,7 +350,7 @@ export default function Profile() {
                 {profile?.avatar_url ? (
                   <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-700">
+                  <div className="w-full h-full flex items-center justify-center text-foreground/40">
                     <User className="w-16 h-16 sm:w-20 sm:h-20" />
                   </div>
                 )}
@@ -375,18 +375,18 @@ export default function Profile() {
             </div>
             
             <div className="flex-grow pb-2 sm:pb-8 space-y-2 text-center sm:text-left">
-              <h1 className="text-2xl sm:text-4xl font-display font-bold text-white tracking-tight flex items-center justify-center sm:justify-start gap-3">
+              <h1 className="text-2xl sm:text-4xl font-display font-bold text-foreground tracking-tight flex items-center justify-center sm:justify-start gap-3">
                 @{profile?.username || 'user'}
                 {profile?.is_verified && <Award className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />}
               </h1>
-              <div className="flex items-center justify-center sm:justify-start space-x-6 text-gray-500 font-medium text-sm sm:text-base">
+              <div className="flex items-center justify-center sm:justify-start space-x-6 text-foreground/40 font-medium text-sm sm:text-base">
                  <div className="flex items-center space-x-1">
-                    <span className="text-white font-bold">{followerCount}</span>
-                    <span className="text-[10px] uppercase tracking-widest text-gray-600">Followers</span>
+                    <span className="text-foreground font-bold">{followerCount}</span>
+                    <span className="text-[10px] uppercase tracking-widest text-foreground/40">Followers</span>
                  </div>
                  <div className="flex items-center space-x-1">
-                    <span className="text-white font-bold">{followingCount}</span>
-                    <span className="text-[10px] uppercase tracking-widest text-gray-600">Following</span>
+                    <span className="text-foreground font-bold">{followingCount}</span>
+                    <span className="text-[10px] uppercase tracking-widest text-foreground/40">Following</span>
                  </div>
               </div>
             </div>
@@ -396,14 +396,14 @@ export default function Profile() {
                 <>
                   <button 
                     onClick={toggleEdit} 
-                    className="px-5 sm:px-6 py-2.5 sm:py-3 bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl text-white text-[10px] font-black uppercase tracking-widest flex items-center space-x-2 hover:bg-white/10 transition-all"
+                    className="px-5 sm:px-6 py-2.5 sm:py-3 bg-foreground/5 border border-border-custom rounded-xl sm:rounded-2xl text-foreground text-[10px] font-black uppercase tracking-widest flex items-center space-x-2 hover:bg-foreground/10 transition-all shadow-sm"
                   >
-                    {isEditing ? <X className="w-4 h-4 text-gray-400" /> : <Edit3 className="w-4 h-4 text-primary" />}
+                    {isEditing ? <X className="w-4 h-4 text-foreground/40" /> : <Edit3 className="w-4 h-4 text-primary" />}
                     <span>{isEditing ? 'Cancel' : 'Edit'}</span>
                   </button>
                   <button 
                     onClick={handleSignOut}
-                    className="p-2.5 sm:p-3 bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl text-gray-500 hover:text-red-500 transition-all"
+                    className="p-2.5 sm:p-3 bg-foreground/5 border border-border-custom rounded-xl sm:rounded-2xl text-foreground/40 hover:text-red-500 transition-all shadow-sm"
                   >
                     <LogOut className="w-5 h-5" />
                   </button>
@@ -425,51 +425,51 @@ export default function Profile() {
           {/* Sidebar Info */}
           <div className="lg:w-80 space-y-8">
              <div className="glass rounded-[2.5rem] p-8 space-y-6">
-                <h3 className="font-display font-bold text-white text-lg">About Me</h3>
+                <h3 className="font-display font-bold text-foreground text-lg">About Me</h3>
                 {isEditing ? (
                   <div className="space-y-4">
                     <textarea 
                       value={editForm.bio}
                       onChange={e => setEditForm({ ...editForm, bio: e.target.value })}
                       placeholder="Write a little about yourself..."
-                      className="w-full bg-surface/50 border border-white/5 rounded-xl p-3 text-sm text-gray-300 focus:outline-none focus:border-primary/50 resize-none h-24"
+                      className="w-full bg-background border border-border-custom rounded-xl p-3 text-sm text-foreground focus:outline-none focus:border-primary/50 resize-none h-24 shadow-inner"
                     />
                     <div className="space-y-3">
                       <div className="relative">
-                        <Twitter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                        <Twitter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/40" />
                         <input 
                           type="text"
                           value={editForm.social_x}
                           onChange={e => setEditForm(prev => ({ ...prev, social_x: e.target.value }))}
                           placeholder="X (Twitter) Username/Link"
-                          className="w-full bg-surface/50 border border-white/5 rounded-xl py-2 pl-10 pr-3 text-sm text-gray-300 focus:outline-none focus:border-primary/50"
+                          className="w-full bg-background border border-border-custom rounded-xl py-2 pl-10 pr-3 text-sm text-foreground focus:outline-none focus:border-primary/50 shadow-inner"
                         />
                       </div>
                       <div className="relative">
-                        <Instagram className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                        <Instagram className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/40" />
                         <input 
                           type="text"
                           value={editForm.social_instagram}
                           onChange={e => setEditForm(prev => ({ ...prev, social_instagram: e.target.value }))}
                           placeholder="Instagram Username/Link"
-                          className="w-full bg-surface/50 border border-white/5 rounded-xl py-2 pl-10 pr-3 text-sm text-gray-300 focus:outline-none focus:border-primary/50"
+                          className="w-full bg-background border border-border-custom rounded-xl py-2 pl-10 pr-3 text-sm text-foreground focus:outline-none focus:border-primary/50 shadow-inner"
                         />
                       </div>
                       <div className="relative">
-                        <Linkedin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                        <Linkedin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/40" />
                         <input 
                           type="text"
                           value={editForm.social_linkedin}
                           onChange={e => setEditForm(prev => ({ ...prev, social_linkedin: e.target.value }))}
                           placeholder="LinkedIn URL"
-                          className="w-full bg-surface/50 border border-white/5 rounded-xl py-2 pl-10 pr-3 text-sm text-gray-300 focus:outline-none focus:border-primary/50"
+                          className="w-full bg-background border border-border-custom rounded-xl py-2 pl-10 pr-3 text-sm text-foreground focus:outline-none focus:border-primary/50 shadow-inner"
                         />
                       </div>
                     </div>
                     <button 
                       onClick={saveProfile}
                       disabled={saving}
-                      className="w-full bg-primary hover:bg-primary-light text-white text-xs font-bold uppercase tracking-widest py-3 rounded-xl transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
+                      className="w-full bg-primary hover:bg-primary-light text-white text-xs font-bold uppercase tracking-widest py-3 rounded-xl transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 shadow-lg shadow-primary/20"
                     >
                       {saving ? (
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -483,23 +483,23 @@ export default function Profile() {
                   </div>
                 ) : (
                   <>
-                    <p className="text-sm text-gray-400 leading-relaxed font-light">
+                    <p className="text-sm text-foreground/60 leading-relaxed font-light italic">
                       {profile?.bio || "No bio yet. Tell the community about your creative journey!"}
                     </p>
                     {(profile?.social_x || profile?.social_instagram || profile?.social_linkedin) && (
-                      <div className="flex gap-4 pt-4 border-t border-white/5">
+                      <div className="flex gap-4 pt-4 border-t border-border-custom">
                         {profile.social_x && (
-                          <a href={profile.social_x.startsWith('http') ? profile.social_x : `https://x.com/${profile.social_x.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition-colors">
+                          <a href={profile.social_x.startsWith('http') ? profile.social_x : `https://x.com/${profile.social_x.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="text-foreground/40 hover:text-primary transition-colors">
                             <Twitter className="w-5 h-5" />
                           </a>
                         )}
                         {profile.social_instagram && (
-                          <a href={profile.social_instagram.startsWith('http') ? profile.social_instagram : `https://instagram.com/${profile.social_instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition-colors">
+                          <a href={profile.social_instagram.startsWith('http') ? profile.social_instagram : `https://instagram.com/${profile.social_instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="text-foreground/40 hover:text-primary transition-colors">
                             <Instagram className="w-5 h-5" />
                           </a>
                         )}
                         {profile.social_linkedin && (
-                          <a href={profile.social_linkedin.startsWith('http') ? profile.social_linkedin : `https://linkedin.com/in/${profile.social_linkedin}`} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition-colors">
+                          <a href={profile.social_linkedin.startsWith('http') ? profile.social_linkedin : `https://linkedin.com/in/${profile.social_linkedin}`} target="_blank" rel="noopener noreferrer" className="text-foreground/40 hover:text-primary transition-colors">
                             <Linkedin className="w-5 h-5" />
                           </a>
                         )}
@@ -509,53 +509,53 @@ export default function Profile() {
                 )}
                 
                 {!isEditing && (
-                  <div className="pt-6 border-t border-white/5 space-y-4">
+                  <div className="pt-6 border-t border-border-custom space-y-4">
                     <div className="flex justify-between text-xs font-bold uppercase tracking-widest">
-                      <span className="text-gray-600">Joined</span>
-                      <span className="text-white">May 2024</span>
+                      <span className="text-foreground/40">Joined</span>
+                      <span className="text-foreground font-black">May 2024</span>
                     </div>
                     <div className="flex justify-between text-xs font-bold uppercase tracking-widest">
-                      <span className="text-gray-600">Posts</span>
-                      <span className="text-white">{posts.length}</span>
+                      <span className="text-foreground/40">Posts</span>
+                      <span className="text-foreground font-black">{posts.length}</span>
                     </div>
                   </div>
                 )}
              </div>
 
              <div className="glass rounded-[2.5rem] p-8 space-y-6">
-                <h3 className="font-display font-bold text-white text-lg flex items-center gap-3">
+                <h3 className="font-display font-bold text-foreground text-lg flex items-center gap-3">
                    <ShieldCheck className="w-5 h-5 text-primary" />
                    Verification
                 </h3>
                 {profile?.is_verified ? (
-                  <div className="p-6 bg-primary/5 border border-primary/20 rounded-[2rem] space-y-3">
+                  <div className="p-6 bg-primary/5 border border-primary/20 rounded-[2rem] space-y-3 shadow-inner">
                      <div className="flex items-center gap-3 text-primary">
                         <Award className="w-8 h-8" />
                         <span className="text-xs font-black uppercase tracking-widest">Official Badge</span>
                      </div>
-                     <p className="text-[10px] text-gray-500 font-medium leading-relaxed">Your account is officially verified on FideTV. You have access to exclusive community features.</p>
+                     <p className="text-[10px] text-foreground/40 font-medium leading-relaxed italic">Your account is officially verified on FideTV. You have access to exclusive community features.</p>
                   </div>
                 ) : profile?.verification_requested ? (
-                  <div className="p-6 bg-yellow-500/5 border border-yellow-500/20 rounded-[2rem] space-y-3">
+                  <div className="p-6 bg-yellow-500/5 border border-yellow-500/20 rounded-[2rem] space-y-3 shadow-inner">
                      <div className="flex items-center gap-3 text-yellow-500">
                         <ShieldAlert className="w-8 h-8" />
                         <span className="text-xs font-black uppercase tracking-widest">Pending Review</span>
                      </div>
-                     <p className="text-[10px] text-gray-500 font-medium leading-relaxed">Your request is being processed by our team. We'll notify you once it's approved.</p>
+                     <p className="text-[10px] text-foreground/40 font-medium leading-relaxed italic">Your request is being processed by our team. We'll notify you once it's approved.</p>
                   </div>
                 ) : isOwnProfile ? (
                   <div className="space-y-4">
-                     <p className="text-xs text-gray-500 leading-relaxed font-medium">Get a verification badge to build trust and unlock advanced platform features.</p>
+                     <p className="text-xs text-foreground/40 leading-relaxed font-medium italic">Get a verification badge to build trust and unlock advanced platform features.</p>
                      <button 
                        onClick={() => setIsVerifying(true)}
-                       className="w-full py-4 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white hover:bg-primary hover:border-primary transition-all shadow-xl shadow-black/20"
+                       className="w-full py-4 bg-foreground/5 border border-border-custom rounded-2xl text-[10px] font-black uppercase tracking-widest text-foreground hover:bg-primary hover:text-white hover:border-primary transition-all shadow-xl shadow-black/5"
                      >
                        Request Badge
                      </button>
                   </div>
                 ) : (
-                  <div className="p-6 bg-white/5 border border-dashed border-white/10 rounded-[2rem] text-center">
-                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest italic">Standard Profile</p>
+                  <div className="p-6 bg-foreground/5 border border-dashed border-border-custom rounded-[2rem] text-center">
+                    <p className="text-[10px] text-foreground/40 font-bold uppercase tracking-widest italic">Standard Profile</p>
                   </div>
                 )}
              </div>
@@ -563,12 +563,12 @@ export default function Profile() {
 
           {/* User Feed */}
           <div className="flex-grow space-y-8">
-              <div className="flex items-center space-x-8 border-b border-white/5 pb-4">
+              <div className="flex items-center space-x-8 border-b border-border-custom pb-4">
                 <button 
                   onClick={() => setActiveTab('posts')}
                   className={cn(
                     "flex items-center space-x-2 pb-4 font-bold text-sm uppercase tracking-widest leading-none transition-all",
-                    activeTab === 'posts' ? "text-primary border-b-2 border-primary" : "text-gray-500 hover:text-white"
+                    activeTab === 'posts' ? "text-primary border-b-2 border-primary" : "text-foreground/40 hover:text-foreground"
                   )}
                 >
                   <Grid className="w-4 h-4" />
@@ -579,7 +579,7 @@ export default function Profile() {
                     onClick={() => setActiveTab('bookings')}
                     className={cn(
                       "flex items-center space-x-2 pb-4 font-bold text-sm uppercase tracking-widest leading-none transition-all",
-                      activeTab === 'bookings' ? "text-primary border-b-2 border-primary" : "text-gray-500 hover:text-white"
+                      activeTab === 'bookings' ? "text-primary border-b-2 border-primary" : "text-foreground/40 hover:text-foreground"
                     )}
                   >
                     <Calendar className="w-4 h-4" />
@@ -590,7 +590,7 @@ export default function Profile() {
                   onClick={() => setActiveTab('liked')}
                   className={cn(
                     "flex items-center space-x-2 pb-4 font-bold text-sm uppercase tracking-widest leading-none transition-all",
-                    activeTab === 'liked' ? "text-primary border-b-2 border-primary" : "text-gray-500 hover:text-white"
+                    activeTab === 'liked' ? "text-primary border-b-2 border-primary" : "text-foreground/40 hover:text-foreground"
                   )}
                 >
                   <Heart className="w-4 h-4" />
@@ -603,16 +603,16 @@ export default function Profile() {
                   posts.length > 0 ? (
                     posts.map((post) => <PostCard key={post.id} post={post} />)
                   ) : (
-                    <div className="text-center py-20 bg-surface/30 rounded-[3rem] border border-dashed border-white/5">
-                      <MessageSquare className="w-12 h-12 text-gray-700 mx-auto mb-6" />
-                      <h3 className="text-xl font-display font-medium text-gray-500">You haven't posted anything yet.</h3>
+                    <div className="text-center py-20 bg-surface/30 rounded-[3rem] border border-dashed border-border-custom">
+                      <MessageSquare className="w-12 h-12 text-foreground/20 mx-auto mb-6" />
+                      <h3 className="text-xl font-display font-medium text-foreground/40 italic">You haven't posted anything yet.</h3>
                     </div>
                   )
                 ) : activeTab === 'bookings' ? (
                   bookings.length > 0 ? (
                     <div className="space-y-6">
                       {bookings.map((booking: Booking) => (
-                        <div key={booking.id} className="glass rounded-[2.5rem] p-8 border-white/5 space-y-6">
+                        <div key={booking.id} className="glass rounded-[2.5rem] p-8 border-border-custom space-y-6">
                           <div className="flex justify-between items-start">
                             <div className="space-y-1">
                               <div className="flex items-center gap-3">
@@ -624,24 +624,24 @@ export default function Profile() {
                                 )}>
                                   {booking.status}
                                 </span>
-                                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest">#{booking.id.slice(0, 8)}</h4>
+                                <h4 className="text-xs font-bold text-foreground/40 uppercase tracking-widest">#{booking.id.slice(0, 8)}</h4>
                               </div>
-                              <h3 className="text-xl font-bold text-white tracking-tight">{booking.event_type}</h3>
+                              <h3 className="text-xl font-bold text-foreground tracking-tight">{booking.event_type}</h3>
                             </div>
                             <div className="text-right">
-                              <p className="text-sm font-mono text-white tracking-tighter">{format(new Date(booking.date), 'PPPP')}</p>
-                              <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest mt-1">Event Date</p>
+                              <p className="text-sm font-mono text-foreground tracking-tighter">{format(new Date(booking.date), 'PPPP')}</p>
+                              <p className="text-[10px] text-foreground/40 font-bold uppercase tracking-widest mt-1">Event Date</p>
                             </div>
                           </div>
 
-                          <div className="flex gap-8 py-6 border-y border-white/5">
+                          <div className="flex gap-8 py-6 border-y border-border-custom">
                             <div className="flex-1 space-y-1">
-                              <p className="text-[10px] text-gray-600 font-black uppercase tracking-widest">Requirements</p>
-                              <p className="text-sm text-gray-400 font-light italic leading-relaxed line-clamp-3">"{booking.message}"</p>
+                              <p className="text-[10px] text-foreground/40 font-black uppercase tracking-widest">Requirements</p>
+                              <p className="text-sm text-foreground/60 font-light italic leading-relaxed line-clamp-3">"{booking.message}"</p>
                             </div>
                             {booking.budget && (
                               <div className="space-y-1">
-                                <p className="text-[10px] text-gray-600 font-black uppercase tracking-widest">Budget</p>
+                                <p className="text-[10px] text-foreground/40 font-black uppercase tracking-widest">Budget</p>
                                 <p className="text-sm text-primary font-bold">{booking.budget}</p>
                               </div>
                             )}
@@ -660,17 +660,17 @@ export default function Profile() {
                                       {[1, 2, 3, 4, 5].map((star) => (
                                         <Star key={star} className={cn(
                                           "w-3 h-3",
-                                          star <= (booking.rating || 0) ? "fill-primary text-primary" : "text-gray-700"
+                                          star <= (booking.rating || 0) ? "fill-primary text-primary" : "text-foreground/10"
                                         )} />
                                       ))}
                                     </div>
                                   </div>
-                                  <p className="text-sm text-gray-300 font-light italic leading-relaxed">"{booking.feedback}"</p>
+                                  <p className="text-sm text-foreground/60 font-light italic leading-relaxed">"{booking.feedback}"</p>
                                 </div>
                               ) : new Date(booking.date) < new Date() ? (
                                 <div className="space-y-6">
                                   <div className="flex items-center justify-between px-4">
-                                    <div className="flex items-center gap-2 text-gray-400">
+                                    <div className="flex items-center gap-2 text-foreground/40">
                                       <CheckCircle2 className="w-4 h-4" />
                                       <span className="text-[10px] font-black uppercase tracking-widest">How was it?</span>
                                     </div>
@@ -683,7 +683,7 @@ export default function Profile() {
                                         >
                                           <Star className={cn(
                                             "w-6 h-6 transition-colors",
-                                            star <= rating ? "fill-primary text-primary" : "text-gray-700 hover:text-gray-500"
+                                            star <= rating ? "fill-primary text-primary" : "text-foreground/10 hover:text-foreground/30"
                                           )} />
                                         </button>
                                       ))}
@@ -694,12 +694,12 @@ export default function Profile() {
                                       value={feedbackText}
                                       onChange={(e) => setFeedbackText(e.target.value)}
                                       placeholder="Tell us about your experience..."
-                                      className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-sm text-white focus:border-primary/50 transition-colors min-h-[100px] resize-none"
+                                      className="w-full bg-background border border-border-custom rounded-2xl p-5 text-sm text-foreground focus:border-primary/50 transition-colors min-h-[100px] resize-none shadow-inner"
                                     />
                                     <button
                                       onClick={() => submitFeedback(booking.id)}
                                       disabled={submittingFeedback === booking.id || !feedbackText.trim() || rating === 0}
-                                      className="absolute bottom-4 right-4 p-3 bg-primary text-white rounded-xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                                      className="absolute bottom-4 right-4 p-3 bg-primary text-white rounded-xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-primary/20"
                                     >
                                       {submittingFeedback === booking.id ? (
                                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -710,30 +710,30 @@ export default function Profile() {
                                   </div>
                                 </div>
                               ) : (
-                                <div className="p-6 bg-white/5 border border-dashed border-white/10 rounded-[2rem] text-center">
-                                  <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Feedback will be available after your session</p>
+                                <div className="p-6 bg-foreground/5 border border-dashed border-border-custom rounded-[2rem] text-center">
+                                  <p className="text-[10px] text-foreground/40 font-bold uppercase tracking-widest italic">Feedback will be available after your session</p>
                                 </div>
                               )}
                             </div>
                           )}
 
                           {booking.status === 'pending' && (
-                            <p className="text-[10px] text-gray-500 italic text-center">Your booking is currently under review. Check your email for more information.</p>
+                            <p className="text-[10px] text-foreground/40 italic text-center">Your booking is currently under review. Check your email for more information.</p>
                           )}
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-20 bg-surface/30 rounded-[3rem] border border-dashed border-white/5">
-                      <Calendar className="w-12 h-12 text-gray-700 mx-auto mb-6" />
-                      <h3 className="text-xl font-display font-medium text-gray-500">No bookings found.</h3>
-                      <button onClick={() => navigate('/booking')} className="mt-6 text-primary text-xs font-bold uppercase tracking-widest hover:text-white transition-colors">Book a session now</button>
+                    <div className="text-center py-20 bg-surface/30 rounded-[3rem] border border-dashed border-border-custom">
+                      <Calendar className="w-12 h-12 text-foreground/20 mx-auto mb-6" />
+                      <h3 className="text-xl font-display font-medium text-foreground/40 italic">No bookings found.</h3>
+                      <button onClick={() => navigate('/booking')} className="mt-6 text-primary text-xs font-bold uppercase tracking-widest hover:scale-105 transition-all font-black">Book a session now</button>
                     </div>
                   )
                 ) : (
-                  <div className="text-center py-20 bg-surface/30 rounded-[3rem] border border-dashed border-white/5">
-                    <Heart className="w-12 h-12 text-gray-700 mx-auto mb-6" />
-                    <h3 className="text-xl font-display font-medium text-gray-500">You haven't liked any posts yet.</h3>
+                  <div className="text-center py-20 bg-surface/30 rounded-[3rem] border border-dashed border-border-custom">
+                    <Heart className="w-12 h-12 text-foreground/20 mx-auto mb-6" />
+                    <h3 className="text-xl font-display font-medium text-foreground/40 italic">You haven't liked any posts yet.</h3>
                   </div>
                 )}
              </div>
@@ -745,30 +745,30 @@ export default function Profile() {
       <AnimatePresence>
         {isVerifying && (
           <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100]" onClick={() => setIsVerifying(false)} />
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-surface rounded-[3rem] border border-white/5 z-[101] p-10">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100]" onClick={() => setIsVerifying(false)} />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-surface rounded-[3rem] border border-border-custom z-[101] p-10 shadow-2xl">
                <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mb-8 border border-primary/20 mx-auto">
                   <Award className="w-10 h-10 text-primary" />
                </div>
-               <h2 className="text-3xl font-display font-bold text-white mb-2 text-center tracking-tighter">Get <span className="text-primary">Verified.</span></h2>
-               <p className="text-gray-500 text-sm mb-8 text-center px-4">Tell us why you should be verified. (e.g. Creator, Business Owner, Public Figure)</p>
+               <h2 className="text-3xl font-display font-bold text-foreground mb-2 text-center tracking-tighter">Get <span className="text-primary">Verified.</span></h2>
+               <p className="text-foreground/40 text-sm mb-8 text-center px-4 italic">Tell us why you should be verified. (e.g. Creator, Business Owner, Public Figure)</p>
                
                <div className="space-y-6">
                   <div className="space-y-2">
-                     <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">Why should we verify you?</label>
+                     <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">Why should we verify you?</label>
                      <div className="relative">
-                        <FileText className="absolute left-4 top-4 w-4 h-4 text-gray-600" />
+                        <FileText className="absolute left-4 top-4 w-4 h-4 text-foreground/20" />
                         <textarea 
                           value={verificationDetails} 
                           onChange={e => setVerificationDetails(e.target.value)} 
                           placeholder="Provide details or external links to verify your identity..." 
-                          className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white text-sm min-h-[120px] focus:border-primary/50 transition-colors"
+                          className="w-full bg-background border border-border-custom rounded-2xl py-4 pl-12 pr-4 text-foreground text-sm min-h-[120px] focus:border-primary/50 transition-colors shadow-inner"
                         />
                      </div>
                   </div>
 
                   <div className="flex gap-4">
-                     <button onClick={() => setIsVerifying(false)} className="flex-1 py-4 text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-white transition-colors">Cancel</button>
+                     <button onClick={() => setIsVerifying(false)} className="flex-1 py-4 text-xs font-bold uppercase tracking-widest text-foreground/40 hover:text-foreground transition-colors">Cancel</button>
                      <button 
                        onClick={requestVerification}
                        disabled={sendingRequest || !verificationDetails}

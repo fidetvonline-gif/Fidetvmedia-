@@ -83,18 +83,18 @@ export default function Content() {
   return (
     <div className="min-h-screen bg-background pb-40">
       {/* Search & Filter Header */}
-      <section className="pt-24 pb-12 border-b border-white/5">
+      <section className="pt-24 pb-12 border-b border-border-custom">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
             <div className="space-y-4">
-              <Link to="/" className="inline-flex items-center space-x-2 text-gray-500 hover:text-white transition-colors mb-4">
+              <Link to="/" className="inline-flex items-center space-x-2 text-foreground/40 hover:text-foreground transition-colors mb-4">
                 <ArrowLeft className="w-4 h-4" />
                 <span className="text-[10px] font-black uppercase tracking-widest">Back to Studio</span>
               </Link>
-              <h1 className="text-6xl sm:text-8xl font-display font-bold text-white tracking-tighter leading-none italic">
+              <h1 className="text-6xl sm:text-8xl font-display font-bold text-foreground tracking-tighter leading-none italic">
                 Content Hub.
               </h1>
-              <p className="text-gray-500 font-light text-xl max-w-xl">
+              <p className="text-foreground/60 font-light text-xl max-w-xl">
                 Explore our full library of original shows, live event recordings, and creative productions.
               </p>
             </div>
@@ -105,9 +105,9 @@ export default function Content() {
                 placeholder="Search programs..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-2xl px-12 py-5 text-white placeholder-gray-600 focus:outline-none focus:border-primary transition-all shadow-2xl"
+                className="w-full bg-surface border border-border-custom rounded-2xl px-12 py-5 text-foreground placeholder-foreground/20 focus:outline-none focus:border-primary transition-all shadow-sm"
               />
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-600" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground/20" />
             </div>
           </div>
 
@@ -120,7 +120,7 @@ export default function Content() {
                     "px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
                     filter === cat 
                       ? "bg-primary text-white shadow-xl shadow-primary/20 scale-105" 
-                      : "bg-white/5 text-gray-500 hover:text-white border border-white/5 hover:bg-white/10"
+                      : "bg-surface text-foreground/40 hover:text-foreground border border-border-custom hover:bg-surface-bright"
                   )}
                 >
                   {cat}
@@ -150,13 +150,13 @@ export default function Content() {
                   exit={{ opacity: 0, scale: 0.9 }}
                   className="group"
                 >
-                  <div className="relative aspect-[4/5] rounded-[3rem] overflow-hidden bg-surface mb-8 border border-white/5">
+                  <div className="relative aspect-[4/5] rounded-[3rem] overflow-hidden bg-surface mb-8 border border-border-custom shadow-lg">
                     <img 
                       src={item.image} 
                       alt={item.title} 
                       className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 opacity-70 group-hover:opacity-40"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60 transition-opacity group-hover:opacity-100" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-60 transition-opacity group-hover:opacity-100" />
                     
                     <div className="absolute inset-0 p-6 sm:p-10 flex flex-col justify-end pointer-events-none">
                        <div className="space-y-4 translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
@@ -168,19 +168,19 @@ export default function Content() {
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                       <button 
                          onClick={() => setPlayingVideo(item)}
-                         className="w-16 h-16 sm:w-20 sm:h-20 bg-white/20 hover:bg-primary backdrop-blur-md text-white font-black rounded-full flex items-center justify-center transition-all shadow-2xl pointer-events-auto scale-90 group-hover:scale-100"
+                         className="w-16 h-16 sm:w-20 sm:h-20 bg-background/20 hover:bg-primary backdrop-blur-md text-white font-black rounded-full flex items-center justify-center transition-all shadow-2xl pointer-events-auto scale-90 group-hover:scale-100"
                       >
                          <Play className="w-8 h-8 sm:w-10 sm:h-10 fill-current ml-1 sm:ml-2" />
                       </button>
                     </div>
 
-                    <div className="absolute top-6 right-6 w-10 h-10 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute top-6 right-6 w-10 h-10 bg-background/10 backdrop-blur-md rounded-full flex items-center justify-center border border-border-custom text-white opacity-0 group-hover:opacity-100 transition-opacity">
                        <Filter className="w-5 h-5" />
                     </div>
                   </div>
                   
                   <div className="px-6">
-                    <p className="text-gray-500 font-light text-sm leading-relaxed line-clamp-2">
+                    <p className="text-foreground/40 font-light text-sm leading-relaxed line-clamp-2 italic">
                        {item.description || "No show description available yet. Check back soon for more details about this production."}
                     </p>
                   </div>
@@ -189,10 +189,10 @@ export default function Content() {
             </AnimatePresence>
           </div>
         ) : (
-          <div className="text-center py-40 bg-white/5 rounded-[3rem] border border-dashed border-white/10">
-            <Search className="w-16 h-16 text-gray-700 mx-auto mb-6" />
-            <h3 className="text-2xl font-display font-bold text-white">No content found</h3>
-            <p className="text-gray-600 mt-2">Try adjusting your search or filters.</p>
+          <div className="text-center py-40 bg-surface rounded-[3rem] border border-dashed border-border-custom">
+            <Search className="w-16 h-16 text-foreground/20 mx-auto mb-6" />
+            <h3 className="text-2xl font-display font-bold text-foreground">No content found</h3>
+            <p className="text-foreground/40 mt-2 italic px-4">Try adjusting your search or filters.</p>
           </div>
         )}
       </section>

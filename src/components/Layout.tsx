@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, PlayCircle, Users, Briefcase, Info, Mail, LayoutDashboard, LogOut, User, Headset, Home as HomeIcon, DownloadCloud } from 'lucide-react';
+import { Menu, X, PlayCircle, Users, Briefcase, Info, Mail, LayoutDashboard, LogOut, User, Headset, Home as HomeIcon, DownloadCloud, Sun, Moon } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import FideTvLogo from '@/components/FideTvLogo';
@@ -12,6 +12,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('fidetv-theme');
+      if (saved === 'light' || saved === 'dark') return saved;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    return 'dark';
+  });
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -24,6 +32,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('fidetv-theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -64,6 +77,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     navigate('/');
   };
 
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
+
   const navLinks = [
     { name: 'Home', path: '/', icon: HomeIcon },
     { name: 'Live', path: '/live', icon: PlayCircle },
@@ -81,16 +98,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <nav className={cn(
         "fixed top-0 left-0 right-0 z-50 transition-all duration-500",
         isScrolled 
-          ? "bg-[#050505] border-b border-white/5 py-2 shadow-2xl" 
-          : "bg-[#050505] border-b border-white/5 py-4"
+          ? "bg-background/80 backdrop-blur-md border-b border-border-custom py-2 shadow-2xl" 
+          : "bg-background border-b border-border-custom py-4"
       )}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20 items-center">
             <Link to="/" className="flex items-center space-x-2 group">
-              <div className="w-8 h-8 text-white flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+              <div className="w-8 h-8 text-foreground flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                 <FideTvLogo className="w-full h-full" />
               </div>
-              <span className="font-display font-bold text-2xl tracking-tighter text-white">
+              <span className="font-display font-bold text-2xl tracking-tighter text-foreground">
                 FideTv
               </span>
             </Link>
@@ -103,7 +120,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   to={link.path}
                   className={cn(
                     "text-sm font-medium tracking-wide transition-colors duration-200 hover:text-primary relative py-2",
-                    location.pathname === link.path ? "text-primary" : "text-gray-400"
+                    location.pathname === link.path ? "text-primary" : "text-foreground/40"
                   )}
                 >
                   {link.name}
@@ -116,17 +133,25 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </Link>
               ))}
 
-              <div className="h-6 w-px bg-white/10 mx-2" />
+              <div className="h-6 w-px bg-border-custom mx-2" />
+
+              <button
+                onClick={toggleTheme}
+                className="p-2 hover:bg-surface-bright rounded-full transition-colors text-foreground"
+                title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+              >
+                {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+              </button>
 
               {user ? (
                 <div className="flex items-center space-x-4">
                   <NotificationTray />
-                  <Link to="/profile" className="p-2 hover:bg-white/5 rounded-full transition-colors">
-                    <User className="w-5 h-5 text-gray-400" />
+                  <Link to="/profile" className="p-2 hover:bg-foreground/5 rounded-full transition-colors">
+                    <User className="w-5 h-5 text-foreground/40" />
                   </Link>
                   <button
                     onClick={handleSignOut}
-                    className="p-2 hover:bg-white/5 rounded-full transition-colors text-gray-400"
+                    className="p-2 hover:bg-foreground/5 rounded-full transition-colors text-foreground/40"
                   >
                     <LogOut className="w-5 h-5" />
                   </button>
@@ -144,8 +169,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             {/* Mobile Menu Button */}
             <div className="flex md:hidden items-center space-x-4">
               <button
+                onClick={toggleTheme}
+                className="p-2 hover:bg-surface-bright rounded-full transition-colors text-foreground"
+              >
+                {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+              </button>
+              <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="text-gray-400 hover:text-white p-2"
+                className="text-foreground hover:text-primary p-2"
               >
                 {isMenuOpen ? <X /> : <Menu />}
               </button>
@@ -173,8 +204,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               >
                 <div className="flex flex-col h-full">
                   <div className="flex justify-between items-center mb-10">
-                    <span className="font-display font-bold text-2xl text-white">Menu</span>
-                    <button onClick={() => setIsMenuOpen(false)} className="text-gray-400"><X /></button>
+                    <span className="font-display font-bold text-2xl text-foreground">Menu</span>
+                    <button onClick={() => setIsMenuOpen(false)} className="text-foreground"><X /></button>
                   </div>
 
                   <div className="flex flex-col space-y-6">
@@ -183,30 +214,30 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         key={link.path}
                         to={link.path}
                         onClick={() => setIsMenuOpen(false)}
-                        className="flex items-center space-x-4 text-lg font-medium text-gray-400 hover:text-primary transition-colors"
+                        className="flex items-center space-x-4 text-lg font-medium text-foreground/60 hover:text-primary transition-colors"
                       >
-                        <link.icon className="w-6 h-6" />
+                        <link.icon className="w-6 h-6 text-foreground/40" />
                         <span>{link.name}</span>
                       </Link>
                     ))}
                   </div>
 
-                  <div className="mt-auto pt-10 border-t border-white/5 space-y-4">
+                  <div className="mt-auto pt-10 border-t border-border-custom space-y-4">
                     {user ? (
                       <>
                         <Link
                           to="/profile"
                           onClick={() => setIsMenuOpen(false)}
-                          className="flex items-center space-x-4 text-gray-400"
+                          className="flex items-center space-x-4 text-foreground/60"
                         >
-                          <User className="w-6 h-6" />
+                          <User className="w-6 h-6 text-foreground/40" />
                           <span>My Profile</span>
                         </Link>
                         <button
                           onClick={handleSignOut}
-                          className="flex items-center space-x-4 text-gray-400 w-full text-left"
+                          className="flex items-center space-x-4 text-foreground/60 w-full text-left"
                         >
-                          <LogOut className="w-6 h-6" />
+                          <LogOut className="w-6 h-6 text-foreground/40" />
                           <span>Sign Out</span>
                         </button>
                       </>
@@ -214,7 +245,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       <Link
                         to="/auth"
                         onClick={() => setIsMenuOpen(false)}
-                        className="block w-full py-4 bg-primary text-center text-white font-bold rounded-xl"
+                        className="block w-full py-4 bg-primary text-center text-white font-bold rounded-xl shadow-lg shadow-primary/20"
                       >
                         Join Fidetvmedia
                       </Link>
@@ -241,60 +272,60 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </AnimatePresence>
       </main>
 
-      {location.pathname !== '/messages' && (
-        <footer className="bg-surface border-t border-white/5 py-12">
+      {location.pathname !== '/messages' && location.pathname !== '/live-chat' && (
+        <footer className="bg-surface border-t border-border-custom py-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
               <div className="space-y-4">
                 <div className="flex items-center space-x-2 cursor-default group">
-                  <div className="w-8 h-8 text-white flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
+                  <div className="w-8 h-8 text-foreground flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
                     <FideTvLogo className="w-full h-full" />
                   </div>
-                  <span className="font-display font-bold text-xl text-white">FideTv</span>
+                  <span className="font-display font-bold text-xl text-foreground">FideTv</span>
                 </div>
-                <p className="text-gray-400 text-sm leading-relaxed">
+                <p className="text-foreground/60 text-sm leading-relaxed italic">
                   Empowering creativity through digital media. Live streaming, professional event coverage, and creative production.
                 </p>
               </div>
               
               <div>
                 <h4 className="font-display font-bold text-sm uppercase tracking-widest text-primary mb-6">Explore</h4>
-                <ul className="space-y-3 text-sm text-gray-400">
-                  <li><Link to="/live" className="hover:text-white transition-colors">Live Events</Link></li>
-                  <li><Link to="/content" className="hover:text-white transition-colors">Content Hub</Link></li>
-                  <li><Link to="/news" className="hover:text-white transition-colors">FideTV Blog</Link></li>
-                  <li><Link to="/community" className="hover:text-white transition-colors">Community</Link></li>
+                <ul className="space-y-3 text-sm text-foreground/60">
+                  <li><Link to="/live" className="hover:text-primary transition-colors">Live Events</Link></li>
+                  <li><Link to="/content" className="hover:text-primary transition-colors">Content Hub</Link></li>
+                  <li><Link to="/news" className="hover:text-primary transition-colors">FideTV Blog</Link></li>
+                  <li><Link to="/community" className="hover:text-primary transition-colors">Community</Link></li>
                 </ul>
               </div>
 
               {!isStandalone && (
                 <div>
                   <h4 className="font-display font-bold text-sm uppercase tracking-widest text-primary mb-6">Resources</h4>
-                  <ul className="space-y-3 text-sm text-gray-400">
-                    <li><Link to="/services" className="hover:text-white transition-colors">Services</Link></li>
-                    <li><Link to="/download" className="hover:text-white transition-colors">Download App</Link></li>
-                    <li><Link to="/download" className="hover:text-white transition-colors">FAQ</Link></li>
+                  <ul className="space-y-3 text-sm text-foreground/60">
+                    <li><Link to="/services" className="hover:text-primary transition-colors">Services</Link></li>
+                    <li><Link to="/download" className="hover:text-primary transition-colors">Download App</Link></li>
+                    <li><Link to="/download" className="hover:text-primary transition-colors">FAQ</Link></li>
                   </ul>
                 </div>
               )}
 
               <div>
                 <h4 className="font-display font-bold text-sm uppercase tracking-widest text-primary mb-6">Connect</h4>
-                <ul className="space-y-3 text-sm text-gray-400">
-                  <li><a href="https://youtube.com/@fidetvmedia?si=JkdixDjpkGPah9ay" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">YouTube Channel</a></li>
-                  <li><a href="mailto:fidetvonline@gmail.com" className="hover:text-white transition-colors">fidetvonline@gmail.com</a></li>
-                  <li><a href="https://wa.me/2348108889805" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">WhatsApp: 08108889805</a></li>
-                  <li><a href="tel:08124323608" className="hover:text-white transition-colors">Call: 08124323608</a></li>
-                  <li><Link to="/contact" className="hover:text-white transition-colors">Community Links</Link></li>
+                <ul className="space-y-3 text-sm text-foreground/60">
+                  <li><a href="https://youtube.com/@fidetvmedia?si=JkdixDjpkGPah9ay" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">YouTube Channel</a></li>
+                  <li><a href="mailto:fidetvonline@gmail.com" className="hover:text-primary transition-colors">fidetvonline@gmail.com</a></li>
+                  <li><a href="https://wa.me/2348108889805" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">WhatsApp: 08108889805</a></li>
+                  <li><a href="tel:08124323608" className="hover:text-primary transition-colors">Call: 08124323608</a></li>
+                  <li><Link to="/contact" className="hover:text-primary transition-colors">Community Links</Link></li>
                 </ul>
               </div>
             </div>
             
-            <div className="mt-12 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-              <p className="text-gray-500 text-xs text-center md:text-left">
+            <div className="mt-12 pt-8 border-t border-border-custom flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+              <p className="text-foreground/40 text-[10px] uppercase font-bold tracking-widest text-center md:text-left">
                 &copy; {new Date().getFullYear()} Fidetvmedia Creative Platform. All rights reserved.
               </p>
-              <div className="flex space-x-6 text-xs text-gray-500 uppercase tracking-widest">
+              <div className="flex space-x-6 text-[10px] text-foreground/40 uppercase font-bold tracking-widest">
                 <Link to="/profile" className="hover:text-primary transition-colors flex items-center gap-2">
                   <Headset className="w-3 h-3" />
                   Support

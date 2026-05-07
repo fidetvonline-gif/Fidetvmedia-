@@ -36,7 +36,7 @@ export default function About() {
   };
 
   return (
-    <div className="py-24 space-y-32 mb-32">
+    <div className="py-24 space-y-32 mb-32 bg-background">
        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col lg:flex-row gap-20 items-center">
           <div className="lg:w-1/2 space-y-10">
@@ -45,40 +45,40 @@ export default function About() {
               animate={{ opacity: 1, x: 0 }}
             >
               <h4 className="text-primary font-display font-bold uppercase tracking-[0.5em] text-xs mb-4">Our Story</h4>
-              <h1 className="text-5xl sm:text-7xl font-display font-bold text-white tracking-tighter leading-tight italic">
+              <h1 className="text-5xl sm:text-7xl font-display font-bold text-foreground tracking-tighter leading-tight italic">
                 Beyond the<br /><span className="text-primary">Lens.</span>
               </h1>
             </motion.div>
-            <p className="text-xl text-gray-400 font-light leading-relaxed">
+            <p className="text-xl text-foreground/60 font-light leading-relaxed">
               Founded at the intersection of media and community, FideTV started with a simple mission: to make professional-grade broadcasting and media production accessible to everyone.
             </p>
             <div className="space-y-6">
-              <p className="text-gray-500 leading-relaxed font-light">
+              <p className="text-foreground/40 leading-relaxed font-light italic">
                 Today, we are a full-scale media agency and streaming platform serving thousands of creators and hundreds of businesses. Our commitment to quality and community remains unchanged. We don't just capture events; we create experiences that last.
               </p>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {certUrl && (
-                  <div className="p-6 glass rounded-2xl border border-white/10 flex flex-col items-start space-y-4">
+                  <div className="p-6 glass rounded-2xl border border-border-custom flex flex-col items-start space-y-4">
                     <div className="flex items-center space-x-3">
                       <CheckCircle className="w-6 h-6 text-green-500 shrink-0" />
-                      <h4 className="text-white font-bold text-sm">CAC Registered</h4>
+                      <h4 className="text-foreground font-bold text-sm">CAC Registered</h4>
                     </div>
-                    <p className="text-gray-400 text-[10px] leading-relaxed">FIDE TV MEDIA is registered with the Corporate Affairs Commission (BN - 3647744).</p>
-                    <a href={certUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-white text-[10px] font-bold uppercase tracking-widest transition-colors">
+                    <p className="text-foreground/60 text-[10px] leading-relaxed">FIDE TV MEDIA is registered with the Corporate Affairs Commission (BN - 3647744).</p>
+                    <a href={certUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-foreground text-[10px] font-bold uppercase tracking-widest transition-colors">
                       View Certificate &rarr;
                     </a>
                   </div>
                 )}
 
                 {smedanUrl && (
-                  <div className="p-6 glass rounded-2xl border border-white/10 flex flex-col items-start space-y-4">
+                  <div className="p-6 glass rounded-2xl border border-border-custom flex flex-col items-start space-y-4">
                     <div className="flex items-center space-x-3">
                       <CheckCircle className="w-6 h-6 text-green-500 shrink-0" />
-                      <h4 className="text-white font-bold text-sm">SMEDAN Verified</h4>
+                      <h4 className="text-foreground font-bold text-sm">SMEDAN Verified</h4>
                     </div>
-                    <p className="text-gray-400 text-[10px] leading-relaxed">FIDE TV MEDIA is a verified entity with the Small and Medium Enterprises Development Agency. (Number - SUIN28515358)</p>
-                    <a href={smedanUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-white text-[10px] font-bold uppercase tracking-widest transition-colors">
+                    <p className="text-foreground/60 text-[10px] leading-relaxed">FIDE TV MEDIA is a verified entity with the Small and Medium Enterprises Development Agency. (Number - SUIN28515358)</p>
+                    <a href={smedanUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-foreground text-[10px] font-bold uppercase tracking-widest transition-colors">
                       View Certificate &rarr;
                     </a>
                   </div>
@@ -86,14 +86,14 @@ export default function About() {
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-8 pt-10 border-t border-white/5">
+            <div className="grid grid-cols-2 gap-8 pt-10 border-t border-border-custom">
               <div>
-                <h3 className="text-4xl font-display font-bold text-white">12</h3>
-                <p className="text-[10px] uppercase tracking-widest text-gray-600 font-bold">Years Experience</p>
+                <h3 className="text-4xl font-display font-bold text-foreground">12</h3>
+                <p className="text-[10px] uppercase tracking-widest text-foreground/40 font-bold">Years Experience</p>
               </div>
               <div>
-                <h3 className="text-4xl font-display font-bold text-white">450+</h3>
-                <p className="text-[10px] uppercase tracking-widest text-gray-600 font-bold">Success Events</p>
+                <h3 className="text-4xl font-display font-bold text-foreground">450+</h3>
+                <p className="text-[10px] uppercase tracking-widest text-foreground/40 font-bold">Success Events</p>
               </div>
             </div>
           </div>
@@ -111,18 +111,18 @@ export default function About() {
              {/* Floating Accent */}
              <div className="absolute -bottom-10 -right-10 w-48 h-48 glass rounded-[2rem] p-8 hidden sm:flex flex-col justify-center space-y-2 border-primary/20">
                 <Zap className="w-8 h-8 text-primary" />
-                <p className="text-xs font-bold text-white uppercase tracking-widest">Driven by Innovation</p>
+                <p className="text-xs font-bold text-foreground uppercase tracking-widest">Driven by Innovation</p>
              </div>
           </div>
         </div>
       </section>
 
-      {/* Values */}
+       {/* Values */}
       <section className="bg-surface py-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
            <div className="text-center mb-20 space-y-4">
-              <h2 className="text-small-caps text-primary">Core Values</h2>
-              <h3 className="text-4xl sm:text-5xl font-display font-bold text-white">Built on Principles.</h3>
+              <h2 className="text-xs font-bold uppercase tracking-[0.5em] text-primary">Core Values</h2>
+              <h3 className="text-4xl sm:text-5xl font-display font-bold text-foreground">Built on Principles.</h3>
            </div>
 
            <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
@@ -132,11 +132,11 @@ export default function About() {
                 { title: 'Innovation', description: 'Constantly pushing the boundaries of what streaming and media can be.', icon: Target },
               ].map((val, i) => (
                 <div key={i} className="space-y-6">
-                  <div className="w-16 h-16 bg-background rounded-2xl flex items-center justify-center border border-white/5">
+                  <div className="w-16 h-16 bg-background rounded-2xl flex items-center justify-center border border-border-custom">
                     <val.icon className="w-8 h-8 text-primary" />
                   </div>
-                  <h4 className="text-2xl font-display font-bold text-white">{val.title}</h4>
-                  <p className="text-gray-500 font-light leading-relaxed">{val.description}</p>
+                  <h4 className="text-2xl font-display font-bold text-foreground">{val.title}</h4>
+                  <p className="text-foreground/60 font-light leading-relaxed italic">{val.description}</p>
                 </div>
               ))}
            </div>

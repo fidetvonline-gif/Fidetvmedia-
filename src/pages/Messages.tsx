@@ -178,17 +178,19 @@ export default function Messages() {
   const deleteMessage = async (msgId: string) => {
     if (!window.confirm("Delete this message permanently?")) return;
     
+    // Explicitly check for ownership or recipient to delete
     const { error } = await supabase
       .from('direct_messages')
       .delete()
-      .eq('id', msgId)
+      .match({ id: msgId })
       .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
 
     if (error) {
       console.error("Error deleting message:", error);
+      alert("Could not delete message. You may not have permission.");
     } else {
-      // Optistically remove from UI or wait for subscription
-      setMessages(messages.filter(m => m.id !== msgId));
+      // Optistically remove from UI
+      setMessages(prev => prev.filter(m => m.id !== msgId));
     }
   };
 
@@ -273,37 +275,37 @@ export default function Messages() {
   if (!user) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center">
-        <p className="text-white">Please sign in to view messages.</p>
+        <p className="text-foreground">Please sign in to view messages.</p>
       </div>
     );
   }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 h-[calc(100vh-100px)]">
-      <div className="bg-[#0A0A0A] border border-white/10 rounded-[2.5rem] overflow-hidden flex h-full shadow-2xl relative">
+      <div className="bg-background border border-border-custom rounded-[2.5rem] overflow-hidden flex h-full shadow-2xl relative">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
         
         {/* Sidebar */}
         <div className={`
-          w-full md:w-96 border-r border-white/5 flex flex-col z-20 transition-all
+          w-full md:w-96 border-r border-border-custom flex flex-col z-20 transition-all
           ${activeChat ? 'hidden md:flex' : 'flex'}
         `}>
-          <div className="p-8 border-b border-white/10 space-y-6">
+          <div className="p-8 border-b border-border-custom space-y-6">
             <div className="flex items-center justify-between">
-              <h1 className="text-3xl font-display font-black text-white tracking-tighter">Inbox.</h1>
+              <h1 className="text-3xl font-display font-black text-foreground tracking-tighter">Inbox.</h1>
               <div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center border border-primary/20">
                 <MessageSquare className="w-5 h-5 text-primary" />
               </div>
             </div>
             
             <div className="relative group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-primary transition-colors" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/40 group-focus-within:text-primary transition-colors" />
               <input
                 type="text"
                 placeholder="Search conversations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-sm text-white focus:border-primary/50 transition-all outline-none"
+                className="w-full bg-surface border border-border-custom rounded-2xl py-4 pl-12 pr-4 text-sm text-foreground focus:border-primary/50 transition-all outline-none"
               />
             </div>
           </div>
@@ -327,7 +329,7 @@ export default function Messages() {
                       w-full flex items-center justify-between p-4 rounded-3xl transition-all relative group
                       ${isActive 
                         ? 'bg-primary/20 border border-primary/30 shadow-xl shadow-primary/5' 
-                        : 'hover:bg-white/5 border border-transparent hover:border-white/5'
+                        : 'hover:bg-foreground/5 border border-transparent hover:border-border-custom'
                       }
                     `}
                   >
@@ -335,7 +337,7 @@ export default function Messages() {
                     
                     <div className="flex items-center gap-4 overflow-hidden text-left relative z-10">
                       <div className="relative">
-                        <div className="w-14 h-14 rounded-[1.25rem] overflow-hidden bg-surface-bright shrink-0 border border-white/10 group-hover:scale-105 transition-transform duration-500">
+                        <div className="w-14 h-14 rounded-[1.25rem] overflow-hidden bg-surface-bright shrink-0 border border-border-custom group-hover:scale-105 transition-transform duration-500">
                           {contact.profile.avatar_url ? (
                             <img src={contact.profile.avatar_url} alt={contact.profile.username} className="w-full h-full object-cover" />
                           ) : (
@@ -345,22 +347,22 @@ export default function Messages() {
                           )}
                         </div>
                         {unread && (
-                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full border-2 border-black flex" />
+                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full border-2 border-background flex" />
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex justify-between items-center mb-1">
-                          <span className="font-bold text-white text-[15px] truncate max-w-[120px]">
+                          <span className="font-bold text-foreground text-[15px] truncate max-w-[120px]">
                             {contact.profile.full_name || contact.profile.username}
                           </span>
                           {contact.lastMessage && (
-                            <span className="text-[9px] text-gray-600 font-bold uppercase tracking-tighter shrink-0">
+                            <span className="text-[9px] text-foreground/40 font-bold uppercase tracking-tighter shrink-0">
                               {formatDistanceToNow(new Date(contact.lastMessage.created_at))}
                             </span>
                           )}
                         </div>
                         {contact.lastMessage && (
-                          <div className={`text-xs truncate ${unread ? 'text-white font-bold' : 'text-gray-500'}`}>
+                          <div className={`text-xs truncate ${unread ? 'text-foreground font-bold' : 'text-foreground/40'}`}>
                             {contact.lastMessage.sender_id === user.id && <span className="text-primary mr-1">You:</span>}
                             {contact.lastMessage.is_view_once 
                               ? 'Sent a view-once message'
@@ -374,10 +376,10 @@ export default function Messages() {
               })
             ) : (
               <div className="text-center py-12 space-y-4">
-                <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto">
-                   <Search className="w-6 h-6 text-gray-700" />
+                <div className="w-16 h-16 bg-foreground/5 rounded-full flex items-center justify-center mx-auto">
+                   <Search className="w-6 h-6 text-foreground/20" />
                 </div>
-                <p className="text-gray-600 text-[10px] font-black uppercase tracking-[0.2em]">No Users Found</p>
+                <p className="text-foreground/40 text-[10px] font-black uppercase tracking-[0.2em]">No Users Found</p>
               </div>
             )}
           </div>
@@ -385,12 +387,12 @@ export default function Messages() {
 
         {/* Chat Area */}
         {activeChat ? (
-          <div className="flex-1 flex flex-col h-full bg-black/20">
+          <div className="flex-1 flex flex-col h-full bg-foreground/5">
             {/* Header */}
-            <div className="px-6 py-4 border-b border-white/5 flex items-center gap-4 bg-surface/50">
+            <div className="px-6 py-4 border-b border-border-custom flex items-center gap-4 bg-surface/50">
               <button 
                 onClick={() => setActiveChat(null)}
-                className="md:hidden p-2 -ml-2 text-gray-400 hover:text-white"
+                className="md:hidden p-2 -ml-2 text-foreground/40 hover:text-foreground"
               >
                 <X className="w-6 h-6" />
               </button>
@@ -404,13 +406,13 @@ export default function Messages() {
                 )}
               </div>
               <div>
-                <h3 className="font-bold text-white">{activeChat.full_name || activeChat.username}</h3>
-                <p className="text-xs text-gray-400">@{activeChat.username}</p>
+                <h3 className="font-bold text-foreground">{activeChat.full_name || activeChat.username}</h3>
+                <p className="text-xs text-foreground/40">@{activeChat.username}</p>
               </div>
               <button 
                 onClick={deleteConversation}
                 disabled={deletingConversation}
-                className="ml-auto p-2 text-gray-500 hover:text-red-500 transition-colors"
+                className="ml-auto p-2 text-foreground/40 hover:text-red-500 transition-colors"
                 title="Delete Conversation"
               >
                 {deletingConversation ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
@@ -421,11 +423,11 @@ export default function Messages() {
             <div className="flex-1 overflow-y-auto p-6 space-y-6 flex flex-col">
               {activeChatMessages.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-center p-8 opacity-40">
-                  <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6">
-                    <Zap className="w-8 h-8 text-white" />
+                  <div className="w-20 h-20 bg-foreground/5 rounded-full flex items-center justify-center mb-6">
+                    <Zap className="w-8 h-8 text-foreground" />
                   </div>
-                  <h3 className="text-xl font-display font-bold text-white mb-2">No messages yet</h3>
-                  <p className="text-gray-500 text-xs uppercase tracking-widest">Start the conversation with @{activeChat.username}</p>
+                  <h3 className="text-xl font-display font-bold text-foreground mb-2">No messages yet</h3>
+                  <p className="text-foreground/40 text-xs uppercase tracking-widest">Start the conversation with @{activeChat.username}</p>
                 </div>
               ) : activeChatMessages.map((msg: any) => {
                 const isMine = msg.sender_id === user.id;
@@ -436,7 +438,7 @@ export default function Messages() {
                       {isMine && !msg.is_view_once && (
                         <button 
                           onClick={() => deleteMessage(msg.id)}
-                          className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-red-500 transition-all hover:scale-110"
+                          className="opacity-0 group-hover:opacity-100 p-2 text-foreground/40 hover:text-red-500 transition-all hover:scale-110"
                           title="Delete message"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -445,7 +447,7 @@ export default function Messages() {
                       {!isMine && (
                          <button 
                           onClick={() => deleteMessage(msg.id)}
-                          className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-red-500 transition-all hover:scale-110 order-last"
+                          className="opacity-0 group-hover:opacity-100 p-2 text-foreground/40 hover:text-red-500 transition-all hover:scale-110 order-last"
                           title="Delete message for me"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -455,10 +457,10 @@ export default function Messages() {
                       {msg.is_view_once ? (
                         <div className={`
                           p-1 rounded-3xl flex flex-col gap-1 transition-all
-                          ${isMine ? 'bg-primary/20 border border-primary/30 shadow-lg shadow-primary/5' : 'bg-white/5 border border-white/10'}
+                          ${isMine ? 'bg-primary/20 border border-primary/30 shadow-lg shadow-primary/5' : 'bg-foreground/5 border border-border-custom'}
                         `}>
                           {isMine ? (
-                            <div className="px-5 py-4 text-sm text-gray-300 flex items-center gap-3">
+                            <div className="px-5 py-4 text-sm text-foreground/60 flex items-center gap-3">
                               <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
                                 <EyeOff className="w-4 h-4 text-primary" />
                               </div>
@@ -468,21 +470,21 @@ export default function Messages() {
                               </div>
                             </div>
                           ) : msg.is_viewed ? (
-                            <div className="px-5 py-4 text-sm text-gray-500 flex items-center gap-3 italic">
+                            <div className="px-5 py-4 text-sm text-foreground/40 flex items-center gap-3 italic">
                               <EyeOff className="w-4 h-4 opacity-50" />
                               Message viewed
                             </div>
                           ) : (
                             <button 
                               onClick={() => handleViewMessage(msg.id)}
-                              className="px-6 py-4 text-sm text-white font-bold flex items-center gap-4 hover:bg-white/5 rounded-2xl transition-all group/btn"
+                              className="px-6 py-4 text-sm text-foreground font-bold flex items-center gap-4 hover:bg-foreground/5 rounded-2xl transition-all group/btn"
                             >
-                              <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center group-hover/btn:scale-110 transition-transform shadow-xl shadow-primary/20">
+                              <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center group-hover/btn:scale-110 transition-transform shadow-xl shadow-primary/20 text-white">
                                 <Eye className="w-6 h-6" />
                               </div>
                               <div className="flex flex-col items-start">
                                 <span>Tap to view</span>
-                                <span className="text-[10px] text-gray-500 font-normal">Disappears after viewing</span>
+                                <span className="text-[10px] text-foreground/40 font-normal">Disappears after viewing</span>
                               </div>
                             </button>
                           )}
@@ -491,14 +493,14 @@ export default function Messages() {
                       <div className={`
                         px-5 py-4 rounded-[2rem] text-[15px] leading-relaxed relative overflow-hidden transition-all
                         ${isMine 
-                          ? 'bg-primary text-white rounded-tr-none shadow-[0_10px_30px_rgba(255,215,0,0.1)]' 
-                          : 'bg-[#151515] text-gray-100 border border-white/5 rounded-tl-none shadow-lg'
+                          ? 'bg-primary text-white rounded-tr-none shadow-[0_10px_30px_rgba(242,125,38,0.1)]' 
+                          : 'bg-surface text-foreground border border-border-custom rounded-tl-none shadow-lg'
                         }
                       `}>
                           {msg.media_url && (
                             <div className="mb-3 -mx-1 -mt-1 group/media">
                               {msg.media_type === 'image' ? (
-                                <div className="rounded-2xl overflow-hidden border border-white/10 relative">
+                                <div className="rounded-2xl overflow-hidden border border-border-custom relative">
                                   <img src={msg.media_url} alt="Shared" className="w-full h-auto max-h-[400px] object-cover hover:scale-105 transition-transform duration-700 ease-out" />
                                   <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity flex items-center justify-center">
                                     <a href={msg.media_url} target="_blank" rel="noopener noreferrer" className="p-3 bg-white text-black rounded-full shadow-2xl scale-0 group-hover/media:scale-100 transition-transform">
@@ -511,16 +513,16 @@ export default function Messages() {
                                   href={msg.media_url} 
                                   target="_blank" 
                                   rel="noopener noreferrer" 
-                                  className="flex items-center gap-4 p-5 bg-black/40 rounded-2xl text-white hover:bg-black/60 transition-all border border-white/10 group/file"
+                                  className="flex items-center gap-4 p-5 bg-background/40 rounded-2xl text-foreground hover:bg-background/60 transition-all border border-border-custom group/file"
                                 >
                                   <div className="w-12 h-12 bg-primary/20 rounded-xl flex items-center justify-center group-hover/file:bg-primary transition-all duration-300">
                                     <Paperclip className="w-6 h-6 text-primary group-hover/file:text-white" />
                                   </div>
                                   <div className="flex flex-col min-w-0 flex-1">
                                     <span className="text-sm font-bold truncate">File Attachment</span>
-                                    <span className="text-[10px] text-gray-500 uppercase font-black tracking-widest mt-0.5 group-hover/file:text-primary transition-colors">Click to Download</span>
+                                    <span className="text-[10px] text-foreground/40 uppercase font-black tracking-widest mt-0.5 group-hover/file:text-primary transition-colors">Click to Download</span>
                                   </div>
-                                  <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center opacity-0 group-hover/file:opacity-100 transition-opacity">
+                                  <div className="w-8 h-8 rounded-lg bg-foreground/5 flex items-center justify-center opacity-0 group-hover/file:opacity-100 transition-opacity">
                                     <DownloadCloud className="w-4 h-4" />
                                   </div>
                                 </a>
@@ -533,7 +535,7 @@ export default function Messages() {
                     </div>
                     
                     <div className={`flex items-center gap-2 mt-1.5 px-2 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
-                      <span className="text-[10px] text-gray-600 font-medium uppercase tracking-widest">
+                      <span className="text-[10px] text-foreground/40 font-medium uppercase tracking-widest">
                         {formatDistanceToNow(new Date(msg.created_at))} ago
                       </span>
                       {isMine && !msg.is_deleted && (
@@ -541,7 +543,7 @@ export default function Messages() {
                           {msg.is_viewed ? (
                             <CheckCheck className="w-3 h-3 text-primary" />
                           ) : (
-                            <Check className="w-3 h-3 text-gray-600" />
+                            <Check className="w-3 h-3 text-foreground/40" />
                           )}
                         </div>
                       )}
@@ -553,7 +555,7 @@ export default function Messages() {
             </div>
 
             {/* Input */}
-            <div className="p-4 bg-surface/50 border-t border-white/5">
+            <div className="p-4 bg-surface/50 border-t border-border-custom">
               <form onSubmit={handleSendMessage} className="flex items-end gap-2">
                 <input
                   type="file"
@@ -565,16 +567,16 @@ export default function Messages() {
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
-                  className="w-12 h-12 shrink-0 bg-white/5 text-gray-400 rounded-full flex items-center justify-center hover:bg-white/10 hover:text-white transition-all mb-px"
+                  className="w-12 h-12 shrink-0 bg-foreground/5 text-foreground/40 rounded-full flex items-center justify-center hover:bg-foreground/10 hover:text-foreground transition-all mb-px"
                 >
                   {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Paperclip className="w-5 h-5" />}
                 </button>
-                <div className="flex-1 bg-black/40 border border-white/10 rounded-2xl overflow-hidden focus-within:border-primary/50 transition-colors">
+                <div className="flex-1 bg-background border border-border-custom rounded-2xl overflow-hidden focus-within:border-primary/50 transition-colors">
                   <textarea
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder="Type your message..."
-                    className="w-full bg-transparent px-4 py-3 text-sm text-white focus:outline-none resize-none max-h-32 min-h-[44px]"
+                    className="w-full bg-transparent px-4 py-3 text-sm text-foreground focus:outline-none resize-none max-h-32 min-h-[44px]"
                     rows={1}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
@@ -583,18 +585,18 @@ export default function Messages() {
                       }
                     }}
                   />
-                  <div className="px-4 pb-2 flex items-center justify-between bg-black/20">
+                  <div className="px-4 pb-2 flex items-center justify-between bg-surface">
                     <button
                       type="button"
                       onClick={() => setIsViewOnce(!isViewOnce)}
                       className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full transition-colors ${
-                        isViewOnce ? 'bg-primary text-white' : 'bg-white/10 text-gray-400 hover:text-white'
+                        isViewOnce ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-foreground/5 text-foreground/40 hover:text-foreground'
                       }`}
                     >
                       <EyeOff className="w-3 h-3" />
                       View Once
                     </button>
-                    <span className="text-[10px] text-gray-600 uppercase tracking-widest">
+                    <span className="text-[10px] text-foreground/20 uppercase tracking-widest">
                       Press Enter to send
                     </span>
                   </div>
@@ -610,8 +612,8 @@ export default function Messages() {
             </div>
           </div>
         ) : (
-          <div className="hidden md:flex flex-1 items-center justify-center flex-col text-center p-8 bg-black/40 relative overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,215,0,0.05)_0%,transparent_70%)]" />
+          <div className="hidden md:flex flex-1 items-center justify-center flex-col text-center p-8 bg-foreground/5 relative overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(242,125,38,0.05)_0%,transparent_70%)]" />
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -621,8 +623,8 @@ export default function Messages() {
               <div className="w-32 h-32 bg-primary/10 rounded-[2.5rem] flex items-center justify-center mb-8 mx-auto border border-primary/20 rotate-12 group-hover:rotate-0 transition-transform duration-500">
                 <MessageSquare className="w-12 h-12 text-primary opacity-60" />
               </div>
-              <h2 className="text-3xl font-display font-black text-white mb-4 tracking-tighter italic">Select a conversation</h2>
-              <p className="text-gray-500 text-sm max-w-xs mx-auto leading-relaxed font-medium uppercase tracking-[0.2em]">
+              <h2 className="text-3xl font-display font-black text-foreground mb-4 tracking-tighter italic">Select a conversation</h2>
+              <p className="text-foreground/40 text-sm max-w-xs mx-auto leading-relaxed font-medium uppercase tracking-[0.2em]">
                 Pick a contact from the sidebar or use search to start a new chat session.
               </p>
             </motion.div>
@@ -637,7 +639,7 @@ export default function Messages() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-4 sm:p-8"
+            className="fixed inset-0 z-[9999] bg-background/95 backdrop-blur-xl flex flex-col items-center justify-center p-4 sm:p-8"
           >
             {/* Progress Bar (5s default) */}
             <motion.div 
@@ -649,17 +651,17 @@ export default function Messages() {
             
             <button 
               onClick={() => closeViewedMessage(viewingMessage.id)}
-              className="absolute top-6 right-6 w-12 h-12 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-colors"
+              className="absolute top-6 right-6 w-12 h-12 bg-foreground/10 rounded-full flex items-center justify-center text-foreground hover:bg-foreground/20 transition-colors"
             >
               <X className="w-6 h-6" />
             </button>
 
             <div className="max-w-2xl w-full text-center">
-              <p className="text-gray-500 uppercase tracking-[0.3em] font-black text-xs mb-8">View Once Message</p>
+              <p className="text-foreground/40 uppercase tracking-[0.3em] font-black text-xs mb-8">View Once Message</p>
               
-              <div className="bg-white/5 border border-white/10 rounded-[2rem] p-8 sm:p-16 relative overflow-hidden group">
+              <div className="bg-surface border border-border-custom rounded-[2rem] p-8 sm:p-16 relative overflow-hidden group">
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
-                <p className="text-2xl sm:text-4xl font-display font-medium text-white leading-relaxed relative z-10">
+                <p className="text-2xl sm:text-4xl font-display font-medium text-foreground leading-relaxed relative z-10">
                   {viewingMessage.content}
                 </p>
               </div>

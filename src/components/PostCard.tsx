@@ -166,30 +166,30 @@ export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onD
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      className="glass rounded-3xl p-6 space-y-6 hover:bg-white/5 transition-all duration-300 border-white/5 shadow-2xl shadow-black/50"
+      className="bg-surface border border-border-custom rounded-3xl p-6 space-y-6 hover:bg-surface-bright/50 transition-all duration-300 shadow-2xl shadow-black/5"
     >
       <div className="flex justify-between items-start">
         <div className="flex items-center space-x-4">
-          <Link to={`/profile/${post.profiles?.username}`} className="w-12 h-12 bg-surface-bright rounded-2xl flex items-center justify-center overflow-hidden border border-white/10 group cursor-pointer">
+          <Link to={`/profile/${post.profiles?.username}`} className="w-12 h-12 bg-surface-bright rounded-2xl flex items-center justify-center overflow-hidden border border-border-custom group cursor-pointer shadow-sm">
             {post.profiles?.avatar_url ? (
               <img src={post.profiles.avatar_url} alt={post.profiles.username} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
             ) : (
-              <User className="w-6 h-6 text-gray-600" />
+              <User className="w-6 h-6 text-foreground/20" />
             )}
           </Link>
           <div>
             <div className="flex items-center gap-3">
-              <Link to={`/profile/${post.profiles?.username}`} className="font-display font-bold text-white hover:text-primary transition-colors cursor-pointer flex items-center gap-2">
+              <Link to={`/profile/${post.profiles?.username}`} className="font-display font-bold text-foreground hover:text-primary transition-colors cursor-pointer flex items-center gap-2">
                 {post.profiles?.username || 'Anonymous'}
                 {post.profiles?.is_verified && <Award className="w-3 h-3 text-primary" />}
               </Link>
               {user && user.id !== post.author_id && (
-                <Link to="/messages" className="bg-white/5 hover:bg-white/10 px-2 py-1 rounded-md text-[10px] text-gray-400 hover:text-white uppercase font-black items-center gap-1 flex transition-colors shadow-sm">
+                <Link to="/messages" className="bg-foreground/5 hover:bg-foreground/10 px-2 py-1 rounded-md text-[10px] text-foreground/40 hover:text-foreground uppercase font-black items-center gap-1 flex transition-colors shadow-sm">
                   <Send className="w-3 h-3" /> Message
                 </Link>
               )}
             </div>
-            <p className="text-[10px] uppercase font-bold text-gray-500 tracking-widest mt-0.5">
+            <p className="text-[10px] uppercase font-bold text-foreground/40 tracking-widest mt-0.5">
               {formatDistanceToNow(new Date(post.created_at))} ago
             </p>
           </div>
@@ -197,22 +197,22 @@ export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onD
         <div className="flex items-center space-x-2">
           {canManage && (
             <>
-              <button onClick={() => setIsEditing(!isEditing)} className="p-2 text-gray-600 hover:text-primary transition-colors">
+              <button onClick={() => setIsEditing(!isEditing)} className="p-2 text-foreground/40 hover:text-primary transition-colors">
                 <Edit2 className="w-4 h-4" />
               </button>
-              <button onClick={handleDelete} className="p-2 text-gray-600 hover:text-red-500 transition-colors">
+              <button onClick={handleDelete} className="p-2 text-foreground/40 hover:text-red-500 transition-colors">
                 <Trash2 className="w-4 h-4" />
               </button>
             </>
           )}
           <div className="relative group">
-            <button className="p-2 text-gray-600 hover:text-white transition-colors">
+            <button className="p-2 text-foreground/40 hover:text-foreground transition-colors">
               <MoreHorizontal className="w-5 h-5" />
             </button>
-            <div className="absolute right-0 top-full mt-2 w-48 bg-surface border border-white/10 rounded-xl overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+            <div className="absolute right-0 top-full mt-2 w-48 bg-surface border border-border-custom rounded-xl overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 shadow-2xl">
               <button 
                 onClick={handleReport}
-                className="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-white/5 flex items-center gap-2"
+                className="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-foreground/5 flex items-center gap-2"
               >
                 <Flag className="w-4 h-4" /> Report Post
               </button>
@@ -227,21 +227,21 @@ export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onD
             <textarea
               value={editContent}
               onChange={(e) => setEditContent(e.target.value)}
-              className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white min-h-[100px] focus:border-primary/50"
+              className="w-full bg-background border border-border-custom rounded-2xl p-4 text-foreground min-h-[100px] focus:border-primary/50 shadow-inner"
             />
             <div className="flex justify-end space-x-2">
-               <button onClick={() => setIsEditing(false)} className="px-4 py-2 text-[10px] uppercase font-black text-gray-500 hover:text-white">Cancel</button>
-               <button onClick={handleUpdate} className="px-6 py-2 bg-primary text-white text-[10px] font-black uppercase rounded-lg">Save Changes</button>
+               <button onClick={() => setIsEditing(false)} className="px-4 py-2 text-[10px] uppercase font-black text-foreground/40 hover:text-foreground">Cancel</button>
+               <button onClick={handleUpdate} className="px-6 py-2 bg-primary text-white text-[10px] font-black uppercase rounded-lg shadow-lg shadow-primary/20">Save Changes</button>
             </div>
           </div>
         ) : (
-          <p className="text-gray-300 leading-relaxed font-medium whitespace-pre-wrap">
+          <p className="text-foreground/80 leading-relaxed font-medium whitespace-pre-wrap">
             {post.content}
           </p>
         )}
         
         {(post.media_url || playableUrl) && (
-          <div className="relative rounded-2xl overflow-hidden aspect-video bg-surface group/media">
+          <div className="relative rounded-2xl overflow-hidden aspect-video bg-background border border-border-custom group/media">
             {post.type === 'image' && post.media_url ? (
               <div 
                 className="w-full h-full cursor-pointer relative overflow-hidden"
@@ -304,13 +304,13 @@ export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onD
         />
       </div>
 
-      <div className="pt-6 border-t border-white/10 flex items-center justify-between">
+      <div className="pt-6 border-t border-border-custom flex items-center justify-between">
         <div className="flex items-center space-x-6">
           <button 
             onClick={handleLike}
             className={cn(
               "flex items-center space-x-2 transition-colors group",
-              isLiked ? "text-red-500" : "text-gray-500 hover:text-red-500"
+              isLiked ? "text-red-500" : "text-foreground/40 hover:text-red-500"
             )}
           >
             <Heart className={cn("w-5 h-5 transition-transform group-active:scale-125", isLiked && "fill-current")} />
@@ -318,14 +318,14 @@ export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onD
           </button>
           <button 
             onClick={() => setShowComments(!showComments)}
-            className="flex items-center space-x-2 text-gray-500 hover:text-primary transition-colors group"
+            className="flex items-center space-x-2 text-foreground/40 hover:text-primary transition-colors group"
           >
             <MessageCircle className="w-5 h-5 transition-transform group-hover:-translate-y-0.5" />
             <span className="text-sm font-bold">{comments.length}</span>
           </button>
         </div>
         
-        <button onClick={handleShare} className="p-2 text-gray-500 hover:text-white transition-colors">
+        <button onClick={handleShare} className="p-2 text-foreground/40 hover:text-foreground transition-colors">
           <Share2 className="w-5 h-5" />
         </button>
       </div>
@@ -344,34 +344,34 @@ export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onD
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 placeholder="Write a comment..."
-                className="flex-grow bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-primary/50"
+                className="flex-grow bg-background border border-border-custom rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:border-primary/50 shadow-inner"
               />
-              <button disabled={!newComment.trim()} className="p-3 bg-primary rounded-xl text-white disabled:opacity-50">
+              <button disabled={!newComment.trim()} className="p-3 bg-primary rounded-xl text-white disabled:opacity-50 shadow-lg shadow-primary/20">
                 <Send className="w-4 h-4" />
               </button>
             </form>
 
             <div className="space-y-4">
               {loadingComments ? (
-                <div className="text-center p-4 text-gray-600 text-xs">Loading comments...</div>
+                <div className="text-center p-4 text-foreground/40 text-xs">Loading comments...</div>
               ) : comments.map(comment => (
                 <div key={comment.id} className="flex gap-3">
-                  <Link to={`/profile/${comment.profiles?.username}`} className="w-8 h-8 rounded-lg bg-surface flex items-center justify-center overflow-hidden shrink-0 border border-white/5">
+                  <Link to={`/profile/${comment.profiles?.username}`} className="w-8 h-8 rounded-lg bg-surface-bright flex items-center justify-center overflow-hidden shrink-0 border border-border-custom">
                     {comment.profiles?.avatar_url ? (
                       <img src={comment.profiles.avatar_url} className="w-full h-full object-cover" />
                     ) : (
-                      <User className="w-4 h-4 text-gray-600" />
+                      <User className="w-4 h-4 text-foreground/20" />
                     )}
                   </Link>
-                  <div className="flex-grow bg-white/5 rounded-2xl px-4 py-3">
+                  <div className="flex-grow bg-foreground/5 rounded-2xl px-4 py-3 border border-border-custom shadow-sm">
                     <div className="flex justify-between items-center mb-1">
-                      <Link to={`/profile/${comment.profiles?.username}`} className="text-[10px] font-black text-white uppercase flex items-center gap-1 hover:text-primary transition-colors">
+                      <Link to={`/profile/${comment.profiles?.username}`} className="text-[10px] font-black text-foreground uppercase flex items-center gap-1 hover:text-primary transition-colors">
                         {comment.profiles?.username}
                         {comment.profiles?.is_verified && <Award className="w-2 h-2 text-primary" />}
                       </Link>
-                      <span className="text-[9px] text-gray-600">{formatDistanceToNow(new Date(comment.created_at))} ago</span>
+                      <span className="text-[9px] text-foreground/40 font-medium italic">{formatDistanceToNow(new Date(comment.created_at))} ago</span>
                     </div>
-                    <p className="text-sm text-gray-400">{comment.content}</p>
+                    <p className="text-sm text-foreground/60 italic font-light">"{comment.content}"</p>
                   </div>
                 </div>
               ))}

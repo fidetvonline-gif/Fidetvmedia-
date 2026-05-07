@@ -30,6 +30,7 @@ export default function Admin() {
   const [supportChats, setSupportChats] = useState<any[]>([]);
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [adminReply, setAdminReply] = useState('');
+  const [dbErrors, setDbErrors] = useState<Record<string, string>>({});
   const [communityStats, setCommunityStats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -132,7 +133,14 @@ export default function Admin() {
   };
 
   const fetchSiteSettings = async () => {
-    const { data } = await supabase.from('site_settings').select('*');
+    const { data, error } = await supabase.from('site_settings').select('*');
+    if (error) {
+      if (error.message.includes('relation "public.site_settings" does not exist') || 
+          error.message.includes('Could not find the table \'public.site_settings\'')) {
+        setDbErrors(prev => ({ ...prev, site_settings: 'Table missing. Run SQL setup.' }));
+      }
+      return;
+    }
     if (data) {
       const settings = data.reduce((acc: any, curr: any) => {
         acc[curr.key] = curr.value;
@@ -145,20 +153,43 @@ export default function Admin() {
   const saveSiteSetting = async (key: string, value: string) => {
     const { error } = await supabase.from('site_settings').upsert({ key, value, updated_at: new Date().toISOString() });
     if (!error) {
+      setDbErrors(prev => {
+        const next = { ...prev };
+        delete next.site_settings;
+        return next;
+      });
       setSiteSettings(prev => ({ ...prev, [key]: value }));
       alert('Setting saved!');
     } else {
+      if (error.message.includes('relation "public.site_settings" does not exist') || 
+          error.message.includes('Could not find the table \'public.site_settings\'')) {
+        setDbErrors(prev => ({ ...prev, site_settings: 'Table missing. Run SQL setup.' }));
+      }
       alert('Error saving setting: ' + error.message);
     }
   };
 
   const fetchServices = async () => {
-    const { data } = await supabase.from('services').select('*').order('order_index');
+    const { data, error } = await supabase.from('services').select('*').order('order_index');
+    if (error) {
+      if (error.message.includes('relation "public.services" does not exist') || 
+          error.message.includes('Could not find the table \'public.services\'')) {
+        setDbErrors(prev => ({ ...prev, services: 'Table missing.' }));
+      }
+      return;
+    }
     if (data) setServices(data);
   };
 
   const fetchChannels = async () => {
-    const { data } = await supabase.from('tv_channels').select('*').order('order_index');
+    const { data, error } = await supabase.from('tv_channels').select('*').order('order_index');
+    if (error) {
+      if (error.message.includes('relation "public.tv_channels" does not exist') || 
+          error.message.includes('Could not find the table \'public.tv_channels\'')) {
+        setDbErrors(prev => ({ ...prev, tv_channels: 'Table missing.' }));
+      }
+      return;
+    }
     if (data) setChannels(data);
   };
 
@@ -210,7 +241,14 @@ export default function Admin() {
   };
 
   const fetchProfiles = async () => {
-    const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+    if (error) {
+      if (error.message.includes('relation "public.profiles" does not exist') || 
+          error.message.includes('Could not find the table \'public.profiles\'')) {
+        setDbErrors(prev => ({ ...prev, profiles: 'Table missing.' }));
+      }
+      return;
+    }
     if (data) setProfiles(data);
   };
 
@@ -389,87 +427,120 @@ export default function Admin() {
       <div className="w-20 h-20 bg-red-500/10 rounded-3xl flex items-center justify-center mb-8 border border-red-500/20">
         <Settings className="w-10 h-10 text-red-500" />
       </div>
-      <h2 className="text-3xl font-display font-bold text-white mb-4">Access Restricted</h2>
-      <p className="text-gray-500 max-w-sm mb-10">Only authorized administrators can access the FideTV Dashboard.</p>
-      <button onClick={() => window.location.href = '/'} className="px-8 py-4 glass rounded-full text-xs font-bold uppercase tracking-widest text-white hover:bg-white/5 transition-all">
+      <h2 className="text-3xl font-display font-bold text-foreground mb-4">Access Restricted</h2>
+      <p className="text-foreground/40 max-w-sm mb-10 italic">Only authorized administrators can access the FideTV Dashboard.</p>
+      <button onClick={() => window.location.href = '/'} className="px-8 py-4 bg-surface border border-border-custom rounded-full text-xs font-bold uppercase tracking-widest text-foreground hover:bg-surface-bright transition-all shadow-sm">
         Go Back Home
       </button>
     </div>
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 pb-32">
-       {/* Header */}
-       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
-          <div className="space-y-2">
-             <h1 className="text-4xl font-display font-bold text-white tracking-tighter">Admin <span className="text-gray-600">Studio.</span></h1>
-             <p className="text-gray-500 font-medium tracking-wide">Command center for FideTV Media content and community.</p>
-          </div>
-          <button 
-            onClick={() => { resetForm(); setIsEditing(true); }}
-            className="px-8 py-4 bg-primary text-white font-bold rounded-2xl flex items-center space-x-3 shadow-lg shadow-primary/20 hover:scale-105 transition-all active:scale-95"
-          >
-            <Plus className="w-5 h-5" />
-            <span className="uppercase tracking-widest text-xs">
-              Create {activeTab === 'events' ? 'Event' : activeTab === 'communities' ? 'Community' : activeTab === 'news' ? 'Article' : activeTab === 'portfolio' ? 'Portfolio Item' : activeTab === 'channels' ? 'TV Channel' : activeTab}
-            </span>
-          </button>
-       </div>
-
-       {/* Tabs Navigation */}
-       <div className="flex flex-wrap gap-4 mb-12">
-          {[
-            { id: 'overview', name: 'Overview', icon: LayoutDashboard },
-            { id: 'channels', name: 'TV Channels', icon: Tv },
-            { id: 'services', name: 'Services', icon: Zap },
-            { id: 'portfolio', name: 'Portfolio & Shows', icon: Briefcase },
-            { id: 'events', name: 'Events', icon: Radio },
-            { id: 'news', name: 'Blog Studio', icon: Newspaper },
-            { id: 'communities', name: 'Communities', icon: Users },
-            { id: 'users', name: 'Users', icon: ShieldCheck },
-            { id: 'bookings', name: 'Bookings', icon: BookOpen },
-            { id: 'support', name: 'Support', icon: MessageSquare },
-            { id: 'site', name: 'Site Setup', icon: Settings }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as AdminTab)}
-              className={cn(
-                "px-8 py-4 rounded-2xl flex items-center space-x-3 font-bold text-xs uppercase tracking-widest transition-all border",
-                activeTab === tab.id 
-                  ? "bg-white/5 border-primary text-white shadow-xl shadow-primary/5" 
-                  : "bg-surface border-white/5 text-gray-500 hover:text-white hover:border-white/10"
-              )}
+    <div className="min-h-screen bg-background">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 pb-32">
+         {/* Header */}
+         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
+            <div className="space-y-2">
+               <h1 className="text-4xl font-display font-bold text-foreground tracking-tighter">Admin <span className="text-foreground/40 italic">Studio.</span></h1>
+               <p className="text-foreground/40 font-medium tracking-wide">Command center for FideTV Media content and community.</p>
+            </div>
+            <button 
+              onClick={() => { resetForm(); setIsEditing(true); }}
+              className="px-8 py-4 bg-primary text-white font-bold rounded-2xl flex items-center space-x-3 shadow-lg shadow-primary/20 hover:scale-105 transition-all active:scale-95"
             >
-              <tab.icon className={cn("w-4 h-4", activeTab === tab.id ? "text-primary" : "text-gray-600")} />
-              <span>{tab.name}</span>
+              <Plus className="w-5 h-5" />
+              <span className="uppercase tracking-widest text-xs">
+                Create {activeTab === 'events' ? 'Event' : activeTab === 'communities' ? 'Community' : activeTab === 'news' ? 'Article' : activeTab === 'portfolio' ? 'Portfolio Item' : activeTab === 'channels' ? 'TV Channel' : activeTab}
+              </span>
             </button>
-          ))}
-       </div>
+         </div>
+
+         {/* Tabs Navigation */}
+         <div className="flex flex-wrap gap-4 mb-12">
+            {[
+              { id: 'overview', name: 'Overview', icon: LayoutDashboard },
+              { id: 'channels', name: 'TV Channels', icon: Tv },
+              { id: 'services', name: 'Services', icon: Zap },
+              { id: 'portfolio', name: 'Portfolio & Shows', icon: Briefcase },
+              { id: 'events', name: 'Events', icon: Radio },
+              { id: 'news', name: 'Blog Studio', icon: Newspaper },
+              { id: 'communities', name: 'Communities', icon: Users },
+              { id: 'users', name: 'Users', icon: ShieldCheck },
+              { id: 'bookings', name: 'Bookings', icon: BookOpen },
+              { id: 'support', name: 'Support', icon: MessageSquare },
+              { id: 'site', name: 'Site Setup', icon: Settings }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as AdminTab)}
+                className={cn(
+                  "px-8 py-4 rounded-2xl flex items-center space-x-3 font-bold text-xs uppercase tracking-widest transition-all border shadow-sm",
+                  activeTab === tab.id 
+                    ? "bg-surface border-primary text-foreground" 
+                    : "bg-surface border-border-custom text-foreground/40 hover:text-foreground hover:border-foreground/20"
+                )}
+              >
+                <tab.icon className={cn("w-4 h-4", activeTab === tab.id ? "text-primary" : "text-foreground/20")} />
+                <span>{tab.name}</span>
+              </button>
+            ))}
+         </div>
 
        {/* Content Rendering */}
        <div className="space-y-12">
           {activeTab === 'site' && (
             <div className="space-y-12">
-              <div className="glass rounded-[2.5rem] p-10 border-white/5 space-y-10">
+              {dbErrors.site_settings && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-[2rem] p-8 space-y-4">
+                  <div className="flex items-center gap-3 text-red-500">
+                    <ShieldAlert className="w-5 h-5" />
+                    <h3 className="font-display font-bold uppercase tracking-tight">Database Table Missing</h3>
+                  </div>
+                  <p className="text-xs text-foreground/60 leading-relaxed italic">
+                    The <code className="bg-red-500/10 px-2 py-0.5 rounded text-red-500">site_settings</code> table is missing from your Supabase database. 
+                    Please run the following SQL code in your Supabase SQL Editor:
+                  </p>
+                  <pre className="bg-background/50 p-6 rounded-2xl text-[10px] font-mono text-foreground/40 overflow-x-auto border border-border-custom shadow-inner">
+{`CREATE TABLE IF NOT EXISTS public.site_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Settings viewable by everyone" ON public.site_settings FOR SELECT USING (true);
+CREATE POLICY "Admin manage settings" ON public.site_settings FOR ALL USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
+
+INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://www.youtube.com/watch?v=0D-zn6YAqCY') ON CONFLICT (key) DO NOTHING;`}
+                  </pre>
+                  <button 
+                    onClick={() => fetchData()}
+                    className="px-6 py-2 bg-red-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest"
+                  >
+                    Refresh After Running SQL
+                  </button>
+                </div>
+              )}
+
+              <div className="bg-surface rounded-[2.5rem] p-10 border border-border-custom space-y-10 shadow-sm">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center border border-primary/20">
                     <Youtube className="w-6 h-6 text-primary" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-display font-bold text-white uppercase tracking-tight">Showreel Configuration</h2>
-                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Manage the video featured on the services page.</p>
+                    <h2 className="text-xl font-display font-bold text-foreground uppercase tracking-tight">Showreel Configuration</h2>
+                    <p className="text-[10px] text-foreground/40 font-bold uppercase tracking-widest mt-1 italic">Manage the video featured on the services page.</p>
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  <label className="text-[10px] uppercase font-black tracking-[0.2em] text-gray-600 block ml-4">Youtube showreel URL</label>
+                  <label className="text-[10px] uppercase font-black tracking-[0.2em] text-foreground/40 block ml-4">Youtube showreel URL</label>
                   <div className="flex gap-4">
                     <input 
                       value={siteSettings.showreel_url || ''} 
                       onChange={(e) => setSiteSettings(prev => ({ ...prev, showreel_url: e.target.value }))}
                       placeholder="https://www.youtube.com/watch?v=..."
-                      className="flex-grow bg-black/40 border border-white/10 rounded-2xl p-6 text-sm text-white focus:border-primary/50 transition-colors" 
+                      className="flex-grow bg-background border border-border-custom rounded-2xl p-6 text-sm text-foreground focus:border-primary/50 transition-colors shadow-inner" 
                     />
                     <button 
                       onClick={() => saveSiteSetting('showreel_url', siteSettings.showreel_url)}
@@ -478,19 +549,19 @@ export default function Admin() {
                       Update URL
                     </button>
                   </div>
-                  <p className="text-[9px] text-gray-600 px-4">This video will appear in the "Watch our Live Showreel" section on the Services page.</p>
+                  <p className="text-[9px] text-foreground/20 px-4 italic">This video will appear in the "Watch our Live Showreel" section on the Services page.</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                 <div className="glass rounded-[2.5rem] p-10 border-white/5 space-y-6">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-white border-b border-white/5 pb-4">Branding Accent</h3>
-                    <p className="text-xs text-gray-500 leading-relaxed italic">More global site settings like primary colors or branding assets can be added here in the future.</p>
+                 <div className="bg-surface rounded-[2.5rem] p-10 border border-border-custom space-y-6 shadow-sm">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-foreground border-b border-border-custom pb-4">Branding Accent</h3>
+                    <p className="text-xs text-foreground/40 leading-relaxed italic">More global site settings like primary colors or branding assets can be added here in the future.</p>
                  </div>
-                 <div className="glass rounded-[2.5rem] p-10 border-white/5 space-y-6">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-white border-b border-white/5 pb-4">System Maintenance</h3>
-                    <div className="flex items-center justify-between p-4 bg-white/2 rounded-2xl border border-white/5">
-                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Database Version</span>
+                 <div className="bg-surface rounded-[2.5rem] p-10 border border-border-custom space-y-6 shadow-sm">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-foreground border-b border-border-custom pb-4">System Maintenance</h3>
+                    <div className="flex items-center justify-between p-4 bg-background rounded-2xl border border-border-custom shadow-inner">
+                       <span className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest">Database Version</span>
                        <span className="text-[10px] font-mono text-primary font-bold">PROD-v2.1</span>
                     </div>
                  </div>
@@ -499,89 +570,89 @@ export default function Admin() {
           )}
 
           {activeTab === 'support' && (
-            <div className="flex gap-8 h-[600px]">
+            <div className="flex flex-col lg:flex-row gap-8 h-[700px]">
               {/* Chat Sidebar */}
-              <div className="w-80 glass rounded-[2.5rem] border-white/5 overflow-hidden flex flex-col">
-                <div className="p-6 border-b border-white/10 bg-surface-bright/50">
-                  <h3 className="text-xs font-black uppercase tracking-widest text-primary">Support Inbox</h3>
+              <div className="w-full lg:w-80 bg-surface rounded-[2.5rem] border border-border-custom overflow-hidden flex flex-col shadow-sm">
+                <div className="p-6 border-b border-border-custom bg-background/50">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-primary italic">Support Inbox</h3>
                 </div>
-                <div className="flex-grow overflow-y-auto custom-scrollbar">
+                <div className="flex-grow overflow-y-auto custom-scrollbar bg-background/20">
                   {supportChats.length > 0 ? (
                     supportChats.map(chat => (
                       <button 
                         key={chat.userId}
                         onClick={() => setSelectedChat(chat.userId)}
                         className={cn(
-                          "w-full p-6 text-left border-b border-white/5 transition-all hover:bg-white/5",
-                          selectedChat === chat.userId ? "bg-white/5" : ""
+                          "w-full p-6 text-left border-b border-border-custom transition-all hover:bg-foreground/5",
+                          selectedChat === chat.userId ? "bg-foreground/5" : ""
                         )}
                       >
                         <div className="flex items-center gap-4">
                           <img 
                             src={chat.lastMessage.profiles?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${chat.userId}`} 
-                            className="w-10 h-10 rounded-full border border-white/10" 
+                            className="w-10 h-10 rounded-full border border-border-custom shadow-sm" 
                           />
                           <div className="flex-grow min-w-0">
                             <div className="flex justify-between items-center mb-1">
-                              <p className="font-bold text-white text-sm truncate">{chat.lastMessage.profiles?.username || 'User'}</p>
-                              <span className="text-[8px] text-gray-600 uppercase font-bold">{format(new Date(chat.lastMessage.created_at), 'MMM dd')}</span>
+                              <p className="font-bold text-foreground text-sm truncate">{chat.lastMessage.profiles?.username || 'User'}</p>
+                              <span className="text-[8px] text-foreground/40 uppercase font-black">{format(new Date(chat.lastMessage.created_at), 'MMM dd')}</span>
                             </div>
-                            <p className="text-[10px] text-gray-500 truncate">{chat.lastMessage.content}</p>
+                            <p className="text-[10px] text-foreground/40 truncate italic leading-relaxed">{chat.lastMessage.content}</p>
                           </div>
                         </div>
                       </button>
                     ))
                   ) : (
-                    <div className="p-8 text-center text-gray-600 text-xs italic">No support chats yet.</div>
+                    <div className="p-8 text-center text-foreground/20 text-[10px] uppercase font-black tracking-widest italic pt-20">No support chats yet.</div>
                   )}
                 </div>
               </div>
 
               {/* Chat Window */}
-              <div className="flex-grow glass rounded-[2.5rem] border-white/5 overflow-hidden flex flex-col">
+              <div className="flex-grow bg-surface rounded-[2.5rem] border border-border-custom overflow-hidden flex flex-col shadow-sm">
                 {selectedChat ? (
                   <>
-                    <div className="p-6 border-b border-white/10 bg-surface-bright/50 flex items-center gap-4">
-                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center border border-primary/20">
+                    <div className="p-6 border-b border-border-custom bg-background/50 flex items-center gap-4">
+                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center border border-primary/20 shadow-inner">
                         <MessageSquare className="w-5 h-5 text-primary" />
                       </div>
                       <div>
-                        <h3 className="text-sm font-bold text-white uppercase tracking-widest leading-none">Support Conversation</h3>
-                        <p className="text-[10px] text-gray-500 font-medium tracking-tight mt-1">User ID: {selectedChat}</p>
+                        <h3 className="text-[10px] font-black text-foreground uppercase tracking-widest leading-none">Support Conversation</h3>
+                        <p className="text-[10px] text-foreground/30 font-medium tracking-tight mt-1 italic">User ID: {selectedChat}</p>
                       </div>
                     </div>
-                    <div className="flex-grow overflow-y-auto p-8 space-y-6 custom-scrollbar">
+                    <div className="flex-grow overflow-y-auto p-8 space-y-6 custom-scrollbar bg-background/5">
                       {supportChats.find(c => c.userId === selectedChat)?.messages.map((msg: any) => (
                         <div key={msg.id} className={cn(
                           "flex flex-col space-y-2",
                           msg.author_id === selectedChat ? "items-start" : "items-end"
                         )}>
                           <div className={cn(
-                            "max-w-[80%] px-5 py-3 rounded-2xl text-sm leading-relaxed",
+                            "max-w-[80%] px-5 py-4 rounded-[1.5rem] text-sm leading-relaxed shadow-sm",
                             msg.author_id === selectedChat 
-                              ? "bg-surface-bright text-gray-200 rounded-tl-none border border-white/5"
-                              : "bg-primary text-white rounded-tr-none shadow-lg shadow-primary/10" 
+                              ? "bg-background text-foreground rounded-tl-none border border-border-custom"
+                              : "bg-primary text-white rounded-tr-none shadow-lg shadow-primary/20 font-medium" 
                           )}>
                             {msg.content}
                           </div>
-                          <span className="text-[8px] text-gray-600 font-bold uppercase tracking-widest px-1">
+                          <span className="text-[8px] text-foreground/40 font-black uppercase tracking-widest px-2 italic">
                             {format(new Date(msg.created_at), 'HH:mm')} • {msg.author_id === selectedChat ? 'Client' : 'Admin'}
                           </span>
                         </div>
                       ))}
                     </div>
-                    <div className="p-6 bg-surface-bright/50 border-t border-white/10">
+                    <div className="p-6 bg-background/50 border-t border-border-custom">
                       <div className="relative">
                         <textarea
                           value={adminReply}
                           onChange={(e) => setAdminReply(e.target.value)}
                           placeholder="Type your reply as support..."
-                          className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-sm text-white focus:border-primary/50 transition-colors min-h-[80px] resize-none pr-20"
+                          className="w-full bg-background border border-border-custom rounded-2xl p-5 text-sm text-foreground focus:border-primary/50 transition-colors min-h-[100px] resize-none pr-20 shadow-inner"
                         />
                         <button
                           onClick={() => handleAdminReply(selectedChat)}
                           disabled={!adminReply.trim()}
-                          className="absolute bottom-4 right-4 px-6 py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                          className="absolute bottom-4 right-4 px-6 py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-primary/20"
                         >
                           Send Reply
                         </button>
@@ -589,11 +660,13 @@ export default function Admin() {
                     </div>
                   </>
                 ) : (
-                  <div className="h-full flex flex-col items-center justify-center text-center p-12 space-y-6">
-                    <Headset className="w-16 h-16 text-gray-800" />
+                  <div className="h-full flex flex-col items-center justify-center text-center p-12 space-y-6 bg-background/5">
+                    <div className="w-20 h-20 bg-background border border-border-custom rounded-3xl flex items-center justify-center shadow-inner">
+                      <Headset className="w-10 h-10 text-foreground/10" />
+                    </div>
                     <div className="space-y-2">
-                       <h3 className="text-xl font-display font-medium text-gray-500">No Chat Selected</h3>
-                       <p className="text-xs text-gray-600 max-w-xs mx-auto">Select a user from the sidebar to view the support conversation and provide assistance.</p>
+                       <h3 className="text-xl font-display font-bold text-foreground">No Chat Selected</h3>
+                       <p className="text-xs text-foreground/40 max-w-xs mx-auto italic font-light">Select a user from the sidebar to view the support conversation and provide assistance.</p>
                     </div>
                   </div>
                 )}
@@ -603,6 +676,38 @@ export default function Admin() {
 
           {activeTab === 'overview' && (
             <div className="space-y-12">
+              {/* Database Health Warning */}
+              {Object.keys(dbErrors).length > 0 && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-[2.5rem] p-10 space-y-6 animate-in fade-in slide-in-from-top-4 duration-700">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-red-500 rounded-3xl flex items-center justify-center shadow-lg shadow-red-500/20">
+                      <ShieldAlert className="w-8 h-8 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-display font-bold text-foreground tracking-tight uppercase">Critical Database Action Required</h2>
+                      <p className="text-foreground/40 font-medium italic mt-1 leading-relaxed">Structural elements are missing from your database schema. The dashboard will not function correctly until resolved.</p>
+                    </div>
+                  </div>
+                  <div className="bg-background/40 backdrop-blur-md border border-border-custom rounded-3xl p-8 space-y-4 shadow-inner">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground/40">Missing Components Detected:</p>
+                    <div className="flex flex-wrap gap-3">
+                      {Object.keys(dbErrors).map(table => (
+                        <span key={table} className="px-4 py-2 bg-red-500/20 text-red-500 border border-red-500/30 rounded-full text-[10px] font-black uppercase tracking-widest">{table}</span>
+                      ))}
+                    </div>
+                    <div className="pt-4 mt-6 border-t border-border-custom flex flex-col sm:flex-row items-center gap-6">
+                      <button 
+                        onClick={() => setActiveTab('site')}
+                        className="w-full sm:w-auto px-10 py-4 bg-foreground text-background font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-primary hover:text-white transition-all shadow-xl shadow-foreground/10"
+                      >
+                        Get Setup SQL
+                      </button>
+                      <p className="text-[9px] text-foreground/20 italic">Click the button above to view the SQL commands needed for your Supabase SQL Editor.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Stats Bar */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 {[
@@ -611,61 +716,71 @@ export default function Admin() {
                   { label: 'Communities', value: communities.length, icon: Users },
                   { label: 'Pending Bookings', value: bookings.filter(b => b.status === 'pending').length, icon: BookOpen },
                 ].map((stat, i) => (
-                  <div key={i} className="glass p-6 rounded-3xl border-white/5">
-                      <div className="flex justify-between items-start mb-4">
-                        <stat.icon className="w-6 h-6 text-primary" />
+                  <div key={i} className="bg-surface p-8 rounded-[2.5rem] border border-border-custom shadow-sm group hover:border-primary/30 transition-all">
+                      <div className="flex justify-between items-start mb-6">
+                        <div className="w-12 h-12 bg-background border border-border-custom rounded-2xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+                          <stat.icon className="w-6 h-6 text-primary" />
+                        </div>
                       </div>
-                      <h3 className="text-3xl font-display font-bold text-white tracking-tighter">{stat.value}</h3>
-                      <p className="text-[10px] uppercase font-black text-gray-400 tracking-widest">{stat.label}</p>
+                      <h3 className="text-4xl font-display font-bold text-foreground tracking-tighter mb-1">{stat.value}</h3>
+                      <p className="text-[10px] uppercase font-black text-foreground/30 tracking-widest italic">{stat.label}</p>
                   </div>
                 ))}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="glass p-8 rounded-[2.5rem] border-white/5 space-y-6">
-                      <h2 className="text-xl font-display font-bold text-white flex items-center gap-3">
-                         <Users className="w-5 h-5 text-primary" />
-                         Community Sizes
-                      </h2>
+                  <div className="bg-surface p-8 sm:p-10 rounded-[3rem] border border-border-custom space-y-8 shadow-sm">
+                      <div className="flex items-center justify-between border-b border-border-custom pb-6">
+                        <h2 className="text-xl font-display font-bold text-foreground flex items-center gap-3">
+                           <Users className="w-5 h-5 text-primary" />
+                           Community Sizes
+                        </h2>
+                      </div>
                       <div className="space-y-4">
                          {communities.map(c => (
-                           <div key={c.id} className="flex items-center justify-between p-4 bg-white/2 rounded-2xl border border-white/5">
+                           <div key={c.id} className="flex items-center justify-between p-4 bg-background rounded-2xl border border-border-custom shadow-inner hover:bg-foreground/5 transition-colors group">
                               <div className="flex items-center gap-4">
-                                 <div className="w-10 h-10 bg-surface-bright rounded-xl flex items-center justify-center border border-white/5">
-                                    {c.image_url ? <img src={c.image_url} className="w-full h-full object-cover rounded-xl" /> : <Users className="w-5 h-5" />}
+                                 <div className="w-12 h-12 bg-surface rounded-xl flex items-center justify-center border border-border-custom shadow-sm overflow-hidden">
+                                    {c.image_url ? <img src={c.image_url} className="w-full h-full object-cover transition-transform group-hover:scale-110" /> : <Users className="w-5 h-5 text-foreground/20" />}
                                  </div>
-                                 <span className="font-bold text-white text-sm">{c.name}</span>
+                                 <span className="font-bold text-foreground text-sm tracking-tight">{c.name}</span>
                               </div>
                               <div className="flex flex-col items-end">
-                                 <span className="text-xl font-display font-bold text-white">{communityStats[c.id] || 0}</span>
-                                 <span className="text-[8px] uppercase font-black text-gray-500 tracking-widest">Members</span>
+                                 <span className="text-2xl font-display font-bold text-foreground tracking-tighter">{communityStats[c.id] || 0}</span>
+                                 <span className="text-[8px] uppercase font-black text-foreground/20 tracking-widest italic">Members</span>
                               </div>
                            </div>
                          ))}
                       </div>
                   </div>
 
-                  <div className="glass p-8 rounded-[2.5rem] border-white/5 space-y-6">
-                      <h2 className="text-xl font-display font-bold text-white flex items-center gap-3">
-                         <ShieldAlert className="w-5 h-5 text-yellow-500" />
-                         Verification Requests
-                      </h2>
+                  <div className="bg-surface p-8 sm:p-10 rounded-[3rem] border border-border-custom space-y-8 shadow-sm">
+                      <div className="flex items-center justify-between border-b border-border-custom pb-6">
+                        <h2 className="text-xl font-display font-bold text-foreground flex items-center gap-3">
+                           <ShieldAlert className="w-5 h-5 text-yellow-500" />
+                           Verification Requests
+                        </h2>
+                        <span className="text-[10px] font-black text-yellow-500/80 uppercase tracking-widest bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/20">
+                          {profiles.filter(p => p.verification_requested && !p.is_verified).length} Pending
+                        </span>
+                      </div>
                       <div className="space-y-4">
                          {profiles.filter(p => p.verification_requested && !p.is_verified).slice(0, 5).map(p => (
-                           <div key={p.id} className="flex items-center justify-between p-4 bg-white/2 rounded-2xl border border-white/5 uppercase tracking-widest text-[10px]">
+                           <div key={p.id} className="flex items-center justify-between p-4 bg-background rounded-2xl border border-border-custom shadow-inner group">
                               <div className="flex items-center gap-4">
-                                 <img src={p.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.username}`} className="w-8 h-8 rounded-full border border-white/10" />
+                                 <img src={p.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.username}`} className="w-10 h-10 rounded-full border border-border-custom shadow-sm" />
                                  <div className="flex flex-col">
-                                    <span className="font-black text-white">{p.username}</span>
-                                    <span className="text-gray-500">{p.full_name}</span>
+                                    <span className="font-black text-foreground text-[10px] uppercase tracking-widest">{p.username}</span>
+                                    <span className="text-foreground/40 text-[10px] font-light italic">{p.full_name || 'No Full Name'}</span>
                                  </div>
                               </div>
-                              <button onClick={() => setActiveTab('users')} className="text-primary font-black hover:text-white transition-colors">Handle</button>
+                              <button onClick={() => setActiveTab('users')} className="px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all shadow-sm">Handle</button>
                            </div>
                          ))}
                          {profiles.filter(p => p.verification_requested && !p.is_verified).length === 0 && (
-                           <div className="p-8 text-center bg-white/2 rounded-2xl border border-dashed border-white/10">
-                              <p className="text-xs text-gray-500 font-bold tracking-widest">NO PENDING REQUESTS</p>
+                           <div className="py-20 text-center bg-background rounded-[2rem] border border-dashed border-border-custom shadow-inner flex flex-col items-center justify-center space-y-4">
+                              <ShieldCheck className="w-12 h-12 text-foreground/5" />
+                              <p className="text-[10px] text-foreground/20 font-black tracking-[0.3em] uppercase italic">System Fully Verified</p>
                            </div>
                          )}
                       </div>
@@ -675,50 +790,62 @@ export default function Admin() {
               {/* Business Verification */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-6">
-                    <h2 className="text-xl font-display font-bold text-white px-2">CAC Registration</h2>
-                    <div className="glass p-8 rounded-[2.5rem] border-white/5 flex flex-col gap-6">
-                      <p className="text-sm text-gray-400">FIDE TV MEDIA Registration (BN - 3647744)</p>
-                      <div className="flex items-center gap-4">
+                    <h2 className="text-xl font-display font-bold text-foreground px-4 flex items-center gap-2">
+                       <Award className="w-5 h-5 text-primary" />
+                       CAC Registration
+                    </h2>
+                    <div className="bg-surface p-10 rounded-[3rem] border border-border-custom flex flex-col gap-8 shadow-sm">
+                      <div className="space-y-2">
+                        <p className="text-sm text-foreground/60 font-medium tracking-tight leading-relaxed">FIDE TV MEDIA Registration (BN - 3647744)</p>
+                        <p className="text-[10px] text-foreground/30 font-light italic">Verify official business documentation for regulatory compliance.</p>
+                      </div>
+                      <div className="flex items-center gap-6">
                           {certUrl && (
-                            <div className="relative w-24 h-16 rounded-xl overflow-hidden border border-white/10 group shrink-0">
-                              <img src={certUrl} alt="CAC" className="w-full h-full object-cover" />
-                              <a href={certUrl} target="_blank" rel="noopener noreferrer" className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <span className="text-white text-[10px] font-bold uppercase tracking-wider">View</span>
+                            <div className="relative w-32 h-20 rounded-2xl overflow-hidden border border-border-custom group shrink-0 shadow-lg">
+                              <img src={certUrl} alt="CAC" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                              <a href={certUrl} target="_blank" rel="noopener noreferrer" className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="text-white text-[10px] font-black uppercase tracking-widest">View PDF</span>
                               </a>
                             </div>
                           )}
                           <label className={cn(
-                            "flex-1 px-6 py-4 glass text-white font-bold text-xs uppercase tracking-widest rounded-2xl cursor-pointer hover:bg-white/5 transition-colors border border-white/10 flex items-center justify-center space-x-2",
+                            "flex-1 px-8 py-6 bg-background border border-border-custom text-foreground font-black text-[10px] uppercase tracking-widest rounded-[1.5rem] cursor-pointer hover:bg-foreground/5 transition-all shadow-inner flex items-center justify-center space-x-3 border-dashed",
                             certUploading && "opacity-50 cursor-wait"
                           )}>
                             <input type="file" className="hidden" accept="image/*,application/pdf" onChange={(e) => handleFileUpload(e, 'event-thumbnails', 'cac_certificate', setCertUrl)} />
                             <Plus className="w-4 h-4 text-primary" />
-                            <span>{certUrl ? 'Update CAC' : 'Upload CAC'}</span>
+                            <span>{certUrl ? 'Replace DOC' : 'Upload DOC'}</span>
                           </label>
                       </div>
                     </div>
                 </div>
 
                 <div className="space-y-6">
-                    <h2 className="text-xl font-display font-bold text-white px-2">SMEDAN Certificate</h2>
-                    <div className="glass p-8 rounded-[2.5rem] border-white/5 flex flex-col gap-6">
-                      <p className="text-sm text-gray-400">Official business verification from SMEDAN (SUIN28515358).</p>
-                      <div className="flex items-center gap-4">
+                    <h2 className="text-xl font-display font-bold text-foreground px-4 flex items-center gap-2">
+                       <Briefcase className="w-5 h-5 text-primary" />
+                       SMEDAN Certificate
+                    </h2>
+                    <div className="bg-surface p-10 rounded-[3rem] border border-border-custom flex flex-col gap-8 shadow-sm">
+                      <div className="space-y-2">
+                        <p className="text-sm text-foreground/60 font-medium tracking-tight leading-relaxed">Official business verification from SMEDAN (SUIN28515358).</p>
+                        <p className="text-[10px] text-foreground/30 font-light italic">Small & Medium Enterprises Development Agency of Nigeria.</p>
+                      </div>
+                      <div className="flex items-center gap-6">
                           {smedanUrl && (
-                            <div className="relative w-24 h-16 rounded-xl overflow-hidden border border-white/10 group shrink-0">
-                              <img src={smedanUrl} alt="SMEDAN" className="w-full h-full object-cover" />
-                              <a href={smedanUrl} target="_blank" rel="noopener noreferrer" className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <span className="text-white text-[10px] font-bold uppercase tracking-wider">View</span>
+                            <div className="relative w-32 h-20 rounded-2xl overflow-hidden border border-border-custom group shrink-0 shadow-lg">
+                              <img src={smedanUrl} alt="SMEDAN" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                              <a href={smedanUrl} target="_blank" rel="noopener noreferrer" className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="text-white text-[10px] font-black uppercase tracking-widest">View PDF</span>
                               </a>
                             </div>
                           )}
                           <label className={cn(
-                            "flex-1 px-6 py-4 glass text-white font-bold text-xs uppercase tracking-widest rounded-2xl cursor-pointer hover:bg-white/5 transition-colors border border-white/10 flex items-center justify-center space-x-2",
+                            "flex-1 px-8 py-6 bg-background border border-border-custom text-foreground font-black text-[10px] uppercase tracking-widest rounded-[1.5rem] cursor-pointer hover:bg-foreground/5 transition-all shadow-inner flex items-center justify-center space-x-3 border-dashed",
                             smedanUploading && "opacity-50 cursor-wait"
                           )}>
                             <input type="file" className="hidden" accept="image/*,application/pdf" onChange={(e) => handleFileUpload(e, 'event-thumbnails', 'smedan_certificate', setSmedanUrl)} />
                             <Plus className="w-4 h-4 text-primary" />
-                            <span>{smedanUrl ? 'Update SMEDAN' : 'Upload SMEDAN'}</span>
+                            <span>{smedanUrl ? 'Replace DOC' : 'Upload DOC'}</span>
                           </label>
                       </div>
                     </div>
@@ -728,75 +855,78 @@ export default function Admin() {
           )}
 
           {activeTab === 'channels' && (
-            <div className="space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {/* Database Channels */}
-                {channels.map(channel => (
-                  <div key={channel.id} className="glass rounded-[2rem] p-6 space-y-4 group border-white/5 hover:border-white/10 transition-all">
-                    <div className="relative aspect-video rounded-xl overflow-hidden bg-surface-bright">
-                       {channel.thumbnail && <img src={channel.thumbnail} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />}
-                       <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black uppercase text-white tracking-widest border border-white/10">
-                          {channel.category}
-                       </div>
-                       {channel.is_active && (
-                         <div className="absolute top-4 right-4 bg-red-600/90 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black uppercase text-white tracking-widest border border-red-500/50">
-                            LIVE
-                         </div>
-                       )}
-                    </div>
-                    <div className="space-y-1">
-                       <h3 className="text-white font-bold group-hover:text-primary transition-colors">{channel.name}</h3>
-                       <p className="text-[10px] text-gray-500 line-clamp-2">{channel.description}</p>
-                    </div>
-                    <div className="flex justify-between items-center pt-4 border-t border-white/5">
-                       <div className="flex items-center gap-2">
-                          <Tv className="w-3 h-3 text-gray-600" />
-                          <span className="text-[10px] text-gray-600 font-bold uppercase tracking-widest">#{channel.order_index}</span>
-                       </div>
-                       <div className="flex space-x-2">
-                          <button onClick={() => { 
-                            setEditingId(channel.id); setTitle(channel.name); setCategory(channel.category); setDescription(channel.description || ''); setImageUrl(channel.thumbnail || ''); setStreamUrl(channel.url); setStatus(channel.is_active ? 'live' : 'offline'); 
-                            setIsEditing(true); 
-                          }} className="p-2 text-gray-500 hover:text-white transition-colors bg-white/5 rounded-lg"><Edit2 className="w-4 h-4" /></button>
-                          <button onClick={() => handleDelete('tv_channels', channel.id)} className="p-2 text-gray-500 hover:text-red-500 transition-colors bg-white/5 rounded-lg"><Trash2 className="w-4 h-4" /></button>
-                       </div>
-                    </div>
-                  </div>
-                ))}
-                
-                {channels.length === 0 && !loading && (
-                  <div className="col-span-full py-20 text-center glass rounded-[2.5rem] border-white/5 border-dashed">
-                     <div className="w-20 h-20 bg-surface-bright rounded-full flex items-center justify-center mx-auto mb-6 border border-white/5">
-                        <Tv className="w-10 h-10 text-gray-700" />
+            <div className="space-y-12">
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                 {channels.map(channel => (
+                   <div key={channel.id} className="bg-surface rounded-3xl border border-border-custom p-6 space-y-6 group hover:border-primary/20 transition-all shadow-sm">
+                     <div className="relative aspect-video rounded-2xl overflow-hidden border border-border-custom bg-background shadow-inner">
+                        <img src={channel.thumbnail || "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=800&q=80"} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
+                        <div className="absolute top-4 left-4 bg-primary/90 text-white text-[8px] font-black uppercase px-2 py-1 rounded-md tracking-tighter">
+                           {channel.category}
+                        </div>
+                        {channel.is_active && (
+                          <div className="absolute top-4 right-4 bg-red-600/90 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black uppercase text-white tracking-widest border border-red-500/50 flex items-center gap-2">
+                             <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                             LIVE
+                          </div>
+                        )}
                      </div>
-                     <h3 className="text-xl font-display font-bold text-white mb-2">No TV Channels Found</h3>
-                     <p className="text-gray-500 max-w-sm mx-auto mb-8">You haven't added any channels to your broadcast network yet.</p>
-                     {DEFAULT_CHANNELS.length > 0 && (
-                       <button 
-                         onClick={async () => {
-                           if (confirm('Import default system channels to database?')) {
-                             for (const ch of DEFAULT_CHANNELS) {
-                               await supabase.from('tv_channels').insert({
-                                 name: ch.name,
-                                 category: ch.category,
-                                 url: ch.url,
-                                 thumbnail: ch.thumbnail,
-                                 description: ch.description,
-                                 is_active: true,
-                                 icon: 'Tv'
-                               });
-                             }
-                             fetchChannels();
-                           }
-                         }}
-                         className="px-8 py-4 bg-white/5 hover:bg-white/10 rounded-2xl text-xs font-bold uppercase tracking-widest text-primary border border-primary/20 transition-all"
-                       >
-                         Seed Default Channels
-                       </button>
-                     )}
-                  </div>
-                )}
-              </div>
+                     <div className="space-y-1 px-2">
+                        <h3 className="text-foreground font-display font-bold group-hover:text-primary transition-colors text-lg tracking-tight">{channel.name}</h3>
+                        <p className="text-[10px] text-foreground/40 line-clamp-2 italic font-light leading-relaxed">{channel.description}</p>
+                     </div>
+                     <div className="flex justify-between items-center pt-6 border-t border-border-custom px-2">
+                        <div className="flex items-center gap-2">
+                           <Tv className="w-3 h-3 text-foreground/20" />
+                           <span className="text-[8px] text-foreground/20 font-black uppercase tracking-[0.2em]">#{channel.order_index}</span>
+                        </div>
+                        <div className="flex space-x-2">
+                           <button onClick={() => { 
+                             setEditingId(channel.id); setTitle(channel.name); setCategory(channel.category); setDescription(channel.description || ''); setImageUrl(channel.thumbnail || ''); setStreamUrl(channel.url); setStatus(channel.is_active ? 'live' : 'offline'); 
+                             setIsEditing(true); 
+                           }} className="p-2.5 text-foreground/40 hover:text-foreground transition-colors bg-background border border-border-custom rounded-xl shadow-inner"><Edit2 className="w-3.5 h-3.5" /></button>
+                           <button onClick={() => handleDelete('tv_channels', channel.id)} className="p-2.5 text-foreground/40 hover:text-red-500 transition-colors bg-background border border-border-custom rounded-xl shadow-inner"><Trash2 className="w-3.5 h-3.5" /></button>
+                        </div>
+                     </div>
+                   </div>
+                 ))}
+                 
+                 {channels.length === 0 && !loading && (
+                   <div className="col-span-full py-32 text-center bg-surface rounded-[4rem] border border-border-custom border-dashed shadow-inner flex flex-col items-center justify-center space-y-8">
+                      <div className="w-20 h-20 bg-background rounded-3xl flex items-center justify-center border border-border-custom shadow-sm text-foreground/10">
+                         <Tv className="w-10 h-10" />
+                      </div>
+                      <div className="space-y-2">
+                        <h3 className="text-2xl font-display font-bold text-foreground">No TV Channels Found</h3>
+                        <p className="text-foreground/40 max-w-sm mx-auto italic font-light">You haven't added any channels to your broadcast network yet.</p>
+                      </div>
+                      {DEFAULT_CHANNELS.length > 0 && (
+                        <button 
+                          onClick={async () => {
+                            if (confirm('Import default system channels to database?')) {
+                              for (const ch of DEFAULT_CHANNELS) {
+                                await supabase.from('tv_channels').insert({
+                                  name: ch.name,
+                                  category: ch.category,
+                                  url: ch.url,
+                                  thumbnail: ch.thumbnail,
+                                  description: ch.description,
+                                  is_active: true,
+                                  icon: 'Tv'
+                                });
+                              }
+                              fetchChannels();
+                            }
+                          }}
+                          className="px-10 py-5 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
+                        >
+                          Seed Default Channels
+                        </button>
+                      )}
+                   </div>
+                 )}
+               </div>
             </div>
           )}
 
@@ -850,16 +980,16 @@ export default function Admin() {
                       }
                     }
                   }}
-                  className="px-6 py-3 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold uppercase tracking-widest text-primary border border-primary/20 transition-all font-mono"
+                  className="px-6 py-3 bg-surface hover:bg-surface-bright rounded-xl text-xs font-bold uppercase tracking-widest text-primary border border-border-custom transition-all font-mono shadow-sm"
                 >
                   Seed Services Dataset
                 </button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {services.map((item, i) => (
-                  <div key={item.id} className="glass rounded-[2rem] p-8 space-y-6 group border-white/5 hover:border-white/10 transition-all">
+                  <div key={item.id} className="bg-surface rounded-[2rem] p-8 space-y-6 group border border-border-custom hover:border-foreground/20 transition-all shadow-sm">
                     <div className="flex justify-between items-start">
-                      <div className="w-16 h-16 bg-surface-bright rounded-2xl flex items-center justify-center border border-white/5 text-primary">
+                      <div className="w-16 h-16 bg-background rounded-2xl flex items-center justify-center border border-border-custom text-primary shadow-inner">
                         <Zap className="w-8 h-8" />
                       </div>
                       <div className="flex space-x-2">
@@ -871,13 +1001,13 @@ export default function Admin() {
                           setFeatures(item.features || []);
                           setPrice(item.price);
                           setIsEditing(true); 
-                        }} className="p-2 text-gray-600 hover:text-white"><Edit2 className="w-4 h-4" /></button>
-                        <button onClick={() => handleDelete('services', item.id)} className="p-2 text-gray-600 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                        }} className="p-2 text-foreground/40 hover:text-foreground transition-colors"><Edit2 className="w-4 h-4" /></button>
+                        <button onClick={() => handleDelete('services', item.id)} className="p-2 text-foreground/40 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <h3 className="text-xl font-bold text-white group-hover:text-primary transition-colors">{item.title}</h3>
-                      <p className="text-sm text-gray-500 line-clamp-2">{item.description}</p>
+                      <h3 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">{item.title}</h3>
+                      <p className="text-sm text-foreground/40 line-clamp-2 italic">{item.description}</p>
                       <div className="pt-2">
                         <span className="text-lg font-display font-bold text-primary">{item.price}</span>
                       </div>
@@ -885,9 +1015,9 @@ export default function Admin() {
                   </div>
                 ))}
                 {services.length === 0 && !loading && (
-                   <div className="col-span-full py-20 text-center glass border-dashed">
-                      <Zap className="w-12 h-12 text-gray-800 mx-auto mb-4" />
-                      <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">No Services Defined</p>
+                   <div className="col-span-full py-20 text-center bg-surface rounded-[2.5rem] border border-dashed border-border-custom shadow-sm">
+                      <Zap className="w-12 h-12 text-foreground/10 mx-auto mb-4" />
+                      <p className="text-foreground/40 font-bold uppercase tracking-widest text-xs italic">No Services Defined</p>
                    </div>
                 )}
               </div>
@@ -917,30 +1047,30 @@ export default function Admin() {
                         }
                       }
                     }}
-                    className="px-6 py-3 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold uppercase tracking-widest text-primary border border-primary/20 transition-all font-mono"
+                    className="px-6 py-3 bg-surface hover:bg-surface-bright rounded-xl text-xs font-bold uppercase tracking-widest text-primary border border-border-custom transition-all font-mono shadow-sm"
                   >
                     Seed YouTube Videos
                   </button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                  {portfolio.map(item => (
-                 <div key={item.id} className="glass rounded-[2rem] p-6 space-y-4 group border-white/5 hover:border-white/10 transition-all">
-                    <div className="relative aspect-video rounded-xl overflow-hidden bg-surface-bright">
-                       {item.image_url && <img src={item.image_url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />}
-                       <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black uppercase text-white tracking-widest border border-white/10">
+                 <div key={item.id} className="bg-surface border border-border-custom rounded-[2rem] p-6 space-y-4 group hover:border-foreground/20 transition-all shadow-sm">
+                    <div className="relative aspect-video rounded-xl overflow-hidden bg-background">
+                       {item.image_url && <img src={item.image_url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 shadow-inner" />}
+                       <div className="absolute top-4 left-4 bg-background/60 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black uppercase text-foreground tracking-widest border border-border-custom shadow-sm">
                           {item.category}
                        </div>
                        {item.is_featured && (
-                         <div className="absolute top-4 right-4 bg-primary/90 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black uppercase text-white tracking-widest border border-white/10">
+                         <div className="absolute top-4 right-4 bg-primary/90 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black uppercase text-white tracking-widest border border-white/10 shadow-sm">
                             Featured
                          </div>
                        )}
                     </div>
                     <div className="space-y-1">
-                       <h3 className="text-white font-bold group-hover:text-primary transition-colors">{item.title}</h3>
-                       <p className="text-[10px] text-gray-500 line-clamp-2">{item.description}</p>
+                       <h3 className="text-foreground font-bold group-hover:text-primary transition-colors">{item.title}</h3>
+                       <p className="text-[10px] text-foreground/40 line-clamp-2 italic">{item.description}</p>
                     </div>
-                    <div className="flex justify-end pt-4 border-t border-white/5">
+                    <div className="flex justify-end pt-4 border-t border-border-custom">
                        <div className="flex space-x-2">
                           <button onClick={() => { 
                             setEditingId(item.id); 
@@ -952,8 +1082,8 @@ export default function Admin() {
                             setStreamUrl(item.video_url || '');
                             setIsFeatured(item.is_featured);
                             setIsEditing(true); 
-                          }} className="p-2 text-gray-500 hover:text-white"><Edit2 className="w-4 h-4" /></button>
-                          <button onClick={() => handleDelete('portfolio_items', item.id)} className="p-2 text-gray-500 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                          }} className="p-2 text-foreground/40 hover:text-foreground transition-colors bg-background rounded-lg shadow-inner"><Edit2 className="w-4 h-4" /></button>
+                          <button onClick={() => handleDelete('portfolio_items', item.id)} className="p-2 text-foreground/40 hover:text-red-500 transition-colors bg-background rounded-lg shadow-inner"><Trash2 className="w-4 h-4" /></button>
                        </div>
                     </div>
                  </div>
@@ -963,82 +1093,84 @@ export default function Admin() {
           )}
 
           {activeTab === 'events' && (
-            <div className="glass rounded-[2.5rem] overflow-hidden border-white/5">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="bg-surface-bright/50 text-gray-500 uppercase text-[10px] font-black tracking-widest border-b border-white/5">
-                    <th className="px-8 py-6">Status</th>
-                    <th className="px-8 py-6">Event Details</th>
-                    <th className="px-8 py-6">Start Time</th>
-                    <th className="px-8 py-6">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {events.map(ev => (
-                    <tr key={ev.id} className="group hover:bg-white/2 transition-colors">
-                      <td className="px-8 py-6">
-                        <span className={cn(
-                          "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest",
-                          ev.status === 'live' ? "bg-red-500 text-white" : "bg-gray-500/10 text-gray-500"
-                        )}>
-                          {ev.status}
-                        </span>
-                      </td>
-                      <td className="px-8 py-6">
-                        <div className="space-y-1">
-                          <p className="font-bold text-white">{ev.title}</p>
-                          <p className="text-[10px] text-gray-600 truncate max-w-xs">{ev.description}</p>
-                        </div>
-                      </td>
-                      <td className="px-8 py-6 text-gray-400 font-mono text-xs">
-                        {format(new Date(ev.start_time), 'MMM dd, HH:mm')}
-                      </td>
-                      <td className="px-8 py-6">
-                         <div className="flex space-x-4">
-                            <button onClick={() => { setEditingId(ev.id); setTitle(ev.title); setYoutubeId(ev.youtube_id || ''); setStreamUrl(ev.stream_url || ''); setImageUrl(ev.thumbnail_url || ''); setStartTime(ev.start_time.slice(0, 16)); setStatus(ev.status); setDescription(ev.description); setIsEditing(true); }} className="text-gray-600 hover:text-white transition-colors"><Edit2 className="w-4 h-4" /></button>
-                            <button onClick={() => handleDelete('events', ev.id)} className="text-gray-600 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
-                         </div>
-                      </td>
+            <div className="bg-surface rounded-[2.5rem] overflow-hidden border border-border-custom shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="bg-background/50 text-foreground/40 uppercase text-[10px] font-black tracking-widest border-b border-border-custom">
+                      <th className="px-8 py-6">Status</th>
+                      <th className="px-8 py-6">Event Details</th>
+                      <th className="px-8 py-6">Start Time</th>
+                      <th className="px-8 py-6">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-border-custom bg-background/20">
+                    {events.map(ev => (
+                      <tr key={ev.id} className="group hover:bg-foreground/5 transition-colors">
+                        <td className="px-8 py-6">
+                          <span className={cn(
+                            "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest",
+                            ev.status === 'live' ? "bg-red-500 text-white shadow-lg shadow-red-500/20" : "bg-foreground/5 text-foreground/40"
+                          )}>
+                            {ev.status}
+                          </span>
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="space-y-1">
+                            <p className="font-bold text-foreground">{ev.title}</p>
+                            <p className="text-[10px] text-foreground/40 truncate max-w-xs italic">{ev.description}</p>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 text-foreground/60 font-mono text-xs">
+                          {format(new Date(ev.start_time), 'MMM dd, HH:mm')}
+                        </td>
+                        <td className="px-8 py-6">
+                           <div className="flex space-x-4">
+                              <button onClick={() => { setEditingId(ev.id); setTitle(ev.title); setYoutubeId(ev.youtube_id || ''); setStreamUrl(ev.stream_url || ''); setImageUrl(ev.thumbnail_url || ''); setStartTime(ev.start_time.slice(0, 16)); setStatus(ev.status); setDescription(ev.description); setIsEditing(true); }} className="text-foreground/40 hover:text-foreground transition-colors"><Edit2 className="w-4 h-4" /></button>
+                              <button onClick={() => handleDelete('events', ev.id)} className="text-foreground/40 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                           </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
           {activeTab === 'news' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {news.map(n => (
-                <div key={n.id} className="glass rounded-[2rem] p-6 space-y-4 group border-white/5 hover:border-white/10 transition-all flex flex-col">
-                  <div className="relative aspect-video rounded-xl overflow-hidden bg-surface-bright">
-                    {n.image_url && <img src={n.image_url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />}
+                <div key={n.id} className="bg-surface border border-border-custom rounded-[2rem] p-6 space-y-4 group hover:border-foreground/20 transition-all flex flex-col shadow-sm">
+                  <div className="relative aspect-video rounded-xl overflow-hidden bg-background">
+                    {n.image_url && <img src={n.image_url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 shadow-inner" />}
                     <div className="absolute top-4 left-4 flex gap-2">
                       <div className={cn(
-                        "bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black uppercase text-white tracking-widest border",
+                        "bg-background/60 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black uppercase text-foreground tracking-widest border shadow-sm",
                         n.is_published ? "border-green-500/50 text-green-500" : "border-yellow-500/50 text-yellow-500"
                       )}>
                         {n.is_published ? 'Published' : 'Draft'}
                       </div>
                       {n.category && (
-                        <div className="bg-primary/90 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black uppercase text-white tracking-widest border border-white/10">
+                        <div className="bg-primary/90 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black uppercase text-white tracking-widest border border-white/10 shadow-sm">
                           {n.category}
                         </div>
                       )}
                     </div>
                   </div>
                   <div className="space-y-2 flex-grow">
-                    <h3 className="text-white font-bold group-hover:text-primary transition-colors line-clamp-2">{n.title}</h3>
-                    <p className="text-[10px] text-gray-500 leading-relaxed line-clamp-2">{n.excerpt || n.description}</p>
+                    <h3 className="text-foreground font-bold group-hover:text-primary transition-colors line-clamp-2">{n.title}</h3>
+                    <p className="text-[10px] text-foreground/40 leading-relaxed line-clamp-2 italic">{n.excerpt || n.description}</p>
                     <div className="flex flex-wrap gap-1 mt-2">
                        {n.tags?.slice(0, 3).map((t, i) => (
-                         <span key={i} className="text-[8px] bg-white/5 px-2 py-0.5 rounded text-gray-400 font-bold uppercase">#{t}</span>
+                         <span key={i} className="text-[8px] bg-background px-2 py-0.5 rounded text-foreground/40 font-bold uppercase border border-border-custom shadow-sm">#{t}</span>
                        ))}
                     </div>
                   </div>
-                  <div className="flex justify-between items-center pt-4 border-t border-white/5">
+                  <div className="flex justify-between items-center pt-4 border-t border-border-custom">
                     <div className="flex items-center space-x-2">
-                       <Clock className="w-3 h-3 text-gray-600" />
-                       <span className="text-[10px] text-gray-600 font-mono">{format(new Date(n.created_at), 'MMM dd, yyyy')}</span>
+                       <Clock className="w-3 h-3 text-foreground/20" />
+                       <span className="text-[10px] text-foreground/40 font-mono italic">{format(new Date(n.created_at), 'MMM dd, yyyy')}</span>
                     </div>
                     <div className="flex space-x-2">
                        <button onClick={() => { 
@@ -1054,8 +1186,8 @@ export default function Admin() {
                          setBlogTags(n.tags || []);
                          setIsPublished(n.is_published); 
                          setIsEditing(true); 
-                       }} className="p-2 text-gray-500 hover:text-white bg-white/5 rounded-lg transition-colors"><Edit2 className="w-4 h-4" /></button>
-                       <button onClick={() => handleDelete('news', n.id)} className="p-2 text-gray-500 hover:text-red-500 bg-white/5 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
+                       }} className="p-2 text-foreground/40 hover:text-foreground bg-background rounded-lg transition-colors shadow-inner"><Edit2 className="w-4 h-4" /></button>
+                       <button onClick={() => handleDelete('news', n.id)} className="p-2 text-foreground/40 hover:text-red-500 bg-background rounded-lg transition-colors shadow-inner"><Trash2 className="w-4 h-4" /></button>
                     </div>
                   </div>
                 </div>
@@ -1064,121 +1196,123 @@ export default function Admin() {
           )}
 
           {activeTab === 'users' && (
-            <div className="glass rounded-[2.5rem] overflow-hidden border-white/5">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="bg-surface-bright/50 text-gray-500 uppercase text-[10px] font-black tracking-widest border-b border-white/5">
-                    <th className="px-8 py-6">User</th>
-                    <th className="px-8 py-6">Verification</th>
-                    <th className="px-8 py-6">Details</th>
-                    <th className="px-8 py-6">Join Date</th>
-                    <th className="px-8 py-6 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {profiles.map(user => (
-                    <tr key={user.id} className="hover:bg-white/2 transition-colors">
-                      <td className="px-8 py-6">
-                        <div className="flex items-center gap-4">
-                          <img 
-                            src={user.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`} 
-                            className="w-10 h-10 rounded-full border border-white/10" 
-                          />
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <p className="font-bold text-white">{user.username}</p>
-                              {user.is_verified && <Award className="w-3 h-3 text-primary" />}
-                            </div>
-                            <p className="text-[10px] text-gray-500">{user.full_name || 'No full name set'}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-8 py-6">
-                        {user.is_verified ? (
-                          <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary">
-                            <ShieldCheck className="w-3 h-3" />
-                            Verified
-                          </span>
-                        ) : user.verification_requested ? (
-                          <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-yellow-500/80">
-                            <ShieldAlert className="w-3 h-3" />
-                            Pending Review
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-black uppercase tracking-widest text-gray-600">Standard</span>
-                        )}
-                      </td>
-                      <td className="px-8 py-6 max-w-xs">
-                        <p className="text-[10px] text-gray-400 font-light truncate">
-                          {user.verification_details || 'No details provided'}
-                        </p>
-                      </td>
-                      <td className="px-8 py-6 text-[10px] text-gray-500 font-mono tracking-widest uppercase">
-                        {format(new Date(user.created_at), 'MMM dd, yyyy')}
-                      </td>
-                      <td className="px-8 py-6">
-                        <div className="flex items-center justify-end space-x-2">
-                          {user.verification_requested && (
-                            <>
-                              <button 
-                                onClick={() => handleVerification(user.id, true)}
-                                className="p-2 glass text-green-500 hover:bg-green-500 hover:text-white transition-all rounded-lg"
-                                title="Approve Verification"
-                              >
-                                <CheckCircle2 className="w-4 h-4" />
-                              </button>
-                              <button 
-                                onClick={() => handleVerification(user.id, false)}
-                                className="p-2 glass text-red-500 hover:bg-red-500 hover:text-white transition-all rounded-lg"
-                                title="Reject Request"
-                              >
-                                <XCircle className="w-4 h-4" />
-                              </button>
-                            </>
-                          )}
-                          {!user.is_verified && !user.verification_requested && (
-                             <button 
-                               onClick={() => handleVerification(user.id, true)}
-                               className="p-2 glass text-primary hover:bg-primary hover:text-white transition-all rounded-lg"
-                               title="Grant Badge Manually"
-                             >
-                               <Award className="w-4 h-4" />
-                             </button>
-                          )}
-                          {user.is_verified && (
-                             <button 
-                               onClick={() => handleVerification(user.id, false)}
-                               className="p-2 glass text-gray-600 hover:bg-red-500 hover:text-white transition-all rounded-lg"
-                               title="Revoke Verification"
-                             >
-                               <ShieldAlert className="w-4 h-4" />
-                             </button>
-                          )}
-                        </div>
-                      </td>
+            <div className="bg-surface rounded-[2.5rem] overflow-hidden border border-border-custom shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="bg-background/50 text-foreground/40 uppercase text-[10px] font-black tracking-widest border-b border-border-custom">
+                      <th className="px-8 py-6">User</th>
+                      <th className="px-8 py-6">Verification</th>
+                      <th className="px-8 py-6">Details</th>
+                      <th className="px-8 py-6">Join Date</th>
+                      <th className="px-8 py-6 text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-border-custom bg-background/20">
+                    {profiles.map(user => (
+                      <tr key={user.id} className="hover:bg-foreground/5 transition-colors">
+                        <td className="px-8 py-6">
+                          <div className="flex items-center gap-4">
+                            <img 
+                              src={user.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`} 
+                              className="w-10 h-10 rounded-full border border-border-custom shadow-sm" 
+                            />
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <p className="font-bold text-foreground">{user.username}</p>
+                                {user.is_verified && <Award className="w-3 h-3 text-primary" />}
+                              </div>
+                              <p className="text-[10px] text-foreground/40 italic">{user.full_name || 'No full name set'}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6">
+                          {user.is_verified ? (
+                            <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary">
+                              <ShieldCheck className="w-3 h-3" />
+                              Verified
+                            </span>
+                          ) : user.verification_requested ? (
+                            <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-yellow-500/80">
+                              <ShieldAlert className="w-3 h-3" />
+                              Pending Review
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-black uppercase tracking-widest text-foreground/20 italic">Standard</span>
+                          )}
+                        </td>
+                        <td className="px-8 py-6 max-w-xs">
+                          <p className="text-[10px] text-foreground/40 font-light truncate italic">
+                            {user.verification_details || 'No details provided'}
+                          </p>
+                        </td>
+                        <td className="px-8 py-6 text-[10px] text-foreground/40 font-mono tracking-widest uppercase italic">
+                          {format(new Date(user.created_at), 'MMM dd, yyyy')}
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="flex items-center justify-end space-x-2">
+                            {user.verification_requested && (
+                              <>
+                                <button 
+                                  onClick={() => handleVerification(user.id, true)}
+                                  className="p-2 bg-background border border-border-custom text-green-500 hover:bg-green-500 hover:text-white transition-all rounded-lg shadow-sm"
+                                  title="Approve Verification"
+                                >
+                                  <CheckCircle2 className="w-4 h-4" />
+                                </button>
+                                <button 
+                                  onClick={() => handleVerification(user.id, false)}
+                                  className="p-2 bg-background border border-border-custom text-red-500 hover:bg-red-500 hover:text-white transition-all rounded-lg shadow-sm"
+                                  title="Reject Request"
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
+                            {!user.is_verified && !user.verification_requested && (
+                               <button 
+                                 onClick={() => handleVerification(user.id, true)}
+                                 className="p-2 bg-background border border-border-custom text-primary hover:bg-primary hover:text-white transition-all rounded-lg shadow-sm"
+                                 title="Grant Badge Manually"
+                               >
+                                 <Award className="w-4 h-4" />
+                               </button>
+                            )}
+                            {user.is_verified && (
+                               <button 
+                                 onClick={() => handleVerification(user.id, false)}
+                                 className="p-2 bg-background border border-border-custom text-foreground/40 hover:bg-red-500 hover:text-white transition-all rounded-lg shadow-sm"
+                                 title="Revoke Verification"
+                               >
+                                 <ShieldAlert className="w-4 h-4" />
+                               </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
           {activeTab === 'communities' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                {communities.map(c => (
-                 <div key={c.id} className="glass rounded-[2rem] p-8 space-y-6 flex flex-col group border-white/5 hover:border-white/10 transition-all">
+                 <div key={c.id} className="bg-surface border border-border-custom rounded-[2rem] p-8 space-y-6 flex flex-col group hover:border-foreground/20 transition-all shadow-sm">
                     <div className="flex justify-between items-start">
-                       <div className="w-16 h-16 bg-surface-bright rounded-2xl flex items-center justify-center border border-white/5 text-primary group-hover:scale-105 transition-transform">
-                          {c.image_url ? <img src={c.image_url} className="w-full h-full object-cover rounded-2xl" /> : <Users className="w-8 h-8" />}
+                       <div className="w-16 h-16 bg-background rounded-2xl flex items-center justify-center border border-border-custom text-primary group-hover:scale-105 transition-transform shadow-inner">
+                          {c.image_url ? <img src={c.image_url} className="w-full h-full object-cover rounded-2xl" /> : <Users className="w-8 h-8 text-foreground/20" />}
                        </div>
                        <div className="flex space-x-2">
-                          <button onClick={() => { setEditingId(c.id); setTitle(c.name); setDescription(c.description); setImageUrl(c.image_url || ''); setIsEditing(true); }} className="p-2 text-gray-600 hover:text-white"><Edit2 className="w-4 h-4" /></button>
-                          <button onClick={() => handleDelete('communities', c.id)} className="p-2 text-gray-600 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => { setEditingId(c.id); setTitle(c.name); setDescription(c.description); setImageUrl(c.image_url || ''); setIsEditing(true); }} className="p-2 text-foreground/40 hover:text-foreground transition-colors"><Edit2 className="w-4 h-4" /></button>
+                          <button onClick={() => handleDelete('communities', c.id)} className="p-2 text-foreground/40 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
                        </div>
                     </div>
                     <div className="space-y-1">
-                       <h3 className="text-xl font-bold text-white group-hover:text-primary transition-colors">{c.name}</h3>
-                       <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">{c.description}</p>
+                       <h3 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">{c.name}</h3>
+                       <p className="text-xs text-foreground/40 leading-relaxed line-clamp-2 italic">{c.description}</p>
                     </div>
                  </div>
                ))}
@@ -1186,103 +1320,103 @@ export default function Admin() {
           )}
 
           {activeTab === 'bookings' && (
-            <div className="glass rounded-[2.5rem] overflow-hidden border-white/5">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="bg-surface-bright/50 text-gray-500 uppercase text-[10px] font-black tracking-widest border-b border-white/5">
-                    <th className="px-8 py-6">Date</th>
-                    <th className="px-8 py-6">Client</th>
-                    <th className="px-8 py-6">Type</th>
-                    <th className="px-8 py-6">Status</th>
-                    <th className="px-8 py-6">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {bookings.map(book => (
-                    <tr key={book.id} className="hover:bg-white/2 transition-colors">
-                      <td className="px-8 py-6 text-gray-400 font-mono text-xs">{book.date}</td>
-                      <td className="px-8 py-6">
-                        <div className="space-y-1">
-                          <p className="font-bold text-white">{book.client_name}</p>
-                          <p className="text-[10px] text-gray-600">{book.client_email}</p>
-                        </div>
-                      </td>
-                      <td className="px-8 py-6 text-xs text-gray-300 font-medium">{book.event_type}</td>
-                      <td className="px-8 py-6">
-                        <span className={cn(
-                          "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
-                          book.status === 'confirmed' ? "bg-green-500/10 text-green-500" : "bg-yellow-500/10 text-yellow-500"
-                        )}>
-                          {book.status}
-                        </span>
-                      </td>
-                      <td className="px-8 py-6">
-                        <div className="flex space-x-2">
-                           <button onClick={async () => { await supabase.from('bookings').update({ status: 'confirmed' }).eq('id', book.id); fetchBookings(); }} className="p-2 text-gray-600 hover:text-green-500"><CheckCircle2 className="w-4 h-4" /></button>
-                           <button onClick={async () => { await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', book.id); fetchBookings(); }} className="p-2 text-gray-600 hover:text-red-500"><XCircle className="w-4 h-4" /></button>
-                        </div>
-                      </td>
+            <div className="bg-surface rounded-[2.5rem] overflow-hidden border border-border-custom shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="bg-background/50 text-foreground/40 uppercase text-[10px] font-black tracking-widest border-b border-border-custom">
+                      <th className="px-8 py-6">Date</th>
+                      <th className="px-8 py-6">Client</th>
+                      <th className="px-8 py-6">Type</th>
+                      <th className="px-8 py-6">Status</th>
+                      <th className="px-8 py-6">Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-border-custom bg-background/20">
+                    {bookings.map(book => (
+                      <tr key={book.id} className="hover:bg-foreground/5 transition-colors">
+                        <td className="px-8 py-6 text-foreground/40 font-mono text-xs italic">{book.date}</td>
+                        <td className="px-8 py-6">
+                          <div className="space-y-1">
+                            <p className="font-bold text-foreground">{book.client_name}</p>
+                            <p className="text-[10px] text-foreground/40 italic">{book.client_email}</p>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 text-xs text-foreground/60 font-medium">{book.event_type}</td>
+                        <td className="px-8 py-6">
+                          <span className={cn(
+                            "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
+                            book.status === 'confirmed' ? "bg-green-500/10 text-green-500 border border-green-500/20" : "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20"
+                          )}>
+                            {book.status}
+                          </span>
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="flex space-x-2">
+                             <button onClick={async () => { await supabase.from('bookings').update({ status: 'confirmed' }).eq('id', book.id); fetchBookings(); }} className="p-2 bg-background border border-border-custom text-foreground/40 hover:text-green-500 transition-colors rounded-lg shadow-sm"><CheckCircle2 className="w-4 h-4" /></button>
+                             <button onClick={async () => { await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', book.id); fetchBookings(); }} className="p-2 bg-background border border-border-custom text-foreground/40 hover:text-red-500 transition-colors rounded-lg shadow-sm"><XCircle className="w-4 h-4" /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
-       </div>
-
-       {/* Form Modal */}
+             {/* Form Modal */}
        <AnimatePresence>
           {isEditing && (
             <>
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100]" onClick={() => setIsEditing(false)} />
-              <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl bg-surface rounded-[3rem] border border-white/5 z-[101] p-10 max-h-[90vh] overflow-y-auto custom-scrollbar">
-                 <h2 className="text-3xl font-display font-bold text-white mb-8 tracking-tighter">
-                   {editingId ? 'Edit' : 'Create'} <span className="text-primary">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-background/80 backdrop-blur-md z-[100]" onClick={() => setIsEditing(false)} />
+              <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl bg-surface rounded-[3rem] border border-border-custom z-[101] p-10 max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
+                 <h2 className="text-3xl font-display font-bold text-foreground mb-8 tracking-tighter">
+                   {editingId ? 'Edit' : 'Create'} <span className="text-primary italic">
                      {activeTab === 'events' ? 'Event' : activeTab === 'communities' ? 'Community' : activeTab === 'news' ? 'Article' : activeTab === 'portfolio' ? 'Portfolio Item' : activeTab === 'channels' ? 'TV Channel' : activeTab === 'services' ? 'Service' : activeTab}
                    </span>
                  </h2>
                  <form onSubmit={handleSave} className="space-y-6">
-                   {activeTab === 'news' ? (
+                   {activeTab === 'news' && (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
                       {/* Main Editor */}
                       <div className="lg:col-span-2 space-y-6">
                         <div className="space-y-2">
                            <label className="text-[10px] uppercase font-black tracking-widest text-primary ml-4">Article Title</label>
-                           <input value={title} onChange={e => setTitle(e.target.value)} required placeholder="Enter broad title..." className="w-full bg-black/40 border border-white/10 rounded-2xl p-6 text-xl font-bold text-white focus:border-primary transition-all shadow-inner" />
+                           <input value={title} onChange={e => setTitle(e.target.value)} required placeholder="Enter broad title..." className="w-full bg-background border border-border-custom rounded-2xl p-6 text-xl font-bold text-foreground focus:border-primary transition-all shadow-inner" />
                         </div>
 
                         <div className="space-y-2">
                            <div className="flex justify-between items-center px-4 mb-2">
-                              <label className="text-[10px] uppercase font-black tracking-widest text-gray-500">Short Excerpt</label>
-                              <button type="button" onClick={generateWithAI} className="flex items-center space-x-2 text-[10px] font-black text-primary hover:text-white transition-colors">
+                              <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40">Short Excerpt</label>
+                              <button type="button" onClick={generateWithAI} className="flex items-center space-x-2 text-[10px] font-black text-primary hover:text-foreground transition-colors">
                                  <Sparkles className="w-3 h-3" /><span>AI Generate Excerpt</span>
                               </button>
                            </div>
-                           <textarea value={excerpt} onChange={e => setExcerpt(e.target.value)} placeholder="Catchy summary for cards..." className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white text-sm min-h-[80px] resize-none focus:border-primary transition-colors" />
+                           <textarea value={excerpt} onChange={e => setExcerpt(e.target.value)} placeholder="Catchy summary for cards..." className="w-full bg-background border border-border-custom rounded-2xl p-5 text-foreground text-sm min-h-[80px] resize-none focus:border-primary transition-colors shadow-inner" />
                         </div>
 
                         <div className="space-y-2">
-                           <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">Full Content (Markdown Supported)</label>
-                           <textarea value={content} onChange={e => setContent(e.target.value)} required placeholder="Once upon a time in FideTV..." className="w-full bg-black/40 border border-white/10 rounded-3xl p-8 text-white min-h-[400px] resize-none focus:border-primary transition-colors font-mono text-sm leading-relaxed" />
+                           <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">Full Content (Markdown Supported)</label>
+                           <textarea value={content} onChange={e => setContent(e.target.value)} required placeholder="Once upon a time in FideTV..." className="w-full bg-background border border-border-custom rounded-3xl p-8 text-foreground min-h-[400px] resize-none focus:border-primary transition-colors font-mono text-sm leading-relaxed shadow-inner" />
                         </div>
                       </div>
 
                       {/* Side Settings */}
-                      <div className="space-y-8 bg-black/20 p-6 rounded-[2.5rem] border border-white/5 h-fit">
+                      <div className="space-y-8 bg-background/20 p-6 rounded-[2.5rem] border border-border-custom h-fit shadow-sm">
                         <div className="space-y-4">
-                           <h3 className="text-[10px] uppercase font-black tracking-widest text-gray-400 px-2 border-b border-white/5 pb-2">Publishing</h3>
-                           <div className="flex items-center justify-between p-4 bg-surface-bright/50 rounded-2xl border border-white/5">
-                              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Status</span>
+                           <h3 className="text-[10px] uppercase font-black tracking-widest text-foreground/40 px-2 border-b border-border-custom pb-2">Publishing</h3>
+                           <div className="flex items-center justify-between p-4 bg-background rounded-2xl border border-border-custom shadow-inner">
+                              <span className="text-[10px] text-foreground/40 font-bold uppercase tracking-widest">Status</span>
                               <div className="flex items-center gap-2">
                                 <div className={cn("w-2 h-2 rounded-full", isPublished ? "bg-green-500" : "bg-yellow-500")} />
-                                <span className="text-[10px] font-black text-white">{isPublished ? 'PUBLISHED' : 'DRAFT'}</span>
+                                <span className="text-[10px] font-black text-foreground">{isPublished ? 'PUBLISHED' : 'DRAFT'}</span>
                               </div>
                            </div>
                            <button 
                              type="button"
                              onClick={() => setIsPublished(!isPublished)}
                              className={cn(
-                               "w-full py-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
+                               "w-full py-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm",
                                isPublished 
                                  ? "bg-yellow-500/10 border-yellow-500/20 text-yellow-500 hover:bg-yellow-500/20" 
                                  : "bg-green-500/10 border-green-500/20 text-green-500 hover:bg-green-500/20"
@@ -1293,13 +1427,13 @@ export default function Admin() {
                         </div>
 
                         <div className="space-y-4">
-                           <h3 className="text-[10px] uppercase font-black tracking-widest text-gray-400 px-2 border-b border-white/5 pb-2">Organization</h3>
+                           <h3 className="text-[10px] uppercase font-black tracking-widest text-foreground/40 px-2 border-b border-border-custom pb-2">Organization</h3>
                            <div className="space-y-2">
-                              <label className="text-[8px] font-black uppercase text-gray-600 ml-2">Category</label>
+                              <label className="text-[8px] font-black uppercase text-foreground/20 ml-2">Category</label>
                               <select 
                                 value={blogCategory} 
                                 onChange={e => setBlogCategory(e.target.value)}
-                                className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white text-xs font-bold uppercase tracking-wider"
+                                className="w-full bg-background border border-border-custom rounded-xl p-3 text-foreground text-xs font-bold uppercase tracking-wider shadow-inner"
                               >
                                 <option value="News">General News</option>
                                 <option value="Entertainment">Entertainment</option>
@@ -1312,14 +1446,14 @@ export default function Admin() {
                            </div>
 
                            <div className="space-y-2">
-                              <label className="text-[8px] font-black uppercase text-gray-600 ml-2">Permalink Slug</label>
-                              <input value={slug} onChange={e => setSlug(e.target.value)} placeholder="url-friendly-slug" className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white text-[10px] font-mono" />
+                              <label className="text-[8px] font-black uppercase text-foreground/20 ml-2">Permalink Slug</label>
+                              <input value={slug} onChange={e => setSlug(e.target.value)} placeholder="url-friendly-slug" className="w-full bg-background border border-border-custom rounded-xl p-3 text-foreground text-[10px] font-mono shadow-inner" />
                            </div>
                         </div>
 
                         <div className="space-y-4">
-                           <h3 className="text-[10px] uppercase font-black tracking-widest text-gray-400 px-2 border-b border-white/5 pb-2">Featured Image</h3>
-                           <div className="relative aspect-video rounded-2xl overflow-hidden bg-black/40 border-2 border-dashed border-white/5 flex flex-col items-center justify-center group cursor-pointer" onClick={() => document.getElementById('blog-upload')?.click()}>
+                           <h3 className="text-[10px] uppercase font-black tracking-widest text-foreground/40 px-2 border-b border-border-custom pb-2">Featured Image</h3>
+                           <div className="relative aspect-video rounded-2xl overflow-hidden bg-background border-2 border-dashed border-border-custom flex flex-col items-center justify-center group cursor-pointer shadow-inner" onClick={() => document.getElementById('blog-upload')?.click()}>
                               {imageUrl ? (
                                 <>
                                   <img src={imageUrl} className="w-full h-full object-cover" />
@@ -1329,53 +1463,54 @@ export default function Admin() {
                                 </>
                               ) : (
                                 <>
-                                  <Camera className="w-6 h-6 text-gray-600 mb-2" />
-                                  <span className="text-[8px] font-black text-gray-600 uppercase tracking-widest">Select Image</span>
+                                  <Camera className="w-6 h-6 text-foreground/10 mb-2" />
+                                  <span className="text-[8px] font-black text-foreground/20 uppercase tracking-widest">Select Image</span>
                                 </>
                               )}
                               <input id="blog-upload" type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'event-thumbnails', `blog/${Date.now()}`, setImageUrl)} />
                            </div>
-                           <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="Or paste external URL..." className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white text-[8px]" />
+                           <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="Or paste external URL..." className="w-full bg-background border border-border-custom rounded-xl p-3 text-foreground text-[8px] shadow-inner" />
                         </div>
 
-                        <div className="space-y-4">
-                           <h3 className="text-[10px] uppercase font-black tracking-widest text-gray-400 px-2 border-b border-white/5 pb-2">Actions</h3>
+                        <div className="space-y-4 pt-4">
                            <div className="flex gap-2">
-                              <button type="button" onClick={() => setIsEditing(false)} className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-gray-500 font-bold uppercase tracking-widest text-[10px] rounded-xl transition-all">Cancel</button>
+                              <button type="button" onClick={() => setIsEditing(false)} className="flex-1 py-4 bg-background border border-border-custom text-foreground/40 font-bold uppercase tracking-widest text-[10px] rounded-xl hover:bg-surface-bright transition-all shadow-sm">Cancel</button>
                               <button type="submit" className="flex-1 py-4 bg-primary text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all">Save Changes</button>
                            </div>
                         </div>
                       </div>
                     </div>
-                  ) : (
-                    <div className="space-y-6">
+                  )}
+
+                {activeTab !== 'news' && activeTab !== 'bookings' && (
+                  <div className="space-y-6">
                     <div className="space-y-2">
-                       <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">{activeTab === 'communities' ? 'Hub Name' : 'Title'}</label>
-                       <input value={title} onChange={e => setTitle(e.target.value)} required placeholder="Enter name/title..." className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white focus:border-primary/50 transition-colors" />
+                       <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">{activeTab === 'communities' ? 'Hub Name' : 'Title'}</label>
+                       <input value={title} onChange={e => setTitle(e.target.value)} required placeholder="Enter name/title..." className="w-full bg-background border border-border-custom rounded-2xl p-5 text-foreground focus:border-primary/50 transition-colors shadow-inner" />
                     </div>
 
                     {activeTab === 'portfolio' && (
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div className="space-y-2">
-                            <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">Category</label>
-                            <input value={category} onChange={e => setCategory(e.target.value)} required placeholder="e.g. Signature Productions" className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white focus:border-primary/50 transition-colors" />
-                         </div>
-                         <div className="space-y-2">
-                            <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">YouTube ID (Optional)</label>
-                            <input value={youtubeId} onChange={e => setYoutubeId(e.target.value)} placeholder="e.g. dQw4w9WgXcQ" className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white focus:border-primary/50 transition-colors" />
-                         </div>
-                      </div>
+                             <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">Category</label>
+                             <input value={category} onChange={e => setCategory(e.target.value)} required placeholder="e.g. Signature Productions" className="w-full bg-background border border-border-custom rounded-2xl p-5 text-foreground focus:border-primary/50 transition-colors shadow-inner" />
+                          </div>
+                          <div className="space-y-2">
+                             <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">YouTube ID (Optional)</label>
+                             <input value={youtubeId} onChange={e => setYoutubeId(e.target.value)} placeholder="e.g. dQw4w9WgXcQ" className="w-full bg-background border border-border-custom rounded-2xl p-5 text-foreground focus:border-primary/50 transition-colors shadow-inner" />
+                          </div>
+                       </div>
                     )}
 
                     {activeTab === 'channels' && (
                       <div className="grid grid-cols-1 gap-6">
                          <div className="space-y-2">
-                            <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">Category</label>
-                            <input value={category} onChange={e => setCategory(e.target.value)} required placeholder="e.g. Sports" className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white focus:border-primary/50 transition-colors" />
+                            <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">Category</label>
+                            <input value={category} onChange={e => setCategory(e.target.value)} required placeholder="e.g. Sports" className="w-full bg-background border border-border-custom rounded-2xl p-5 text-foreground focus:border-primary/50 transition-colors shadow-inner" />
                          </div>
                          <div className="space-y-2">
-                            <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">Stream URL (.m3u8, .mp4, YouTube URL, or &lt;iframe&gt;)</label>
-                            <input value={streamUrl} onChange={e => setStreamUrl(e.target.value)} required placeholder="https://... or <iframe src='...'></iframe>" className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white focus:border-primary/50 transition-colors" />
+                            <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">Stream URL (.m3u8, .mp4, YouTube URL, or &lt;iframe&gt;)</label>
+                            <input value={streamUrl} onChange={e => setStreamUrl(e.target.value)} required placeholder="https://... or <iframe src='...'></iframe>" className="w-full bg-background border border-border-custom rounded-2xl p-5 text-foreground focus:border-primary/50 transition-colors shadow-inner" />
                          </div>
                       </div>
                     )}
@@ -1384,12 +1519,12 @@ export default function Admin() {
                       <div className="grid grid-cols-1 gap-6">
                          <div className="grid grid-cols-2 gap-4">
                            <div className="space-y-2">
-                              <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">Price / Investment</label>
-                              <input value={price} onChange={e => setPrice(e.target.value)} required placeholder="e.g. Starting at ₦1,500,000" className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white focus:border-primary/50 transition-colors" />
+                              <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">Price / Investment</label>
+                              <input value={price} onChange={e => setPrice(e.target.value)} required placeholder="e.g. Starting at ₦1,500,000" className="w-full bg-background border border-border-custom rounded-2xl p-5 text-foreground focus:border-primary/50 transition-colors shadow-inner" />
                            </div>
                            <div className="space-y-2">
-                              <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">Icon (Lucide Name)</label>
-                              <select value={icon} onChange={e => setIcon(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white focus:border-primary/50 transition-colors">
+                              <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">Icon (Lucide Name)</label>
+                              <select value={icon} onChange={e => setIcon(e.target.value)} className="w-full bg-background border border-border-custom rounded-2xl p-5 text-foreground focus:border-primary/50 transition-colors shadow-inner">
                                 <option value="Video">Video</option>
                                 <option value="Radio">Radio</option>
                                 <option value="Camera">Camera</option>
@@ -1401,11 +1536,11 @@ export default function Admin() {
                          </div>
                          <div className="space-y-4">
                             <div className="flex justify-between items-center px-4">
-                               <label className="text-[10px] uppercase font-black tracking-widest text-gray-500">Service Features</label>
+                               <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40">Service Features</label>
                                <button 
                                  type="button" 
                                  onClick={() => setFeatures([...features, ''])}
-                                 className="text-[10px] font-black text-primary hover:text-white uppercase tracking-widest flex items-center space-x-1"
+                                 className="text-[10px] font-black text-primary hover:text-foreground uppercase tracking-widest flex items-center space-x-1 transition-colors"
                                >
                                  <Plus className="w-3 h-3" />
                                  <span>Add Feature</span>
@@ -1422,12 +1557,12 @@ export default function Admin() {
                                         setFeatures(newF);
                                       }} 
                                       placeholder="e.g. 4K Cinematography" 
-                                      className="flex-grow bg-black/40 border border-white/10 rounded-xl p-4 text-white text-xs" 
+                                      className="flex-grow bg-background border border-border-custom rounded-xl p-4 text-foreground text-xs shadow-inner focus:border-primary/50 outline-none transition-colors" 
                                     />
                                     <button 
                                       type="button" 
                                       onClick={() => setFeatures(features.filter((_, i) => i !== idx))}
-                                      className="p-4 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-colors"
+                                      className="p-4 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-colors border border-red-500/20 shadow-sm"
                                     >
                                        <Trash2 className="w-4 h-4" />
                                     </button>
@@ -1440,21 +1575,21 @@ export default function Admin() {
 
                     <div className="space-y-2">
                        <div className="flex justify-between items-center px-4 mb-2">
-                          <label className="text-[10px] uppercase font-black tracking-widest text-gray-500">Description</label>
-                          <button type="button" onClick={generateWithAI} className="flex items-center space-x-2 text-[10px] font-black text-primary hover:text-white transition-colors">
+                          <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40">Description</label>
+                          <button type="button" onClick={generateWithAI} className="flex items-center space-x-2 text-[10px] font-black text-primary hover:text-foreground transition-colors">
                              <Sparkles className="w-3 h-3" /><span>AI Optimize</span>
                           </button>
                        </div>
-                       <textarea value={description} onChange={e => setDescription(e.target.value)} required placeholder="Describe this hub/event..." className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white min-h-[100px] resize-none focus:border-primary/50 transition-colors" />
+                       <textarea value={description} onChange={e => setDescription(e.target.value)} required placeholder="Describe this hub/event..." className="w-full bg-background border border-border-custom rounded-2xl p-5 text-foreground min-h-[100px] resize-none focus:border-primary/50 transition-colors shadow-inner" />
                     </div>
 
                     <div className="space-y-4">
-                       <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">
+                       <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">
                          Media Accent
                        </label>
                        <div className="flex gap-4">
-                          <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="Paste Image URL..." className="flex-grow bg-black/40 border border-white/10 rounded-2xl p-5 text-white text-xs" />
-                          <label className="px-6 py-5 bg-white/5 border border-dashed border-white/10 rounded-2xl cursor-pointer hover:bg-white/10">
+                          <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="Paste Image URL..." className="flex-grow bg-background border border-border-custom rounded-2xl p-5 text-foreground text-xs shadow-inner" />
+                          <label className="px-6 py-5 bg-background border border-dashed border-border-custom rounded-2xl cursor-pointer hover:bg-surface-bright transition-all shadow-sm">
                              <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'event-thumbnails', `uploads/${Date.now()}`, setImageUrl)} />
                              <Camera className="w-5 h-5 text-primary" />
                           </label>
@@ -1464,32 +1599,32 @@ export default function Admin() {
                     {activeTab === 'events' && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                          <div className="space-y-2">
-                            <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">YouTube ID</label>
-                            <input value={youtubeId} onChange={e => setYoutubeId(e.target.value)} className="w-full bg-black/40 border-white/10 rounded-2xl p-5" />
+                            <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">YouTube ID</label>
+                            <input value={youtubeId} onChange={e => setYoutubeId(e.target.value)} className="w-full bg-background border border-border-custom rounded-2xl p-5 text-foreground shadow-inner" />
                          </div>
                          <div className="space-y-2">
-                            <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">Start Time</label>
-                            <input type="datetime-local" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full bg-black/40 border-white/10 rounded-2xl p-5" />
+                            <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">Start Time</label>
+                            <input type="datetime-local" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full bg-background border border-border-custom rounded-2xl p-5 text-foreground shadow-inner" />
                          </div>
                       </div>
                     )}
 
                     {activeTab === 'portfolio' && (
-                      <div className="flex items-center space-x-4 p-4 glass rounded-2xl">
+                      <div className="flex items-center space-x-4 p-4 bg-background border border-border-custom rounded-2xl shadow-inner">
                          <input type="checkbox" id="feat" checked={isFeatured} onChange={e => setIsFeatured(e.target.checked)} className="w-5 h-5 accent-primary" />
-                         <label htmlFor="feat" className="text-xs font-bold text-gray-300 uppercase tracking-widest">Feature on Homepage</label>
+                         <label htmlFor="feat" className="text-xs font-bold text-foreground/40 uppercase tracking-widest italic">Feature on Homepage</label>
                       </div>
                     )}
 
                     {activeTab === 'channels' && (
-                      <div className="flex items-center space-x-4 p-4 glass rounded-2xl">
+                      <div className="flex items-center space-x-4 p-4 bg-background border border-border-custom rounded-2xl shadow-inner">
                          <input type="checkbox" id="act" checked={status === 'live'} onChange={e => setStatus(e.target.checked ? 'live' : 'offline')} className="w-5 h-5 accent-primary" />
-                         <label htmlFor="act" className="text-xs font-bold text-gray-300 uppercase tracking-widest">Mark as Live / Active</label>
+                         <label htmlFor="act" className="text-xs font-bold text-foreground/40 uppercase tracking-widest italic">Mark as Live / Active</label>
                       </div>
                     )}
 
-                    <div className="flex justify-end space-x-4 pt-8">
-                       <button type="button" onClick={() => setIsEditing(false)} className="px-8 py-4 text-gray-500 font-bold uppercase tracking-widest text-[10px] hover:text-white">Cancel</button>
+                    <div className="flex justify-end space-x-4 pt-8 border-t border-border-custom">
+                       <button type="button" onClick={() => setIsEditing(false)} className="px-8 py-4 bg-background border border-border-custom text-foreground/40 font-bold uppercase tracking-widest text-[10px] rounded-xl hover:bg-foreground/5 shadow-sm transition-all">Cancel</button>
                        <button type="submit" className="px-10 py-4 bg-primary text-white font-bold uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all">
                           Confirm & Save
                        </button>
@@ -1501,6 +1636,8 @@ export default function Admin() {
             </>
           )}
        </AnimatePresence>
+      </div>
+    </div>
     </div>
   );
 }

@@ -100,12 +100,12 @@ export default function LiveChat({ eventId }: { eventId: string }) {
   };
 
   return (
-    <div className="flex flex-col h-[500px] lg:h-full glass rounded-3xl overflow-hidden border-white/5">
-      <div className="p-4 border-b border-white/10 flex justify-between items-center bg-surface-bright/50">
-        <h3 className="font-display font-bold text-white text-sm uppercase tracking-widest">Live Discussion</h3>
+    <div className="flex flex-col h-[500px] lg:h-full glass rounded-3xl overflow-hidden border-border-custom">
+      <div className="p-4 border-b border-border-custom flex justify-between items-center bg-surface-bright/50">
+        <h3 className="font-display font-bold text-foreground text-sm uppercase tracking-widest">Live Discussion</h3>
         <div className="flex items-center space-x-2">
           <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-          <span className="text-[10px] text-gray-400 font-bold uppercase">{messages.length} Messages</span>
+          <span className="text-[10px] text-foreground/40 font-bold uppercase">{messages.length} Messages</span>
         </div>
       </div>
 
@@ -115,10 +115,10 @@ export default function LiveChat({ eventId }: { eventId: string }) {
       >
         {messages.length === 0 && (
           <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
-            <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center">
-              <UserIcon className="w-6 h-6 text-gray-600" />
+            <div className="w-12 h-12 bg-foreground/5 rounded-full flex items-center justify-center">
+              <UserIcon className="w-6 h-6 text-foreground/20" />
             </div>
-            <p className="text-gray-500 text-sm italic">No messages yet. Be the first to start the conversation!</p>
+            <p className="text-foreground/40 text-sm italic">No messages yet. Be the first to start the conversation!</p>
           </div>
         )}
         
@@ -129,16 +129,16 @@ export default function LiveChat({ eventId }: { eventId: string }) {
               msg.author_id === user?.id ? "items-end" : "items-start"
             )}>
               <div className="flex items-center space-x-2 mb-1">
-                <Link to={`/profile/${msg.profiles?.username}`} className="text-[10px] font-bold text-gray-500 hover:text-primary transition-colors cursor-pointer">
+                <Link to={`/profile/${msg.profiles?.username}`} className="text-[10px] font-bold text-foreground/40 hover:text-primary transition-colors cursor-pointer">
                   {msg.profiles?.username || 'User'}
                 </Link>
-                <span className="text-[8px] text-gray-600 tracking-tighter uppercase">{format(new Date(msg.created_at), 'HH:mm')}</span>
+                <span className="text-[8px] text-foreground/20 tracking-tighter uppercase">{format(new Date(msg.created_at), 'HH:mm')}</span>
               </div>
               <div className={cn(
                 "px-4 py-2 rounded-2xl text-sm max-w-[85%] break-words",
                 msg.author_id === user?.id 
-                  ? "bg-primary text-white rounded-tr-none" 
-                  : "bg-surface-bright text-gray-200 rounded-tl-none border border-white/5"
+                  ? "bg-primary text-white rounded-tr-none shadow-lg shadow-primary/20" 
+                  : "bg-surface-bright text-foreground rounded-tl-none border border-border-custom shadow-sm"
               )}>
                 {msg.content}
               </div>
@@ -147,7 +147,7 @@ export default function LiveChat({ eventId }: { eventId: string }) {
         ))}
       </div>
 
-      <div className="p-4 bg-surface-bright/50 border-t border-white/10">
+      <div className="p-4 bg-surface-bright/50 border-t border-border-custom">
         {user ? (
           <form onSubmit={sendMessage} className="relative">
             <input
@@ -155,20 +155,20 @@ export default function LiveChat({ eventId }: { eventId: string }) {
               value={newChat}
               onChange={(e) => setNewChat(e.target.value)}
               placeholder="Join the discussion..."
-              className="w-full bg-black/40 border border-white/10 rounded-full px-6 py-3 text-sm focus:outline-none focus:border-primary/50 text-white placeholder-gray-600 transition-all"
+              className="w-full bg-background border border-border-custom rounded-full px-6 py-3 text-sm focus:outline-none focus:border-primary/50 text-foreground placeholder-foreground/20 transition-all"
             />
             <button
               type="submit"
               disabled={!newChat.trim()}
-              className="absolute right-2 top-1.2 h-8 w-8 bg-primary rounded-full flex items-center justify-center text-white disabled:opacity-50 disabled:grayscale transition-all active:scale-95"
+              className="absolute right-2 top-1 w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white disabled:opacity-50 disabled:grayscale transition-all active:scale-95"
             >
               <Send className="w-4 h-4" />
             </button>
           </form>
         ) : (
           <div className="text-center p-2">
-            <p className="text-xs text-gray-500">
-              Please <Link to="/auth" className="text-primary hover:underline">sign in</Link> to chat.
+            <p className="text-xs text-foreground/40 italic">
+              Please <Link to="/auth" className="text-primary font-bold hover:underline">sign in</Link> to chat.
             </p>
           </div>
         )}
