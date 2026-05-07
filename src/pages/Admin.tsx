@@ -513,9 +513,12 @@ CREATE POLICY "Admin manage settings" ON public.site_settings FOR ALL USING (aut
 
 INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://www.youtube.com/watch?v=0D-zn6YAqCY') ON CONFLICT (key) DO NOTHING;`}
                   </pre>
+                  <p className="text-[10px] text-foreground/40 font-medium italic mt-4 leading-relaxed">
+                    Note: For a full database setup including all tables (Events, Portfolio, Services, etc.), please copy and run the contents of <span className="text-primary font-bold">supabase_schema.sql</span> from your project root.
+                  </p>
                   <button 
                     onClick={() => fetchData()}
-                    className="px-6 py-2 bg-red-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest"
+                    className="px-6 py-2 bg-red-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest mt-4"
                   >
                     Refresh After Running SQL
                   </button>

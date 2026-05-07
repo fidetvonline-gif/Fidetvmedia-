@@ -228,7 +228,7 @@ export default function Home() {
             transition={{ delay: 0.6, duration: 1 }}
             className="max-w-3xl"
           >
-            <p className="text-lg sm:text-2xl text-gray-300 font-light mb-10 sm:mb-12 leading-relaxed tracking-tight border-l-4 border-primary pl-6">
+            <p className="text-lg sm:text-2xl text-foreground/60 font-light mb-10 sm:mb-12 leading-relaxed tracking-tight border-l-4 border-primary pl-6">
                FideTV is an innovative agency that specializes in various services to help individuals and businesses thrive in the digital landscape.
             </p>
 

@@ -2,24 +2,24 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fafafa;
-  --foreground: #121212;
-  --text-muted: #555555;
-  --surface: #f2f2f2;
-  --surface-bright: #ffffff;
-  --border-color: rgba(0, 0, 0, 0.05);
-  --glass-bg: rgba(255, 255, 255, 0.85);
+  --background: #fcfcfc;
+  --foreground: #09090b;
+  --text-muted: #71717a;
+  --surface: #ffffff;
+  --surface-bright: #f4f4f5;
+  --border-color: rgba(9, 9, 11, 0.05);
+  --glass-bg: rgba(255, 255, 255, 0.8);
   --primary: #f27d26;
 }
 
 [data-theme='dark'] {
-  --background: #050505;
-  --foreground: #eeeeee;
-  --text-muted: #999999;
-  --surface: #151619;
-  --surface-bright: #252629;
+  --background: #09090b;
+  --foreground: #fafafa;
+  --text-muted: #a1a1aa;
+  --surface: #121212;
+  --surface-bright: #1c1c1c;
   --border-color: rgba(255, 255, 255, 0.08);
-  --glass-bg: rgba(21, 22, 25, 0.7);
+  --glass-bg: rgba(9, 9, 11, 0.9);
 }
 
 @theme {
@@ -33,6 +33,12 @@
   --color-surface: var(--surface);
   --color-surface-bright: var(--surface-bright);
   --color-border-custom: var(--border-color);
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.04), 0 4px 6px -4px rgb(0 0 0 / 0.04);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.03), 0 8px 10px -6px rgb(0 0 0 / 0.03);
+  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.1);
 }
 
 @layer base {
