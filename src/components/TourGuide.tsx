@@ -53,18 +53,10 @@ export default function TourGuide() {
   const [isVisible, setIsVisible] = useState(false);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
 
-  useEffect(() => {
-    const hasSeenTour = localStorage.getItem('fidetv-tour-seen');
-    if (!hasSeenTour) {
-      const timer = setTimeout(() => setIsVisible(true), 1500); // Wait a bit before showing
-      return () => clearTimeout(timer);
-    }
-  }, []);
-
-  useEffect(() => {
+  const updateTargetRect = () => {
     if (isVisible && steps[currentStep].target) {
       const element = document.querySelector(steps[currentStep].target!);
-      if (element) {
+      if (element && (element as HTMLElement).offsetWidth > 0) {
         setTargetRect(element.getBoundingClientRect());
       } else {
         setTargetRect(null);
@@ -72,6 +64,24 @@ export default function TourGuide() {
     } else {
       setTargetRect(null);
     }
+  };
+
+  useEffect(() => {
+    const hasSeenTour = localStorage.getItem('fidetv-tour-seen');
+    if (!hasSeenTour) {
+      const timer = setTimeout(() => setIsVisible(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  useEffect(() => {
+    updateTargetRect();
+    window.addEventListener('resize', updateTargetRect);
+    window.addEventListener('scroll', updateTargetRect, true);
+    return () => {
+      window.removeEventListener('resize', updateTargetRect);
+      window.removeEventListener('scroll', updateTargetRect, true);
+    };
   }, [currentStep, isVisible]);
 
   const handleNext = () => {
@@ -96,17 +106,23 @@ export default function TourGuide() {
   if (!isVisible) return null;
 
   const step = steps[currentStep];
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
+  
+  // Use center position on mobile if the target is likely hidden or desktop-oriented
+  const effectivePosition = isMobile && step.target ? 'bottom' : step.position || 'center';
 
   return (
-    <div className="fixed inset-0 z-[100] pointer-events-none">
+    <div className="fixed inset-0 z-[100] pointer-events-none overflow-hidden">
       {/* Dim Overlay */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-black/60 pointer-events-auto"
+        className="absolute inset-0 bg-black/60 pointer-events-auto transition-all duration-300"
         style={{
-          clipPath: targetRect ? `polygon(0% 0%, 0% 100%, ${targetRect.left}px 100%, ${targetRect.left}px ${targetRect.top}px, ${targetRect.right}px ${targetRect.top}px, ${targetRect.right}px ${targetRect.bottom}px, ${targetRect.left}px ${targetRect.bottom}px, ${targetRect.left}px 100%, 100% 100%, 100% 0%)` : undefined
+          clipPath: targetRect 
+            ? `polygon(0% 0%, 0% 100%, ${targetRect.left}px 100%, ${targetRect.left}px ${targetRect.top}px, ${targetRect.right}px ${targetRect.top}px, ${targetRect.right}px ${targetRect.bottom}px, ${targetRect.left}px ${targetRect.bottom}px, ${targetRect.left}px 100%, 100% 100%, 100% 0%)` 
+            : 'none'
         }}
         onClick={handleComplete}
       />
@@ -118,27 +134,28 @@ export default function TourGuide() {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
           className={cn(
-            "absolute z-[101] w-full max-w-sm pointer-events-auto",
-            !targetRect && "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
-            targetRect && step.position === 'bottom' && "left-1/2 -translate-x-1/2",
-            targetRect && step.position === 'bottom' && { top: targetRect.bottom + 20 },
-            targetRect && step.position === 'top' && "left-1/2 -translate-x-1/2",
-            targetRect && step.position === 'top' && { bottom: window.innerHeight - targetRect.top + 20 },
-            targetRect && step.position === 'left' && "top-1/2 -translate-y-1/2",
-            targetRect && step.position === 'left' && { right: window.innerWidth - targetRect.left + 20 }
+            "fixed z-[101] w-[calc(100%-2rem)] max-w-[340px] pointer-events-auto",
+            (!targetRect || effectivePosition === 'center') && "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
           )}
-          style={targetRect ? {
-            left: step.position === 'bottom' || step.position === 'top' ? targetRect.left + targetRect.width / 2 : undefined,
-            top: step.position === 'bottom' ? targetRect.bottom + 20 : undefined,
-            bottom: step.position === 'top' ? window.innerHeight - targetRect.top + 20 : undefined,
-            right: step.position === 'left' ? window.innerWidth - targetRect.left + 20 : undefined,
-            position: 'absolute'
+          style={targetRect && effectivePosition !== 'center' ? {
+            left: effectivePosition === 'bottom' || effectivePosition === 'top' 
+              ? Math.max(16, Math.min(window.innerWidth - 356, targetRect.left + (targetRect.width / 2) - 170)) 
+              : undefined,
+            top: effectivePosition === 'bottom' 
+              ? targetRect.bottom + 20 
+              : undefined,
+            bottom: effectivePosition === 'top' 
+              ? window.innerHeight - targetRect.top + 20 
+              : undefined,
+            right: effectivePosition === 'left' 
+              ? window.innerWidth - targetRect.left + 20 
+              : undefined,
           } : undefined}
         >
-          <div className="glass-morphism bg-surface-bright/95 border border-primary/20 p-8 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] space-y-6">
+          <div className="glass-morphism bg-surface-bright/95 border border-primary/20 p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] space-y-4 md:space-y-6">
             <div className="flex justify-between items-start">
-              <div className="p-3 bg-primary/10 rounded-2xl">
-                <Sparkles className="w-6 h-6 text-primary" />
+              <div className="p-2 md:p-3 bg-primary/10 rounded-2xl">
+                <Sparkles className="w-5 h-5 md:w-6 md:h-6 text-primary" />
               </div>
               <button 
                 onClick={handleComplete}
@@ -149,35 +166,35 @@ export default function TourGuide() {
             </div>
 
             <div className="space-y-2 text-center">
-              <h3 className="text-xl font-display font-bold text-foreground">{step.title}</h3>
-              <p className="text-sm text-text-muted leading-relaxed italic">{step.description}</p>
+              <h3 className="text-lg md:text-xl font-display font-bold text-foreground">{step.title}</h3>
+              <p className="text-xs md:text-sm text-text-muted leading-relaxed italic">{step.description}</p>
             </div>
 
-            <div className="flex items-center justify-between pt-4">
+            <div className="flex items-center justify-between pt-2 md:pt-4">
               <div className="flex space-x-1">
                 {steps.map((_, i) => (
                   <div 
                     key={i} 
                     className={cn(
                       "h-1 transition-all duration-300 rounded-full",
-                      i === currentStep ? "w-6 bg-primary" : "w-1 bg-border-custom"
+                      i === currentStep ? "w-4 md:w-6 bg-primary" : "w-1 bg-border-custom"
                     )} 
                   />
                 ))}
               </div>
 
-              <div className="flex space-x-3">
+              <div className="flex space-x-2 md:space-x-3">
                 {currentStep > 0 && (
                   <button
                     onClick={handleBack}
-                    className="p-3 border border-border-custom text-foreground rounded-xl hover:bg-surface transition-colors"
+                    className="p-2 md:p-3 border border-border-custom text-foreground rounded-xl hover:bg-surface transition-colors"
                   >
-                    <ChevronLeft className="w-5 h-5" />
+                    <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
                   </button>
                 )}
                 <button
                   onClick={handleNext}
-                  className="px-6 py-3 bg-primary text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center space-x-2"
+                  className="px-4 py-2 md:px-6 md:py-3 bg-primary text-white font-black uppercase tracking-widest text-[9px] md:text-[10px] rounded-xl shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center space-x-2"
                 >
                   <span>{currentStep === steps.length - 1 ? "Finish" : "Next"}</span>
                   <ChevronRight className="w-4 h-4" />
