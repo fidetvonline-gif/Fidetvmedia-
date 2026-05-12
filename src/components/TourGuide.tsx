@@ -134,21 +134,21 @@ export default function TourGuide() {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
           className={cn(
-            "fixed z-[101] w-[calc(100%-2rem)] max-w-[340px] pointer-events-auto",
+            "fixed z-[101] w-[calc(100%-2rem)] max-w-[320px] sm:max-w-[340px] pointer-events-auto",
             (!targetRect || effectivePosition === 'center') && "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
           )}
           style={targetRect && effectivePosition !== 'center' ? {
             left: effectivePosition === 'bottom' || effectivePosition === 'top' 
-              ? Math.max(16, Math.min(window.innerWidth - 356, targetRect.left + (targetRect.width / 2) - 170)) 
+              ? Math.max(16, Math.min(window.innerWidth - (window.innerWidth < 400 ? 336 : 356), targetRect.left + (targetRect.width / 2) - 170)) 
               : undefined,
             top: effectivePosition === 'bottom' 
-              ? targetRect.bottom + 20 
+              ? Math.min(window.innerHeight - 300, targetRect.bottom + 20) 
               : undefined,
             bottom: effectivePosition === 'top' 
-              ? window.innerHeight - targetRect.top + 20 
+              ? Math.max(16, window.innerHeight - targetRect.top + 20) 
               : undefined,
             right: effectivePosition === 'left' 
-              ? window.innerWidth - targetRect.left + 20 
+              ? Math.max(16, window.innerWidth - targetRect.left + 20) 
               : undefined,
           } : undefined}
         >

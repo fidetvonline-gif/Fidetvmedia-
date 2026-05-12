@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Radio, MessageSquare, Users, Settings, Plus, 
   Edit2, Trash2, Globe, Youtube, ToggleLeft, ToggleRight, 
   Sparkles, Camera, Eye, Newspaper, BookOpen, Clock, CheckCircle2, XCircle,
-  ShieldCheck, ShieldAlert, Award, Headset, Briefcase, Tv, Zap
+  ShieldCheck, ShieldAlert, Award, Headset, Briefcase, Tv, Zap, DollarSign
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -13,8 +13,9 @@ import { format } from 'date-fns';
 import { GoogleGenAI } from "@google/genai";
 import { fetchYouTubeStats, YouTubeStats } from '@/services/youtubeService';
 import { DEFAULT_CHANNELS } from '@/constants/channels';
+import AdBanner from '@/components/AdBanner';
 
-type AdminTab = 'overview' | 'events' | 'news' | 'communities' | 'bookings' | 'users' | 'support' | 'portfolio' | 'channels' | 'services' | 'site';
+type AdminTab = 'overview' | 'events' | 'news' | 'communities' | 'bookings' | 'users' | 'support' | 'portfolio' | 'channels' | 'services' | 'site' | 'ads';
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
@@ -27,6 +28,7 @@ export default function Admin() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [siteSettings, setSiteSettings] = useState<Record<string, string>>({});
+  const [adUnits, setAdUnits] = useState<any[]>([]);
   const [supportChats, setSupportChats] = useState<any[]>([]);
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [adminReply, setAdminReply] = useState('');
@@ -43,6 +45,12 @@ export default function Admin() {
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   
+  // ADS Form State
+  const [adUnitId, setAdUnitId] = useState('');
+  const [platform, setPlatform] = useState('android');
+  const [adType, setAdType] = useState('banner');
+  const [isActive, setIsActive] = useState(true);
+
   // EVENT Form State
   const [youtubeId, setYoutubeId] = useState('');
   const [streamUrl, setStreamUrl] = useState('');
@@ -95,6 +103,9 @@ export default function Admin() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => {
         fetchEvents();
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_units' }, () => {
+        fetchAdUnits();
+      })
       .subscribe();
 
     return () => {
@@ -116,7 +127,8 @@ export default function Admin() {
         fetchPortfolio(),
         fetchChannels(),
         fetchServices(),
-        fetchSiteSettings()
+        fetchSiteSettings(),
+        fetchAdUnits()
       ]);
     }
     if (activeTab === 'events') await fetchEvents();
@@ -129,7 +141,26 @@ export default function Admin() {
     if (activeTab === 'channels') await fetchChannels();
     if (activeTab === 'services') await fetchServices();
     if (activeTab === 'site') await fetchSiteSettings();
+    if (activeTab === 'ads') await fetchAdUnits();
     setLoading(false);
+  };
+
+  const fetchAdUnits = async () => {
+    const { data, error } = await supabase.from('ad_units').select('*').order('created_at', { ascending: false });
+    if (error) {
+      if (error.message.includes('relation "public.ad_units" does not exist')) {
+        setDbErrors(prev => ({ ...prev, ad_units: 'Table missing. Run SQL setup.' }));
+      }
+      return;
+    }
+    if (data) {
+      setAdUnits(data);
+      setDbErrors(prev => {
+        const next = { ...prev };
+        delete next.ad_units;
+        return next;
+      });
+    }
   };
 
   const fetchSiteSettings = async () => {
@@ -364,6 +395,9 @@ export default function Admin() {
     } else if (activeTab === 'services') {
       table = 'services';
       payload = { title, description, icon, features, price, order_index: services.length };
+    } else if (activeTab === 'ads') {
+      table = 'ad_units';
+      payload = { name: title, platform, ad_unit_id: adUnitId, ad_type: adType, is_active: isActive };
     }
 
     if (!table) return;
@@ -410,6 +444,7 @@ export default function Admin() {
     setSlug(''); setBlogCategory('News'); setBlogTags([]); setIsPublished(false); setNewsGallery([]); setEditingId(null);
     setCategory('Featured'); setIsFeatured(true);
     setFeatures([]); setIcon('Video'); setPrice('');
+    setAdUnitId(''); setPlatform('android'); setAdType('banner'); setIsActive(true);
   };
 
   const generateWithAI = async () => {
@@ -468,7 +503,8 @@ export default function Admin() {
               { id: 'users', name: 'Users', icon: ShieldCheck },
               { id: 'bookings', name: 'Bookings', icon: BookOpen },
               { id: 'support', name: 'Support', icon: MessageSquare },
-              { id: 'site', name: 'Site Setup', icon: Settings }
+              { id: 'site', name: 'Site Setup', icon: Settings },
+              { id: 'ads', name: 'Google Ads', icon: DollarSign }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -488,6 +524,7 @@ export default function Admin() {
 
        {/* Content Rendering */}
        <div className="space-y-12">
+          {activeTab !== 'overview' && <AdBanner placement="Admin Dashboard Top" className="mb-4" />}
           {activeTab === 'site' && (
             <div className="space-y-12">
               {dbErrors.site_settings && (
@@ -501,7 +538,22 @@ export default function Admin() {
                     Please run the following SQL code in your Supabase SQL Editor:
                   </p>
                   <pre className="bg-background/50 p-6 rounded-2xl text-[10px] font-mono text-foreground/40 overflow-x-auto border border-border-custom shadow-inner">
-{`CREATE TABLE IF NOT EXISTS public.site_settings (
+{`CREATE TABLE IF NOT EXISTS public.ad_units (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  platform TEXT NOT NULL CHECK (platform IN ('android', 'ios', 'web')),
+  ad_unit_id TEXT NOT NULL,
+  ad_type TEXT NOT NULL CHECK (ad_type IN ('banner', 'interstitial', 'rewarded', 'native', 'adsense')),
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.ad_units ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Ad units viewable by everyone" ON public.ad_units FOR SELECT USING (true);
+CREATE POLICY "Admin manage ad units" ON public.ad_units FOR ALL USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
+
+CREATE TABLE IF NOT EXISTS public.site_settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -1322,6 +1374,80 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
             </div>
           )}
 
+          {activeTab === 'ads' && (
+            <div className="space-y-12">
+               {dbErrors.ad_units && (
+                 <div className="bg-red-500/10 border border-red-500/20 rounded-[2.5rem] p-10 space-y-6">
+                    <div className="flex items-center gap-4 text-red-500">
+                      <ShieldAlert className="w-6 h-6" />
+                      <h3 className="text-xl font-display font-bold uppercase">Ad Units Table Missing</h3>
+                    </div>
+                    <pre className="bg-background/50 p-6 rounded-2xl text-[10px] font-mono text-foreground/40 overflow-x-auto border border-border-custom">
+{`CREATE TABLE IF NOT EXISTS public.ad_units (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  platform TEXT NOT NULL CHECK (platform IN ('android', 'ios', 'web')),
+  ad_unit_id TEXT NOT NULL,
+  ad_type TEXT NOT NULL CHECK (ad_type IN ('banner', 'interstitial', 'rewarded', 'native', 'adsense')),
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.ad_units ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Ad units viewable by everyone" ON public.ad_units FOR SELECT USING (true);
+CREATE POLICY "Admin manage ad units" ON public.ad_units FOR ALL USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');`}
+                    </pre>
+                 </div>
+               )}
+
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {adUnits.map(ad => (
+                    <div key={ad.id} className="bg-surface rounded-3xl border border-border-custom p-8 space-y-6 group hover:border-primary/20 transition-all shadow-sm">
+                      <div className="flex justify-between items-start">
+                        <div className="w-14 h-14 bg-background border border-border-custom rounded-2xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+                          <Plus className="w-6 h-6 text-primary" />
+                        </div>
+                        <div className={cn(
+                          "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
+                          ad.is_active ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
+                        )}>
+                          {ad.is_active ? 'Active' : 'Disabled'}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <h3 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">{ad.name}</h3>
+                        <div className="flex flex-wrap gap-2">
+                           <span className="px-2 py-1 bg-background border border-border-custom rounded text-[8px] font-black uppercase text-foreground/40">{ad.platform}</span>
+                           <span className="px-2 py-1 bg-background border border-border-custom rounded text-[8px] font-black uppercase text-foreground/40">{ad.ad_type}</span>
+                        </div>
+                        <p className="text-[10px] font-mono text-foreground/30 break-all bg-background/50 p-3 rounded-xl border border-border-custom mt-4">{ad.ad_unit_id}</p>
+                      </div>
+                      <div className="flex justify-end pt-6 border-t border-border-custom space-x-2">
+                        <button onClick={() => { 
+                          setEditingId(ad.id); 
+                          setTitle(ad.name); 
+                          setAdUnitId(ad.ad_unit_id);
+                          setPlatform(ad.platform);
+                          setAdType(ad.ad_type);
+                          setIsActive(ad.is_active);
+                          setIsEditing(true); 
+                        }} className="p-2.5 text-foreground/40 hover:text-foreground transition-colors bg-background border border-border-custom rounded-xl shadow-inner"><Edit2 className="w-4 h-4" /></button>
+                        <button onClick={() => handleDelete('ad_units', ad.id)} className="p-2.5 text-foreground/40 hover:text-red-500 transition-colors bg-background border border-border-custom rounded-xl shadow-inner"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {adUnits.length === 0 && !loading && (
+                    <div className="col-span-full py-32 text-center bg-surface rounded-[4rem] border border-border-custom border-dashed shadow-inner flex flex-col items-center justify-center space-y-8">
+                       <Plus className="w-12 h-12 text-foreground/10 mx-auto" />
+                       <p className="text-foreground/40 font-bold uppercase tracking-widest text-xs italic">No Ad Units Configured</p>
+                    </div>
+                  )}
+               </div>
+            </div>
+          )}
+
           {activeTab === 'bookings' && (
             <div className="bg-surface rounded-[2.5rem] overflow-hidden border border-border-custom shadow-sm">
               <div className="overflow-x-auto">
@@ -1373,12 +1499,58 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
             <>
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-background/80 backdrop-blur-md z-[100]" onClick={() => setIsEditing(false)} />
               <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl bg-surface rounded-[3rem] border border-border-custom z-[101] p-10 max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
-                 <h2 className="text-3xl font-display font-bold text-foreground mb-8 tracking-tighter">
-                   {editingId ? 'Edit' : 'Create'} <span className="text-primary italic">
-                     {activeTab === 'events' ? 'Event' : activeTab === 'communities' ? 'Community' : activeTab === 'news' ? 'Article' : activeTab === 'portfolio' ? 'Portfolio Item' : activeTab === 'channels' ? 'TV Channel' : activeTab === 'services' ? 'Service' : activeTab}
-                   </span>
-                 </h2>
+                  <h2 className="text-3xl font-display font-bold text-foreground mb-8 tracking-tighter">
+                    {editingId ? 'Edit' : 'Create'} <span className="text-primary italic">
+                      {activeTab === 'ads' ? 'Ad Unit' : activeTab === 'events' ? 'Event' : activeTab === 'communities' ? 'Community' : activeTab === 'news' ? 'Article' : activeTab === 'portfolio' ? 'Portfolio Item' : activeTab === 'channels' ? 'TV Channel' : activeTab === 'services' ? 'Service' : activeTab}
+                    </span>
+                  </h2>
                  <form onSubmit={handleSave} className="space-y-6">
+                    {activeTab === 'ads' && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">Ad Campaign Name</label>
+                          <input value={title} onChange={e => setTitle(e.target.value)} required placeholder="e.g., Sidebar Banner" className="w-full bg-background border border-border-custom rounded-2xl p-5 text-foreground focus:border-primary/50 transition-colors shadow-inner" />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">Ad Unit ID</label>
+                          <input value={adUnitId} onChange={e => setAdUnitId(e.target.value)} required placeholder="ca-app-pub-..." className="w-full bg-background border border-border-custom rounded-2xl p-5 text-foreground focus:border-primary/50 transition-colors shadow-inner" />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">Platform</label>
+                          <select value={platform} onChange={e => setPlatform(e.target.value)} className="w-full bg-background border border-border-custom rounded-2xl p-5 text-foreground focus:border-primary/50 transition-colors shadow-inner">
+                            <option value="web">Web (AdSense)</option>
+                            <option value="android">Android (AdMob)</option>
+                            <option value="ios">iOS (AdMob)</option>
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">Ad Type</label>
+                          <select value={adType} onChange={e => setAdType(e.target.value)} className="w-full bg-background border border-border-custom rounded-2xl p-5 text-foreground focus:border-primary/50 transition-colors shadow-inner">
+                            <option value="banner">Banner</option>
+                            <option value="interstitial">Interstitial</option>
+                            <option value="rewarded">Rewarded</option>
+                            <option value="native">Native</option>
+                            <option value="adsense">AdSense Responsive</option>
+                          </select>
+                        </div>
+                        <div className="md:col-span-2 flex items-center justify-between p-6 bg-background rounded-2xl border border-border-custom shadow-inner">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-foreground/40">Enable Ad Unit</span>
+                          <button 
+                            type="button"
+                            onClick={() => setIsActive(!isActive)}
+                            className={cn(
+                              "relative w-14 h-8 rounded-full transition-colors duration-300",
+                              isActive ? "bg-primary" : "bg-border-custom"
+                            )}
+                          >
+                            <div className={cn(
+                              "absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-sm transform transition-transform duration-300",
+                              isActive ? "translate-x-6" : "translate-x-0"
+                            )} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                    {activeTab === 'news' && (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
                       {/* Main Editor */}
