@@ -296,6 +296,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   <li><Link to="/news" className="hover:text-primary transition-colors">FideTV Blog</Link></li>
                   <li><Link to="/community" className="hover:text-primary transition-colors">Community</Link></li>
                 </ul>
+                <div className="mt-8">
+                  <h4 className="font-display font-bold text-sm uppercase tracking-widest text-primary mb-4">from FideTV</h4>
+                  <ul className="space-y-3 text-sm text-foreground/60">
+                    <li><a href="https://spicycircle.fidetv.online" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors font-bold text-primary italic">SpicyCircle</a></li>
+                  </ul>
+                </div>
               </div>
 
               {!isStandalone && (
