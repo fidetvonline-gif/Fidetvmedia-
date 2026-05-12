@@ -432,37 +432,37 @@ export default function Profile() {
                       value={editForm.bio}
                       onChange={e => setEditForm({ ...editForm, bio: e.target.value })}
                       placeholder="Write a little about yourself..."
-                      className="w-full bg-background border border-border-custom rounded-xl p-3 text-sm text-foreground focus:outline-none focus:border-primary/50 resize-none h-24 shadow-inner"
+                      className="w-full bg-background border border-border-custom rounded-xl p-3 text-sm text-foreground focus:outline-none focus:border-primary/50 resize-none h-24 shadow-inner placeholder:text-text-muted"
                     />
                     <div className="space-y-3">
                       <div className="relative">
-                        <Twitter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/40" />
+                        <Twitter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
                         <input 
                           type="text"
                           value={editForm.social_x}
                           onChange={e => setEditForm(prev => ({ ...prev, social_x: e.target.value }))}
                           placeholder="X (Twitter) Username/Link"
-                          className="w-full bg-background border border-border-custom rounded-xl py-2 pl-10 pr-3 text-sm text-foreground focus:outline-none focus:border-primary/50 shadow-inner"
+                          className="w-full bg-background border border-border-custom rounded-xl py-2 pl-10 pr-3 text-sm text-foreground focus:outline-none focus:border-primary/50 shadow-inner placeholder:text-text-muted"
                         />
                       </div>
                       <div className="relative">
-                        <Instagram className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/40" />
+                        <Instagram className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
                         <input 
                           type="text"
                           value={editForm.social_instagram}
                           onChange={e => setEditForm(prev => ({ ...prev, social_instagram: e.target.value }))}
                           placeholder="Instagram Username/Link"
-                          className="w-full bg-background border border-border-custom rounded-xl py-2 pl-10 pr-3 text-sm text-foreground focus:outline-none focus:border-primary/50 shadow-inner"
+                          className="w-full bg-background border border-border-custom rounded-xl py-2 pl-10 pr-3 text-sm text-foreground focus:outline-none focus:border-primary/50 shadow-inner placeholder:text-text-muted"
                         />
                       </div>
                       <div className="relative">
-                        <Linkedin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/40" />
+                        <Linkedin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
                         <input 
                           type="text"
                           value={editForm.social_linkedin}
                           onChange={e => setEditForm(prev => ({ ...prev, social_linkedin: e.target.value }))}
                           placeholder="LinkedIn URL"
-                          className="w-full bg-background border border-border-custom rounded-xl py-2 pl-10 pr-3 text-sm text-foreground focus:outline-none focus:border-primary/50 shadow-inner"
+                          className="w-full bg-background border border-border-custom rounded-xl py-2 pl-10 pr-3 text-sm text-foreground focus:outline-none focus:border-primary/50 shadow-inner placeholder:text-text-muted"
                         />
                       </div>
                     </div>

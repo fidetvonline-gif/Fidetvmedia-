@@ -61,18 +61,18 @@ export default function Contact() {
             <div className="bg-surface rounded-[3rem] p-10 sm:p-16 border border-border-custom shadow-2xl relative overflow-hidden">
                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[100px] -mr-32 -mt-32" />
                
-               <form className="space-y-8 relative z-10">
+                <form className="space-y-8 relative z-10">
                   <div className="space-y-2">
-                    <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">Full Name</label>
-                    <input type="text" placeholder="John Doe" className="w-full bg-background border border-border-custom rounded-2xl p-5 text-foreground placeholder-foreground/20 focus:outline-none focus:border-primary/50 transition-all font-display shadow-inner" />
+                    <label className="text-[10px] uppercase font-black tracking-widest text-text-muted ml-4">Full Name</label>
+                    <input type="text" placeholder="John Doe" className="w-full bg-background border border-border-custom rounded-2xl p-5 text-foreground placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-all font-display shadow-inner" />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">Email Address</label>
-                    <input type="email" placeholder="john@example.com" className="w-full bg-background border border-border-custom rounded-2xl p-5 text-foreground placeholder-foreground/20 focus:outline-none focus:border-primary/50 transition-all font-display shadow-inner" />
+                    <label className="text-[10px] uppercase font-black tracking-widest text-text-muted ml-4">Email Address</label>
+                    <input type="email" placeholder="john@example.com" className="w-full bg-background border border-border-custom rounded-2xl p-5 text-foreground placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-all font-display shadow-inner" />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">Subject</label>
-                    <select className="w-full bg-background border border-border-custom rounded-2xl p-5 text-foreground placeholder-foreground/20 focus:outline-none focus:border-primary/50 transition-all appearance-none font-display shadow-inner">
+                    <label className="text-[10px] uppercase font-black tracking-widest text-text-muted ml-4">Subject</label>
+                    <select className="w-full bg-background border border-border-custom rounded-2xl p-5 text-foreground placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-all appearance-none font-display shadow-inner">
                       <option>General Inquiry</option>
                       <option>Media Production</option>
                       <option>Live Streaming</option>
@@ -80,8 +80,8 @@ export default function Contact() {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">Message</label>
-                    <textarea placeholder="How can we help you?" className="w-full bg-background border border-border-custom rounded-2xl p-5 text-foreground placeholder-foreground/20 focus:outline-none focus:border-primary/50 transition-all min-h-[150px] resize-none font-display shadow-inner"></textarea>
+                    <label className="text-[10px] uppercase font-black tracking-widest text-text-muted ml-4">Message</label>
+                    <textarea placeholder="How can we help you?" className="w-full bg-background border border-border-custom rounded-2xl p-5 text-foreground placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-all min-h-[150px] resize-none font-display shadow-inner"></textarea>
                   </div>
 
                   <button className="w-full bg-primary text-white font-black uppercase tracking-[0.2em] py-6 rounded-2xl hover:bg-primary/90 transition-all flex items-center justify-center space-x-4 shadow-xl shadow-primary/20 group font-display">

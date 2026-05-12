@@ -2,13 +2,13 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fcfcfc;
+  --background: #ffffff;
   --foreground: #09090b;
   --text-muted: #71717a;
   --surface: #ffffff;
-  --surface-bright: #f4f4f5;
-  --border-color: rgba(9, 9, 11, 0.05);
-  --glass-bg: rgba(255, 255, 255, 0.8);
+  --surface-bright: #f0f0f2;
+  --border-color: rgba(9, 9, 11, 0.1);
+  --glass-bg: rgba(255, 255, 255, 0.95);
   --primary: #f27d26;
 }
 

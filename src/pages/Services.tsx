@@ -220,7 +220,7 @@ export default function Services() {
                     </div>
                     <Link
                       to="/booking"
-                      className="w-full sm:w-auto px-12 py-6 bg-foreground text-background font-black uppercase tracking-[0.2em] text-[10px] rounded-2xl hover:bg-primary hover:text-white transition-all shadow-xl shadow-foreground/10 text-center scale-100 hover:scale-105 active:scale-95"
+                      className="w-full sm:w-auto px-12 py-6 bg-primary text-white font-black uppercase tracking-[0.2em] text-[10px] rounded-2xl hover:bg-primary/90 transition-all shadow-xl shadow-primary/20 text-center scale-100 hover:scale-105 active:scale-95"
                     >
                       Secure Booking
                     </Link>

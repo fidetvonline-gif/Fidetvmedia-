@@ -56,8 +56,8 @@ export default function Community() {
             <Users className="w-4 h-4" />
             <span>Collective Hub</span>
           </div>
-          <h1 className="text-5xl md:text-7xl font-display font-medium text-white tracking-tighter">
-            Join the <span className="text-gray-600">Circle.</span>
+          <h1 className="text-5xl md:text-7xl font-display font-medium text-foreground tracking-tighter">
+            Join the <span className="text-muted">Circle.</span>
           </h1>
         </div>
         <p className="max-w-md text-gray-400 text-lg font-light leading-relaxed">
@@ -70,13 +70,13 @@ export default function Community() {
         <div className="flex-grow space-y-12">
           {/* Search */}
           <div className="relative group">
-            <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-700 group-focus-within:text-primary transition-colors" />
+            <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-text-muted group-focus-within:text-primary transition-colors" />
             <input 
               type="text" 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search for communities (e.g. Media Production, Live Streaming)..."
-              className="w-full bg-surface-bright border border-white/5 rounded-[2rem] pl-16 pr-8 py-6 text-white text-lg placeholder-gray-700 focus:outline-none focus:border-primary/20 transition-all shadow-2xl"
+              className="w-full bg-surface-bright border border-border-custom rounded-[2rem] pl-16 pr-8 py-6 text-foreground text-lg placeholder-text-muted focus:outline-none focus:border-primary/20 transition-all shadow-2xl"
             />
           </div>
 
@@ -101,20 +101,20 @@ export default function Community() {
                   )}
                 >
                   <Link to={`/community/${c.id}`} className="block h-full">
-                    <div className="h-full bg-black/40 backdrop-blur-xl rounded-[2.5rem] p-8 space-y-6 border border-white/5 hover:border-primary/30 transition-all duration-500 overflow-hidden relative">
+                    <div className="h-full bg-surface-bright/50 backdrop-blur-xl rounded-[2.5rem] p-8 space-y-6 border border-border-custom hover:border-primary/30 transition-all duration-500 overflow-hidden relative">
                       {/* Abstract Background Accent */}
                       <div className="absolute -top-32 -right-32 w-64 h-64 bg-primary/10 rounded-full blur-3xl group-hover:bg-primary/20 transition-all duration-700" />
                       <div className="absolute -bottom-32 -left-32 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-all duration-700" />
                       
                       <div className="relative z-10 flex justify-between items-start">
-                        <div className="w-20 h-20 bg-gradient-to-br from-surface to-surface-bright rounded-[1.5rem] flex items-center justify-center border border-white/10 text-primary shadow-2xl group-hover:scale-105 group-hover:rotate-3 transition-transform duration-500">
+                        <div className="w-20 h-20 bg-gradient-to-br from-surface to-surface-bright rounded-[1.5rem] flex items-center justify-center border border-border-custom text-primary shadow-2xl group-hover:scale-105 group-hover:rotate-3 transition-transform duration-500">
                           {c.image_url ? (
                             <img src={c.image_url} alt={c.name} className="w-full h-full object-cover rounded-[1.5rem]" />
                           ) : (
                             <Users className="w-8 h-8" />
                           )}
                         </div>
-                        <div className="flex items-center space-x-1 bg-black/50 backdrop-blur-md px-4 py-2 rounded-full text-[10px] font-black uppercase text-gray-300 tracking-widest border border-white/5">
+                        <div className="flex items-center space-x-1 bg-surface-bright/80 backdrop-blur-md px-4 py-2 rounded-full text-[10px] font-black uppercase text-text-muted tracking-widest border border-border-custom">
                           <Globe className="w-3 h-3 text-primary" />
                           <span>Public</span>
                         </div>
@@ -122,16 +122,16 @@ export default function Community() {
 
                       <div className="relative z-10 space-y-3">
                         <h3 className={cn(
-                          "font-display font-medium text-white group-hover:text-primary transition-colors",
+                          "font-display font-medium text-foreground group-hover:text-primary transition-colors",
                           idx === 0 ? "text-4xl" : "text-2xl"
                         )}>{c.name}</h3>
                         <p className={cn(
-                          "text-gray-400 font-light leading-relaxed",
+                          "text-text-muted font-light leading-relaxed",
                           idx === 0 ? "text-lg max-w-2xl" : "text-sm line-clamp-2"
                         )}>{c.description}</p>
                       </div>
 
-                      <div className="relative z-10 pt-6 flex items-center justify-between border-t border-white/5 mt-auto">
+                      <div className="relative z-10 pt-6 flex items-center justify-between border-t border-border-custom mt-auto">
                         <div className="flex -space-x-3">
                           {[1, 2, 3].map(i => (
                             <div key={i} className="w-8 h-8 rounded-full border-2 border-surface bg-surface-bright flex items-center justify-center overflow-hidden">
@@ -142,7 +142,7 @@ export default function Community() {
                             +{Math.floor(Math.random() * 50) + 10}
                           </div>
                         </div>
-                        <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-white group-hover:bg-primary group-hover:text-black transition-all duration-300">
+                        <div className="w-12 h-12 rounded-full bg-foreground/5 flex items-center justify-center text-foreground group-hover:bg-primary group-hover:text-white transition-all duration-300">
                           <ArrowRight className="w-5 h-5 group-hover:-rotate-45 transition-transform duration-300" />
                         </div>
                       </div>
@@ -152,18 +152,18 @@ export default function Community() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-40 glass rounded-[4rem] border-dashed border-white/5">
-              <MessageSquare className="w-16 h-16 text-gray-800 mx-auto mb-6" />
-              <h2 className="text-2xl font-display font-medium text-gray-500">No communities found.</h2>
-              <p className="text-gray-600 mt-2">Try searching for something else or contact an admin to create a hub.</p>
+            <div className="text-center py-40 glass rounded-[4rem] border-dashed border-border-custom">
+              <MessageSquare className="w-16 h-16 text-text-muted mx-auto mb-6" />
+              <h2 className="text-2xl font-display font-medium text-text-muted">No communities found.</h2>
+              <p className="text-text-muted mt-2">Try searching for something else or contact an admin to create a hub.</p>
             </div>
           )}
         </div>
 
         {/* Sidebar */}
-        <div className="w-full lg:w-80 space-y-8 flex-shrink-0">
+          <div className="w-full lg:w-80 space-y-8 flex-shrink-0">
           <div className="glass rounded-[2.5rem] p-8 space-y-8">
-            <h3 className="font-display font-bold text-white text-lg flex items-center space-x-2">
+            <h3 className="font-display font-bold text-foreground text-lg flex items-center space-x-2">
               <TrendingUp className="w-5 h-5 text-primary" />
               <span>Global Trends</span>
             </h3>
@@ -174,15 +174,15 @@ export default function Community() {
                 { tag: '#FideCreators', posts: '2.1K' }
               ].map(item => (
                 <div key={item.tag} className="group cursor-pointer">
-                  <p className="text-sm font-bold text-white group-hover:text-primary transition-colors">{item.tag}</p>
-                  <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mt-1">{item.posts} Discussions</p>
+                  <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">{item.tag}</p>
+                  <p className="text-[10px] text-text-muted uppercase font-black tracking-widest mt-1">{item.posts} Discussions</p>
                 </div>
               ))}
             </div>
           </div>
 
           <div className="glass rounded-[2.5rem] p-8 space-y-6">
-            <h3 className="font-display font-bold text-white text-lg flex items-center space-x-2">
+            <h3 className="font-display font-bold text-foreground text-lg flex items-center space-x-2">
               <User className="w-5 h-5 text-primary" />
               <span>Who to Follow</span>
             </h3>
@@ -190,16 +190,16 @@ export default function Community() {
               {suggestedUsers.filter(u => u.id !== currentUser?.id).slice(0, 4).map(u => (
                 <div key={u.id} className="flex items-center justify-between group">
                   <Link to={`/profile/${u.username}`} className="flex items-center space-x-3 overflow-hidden">
-                    <div className="w-10 h-10 rounded-full bg-surface-bright flex items-center justify-center shrink-0 border border-white/5 overflow-hidden">
+                    <div className="w-10 h-10 rounded-full bg-surface-bright flex items-center justify-center shrink-0 border border-border-custom overflow-hidden">
                       {u.avatar_url ? (
                          <img src={u.avatar_url} alt={u.username} className="w-full h-full object-cover" />
                       ) : (
-                         <User className="w-5 h-5 text-gray-500" />
+                         <User className="w-5 h-5 text-text-muted" />
                       )}
                     </div>
                     <div className="flex flex-col overflow-hidden">
-                      <span className="text-sm font-bold text-white truncate group-hover:text-primary transition-colors">{u.full_name || u.username}</span>
-                      <span className="text-[10px] text-gray-500 uppercase tracking-widest truncate">@{u.username}</span>
+                      <span className="text-sm font-bold text-foreground truncate group-hover:text-primary transition-colors">{u.full_name || u.username}</span>
+                      <span className="text-[10px] text-text-muted uppercase tracking-widest truncate">@{u.username}</span>
                     </div>
                   </Link>
                   <FollowButton targetUserId={u.id} className="scale-75 origin-right" />

@@ -120,7 +120,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   to={link.path}
                   className={cn(
                     "text-sm font-medium tracking-wide transition-colors duration-200 hover:text-primary relative py-2",
-                    location.pathname === link.path ? "text-primary" : "text-foreground/40"
+                    location.pathname === link.path ? "text-primary" : "text-foreground/70"
                   )}
                 >
                   {link.name}
@@ -184,15 +184,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        {/* Mobile Sidebar */}
-        <AnimatePresence>
+                <AnimatePresence>
           {isMenuOpen && (
             <>
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm md:hidden"
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm md:hidden z-40"
                 onClick={() => setIsMenuOpen(false)}
               />
               <motion.div
@@ -200,12 +199,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 animate={{ x: 0 }}
                 exit={{ x: '100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="fixed top-0 right-0 h-full w-4/5 max-w-sm bg-surface border-l border-white/5 z-50 md:hidden p-6"
+                className="fixed top-0 right-0 h-full w-4/5 max-w-sm bg-background border-l border-border-custom z-50 md:hidden p-6 shadow-[0_0_50px_rgba(0,0,0,0.3)]"
               >
                 <div className="flex flex-col h-full">
                   <div className="flex justify-between items-center mb-10">
                     <span className="font-display font-bold text-2xl text-foreground">Menu</span>
-                    <button onClick={() => setIsMenuOpen(false)} className="text-foreground"><X /></button>
+                    <button onClick={() => setIsMenuOpen(false)} className="text-foreground p-2 hover:bg-surface-bright rounded-full transition-colors"><X /></button>
                   </div>
 
                   <div className="flex flex-col space-y-6">
@@ -214,9 +213,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         key={link.path}
                         to={link.path}
                         onClick={() => setIsMenuOpen(false)}
-                        className="flex items-center space-x-4 text-lg font-medium text-foreground/60 hover:text-primary transition-colors"
+                        className={cn(
+                          "flex items-center space-x-4 text-lg font-medium transition-colors p-3 rounded-2xl",
+                          location.pathname === link.path 
+                            ? "bg-primary/10 text-primary" 
+                            : "text-foreground/80 hover:bg-surface-bright hover:text-foreground"
+                        )}
                       >
-                        <link.icon className="w-6 h-6 text-foreground/40" />
+                        <link.icon className={cn(
+                          "w-6 h-6",
+                          location.pathname === link.path ? "text-primary" : "text-text-muted"
+                        )} />
                         <span>{link.name}</span>
                       </Link>
                     ))}
@@ -228,16 +235,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         <Link
                           to="/profile"
                           onClick={() => setIsMenuOpen(false)}
-                          className="flex items-center space-x-4 text-foreground/60"
+                          className="flex items-center space-x-4 text-foreground/80 p-3 rounded-2xl hover:bg-surface-bright"
                         >
-                          <User className="w-6 h-6 text-foreground/40" />
+                          <User className="w-6 h-6 text-text-muted" />
                           <span>My Profile</span>
                         </Link>
                         <button
                           onClick={handleSignOut}
-                          className="flex items-center space-x-4 text-foreground/60 w-full text-left"
+                          className="flex items-center space-x-4 text-foreground/80 w-full text-left p-3 rounded-2xl hover:bg-surface-bright"
                         >
-                          <LogOut className="w-6 h-6 text-foreground/40" />
+                          <LogOut className="w-6 h-6 text-text-muted" />
                           <span>Sign Out</span>
                         </button>
                       </>
@@ -245,7 +252,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       <Link
                         to="/auth"
                         onClick={() => setIsMenuOpen(false)}
-                        className="block w-full py-4 bg-primary text-center text-white font-bold rounded-xl shadow-lg shadow-primary/20"
+                        className="block w-full py-5 bg-primary text-center text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-primary/20"
                       >
                         Join Fidetvmedia
                       </Link>

@@ -119,17 +119,17 @@ export default function Onboarding() {
   };
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(0,188,212,0.1),transparent_50%)]" />
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(242,125,38,0.05),transparent_50%)]" />
       
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-xl z-10"
       >
-        <div className="glass rounded-[3rem] p-8 sm:p-12 border-white/5 shadow-2xl space-y-8">
+        <div className="glass rounded-[3rem] p-8 sm:p-12 border-border-custom shadow-2xl space-y-8">
           <div className="text-center space-y-4">
-            <h1 className="text-4xl font-display font-bold text-white tracking-tight">Complete Your Profile</h1>
+            <h1 className="text-4xl font-display font-bold text-foreground tracking-tight">Complete Your Profile</h1>
             <p className="text-gray-500">Pick a unique username and tell us about yourself</p>
           </div>
 
@@ -137,11 +137,11 @@ export default function Onboarding() {
             {/* Avatar Upload */}
             <div className="flex flex-col items-center space-y-4">
               <div className="relative group">
-                <div className="w-32 h-32 rounded-[2.5rem] bg-surface-bright border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden">
+                <div className="w-32 h-32 rounded-[2.5rem] bg-surface-bright border-2 border-dashed border-border-custom flex items-center justify-center overflow-hidden">
                   {avatarUrl ? (
                     <img src={avatarUrl} alt="Avatar Preview" className="w-full h-full object-cover" />
                   ) : (
-                    <Camera className="w-8 h-8 text-gray-500" />
+                    <Camera className="w-8 h-8 text-text-muted" />
                   )}
                 </div>
                 <input
@@ -154,13 +154,13 @@ export default function Onboarding() {
                   <Camera className="w-4 h-4 text-white" />
                 </div>
               </div>
-              <p className="text-[10px] uppercase font-black tracking-widest text-gray-600">Click to upload photo</p>
+              <p className="text-[10px] uppercase font-black tracking-widest text-text-muted">Click to upload photo</p>
             </div>
 
             <div className="space-y-4">
               {/* Username Input */}
               <div className="space-y-2">
-                <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">Username</label>
+                <label className="text-[10px] uppercase font-black tracking-widest text-text-muted ml-4">Username</label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                   <input
@@ -169,11 +169,11 @@ export default function Onboarding() {
                     placeholder="creator_name"
                     value={username}
                     onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
-                    className="w-full bg-surface border border-white/5 rounded-2xl pl-12 pr-12 py-4 focus:outline-none focus:border-primary/30 transition-all text-white"
+                    className="w-full bg-surface border border-border-custom rounded-2xl pl-12 pr-12 py-4 focus:outline-none focus:border-primary/30 transition-all text-foreground placeholder-text-muted"
                   />
                   <div className="absolute right-4 top-1/2 -translate-y-1/2">
                     {checkingUsername ? (
-                      <Loader2 className="w-4 h-4 text-gray-500 animate-spin" />
+                      <Loader2 className="w-4 h-4 text-text-muted animate-spin" />
                     ) : usernameAvailable === true ? (
                       <Check className="w-4 h-4 text-green-500" />
                     ) : usernameAvailable === false ? (
@@ -185,7 +185,7 @@ export default function Onboarding() {
 
               {/* Full Name Input */}
               <div className="space-y-2">
-                <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">Display Name (Optional)</label>
+                <label className="text-[10px] uppercase font-black tracking-widest text-text-muted ml-4">Display Name (Optional)</label>
                 <div className="relative">
                   <Info className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                   <input
@@ -193,20 +193,20 @@ export default function Onboarding() {
                     placeholder="John Doe"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="w-full bg-surface border border-white/5 rounded-2xl pl-12 pr-4 py-4 focus:outline-none focus:border-primary/30 transition-all text-white"
+                    className="w-full bg-surface border border-border-custom rounded-2xl pl-12 pr-4 py-4 focus:outline-none focus:border-primary/30 transition-all text-foreground placeholder-text-muted"
                   />
                 </div>
               </div>
 
               {/* Bio Input */}
               <div className="space-y-2">
-                <label className="text-[10px] uppercase font-black tracking-widest text-gray-500 ml-4">Bio (Optional)</label>
+                <label className="text-[10px] uppercase font-black tracking-widest text-text-muted ml-4">Bio (Optional)</label>
                 <textarea
                   placeholder="Tell us about yourself..."
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
                   rows={3}
-                  className="w-full bg-surface border border-white/5 rounded-2xl p-4 focus:outline-none focus:border-primary/30 transition-all text-white resize-none"
+                  className="w-full bg-surface border border-border-custom rounded-2xl p-4 focus:outline-none focus:border-primary/30 transition-all text-foreground placeholder-text-muted resize-none"
                 />
               </div>
             </div>

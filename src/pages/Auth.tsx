@@ -83,7 +83,7 @@ export default function Auth() {
             <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-primary/20 mb-8">
               <span className="text-white font-display font-bold text-2xl">F</span>
             </div>
-            <h1 className="text-4xl font-display font-bold text-white tracking-tight">
+            <h1 className="text-4xl font-display font-bold text-foreground tracking-tight">
               {isLogin ? 'Welcome Back' : 'Create Account'}
             </h1>
             <p className="text-gray-500 font-medium">
@@ -99,9 +99,9 @@ export default function Auth() {
                 className="bg-green-500/10 border border-green-500/20 rounded-2xl p-8 text-center space-y-4"
               >
                 <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto" />
-                <h3 className="text-xl font-bold text-white">Check Your Email</h3>
-                <p className="text-sm text-gray-400">
-                  We've sent a verification link to <span className="text-white font-medium">{email}</span>. Please verify your account to continue.
+                <h3 className="text-xl font-bold text-foreground">Check Your Email</h3>
+                <p className="text-sm text-muted">
+                  We've sent a verification link to <span className="text-foreground font-medium">{email}</span>. Please verify your account to continue.
                 </p>
                 <button
                   onClick={() => {
@@ -138,18 +138,18 @@ export default function Auth() {
                       placeholder="Email Address"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full bg-surface border border-white/5 rounded-2xl pl-12 pr-4 py-4 focus:outline-none focus:border-primary/30 transition-all text-white"
+                      className="w-full bg-surface border border-border-custom rounded-2xl pl-12 pr-4 py-4 focus:outline-none focus:border-primary/30 transition-all text-foreground placeholder-text-muted"
                     />
                   </div>
                   <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
                     <input
                       type="password"
                       required
                       placeholder="Password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full bg-surface border border-white/5 rounded-2xl pl-12 pr-4 py-4 focus:outline-none focus:border-primary/30 transition-all text-white"
+                      className="w-full bg-surface border border-border-custom rounded-2xl pl-12 pr-4 py-4 focus:outline-none focus:border-primary/30 transition-all text-foreground placeholder-text-muted"
                     />
                   </div>
 
@@ -169,7 +169,7 @@ export default function Auth() {
           <div className="text-center">
             <button
               onClick={() => setIsLogin(!isLogin)}
-              className="text-gray-500 text-sm font-medium hover:text-white transition-colors"
+              className="text-text-muted text-sm font-medium hover:text-foreground transition-colors"
             >
               {isLogin ? "Don't have an account? " : "Already have an account? "}
               <span className="text-primary font-bold uppercase tracking-widest ml-1 hover:underline">

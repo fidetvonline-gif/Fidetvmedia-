@@ -60,7 +60,7 @@ export default function Portfolio() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         <div className="space-y-4">
           <h4 className="text-primary font-display font-bold uppercase tracking-[0.5em] text-xs">Curated Work</h4>
-          <h1 className="text-6xl sm:text-8xl font-display font-bold text-white tracking-tighter leading-[0.9] italic">
+          <h1 className="text-6xl sm:text-8xl font-display font-bold text-foreground tracking-tighter leading-[0.9] italic">
             Visual Portfolio.
           </h1>
         </div>
@@ -73,7 +73,7 @@ export default function Portfolio() {
               onClick={() => setFilter(cat)}
               className={cn(
                 "px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all",
-                filter === cat ? "bg-primary text-white" : "glass text-gray-500 hover:text-white"
+                filter === cat ? "bg-primary text-white" : "glass text-text-muted hover:text-foreground"
               )}
             >
               {cat}
@@ -93,7 +93,7 @@ export default function Portfolio() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
                 transition={{ duration: 0.4 }}
-                className="group relative aspect-[4/5] rounded-[2.5rem] overflow-hidden bg-surface border border-white/5"
+                className="group relative aspect-[4/5] rounded-[2.5rem] overflow-hidden bg-surface border border-border-custom shadow-xl"
               >
                 <img 
                   src={project.image} 
@@ -103,27 +103,27 @@ export default function Portfolio() {
                 />
 
                 <div className="absolute top-6 left-6 z-10 flex flex-col gap-2">
-                   <span className="px-3 py-1 bg-black/60 backdrop-blur-md border border-white/10 rounded-full text-[9px] font-black uppercase tracking-[0.2em] text-primary">
+                   <span className="px-3 py-1 bg-surface-bright/80 backdrop-blur-md border border-border-custom rounded-full text-[9px] font-black uppercase tracking-[0.2em] text-primary">
                      {project.category}
                    </span>
                    {project.status && project.status === 'offline' && (
-                     <span className="px-3 py-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">
+                     <span className="px-3 py-1 bg-surface/50 backdrop-blur-md border border-border-custom rounded-full text-[9px] font-black uppercase tracking-[0.2em] text-text-muted">
                        Recap Available
                      </span>
                    )}
                 </div>
                 
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60 transition-opacity group-hover:opacity-100" />
+                <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-60 transition-opacity group-hover:opacity-100" />
                 
                 <div className="absolute inset-0 p-8 flex flex-col justify-end">
                    <div className="space-y-4 translate-y-6 group-hover:translate-y-0 transition-transform duration-500">
                       <p className="text-[10px] uppercase tracking-widest font-black text-primary">{project.category}</p>
-                      <h4 className="text-2xl font-display font-bold text-white">{project.title}</h4>
+                      <h4 className="text-2xl font-display font-bold text-foreground">{project.title}</h4>
                       
                       <div className="flex space-x-3 opacity-0 group-hover:opacity-100 transition-opacity delay-100">
                         <button 
                           onClick={() => setPlayingVideo(project)}
-                          className="w-full h-12 bg-white text-black font-black uppercase tracking-widest text-[10px] rounded-2xl flex items-center justify-center hover:bg-primary hover:text-white transition-all shadow-xl shadow-black/20"
+                          className="w-full h-12 bg-foreground text-background font-black uppercase tracking-widest text-[10px] rounded-2xl flex items-center justify-center hover:bg-primary hover:text-white transition-all shadow-xl shadow-foreground/20"
                         >
                           {project.type === 'video' ? (
                             <>

@@ -339,12 +339,12 @@ export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onD
             className="overflow-hidden space-y-6 pt-4"
           >
             <form onSubmit={handleComment} className="flex gap-4">
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 placeholder="Write a comment..."
-                className="flex-grow bg-background border border-border-custom rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:border-primary/50 shadow-inner"
+                className="flex-grow bg-background border border-border-custom rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:border-primary/50 shadow-inner placeholder:text-text-muted"
               />
               <button disabled={!newComment.trim()} className="p-3 bg-primary rounded-xl text-white disabled:opacity-50 shadow-lg shadow-primary/20">
                 <Send className="w-4 h-4" />

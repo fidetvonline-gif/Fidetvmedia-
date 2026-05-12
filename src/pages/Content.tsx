@@ -161,7 +161,7 @@ export default function Content() {
                     <div className="absolute inset-0 p-6 sm:p-10 flex flex-col justify-end pointer-events-none">
                        <div className="space-y-4 translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
                           <span className="text-[10px] uppercase tracking-[0.4em] font-black text-primary">{item.category}</span>
-                          <h4 className="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight leading-tight">{item.title}</h4>
+                          <h4 className="text-2xl sm:text-3xl font-display font-bold text-foreground tracking-tight leading-tight">{item.title}</h4>
                        </div>
                     </div>
                     
