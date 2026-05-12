@@ -279,13 +279,13 @@ export default function CommunityDetail() {
               </button>
 
               <div className="space-y-2">
-                <h2 className="text-3xl font-display font-medium text-white tracking-tight">Manage Members</h2>
-                <p className="text-gray-500 text-sm">Control who can moderate or participate in your community.</p>
+                <h2 className="text-3xl font-display font-medium text-foreground tracking-tight">Manage Members</h2>
+                <p className="text-text-muted text-sm">Control who can moderate or participate in your community.</p>
               </div>
 
               <div className="max-h-[50vh] overflow-y-auto space-y-4 pr-4 custom-scrollbar">
                 {communityMembers.map((member) => (
-                  <div key={member.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-white/10 transition-all">
+                  <div key={member.id} className="flex items-center justify-between p-4 bg-foreground/5 rounded-2xl border border-border-custom hover:border-foreground/10 transition-all">
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 rounded-full overflow-hidden bg-primary/20 shrink-0">
                         {member.profiles?.avatar_url ? (
@@ -297,8 +297,8 @@ export default function CommunityDetail() {
                         )}
                       </div>
                       <div>
-                        <p className="text-white font-bold text-sm">{member.profiles?.full_name || member.profiles?.username}</p>
-                        <p className="text-xs text-gray-500">@{member.profiles?.username}</p>
+                        <p className="text-foreground font-bold text-sm">{member.profiles?.full_name || member.profiles?.username}</p>
+                        <p className="text-xs text-text-muted">@{member.profiles?.username}</p>
                       </div>
                     </div>
 
@@ -307,7 +307,7 @@ export default function CommunityDetail() {
                         value={member.role}
                         onChange={(e) => updateMemberRole(member.user_id, e.target.value)}
                         disabled={member.user_id === user?.id && member.role === 'admin'} // Can't demote self from admin easily
-                        className="bg-black/40 border border-white/10 rounded-lg text-xs text-white px-3 py-2 outline-none focus:border-primary/50"
+                        className="bg-background border border-border-custom rounded-lg text-xs text-foreground px-3 py-2 outline-none focus:border-primary/50"
                       >
                         <option value="member">Member</option>
                         <option value="moderator">Moderator</option>
@@ -352,14 +352,14 @@ export default function CommunityDetail() {
               </button>
 
               <div className="space-y-2">
-                <h2 className="text-3xl font-display font-medium text-white tracking-tight">Hub Settings</h2>
-                <p className="text-gray-500 text-sm">Update your community details and branding.</p>
+                <h2 className="text-3xl font-display font-medium text-foreground tracking-tight">Hub Settings</h2>
+                <p className="text-text-muted text-sm">Update your community details and branding.</p>
               </div>
 
               <form onSubmit={handleUpdateCommunity} className="space-y-8">
                 <div className="flex flex-col sm:flex-row gap-8 items-center">
                   <div className="relative group">
-                    <div className="w-32 h-32 bg-surface rounded-[2rem] border-2 border-white/5 overflow-hidden flex items-center justify-center text-primary">
+                    <div className="w-32 h-32 bg-surface rounded-[2rem] border-2 border-border-custom overflow-hidden flex items-center justify-center text-primary">
                       {editImagePreview || community.image_url ? (
                         <img src={editImagePreview || community.image_url} className="w-full h-full object-cover" />
                       ) : (
@@ -383,12 +383,12 @@ export default function CommunityDetail() {
                   </div>
                   <div className="flex-grow space-y-4 w-full">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-gray-600 tracking-widest pl-1">Hub Name</label>
+                      <label className="text-[10px] font-black uppercase text-text-muted tracking-widest pl-1">Hub Name</label>
                       <input
                         type="text"
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white placeholder-gray-700 focus:outline-none focus:border-primary/40 transition-all"
+                        className="w-full bg-background border border-border-custom rounded-2xl px-6 py-4 text-foreground placeholder:text-text-muted focus:outline-none focus:border-primary/40 transition-all font-display shadow-inner"
                         placeholder="Name of your community"
                       />
                     </div>
@@ -396,11 +396,11 @@ export default function CommunityDetail() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-gray-600 tracking-widest pl-1">Description</label>
+                  <label className="text-[10px] font-black uppercase text-text-muted tracking-widest pl-1">Description</label>
                   <textarea
                     value={editDescription}
                     onChange={(e) => setEditDescription(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white placeholder-gray-700 focus:outline-none focus:border-primary/40 transition-all min-h-[120px] resize-none text-sm leading-relaxed"
+                    className="w-full bg-background border border-border-custom rounded-2xl px-6 py-4 text-foreground placeholder:text-text-muted focus:outline-none focus:border-primary/40 transition-all min-h-[120px] resize-none text-sm leading-relaxed font-display shadow-inner"
                     placeholder="What is this hub about?"
                   />
                 </div>
@@ -439,13 +439,13 @@ export default function CommunityDetail() {
                   )}
                 </div>
                 <div>
-                  <h1 className="text-3xl md:text-5xl font-display font-medium text-white tracking-tighter">{community.name}</h1>
+                  <h1 className="text-3xl md:text-5xl font-display font-medium text-foreground tracking-tighter">{community.name}</h1>
                   <div className="flex items-center space-x-3 mt-2">
-                    <span className="flex items-center space-x-1 text-[10px] font-black uppercase text-gray-500 tracking-widest">
+                    <span className="flex items-center space-x-1 text-[10px] font-black uppercase text-text-muted tracking-widest">
                       <Globe className="w-3 h-3" />
                       <span>Public Group</span>
                     </span>
-                    <span className="w-1 h-1 bg-gray-700 rounded-full" />
+                    <span className="w-1 h-1 bg-border-custom rounded-full" />
                     <span className="text-[10px] font-black uppercase text-primary tracking-widest">{memberCount.toLocaleString()} Members</span>
                   </div>
                 </div>
@@ -454,7 +454,7 @@ export default function CommunityDetail() {
                 {isModerator && (
                   <button
                     onClick={() => setIsManagingMembers(true)}
-                    className="w-14 h-14 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-gray-500 hover:text-primary hover:border-primary/20 transition-all shadow-xl"
+                    className="w-14 h-14 bg-foreground/5 border border-border-custom rounded-2xl flex items-center justify-center text-text-muted hover:text-primary hover:border-primary/20 transition-all shadow-xl"
                     title="Manage Members"
                   >
                     <Shield className="w-6 h-6" />
@@ -463,7 +463,7 @@ export default function CommunityDetail() {
                 {isModerator && (
                   <button
                     onClick={() => setIsEditingCommunity(true)}
-                    className="w-14 h-14 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-gray-500 hover:text-primary hover:border-primary/20 transition-all shadow-xl"
+                    className="w-14 h-14 bg-foreground/5 border border-border-custom rounded-2xl flex items-center justify-center text-text-muted hover:text-primary hover:border-primary/20 transition-all shadow-xl"
                     title="Edit Hub"
                   >
                     <Edit3 className="w-6 h-6" />
@@ -475,7 +475,7 @@ export default function CommunityDetail() {
                     className={cn(
                       "px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all",
                       isMember 
-                        ? "bg-white/5 border border-white/10 text-gray-500 hover:text-red-500 hover:border-red-500/20" 
+                        ? "bg-foreground/5 border border-border-custom text-text-muted hover:text-red-500 hover:border-red-500/20" 
                         : "bg-primary text-white shadow-lg shadow-primary/20 hover:scale-105"
                     )}
                   >
@@ -485,14 +485,14 @@ export default function CommunityDetail() {
                 {user && (
                   <button
                     onClick={() => setIsCreating(!isCreating)}
-                    className="w-14 h-14 bg-surface-bright border border-white/10 rounded-2xl flex items-center justify-center text-white shadow-xl hover:text-primary transition-all"
+                    className="w-14 h-14 bg-surface-bright border border-border-custom rounded-2xl flex items-center justify-center text-foreground shadow-xl hover:text-primary transition-all"
                   >
                     <Plus className={cn("w-6 h-6 transition-transform", isCreating && "rotate-45")} />
                   </button>
                 )}
               </div>
             </div>
-            <p className="text-gray-400 text-lg font-light leading-relaxed max-w-2xl">
+            <p className="text-text-muted text-lg font-light leading-relaxed max-w-2xl">
               {community.description}
             </p>
           </header>
@@ -510,11 +510,11 @@ export default function CommunityDetail() {
                   value={newPostContent}
                   onChange={(e) => setNewPostContent(e.target.value)}
                   placeholder={`What's happening in ${community.name}?`}
-                  className="w-full bg-transparent border-none focus:ring-0 text-lg text-white placeholder-gray-600 resize-none min-h-[120px]"
+                  className="w-full bg-transparent border-none focus:ring-0 text-lg text-foreground placeholder:text-text-muted resize-none min-h-[120px]"
                 />
                 
                 {mediaPreview && (
-                  <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black/40 border border-white/5">
+                  <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-background border border-border-custom">
                     {mediaFile?.type.startsWith('image') ? (
                       <img src={mediaPreview} className="w-full h-full object-cover" />
                     ) : (
@@ -529,7 +529,7 @@ export default function CommunityDetail() {
                   </div>
                 )}
                 {!mediaPreview && newPostContent.match(/(https?:\/\/[^\s]+)/g)?.find(u => Player.canPlay(u)) && (
-                  <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black/40 border border-white/5">
+                  <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-background border border-border-custom">
                     <Player 
                       url={newPostContent.match(/(https?:\/\/[^\s]+)/g)?.find(u => Player.canPlay(u))} 
                       className="absolute top-0 left-0"
@@ -540,13 +540,13 @@ export default function CommunityDetail() {
                   </div>
                 )}
 
-                <div className="flex justify-between items-center pt-4 border-t border-white/5">
+                <div className="flex justify-between items-center pt-4 border-t border-border-custom">
                   <div className="flex space-x-4">
-                    <label className="p-2 text-gray-500 hover:text-primary transition-colors cursor-pointer">
+                    <label className="p-2 text-text-muted hover:text-primary transition-colors cursor-pointer">
                       <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
                       <ImageIcon className="w-5 h-5" />
                     </label>
-                    <label className="p-2 text-gray-500 hover:text-primary transition-colors cursor-pointer">
+                    <label className="p-2 text-text-muted hover:text-primary transition-colors cursor-pointer">
                       <input type="file" className="hidden" accept="video/*" onChange={handleFileChange} />
                       <Video className="w-5 h-5" />
                     </label>
@@ -574,10 +574,10 @@ export default function CommunityDetail() {
                 <PostCard key={post.id} post={post} onDelete={() => fetchData()} onUpdate={() => fetchData()} />
               ))
             ) : (
-              <div className="text-center py-20 bg-surface/30 rounded-[3rem] border border-dashed border-white/5">
-                <MessageSquare className="w-12 h-12 text-gray-700 mx-auto mb-6" />
-                <h3 className="text-2xl font-display font-medium text-gray-500">The hub is quiet.</h3>
-                <p className="text-gray-600 mt-2">Start a conversation for the community!</p>
+              <div className="text-center py-20 bg-surface/30 rounded-[3rem] border border-dashed border-border-custom">
+                <MessageSquare className="w-12 h-12 text-text-muted mx-auto mb-6" />
+                <h3 className="text-2xl font-display font-medium text-text-muted">The hub is quiet.</h3>
+                <p className="text-text-muted mt-2">Start a conversation for the community!</p>
               </div>
             )}
           </div>
@@ -586,37 +586,37 @@ export default function CommunityDetail() {
         {/* Info Sidebar */}
         <div className="hidden lg:block w-72 space-y-8 sticky top-32">
           <div className="glass rounded-[2rem] p-8 space-y-6">
-            <h3 className="font-display font-bold text-white flex items-center space-x-2">
+            <h3 className="font-display font-bold text-foreground flex items-center space-x-2">
               <Info className="w-4 h-4 text-primary" />
               <span className="text-xs uppercase tracking-widest">Hub Details</span>
             </h3>
             <div className="space-y-4">
               <div className="space-y-1">
-                <p className="text-[10px] uppercase font-black text-gray-600">Established</p>
-                <p className="text-sm text-gray-300">{community.created_at ? format(new Date(community.created_at), 'MMMM yyyy') : 'April 2024'}</p>
+                <p className="text-[10px] uppercase font-black text-text-muted">Established</p>
+                <p className="text-sm text-foreground/70">{community.created_at ? format(new Date(community.created_at), 'MMMM yyyy') : 'April 2026'}</p>
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] uppercase font-black text-gray-600">Privacy</p>
-                <p className="text-sm text-gray-300">Public Group</p>
+                <p className="text-[10px] uppercase font-black text-text-muted">Privacy</p>
+                <p className="text-sm text-foreground/70">Public Group</p>
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] uppercase font-black text-gray-600">Moderators</p>
+                <p className="text-[10px] uppercase font-black text-text-muted">Moderators</p>
                 <div className="flex flex-wrap gap-2 pt-1">
                   {moderators.length > 0 ? moderators.map((mod, i) => (
                     <span key={i} className="text-sm text-primary font-bold">@{mod.username}</span>
                   )) : (
-                    <p className="text-sm text-gray-600 italic">No moderators assigned</p>
+                    <p className="text-sm text-text-muted italic">No moderators assigned</p>
                   )}
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="p-8 bg-surface-bright border border-white/5 rounded-[2rem] space-y-4">
-             <h4 className="text-white font-bold text-xs uppercase tracking-widest">Hub Rules</h4>
+          <div className="p-8 bg-surface-bright border border-border-custom rounded-[2rem] space-y-4">
+             <h4 className="text-foreground font-bold text-xs uppercase tracking-widest">Hub Rules</h4>
              <ul className="space-y-3">
                {['Be professional', 'Share insights', 'Collaborate freely'].map(rule => (
-                 <li key={rule} className="flex items-center space-x-2 text-[10px] text-gray-500 font-bold uppercase tracking-tighter">
+                 <li key={rule} className="flex items-center space-x-2 text-[10px] text-text-muted font-bold uppercase tracking-tighter">
                    <div className="w-1 h-1 bg-primary rounded-full" />
                    <span>{rule}</span>
                  </li>

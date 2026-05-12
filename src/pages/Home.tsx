@@ -228,7 +228,7 @@ export default function Home() {
             transition={{ delay: 0.6, duration: 1 }}
             className="max-w-3xl"
           >
-            <p className="text-lg sm:text-2xl text-foreground/60 font-light mb-10 sm:mb-12 leading-relaxed tracking-tight border-l-4 border-primary pl-6">
+            <p className="text-lg sm:text-2xl text-text-muted font-light mb-10 sm:mb-12 leading-relaxed tracking-tight border-l-4 border-primary pl-6">
                FideTV is an innovative agency that specializes in various services to help individuals and businesses thrive in the digital landscape.
             </p>
 
@@ -299,7 +299,7 @@ export default function Home() {
                    ) : null}
                 </div>
               </div>
-              <p className="text-gray-500 font-light text-lg leading-relaxed px-6 italic">
+              <p className="text-text-muted font-light text-lg leading-relaxed px-6 italic">
                 "{show.description}"
               </p>
             </motion.div>
@@ -329,7 +329,7 @@ export default function Home() {
             >
               <stat.icon className="w-6 h-6 text-primary mb-6" />
               <h3 className="text-3xl sm:text-5xl font-display font-bold text-foreground mb-2">{stat.value}</h3>
-              <p className="text-xs text-foreground/40 font-bold tracking-widest uppercase">{stat.label}</p>
+              <p className="text-xs text-text-muted font-bold tracking-widest uppercase">{stat.label}</p>
             </motion.div>
           ))}
         </motion.div>
@@ -348,7 +348,7 @@ export default function Home() {
                  </div>
                  <div>
                    <h4 className="text-foreground font-bold text-lg sm:text-xl mb-2">Officially Registered & Recognized</h4>
-                   <p className="text-foreground/60 text-sm max-w-xl italic">FIDE TV MEDIA is fully registered and certified. We are committed to professional and trusted media services.</p>
+                   <p className="text-text-muted text-sm max-w-xl italic">FIDE TV MEDIA is fully registered and certified. We are committed to professional and trusted media services.</p>
                  </div>
               </div>
               
@@ -384,7 +384,7 @@ export default function Home() {
                 Upcoming <span className="text-foreground/40 italic">Events.</span>
               </h3>
             </div>
-            <Link to="/live" className="group flex items-center space-x-3 bg-surface border border-border-custom px-8 py-4 rounded-full text-foreground/60 hover:text-foreground font-bold uppercase tracking-widest text-sm transition-all shadow-sm">
+            <Link to="/live" className="group flex items-center space-x-3 bg-surface border border-border-custom px-8 py-4 rounded-full text-text-muted hover:text-foreground font-bold uppercase tracking-widest text-sm transition-all shadow-sm">
               <span>Full Schedule</span>
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Link>
@@ -415,7 +415,7 @@ export default function Home() {
                 </div>
 
                 <div className="absolute bottom-8 left-8 right-8 space-y-4">
-                  <div className="flex items-center gap-2 text-foreground/60 text-[10px] font-medium uppercase tracking-widest">
+                  <div className="flex items-center gap-2 text-text-muted text-[10px] font-medium uppercase tracking-widest">
                     <Calendar className="w-4 h-4 text-primary" />
                     <span>{format(new Date(ev.start_time), 'MMM dd, yyyy • HH:mm')}</span>
                   </div>
@@ -442,7 +442,7 @@ export default function Home() {
               Elevating Every<br />Frame We Capture.
             </h3>
           </div>
-          <Link to="/services" className="group flex items-center space-x-3 bg-surface border border-border-custom px-8 py-4 rounded-full text-foreground/60 hover:text-foreground font-bold uppercase tracking-widest text-sm transition-all shadow-sm">
+          <Link to="/services" className="group flex items-center space-x-3 bg-surface border border-border-custom px-8 py-4 rounded-full text-text-muted hover:text-foreground font-bold uppercase tracking-widest text-sm transition-all shadow-sm">
             <span>All Services</span>
             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </Link>
@@ -472,7 +472,7 @@ export default function Home() {
               </div>
               <div className="relative z-10 mt-auto">
                 <h4 className="text-2xl sm:text-3xl font-display font-bold text-foreground mb-3">{item.title}</h4>
-                <p className="text-foreground/60 group-hover:text-foreground transition-colors leading-relaxed italic">
+                <p className="text-text-muted group-hover:text-foreground transition-colors leading-relaxed italic">
                   {item.description}
                 </p>
               </div>

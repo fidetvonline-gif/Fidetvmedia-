@@ -19,15 +19,15 @@ export default function Policies() {
   return (
     <div className="py-24 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16 mb-32">
        <div className="text-center space-y-4">
-          <h1 className="text-5xl font-display font-bold text-white tracking-tight">Legal & Policies</h1>
-          <p className="text-gray-500">Last updated: May 2024</p>
+          <h1 className="text-5xl font-display font-bold text-foreground tracking-tight">Legal & Policies</h1>
+          <p className="text-text-muted">Last updated: May 2026</p>
        </div>
 
        <div className="space-y-12">
           {sections.map((section, i) => (
             <div key={i} className="glass rounded-[2rem] p-10 space-y-6">
                <h2 className="text-2xl font-display font-bold text-primary">{section.title}</h2>
-               <p className="text-gray-400 leading-relaxed font-light">
+               <p className="text-text-muted leading-relaxed font-light">
                  {section.content}
                </p>
             </div>

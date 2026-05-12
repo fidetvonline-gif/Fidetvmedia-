@@ -86,7 +86,7 @@ export default function Auth() {
             <h1 className="text-4xl font-display font-bold text-foreground tracking-tight">
               {isLogin ? 'Welcome Back' : 'Create Account'}
             </h1>
-            <p className="text-gray-500 font-medium">
+            <p className="text-text-muted font-medium">
               {isLogin ? 'Enter your details to access FideTV' : 'Join our creative media community today'}
             </p>
           </div>
@@ -131,7 +131,7 @@ export default function Auth() {
 
                 <form onSubmit={handleAuth} className="space-y-4">
                   <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
                     <input
                       type="email"
                       required
@@ -179,7 +179,7 @@ export default function Auth() {
           </div>
         </div>
         
-        <p className="text-center mt-8 text-xs text-gray-600 font-medium">
+        <p className="text-center mt-8 text-xs text-text-muted font-medium">
           By continuing, you agree to FideTV's <Link to="/policies" className="hover:text-primary underline">Terms of Service</Link>
         </p>
       </motion.div>

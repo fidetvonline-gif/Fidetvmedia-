@@ -512,7 +512,7 @@ export default function Profile() {
                   <div className="pt-6 border-t border-border-custom space-y-4">
                     <div className="flex justify-between text-xs font-bold uppercase tracking-widest">
                       <span className="text-foreground/40">Joined</span>
-                      <span className="text-foreground font-black">May 2024</span>
+                      <span className="text-foreground font-black">May 2026</span>
                     </div>
                     <div className="flex justify-between text-xs font-bold uppercase tracking-widest">
                       <span className="text-foreground/40">Posts</span>

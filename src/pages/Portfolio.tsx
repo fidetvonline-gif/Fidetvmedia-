@@ -42,7 +42,7 @@ export default function Portfolio() {
   const staticProjects = [
     { id: 1, title: 'Summer Jazz Festival', category: 'Live Events', image: 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&q=80&w=2070', type: 'video' },
     { id: 2, title: 'Brand Launch: NEXA', category: 'Commercial', image: 'https://images.unsplash.com/photo-1551818255-e6e10975bc17?auto=format&fit=crop&q=80&w=2070', type: 'video' },
-    { id: 3, title: 'Corporate Summit 2024', category: 'Corporate', image: 'https://images.unsplash.com/photo-1475721027785-f74dea327912?auto=format&fit=crop&q=80&w=2070', type: 'image' },
+    { id: 3, title: 'Corporate Summit 2026', category: 'Corporate', image: 'https://images.unsplash.com/photo-1475721027785-f74dea327912?auto=format&fit=crop&q=80&w=2070', type: 'image' },
     { id: 4, title: 'Artist Spotlight', category: 'Interviews', image: 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&q=80&w=2070', type: 'video' },
     { id: 5, title: 'Gala Night Coverage', category: 'Live Events', image: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?auto=format&fit=crop&q=80&w=2070', type: 'image' },
     { id: 6, title: 'Product Cinematography', category: 'Commercial', image: 'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?auto=format&fit=crop&q=80&w=2012', type: 'video' },
@@ -66,7 +66,7 @@ export default function Portfolio() {
         </div>
 
         <div className="flex flex-wrap items-center gap-4 pt-8">
-          <Filter className="w-5 h-5 text-gray-600 mr-2" />
+          <Filter className="w-5 h-5 text-text-muted mr-2" />
           {categories.map((cat) => (
             <button
               key={cat}

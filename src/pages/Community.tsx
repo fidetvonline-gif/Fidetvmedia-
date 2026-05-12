@@ -60,7 +60,7 @@ export default function Community() {
             Join the <span className="text-muted">Circle.</span>
           </h1>
         </div>
-        <p className="max-w-md text-gray-400 text-lg font-light leading-relaxed">
+        <p className="max-w-md text-text-muted text-lg font-light leading-relaxed">
           Find your niche, collaborate with experts, and grow your media presence in our specialized sub-communities.
         </p>
       </div>
@@ -135,7 +135,7 @@ export default function Community() {
                         <div className="flex -space-x-3">
                           {[1, 2, 3].map(i => (
                             <div key={i} className="w-8 h-8 rounded-full border-2 border-surface bg-surface-bright flex items-center justify-center overflow-hidden">
-                              <User className="w-4 h-4 text-gray-500" />
+                              <User className="w-4 h-4 text-text-muted" />
                             </div>
                           ))}
                           <div className="w-8 h-8 rounded-full border-2 border-surface bg-primary/20 flex items-center justify-center text-[9px] font-black text-primary backdrop-blur-md">
@@ -213,7 +213,7 @@ export default function Community() {
                <Users className="w-5 h-5" />
              </div>
              <h4 className="text-primary font-bold text-sm uppercase tracking-widest leading-tight">Start Your Journey</h4>
-             <p className="text-xs text-gray-400 leading-relaxed font-light">
+             <p className="text-xs text-text-muted leading-relaxed font-light">
                Can't find your community? Reach out to our community managers to propose a new hub for your niche.
              </p>
              <Link to="/contact" className="inline-block pt-4 text-[10px] font-black text-white hover:text-primary uppercase tracking-[0.2em] transition-colors">

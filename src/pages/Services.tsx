@@ -164,7 +164,7 @@ export default function Services() {
             Elite Media<br />Services
           </h1>
         </motion.div>
-        <p className="text-lg sm:text-2xl text-foreground/40 max-w-3xl mx-auto font-light leading-relaxed px-4 italic">
+        <p className="text-lg sm:text-2xl text-text-muted max-w-3xl mx-auto font-light leading-relaxed px-4 italic">
           We combine cutting-edge technology with creative artistry to deliver media that captures attention and inspires action.
         </p>
       </section>
@@ -198,12 +198,12 @@ export default function Services() {
                     
                     <div className="space-y-6">
                       <h3 className="text-3xl sm:text-4xl font-display font-bold text-foreground tracking-tighter uppercase">{service.title}</h3>
-                      <p className="text-foreground/50 leading-relaxed font-light text-base sm:text-lg italic">{service.description}</p>
+                      <p className="text-text-muted leading-relaxed font-light text-base sm:text-lg italic">{service.description}</p>
                     </div>
 
                     <ul className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       {service.features.map((feature, idx) => (
-                        <li key={idx} className="flex items-center space-x-4 text-xs sm:text-sm text-foreground/40 font-medium">
+                        <li key={idx} className="flex items-center space-x-4 text-xs sm:text-sm text-text-muted font-medium">
                           <div className="w-5 h-5 bg-primary/10 rounded-full flex items-center justify-center border border-primary/20 shrink-0">
                             <CheckCircle2 className="w-3 h-3 text-primary" />
                           </div>
@@ -215,7 +215,7 @@ export default function Services() {
 
                   <div className="mt-12 sm:mt-20 pt-10 sm:pt-16 border-t border-border-custom flex flex-col sm:flex-row justify-between items-center gap-10 relative z-10">
                     <div className="text-center sm:text-left space-y-1">
-                      <p className="text-[10px] uppercase tracking-[0.3em] text-foreground/20 font-black italic">Investment Structure</p>
+                      <p className="text-[10px] uppercase tracking-[0.3em] text-text-muted font-black italic">Investment Structure</p>
                       <p className="text-2xl font-display font-bold text-foreground tracking-tighter">{service.price}</p>
                     </div>
                     <Link
@@ -233,7 +233,7 @@ export default function Services() {
               <Zap className="w-24 h-24 text-foreground/5 animate-pulse" />
               <div className="space-y-4">
                 <h3 className="text-3xl font-display font-bold text-foreground tracking-tight">No Services Available</h3>
-                <p className="text-foreground/40 max-w-sm mx-auto italic font-light leading-relaxed">Our elite service packages are currently being updated. Check back soon or contact support for direct inquiries.</p>
+                <p className="text-text-muted max-w-sm mx-auto italic font-light leading-relaxed">Our elite service packages are currently being updated. Check back soon or contact support for direct inquiries.</p>
               </div>
               {isAdmin && (
                 <button
@@ -269,7 +269,7 @@ export default function Services() {
               <Play className="w-8 h-8 sm:w-12 sm:h-12 fill-current ml-2 relative z-10" />
             </motion.button>
             <h3 className="text-2xl sm:text-5xl font-display font-bold text-foreground mb-4 tracking-tight">Watch our Live Showreel</h3>
-            <p className="text-foreground/40 uppercase tracking-[0.4em] font-black text-[10px] max-w-xs sm:max-w-none">Premium Production Standards • Worldwide Reach</p>
+            <p className="text-text-muted uppercase tracking-[0.4em] font-black text-[10px] max-w-xs sm:max-w-none">Premium Production Standards • Worldwide Reach</p>
           </div>
         </div>
       </section>

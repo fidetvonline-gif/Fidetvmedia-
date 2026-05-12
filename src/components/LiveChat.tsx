@@ -105,7 +105,7 @@ export default function LiveChat({ eventId }: { eventId: string }) {
         <h3 className="font-display font-bold text-foreground text-sm uppercase tracking-widest">Live Discussion</h3>
         <div className="flex items-center space-x-2">
           <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-          <span className="text-[10px] text-foreground/40 font-bold uppercase">{messages.length} Messages</span>
+          <span className="text-[10px] text-text-muted font-bold uppercase">{messages.length} Messages</span>
         </div>
       </div>
 
@@ -118,7 +118,7 @@ export default function LiveChat({ eventId }: { eventId: string }) {
             <div className="w-12 h-12 bg-foreground/5 rounded-full flex items-center justify-center">
               <UserIcon className="w-6 h-6 text-foreground/20" />
             </div>
-            <p className="text-foreground/40 text-sm italic">No messages yet. Be the first to start the conversation!</p>
+            <p className="text-text-muted text-sm italic">No messages yet. Be the first to start the conversation!</p>
           </div>
         )}
         
@@ -129,7 +129,7 @@ export default function LiveChat({ eventId }: { eventId: string }) {
               msg.author_id === user?.id ? "items-end" : "items-start"
             )}>
               <div className="flex items-center space-x-2 mb-1">
-                <Link to={`/profile/${msg.profiles?.username}`} className="text-[10px] font-bold text-foreground/40 hover:text-primary transition-colors cursor-pointer">
+                <Link to={`/profile/${msg.profiles?.username}`} className="text-[10px] font-bold text-text-muted hover:text-primary transition-colors cursor-pointer">
                   {msg.profiles?.username || 'User'}
                 </Link>
                 <span className="text-[8px] text-foreground/20 tracking-tighter uppercase">{format(new Date(msg.created_at), 'HH:mm')}</span>
@@ -155,7 +155,7 @@ export default function LiveChat({ eventId }: { eventId: string }) {
               value={newChat}
               onChange={(e) => setNewChat(e.target.value)}
               placeholder="Join the discussion..."
-              className="w-full bg-background border border-border-custom rounded-full px-6 py-3 text-sm focus:outline-none focus:border-primary/50 text-foreground placeholder-foreground/20 transition-all"
+              className="w-full bg-background border border-border-custom rounded-full px-6 py-3 text-sm focus:outline-none focus:border-primary/50 text-foreground placeholder-text-muted transition-all"
             />
             <button
               type="submit"
@@ -167,7 +167,7 @@ export default function LiveChat({ eventId }: { eventId: string }) {
           </form>
         ) : (
           <div className="text-center p-2">
-            <p className="text-xs text-foreground/40 italic">
+            <p className="text-xs text-text-muted italic">
               Please <Link to="/auth" className="text-primary font-bold hover:underline">sign in</Link> to chat.
             </p>
           </div>

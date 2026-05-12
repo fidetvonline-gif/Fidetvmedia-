@@ -32,6 +32,7 @@
   --color-foreground: var(--foreground);
   --color-surface: var(--surface);
   --color-surface-bright: var(--surface-bright);
+  --color-text-muted: var(--text-muted);
   --color-border-custom: var(--border-color);
 
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);

@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import FideTvLogo from '@/components/FideTvLogo';
 import NotificationTray from '@/components/NotificationTray';
+import TourGuide from './TourGuide';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -53,7 +54,30 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       }
     });
 
-    return () => subscription.unsubscribe();
+    // Real-time synchronization: refresh on major content changes
+    const channel = supabase.channel('content-sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public' },
+        (payload) => {
+          // Exclude high-frequency or non-critical tables to prevent excessive reloading
+          const excludedTables = ['comments', 'messages', 'profiles', 'bookings'];
+          if (excludedTables.includes(payload.table)) return;
+
+          console.log(`Real-time update in ${payload.table}:`, payload);
+          
+          // Small delay to allow the DB operation to finish and propagate
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+      supabase.removeChannel(channel);
+    };
   }, [location.pathname]);
 
   const checkProfile = async (userId: string) => {
@@ -83,10 +107,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const navLinks = [
     { name: 'Home', path: '/', icon: HomeIcon },
-    { name: 'Live', path: '/live', icon: PlayCircle },
-    { name: 'Content', path: '/content', icon: LayoutDashboard },
+    { name: 'Live', path: '/live', icon: PlayCircle, id: 'nav-live' },
+    { name: 'Content', path: '/content', icon: LayoutDashboard, id: 'nav-content' },
     { name: 'Blog', path: '/news', icon: LayoutDashboard },
-    { name: 'Community', path: '/community', icon: Users },
+    { name: 'Community', path: '/community', icon: Users, id: 'nav-community' },
     { name: 'Services', path: '/services', icon: Briefcase },
     { name: 'About', path: '/about', icon: Info },
     { name: 'Contact', path: '/contact', icon: Mail },
@@ -95,6 +119,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <TourGuide />
       <nav className={cn(
         "fixed top-0 left-0 right-0 z-50 transition-all duration-500",
         isScrolled 
@@ -117,6 +142,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               {navLinks.map((link) => (
                 <Link
                   key={link.path}
+                  id={link.id}
                   to={link.path}
                   className={cn(
                     "text-sm font-medium tracking-wide transition-colors duration-200 hover:text-primary relative py-2",
@@ -135,6 +161,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
               <div className="h-6 w-px bg-border-custom mx-2" />
 
+              {!isStandalone && (
+                <Link
+                  to="/download"
+                  className="flex items-center space-x-2 text-text-muted hover:text-primary transition-colors text-xs font-bold uppercase tracking-widest"
+                >
+                  <DownloadCloud className="w-4 h-4" />
+                  <span className="hidden lg:inline">App</span>
+                </Link>
+              )}
+
               <button
                 onClick={toggleTheme}
                 className="p-2 hover:bg-surface-bright rounded-full transition-colors text-foreground"
@@ -144,7 +180,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </button>
 
               {user ? (
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-4 user-tour-profile">
                   <NotificationTray />
                   <Link to="/profile" className="p-2 hover:bg-foreground/5 rounded-full transition-colors">
                     <User className="w-5 h-5 text-foreground/40" />
@@ -168,6 +204,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
             {/* Mobile Menu Button */}
             <div className="flex md:hidden items-center space-x-4">
+              {!isStandalone && (
+                <Link to="/download" className="p-2 text-text-muted hover:text-primary">
+                  <DownloadCloud className="w-5 h-5" />
+                </Link>
+              )}
               <button
                 onClick={toggleTheme}
                 className="p-2 hover:bg-surface-bright rounded-full transition-colors text-foreground"
@@ -191,7 +232,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm md:hidden z-40"
+                className="fixed inset-0 bg-black/40 backdrop-blur-sm md:hidden z-40"
                 onClick={() => setIsMenuOpen(false)}
               />
               <motion.div
@@ -199,7 +240,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 animate={{ x: 0 }}
                 exit={{ x: '100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="fixed top-0 right-0 h-full w-4/5 max-w-sm bg-background border-l border-border-custom z-50 md:hidden p-6 shadow-[0_0_50px_rgba(0,0,0,0.3)]"
+                className="fixed top-0 right-0 h-full w-4/5 max-w-sm bg-surface-bright border-l border-border-custom z-50 md:hidden p-6 shadow-2xl"
               >
                 <div className="flex flex-col h-full">
                   <div className="flex justify-between items-center mb-10">
@@ -214,15 +255,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         to={link.path}
                         onClick={() => setIsMenuOpen(false)}
                         className={cn(
-                          "flex items-center space-x-4 text-lg font-medium transition-colors p-3 rounded-2xl",
+                          "flex items-center space-x-4 text-lg font-bold transition-colors p-4 rounded-2xl mb-2",
                           location.pathname === link.path 
-                            ? "bg-primary/10 text-primary" 
-                            : "text-foreground/80 hover:bg-surface-bright hover:text-foreground"
+                            ? "bg-primary text-white shadow-lg shadow-primary/20" 
+                            : "text-foreground hover:bg-surface"
                         )}
                       >
                         <link.icon className={cn(
                           "w-6 h-6",
-                          location.pathname === link.path ? "text-primary" : "text-text-muted"
+                          location.pathname === link.path ? "text-white" : "text-primary"
                         )} />
                         <span>{link.name}</span>
                       </Link>
@@ -301,12 +342,24 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   <li><Link to="/live" className="hover:text-primary transition-colors">Live Events</Link></li>
                   <li><Link to="/content" className="hover:text-primary transition-colors">Content Hub</Link></li>
                   <li><Link to="/news" className="hover:text-primary transition-colors">FideTV Blog</Link></li>
-                  <li><Link to="/community" className="hover:text-primary transition-colors">Community</Link></li>
+                  <li><Link to="/community" className="hover:text-primary transition-colors">Community Hub</Link></li>
+                  <li><Link to="/portfolio" className="hover:text-primary transition-colors">Production Portfolio</Link></li>
                 </ul>
-                <div className="mt-8">
-                  <h4 className="font-display font-bold text-sm uppercase tracking-widest text-primary mb-4">from FideTV</h4>
-                  <ul className="space-y-3 text-sm text-foreground/60">
-                    <li><a href="https://spicycircle.fidetv.online" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors font-bold text-primary italic">SpicyCircle</a></li>
+                <div className="mt-8 pt-8 border-t border-border-custom">
+                  <h4 className="font-display font-black text-[10px] uppercase tracking-[0.3em] text-primary mb-6">Fidetvmedia Studio Ecosystem</h4>
+                  <ul className="space-y-4">
+                    <li>
+                      <a href="https://fidetv.online" target="_blank" rel="noopener noreferrer" className="group flex flex-col">
+                        <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">FideTV Global</span>
+                        <span className="text-[9px] text-text-muted uppercase tracking-widest font-medium tracking-tighter">Media Entertainment Hub</span>
+                      </a>
+                    </li>
+                    <li>
+                      <a href="https://spicycircle.fidetv.online" target="_blank" rel="noopener noreferrer" className="group flex flex-col">
+                        <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors italic">SpicyCircle</span>
+                        <span className="text-[9px] text-text-muted uppercase tracking-widest font-medium tracking-tighter">Social & Creator Network</span>
+                      </a>
+                    </li>
                   </ul>
                 </div>
               </div>
@@ -345,6 +398,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </Link>
                 <Link to="/policies" className="hover:text-primary transition-colors">Privacy</Link>
                 <Link to="/policies" className="hover:text-primary transition-colors">Terms</Link>
+                <button 
+                  onClick={() => {
+                    localStorage.removeItem('fidetv-tour-seen');
+                    window.location.reload();
+                  }}
+                  className="hover:text-primary transition-colors cursor-pointer"
+                >
+                  Restart Tour
+                </button>
               </div>
             </div>
           </div>

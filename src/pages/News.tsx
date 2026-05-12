@@ -37,7 +37,7 @@ export default function News() {
             FideTV <span className="text-text-muted">Blog Studio.</span>
           </h1>
         </div>
-        <p className="max-w-md text-gray-400 text-lg font-light leading-relaxed">
+        <p className="max-w-md text-text-muted text-lg font-light leading-relaxed">
           Stay updated with the latest in media production, broadcasting technology, community highlights, and industry insights.
         </p>
       </div>
@@ -104,10 +104,10 @@ export default function News() {
       )}
       
       {!loading && news.length === 0 && (
-        <div className="text-center py-40 glass rounded-[3rem] border-dashed border-white/5 mt-12">
-          <Newspaper className="w-16 h-16 text-gray-800 mx-auto mb-6" />
-          <h2 className="text-2xl font-display font-medium text-gray-500">No news articles yet.</h2>
-          <p className="text-gray-600 mt-2">Come back later for official updates.</p>
+        <div className="text-center py-40 glass rounded-[3rem] border-dashed border-border-custom mt-12">
+          <Newspaper className="w-16 h-16 text-text-muted mx-auto mb-6" />
+          <h2 className="text-2xl font-display font-medium text-text-muted">No news articles yet.</h2>
+          <p className="text-text-muted mt-2">Come back later for official updates.</p>
         </div>
       )}
     </div>
