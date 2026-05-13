@@ -84,34 +84,26 @@ export default function Admin() {
     checkAdmin();
     fetchData();
     fetchCertificates();
-  }, [activeTab]);
 
-  useEffect(() => {
     if (!isAdmin) return;
 
     const channel = supabase
-      .channel('admin-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => {
-        fetchBookings();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, () => {
-        fetchSupportChats();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
-        fetchProfiles();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => {
-        fetchEvents();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_units' }, () => {
-        fetchAdUnits();
-      })
+      .channel('admin-realtime-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => fetchBookings())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, () => fetchSupportChats())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => fetchProfiles())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => fetchEvents())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_units' }, () => fetchAdUnits())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'news' }, () => fetchNews())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'services' }, () => fetchServices())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'portfolio_items' }, () => fetchPortfolio())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tv_channels' }, () => fetchChannels())
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isAdmin]);
+  }, [activeTab, isAdmin]);
 
   const fetchData = async () => {
     setLoading(true);

@@ -13,36 +13,36 @@ interface Step {
 const steps: Step[] = [
   {
     title: "Welcome to FideTV!",
-    description: "Your ultimate hub for professional media, live streaming, and creative production. Let's take a quick look around.",
+    description: "Your ultimate hub for mediaHub, streaming, and creative production. Let's take a quick look around.",
     position: 'center'
   },
   {
     title: "Live Broadcasting",
-    description: "Watch live events, church services, and exclusive broadcasts in real-time. Don't forget to join the live chat!",
+    description: "Watch live events, services, and exclusive broadcasts in real-time. Don't forget to join the live chat!",
     target: "nav a[href='/live']",
     position: 'bottom'
   },
   {
     title: "Creative Services",
-    description: "From video editing to live event coverage, explore how our studio ecosystem can elevate your brand.",
+    description: "Explore our media services and talent hub designed to elevate your brand presence globally.",
     target: "nav a[href='/services']",
     position: 'bottom'
   },
   {
     title: "Community Circles",
-    description: "Join specialized hubs, collaborate with other creators, and grow your presence in our specialized communities.",
+    description: "Join specialized hubs, collaborate with others, and grow your presence in our specialized communities.",
     target: "nav a[href='/community']",
     position: 'bottom'
   },
   {
     title: "Global Content Hub",
-    description: "Access premium digital assets, exclusive shows, and media archives in our content marketplace.",
+    description: "Access premium digital media, exclusive shows, and archives in our content marketplace.",
     target: "nav a[href='/content']",
     position: 'bottom'
   },
   {
     title: "Your Identity",
-    description: "Manage your profile, track your interactions, and stay connected with the FideTV ecosystem.",
+    description: "Manage your profile, track interactions, and stay connected with the FideTV community.",
     target: "nav .user-tour-profile",
     position: 'left'
   }

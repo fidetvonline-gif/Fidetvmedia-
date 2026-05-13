@@ -118,7 +118,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
       <TourGuide />
       <nav className={cn(
         "fixed top-0 left-0 right-0 z-50 transition-all duration-500",
@@ -332,7 +332,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   <span className="font-display font-bold text-xl text-foreground">FideTv</span>
                 </div>
                 <p className="text-foreground/60 text-sm leading-relaxed italic">
-                  Empowering creativity through digital media. Live streaming, professional event coverage, and creative production.
+                  Empowering creativity through digital media. Dynamic live streaming, professional content delivery, and interactive media hub.
                 </p>
               </div>
               
@@ -345,23 +345,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   <li><Link to="/community" className="hover:text-primary transition-colors">Community Hub</Link></li>
                   <li><Link to="/portfolio" className="hover:text-primary transition-colors">Production Portfolio</Link></li>
                 </ul>
-                <div className="mt-8 pt-8 border-t border-border-custom">
-                  <h4 className="font-display font-black text-[10px] uppercase tracking-[0.3em] text-primary mb-6">Fidetvmedia Studio Ecosystem</h4>
-                  <ul className="space-y-4">
-                    <li>
-                      <a href="https://fidetv.online" target="_blank" rel="noopener noreferrer" className="group flex flex-col">
-                        <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">FideTV Global</span>
-                        <span className="text-[9px] text-text-muted uppercase tracking-widest font-medium tracking-tighter">Media Entertainment Hub</span>
-                      </a>
-                    </li>
-                    <li>
-                      <a href="https://spicycircle.fidetv.online" target="_blank" rel="noopener noreferrer" className="group flex flex-col">
-                        <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors italic">SpicyCircle</span>
-                        <span className="text-[9px] text-text-muted uppercase tracking-widest font-medium tracking-tighter">Social & Creator Network</span>
-                      </a>
-                    </li>
-                  </ul>
-                </div>
               </div>
 
               {!isStandalone && (
