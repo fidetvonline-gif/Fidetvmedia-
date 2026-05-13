@@ -47,18 +47,26 @@ export default function NewsDetail() {
     if (slug) {
       console.log('NewsDetail: Fetching for slug:', slug);
       fetchNewsDetail();
-      fetchRelatedNews();
     }
   }, [slug]);
 
   const fetchNewsDetail = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // Check if slug is potentially a UUID (standard news ID format)
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(slug!);
+      
+      let query = supabase
         .from('news')
-        .select('*, profiles(username, avatar_url)')
-        .eq('slug', slug)
-        .maybeSingle();
+        .select('*, profiles(username, avatar_url)');
+      
+      if (isUuid) {
+        query = query.or(`slug.eq.${slug},id.eq.${slug}`);
+      } else {
+        query = query.eq('slug', slug);
+      }
+
+      const { data, error } = await query.maybeSingle();
       
       if (error) {
         console.error('NewsDetail: Supabase error:', error);
@@ -75,6 +83,7 @@ export default function NewsDetail() {
       setItem(data as any);
       fetchComments(data.id);
       fetchLikes(data.id);
+      fetchRelatedNews(data.id);
     } catch (err) {
       console.error('NewsDetail: Unexpected error:', err);
       navigate('/news');
@@ -83,12 +92,12 @@ export default function NewsDetail() {
     }
   };
 
-  const fetchRelatedNews = async () => {
+  const fetchRelatedNews = async (currentId: string) => {
     const { data } = await supabase
       .from('news')
       .select('*')
       .eq('is_published', true)
-      .neq('slug', slug)
+      .neq('id', currentId)
       .limit(3);
     if (data) setRelatedNews(data as any);
   };

@@ -327,6 +327,20 @@ ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Services are viewable by everyone" ON public.services FOR SELECT USING (true);
 CREATE POLICY "Only admin can manage services" ON public.services FOR ALL USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
 
+-- 13.1 News Likes Table
+CREATE TABLE public.news_likes (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  news_id UUID REFERENCES public.news(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  UNIQUE(news_id, user_id)
+);
+
+ALTER TABLE public.news_likes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "News likes viewable by everyone" ON public.news_likes FOR SELECT USING (true);
+CREATE POLICY "Authenticated users can like news" ON public.news_likes FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Users can unlike news" ON public.news_likes FOR DELETE USING (auth.uid() = user_id);
+
 -- 14. Site Settings Table
 CREATE TABLE public.site_settings (
   key TEXT PRIMARY KEY,

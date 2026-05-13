@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { Link } from 'react-router-dom';
 import { Event, Community, News, Booking, Profile, PortfolioItem, TvChannel, Service } from '@/types';
 import { 
   LayoutDashboard, Radio, MessageSquare, Users, Settings, Plus, 
   Edit2, Trash2, Globe, Youtube, ToggleLeft, ToggleRight, 
   Sparkles, Camera, Eye, Newspaper, BookOpen, Clock, CheckCircle2, XCircle,
-  ShieldCheck, ShieldAlert, Award, Headset, Briefcase, Tv, Zap, DollarSign
+  ShieldCheck, ShieldAlert, Award, Headset, Briefcase, Tv, Zap, DollarSign,
+  ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -72,6 +74,17 @@ export default function Admin() {
   const [blogTags, setBlogTags] = useState<string[]>([]);
   const [isPublished, setIsPublished] = useState(false);
   const [newsGallery, setNewsGallery] = useState<string[]>([]);
+
+  // AUTO SLUG GENERATOR
+  useEffect(() => {
+    if (activeTab === 'news' && title && !editingId) {
+      const generatedSlug = title.toLowerCase().trim()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/[\s_-]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+      setSlug(generatedSlug);
+    }
+  }, [title, activeTab, editingId]);
 
   // UTILS
   const [uploading, setUploading] = useState(false);
@@ -554,6 +567,18 @@ CREATE TABLE IF NOT EXISTS public.site_settings (
 ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Settings viewable by everyone" ON public.site_settings FOR SELECT USING (true);
 CREATE POLICY "Admin manage settings" ON public.site_settings FOR ALL USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
+
+CREATE TABLE IF NOT EXISTS public.news_likes (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  news_id UUID REFERENCES public.news(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  UNIQUE(news_id, user_id)
+);
+ALTER TABLE public.news_likes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "News likes viewable by everyone" ON public.news_likes FOR SELECT USING (true);
+CREATE POLICY "Authenticated users can like news" ON public.news_likes FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Users can unlike news" ON public.news_likes FOR DELETE USING (auth.uid() = user_id);
 
 INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://www.youtube.com/watch?v=0D-zn6YAqCY') ON CONFLICT (key) DO NOTHING;`}
                   </pre>
@@ -1220,6 +1245,14 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                        <span className="text-[10px] text-foreground/40 font-mono italic">{format(new Date(n.created_at), 'MMM dd, yyyy')}</span>
                     </div>
                     <div className="flex space-x-2">
+                       <Link 
+                         to={`/news/${n.slug}`} 
+                         target="_blank" 
+                         className="p-2 text-foreground/40 hover:text-primary bg-background rounded-lg transition-colors shadow-inner"
+                         title="View Live"
+                       >
+                         <ExternalLink className="w-4 h-4" />
+                       </Link>
                        <button onClick={() => { 
                          setEditingId(n.id); 
                          setTitle(n.title); 

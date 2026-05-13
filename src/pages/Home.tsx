@@ -520,17 +520,17 @@ export default function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="group relative flex flex-col bg-surface border border-border-custom rounded-[2.5rem] overflow-hidden hover:bg-surface-bright transition-all duration-500 shadow-xl shadow-black/5 cursor-pointer"
+                className="group flex flex-col bg-surface border border-border-custom rounded-[2.5rem] overflow-hidden hover:bg-surface-bright transition-all duration-500 shadow-xl shadow-black/5 relative"
               >
-                <Link to={`/news/${item.slug}`} className="absolute inset-0 z-20" aria-label={`Read ${item.title}`} />
-                <div className="flex flex-col h-full relative z-10">
+                <Link to={`/news/${item.slug || item.id}`} className="absolute inset-0 z-20" aria-label={`Read ${item.title}`} />
+                <div className="flex flex-col h-full relative z-10 pointer-events-none">
                   <div className="aspect-[16/10] overflow-hidden relative">
                     <img 
                       src={item.image_url || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&q=80&w=800'} 
                       alt={item.title} 
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
                     />
-                    <div className="absolute top-6 left-6 z-30">
+                    <div className="absolute top-6 left-6 z-30 pointer-events-auto">
                       <span className="bg-primary/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full border border-border-custom shadow-lg">
                         {item.category || 'Editorial'}
                       </span>

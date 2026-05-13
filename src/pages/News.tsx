@@ -57,10 +57,10 @@ export default function News() {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.1 }}
               viewport={{ once: true }}
-              className="group glass rounded-[2.5rem] overflow-hidden border-border-custom hover:bg-surface-bright transition-all duration-500 flex flex-col relative cursor-pointer"
+              className="group glass rounded-[2.5rem] overflow-hidden border-border-custom hover:bg-surface-bright transition-all duration-500 relative flex flex-col"
             >
-              <Link to={`/news/${item.slug}`} className="absolute inset-0 z-20" aria-label={`Read ${item.title}`} />
-              <div className="flex flex-col h-full relative z-10">
+              <Link to={`/news/${item.slug || item.id}`} className="absolute inset-0 z-20" aria-label={`Read ${item.title}`} />
+              <div className="flex flex-col h-full relative z-10 pointer-events-none">
                 <div className="relative aspect-[16/10] overflow-hidden bg-surface">
                   {item.image_url ? (
                     <img src={item.image_url} alt={item.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
@@ -69,7 +69,7 @@ export default function News() {
                       <Newspaper className="w-12 h-12 text-text-muted" />
                     </div>
                   )}
-                  <div className="absolute top-6 left-6 flex space-x-2 z-30">
+                  <div className="absolute top-6 left-6 flex space-x-2 z-30 pointer-events-auto">
                     <span className="bg-primary/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full border border-border-custom shadow-lg">
                       {item.category || 'Editorial'}
                     </span>
