@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Post, Comment } from '@/types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Heart, MessageCircle, Share2, MoreHorizontal, User, Trash2, Edit2, Send, Award, Maximize2, Flag } from 'lucide-react';
+import { Heart, MessageCircle, Share2, MoreHorizontal, User, Trash2, Edit2, Send, Award, Maximize2, Flag, Play } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
@@ -22,6 +22,7 @@ export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onD
 
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const [lightbox, setLightbox] = useState<{ open: boolean; url: string; type: 'image' | 'video', isNative?: boolean }>({
     open: false,
@@ -260,15 +261,31 @@ export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onD
             ) : null}
             {post.type === 'video' && post.media_url ? (
               <div className="relative w-full h-full bg-black">
-                <video 
-                  src={post.media_url} 
-                  className="absolute top-0 left-0 w-full h-full object-contain"
-                  controls
-                  playsInline
-                />
+                {!isPlaying ? (
+                  <div 
+                    className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer bg-surface-bright/10 backdrop-blur-[2px] group-hover/media:bg-surface-bright/20 transition-all duration-500"
+                    onClick={() => setIsPlaying(true)}
+                  >
+                    <div className="w-16 h-16 bg-primary/20 backdrop-blur-md rounded-full flex items-center justify-center border border-primary/30 group-hover/media:scale-110 group-hover/media:bg-primary/40 transition-all duration-500 shadow-2xl shadow-primary/20">
+                      <Play className="w-8 h-8 text-primary fill-primary/20" />
+                    </div>
+                    <p className="mt-4 text-[10px] font-black uppercase tracking-[0.3em] text-foreground/40 group-hover/media:text-primary transition-colors">Play Video</p>
+                  </div>
+                ) : (
+                  <video 
+                    src={post.media_url} 
+                    className="absolute top-0 left-0 w-full h-full object-contain"
+                    controls
+                    autoPlay
+                    playsInline
+                  />
+                )}
                 <button 
-                  onClick={() => setLightbox({ open: true, url: post.media_url!, type: 'video', isNative: true })}
-                  className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-primary rounded-full text-white opacity-0 group-hover/media:opacity-100 transition-all z-10"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLightbox({ open: true, url: post.media_url!, type: 'video', isNative: true });
+                  }}
+                  className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-primary rounded-full text-white opacity-0 group-hover/media:opacity-100 transition-all z-10 shadow-lg"
                 >
                   <Maximize2 className="w-4 h-4" />
                 </button>
@@ -276,16 +293,32 @@ export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onD
             ) : null}
             {!post.media_url && playableUrl ? (
               <div className="relative w-full h-full">
-                <Player 
-                  url={playableUrl} 
-                  className="absolute top-0 left-0"
-                  width="100%"
-                  height="100%"
-                  controls 
-                />
+                {!isPlaying ? (
+                  <div 
+                    className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer bg-surface-bright/10 backdrop-blur-[2px] group-hover/media:bg-surface-bright/20 transition-all duration-500"
+                    onClick={() => setIsPlaying(true)}
+                  >
+                    <div className="w-16 h-16 bg-primary/20 backdrop-blur-md rounded-full flex items-center justify-center border border-primary/30 group-hover/media:scale-110 group-hover/media:bg-primary/40 transition-all duration-500 shadow-2xl shadow-primary/20">
+                      <Play className="w-8 h-8 text-primary fill-primary/20" />
+                    </div>
+                    <p className="mt-4 text-[10px] font-black uppercase tracking-[0.3em] text-foreground/40 group-hover/media:text-primary transition-colors">Stream Content</p>
+                  </div>
+                ) : (
+                  <Player 
+                    url={playableUrl} 
+                    className="absolute top-0 left-0"
+                    width="100%"
+                    height="100%"
+                    playing={true}
+                    controls 
+                  />
+                )}
                 <button 
-                  onClick={() => setLightbox({ open: true, url: playableUrl, type: 'video' })}
-                  className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-primary rounded-full text-white opacity-0 group-hover/media:opacity-100 transition-all z-10"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLightbox({ open: true, url: playableUrl, type: 'video' });
+                  }}
+                  className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-primary rounded-full text-white opacity-0 group-hover/media:opacity-100 transition-all z-10 shadow-lg"
                 >
                   <Maximize2 className="w-4 h-4" />
                 </button>

@@ -141,9 +141,9 @@ export default function NewsDetail() {
         </div>
       </header>
 
-      {item.thumbnail_url && (
+      {item.image_url && (
         <div className="rounded-[2.5rem] sm:rounded-[3rem] overflow-hidden mb-16 border border-border-custom aspect-video shadow-2xl relative group bg-surface">
-          <img src={item.thumbnail_url} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" />
+          <img src={item.image_url} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
         </div>
       )}
@@ -170,11 +170,11 @@ export default function NewsDetail() {
             </ReactMarkdown>
           </div>
 
-          {(item as any).gallery && (item as any).gallery.length > 0 && (
+          {item.image_urls && item.image_urls.length > 0 && (
             <div className="space-y-8">
                <h3 className="text-xl font-display font-bold text-foreground tracking-tight">Gallery Highlights</h3>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {(item as any).gallery.filter((url: string) => url.trim() !== '').map((url: string, i: number) => (
+                  {item.image_urls.filter((url: string) => url.trim() !== '').map((url: string, i: number) => (
                     <div key={i} className="rounded-3xl overflow-hidden border border-border-custom aspect-square bg-surface group">
                        <img 
                         src={url} 
@@ -197,7 +197,7 @@ export default function NewsDetail() {
                 {relatedNews.map((news) => (
                   <Link key={news.id} to={`/news/${news.slug}`} className="group block space-y-3">
                     <div className="aspect-video rounded-2xl overflow-hidden border border-border-custom bg-surface relative">
-                      <img src={news.thumbnail_url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <img src={news.image_url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-all" />
                     </div>
                     <div className="space-y-1">

@@ -16,6 +16,10 @@ export default function CommunityDetail() {
   const [community, setCommunity] = useState<Community | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const POSTS_PER_PAGE = 5;
   const [isCreating, setIsCreating] = useState(false);
   const [newPostContent, setNewPostContent] = useState('');
   const [user, setUser] = useState<any>(null);
@@ -93,13 +97,8 @@ export default function CommunityDetail() {
 
   const fetchData = async () => {
     setLoading(true);
-    const [comRes, postRes, countRes, modRes] = await Promise.all([
+    const [comRes, countRes, modRes] = await Promise.all([
       supabase.from('communities').select('*').eq('id', id).single(),
-      supabase
-        .from('posts')
-        .select('*, profiles(username, avatar_url, is_verified), post_likes(user_id)')
-        .eq('community_id', id)
-        .order('created_at', { ascending: false }),
       supabase
         .from('community_members')
         .select('id', { count: 'exact' })
@@ -116,10 +115,49 @@ export default function CommunityDetail() {
       setEditName(comRes.data.name);
       setEditDescription(comRes.data.description || '');
     }
-    if (postRes.data) setPosts(postRes.data as any);
+    
+    // Initial fetch of posts
+    await fetchPosts(0, false);
+    
     if (countRes.count !== null) setMemberCount(countRes.count);
     if (modRes.data) setModerators(modRes.data.map(m => m.profiles));
     setLoading(false);
+  };
+
+  const fetchPosts = async (pageNum: number, isLoadMore = false) => {
+    if (!id) return;
+    
+    const from = pageNum * POSTS_PER_PAGE;
+    const to = from + POSTS_PER_PAGE - 1;
+
+    if (isLoadMore) setLoadingMore(true);
+
+    const { data, error } = await supabase
+        .from('posts')
+        .select('*, profiles(username, avatar_url, is_verified), post_likes(user_id)')
+        .eq('community_id', id)
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+    if (error) {
+        console.error('Error fetching posts:', error);
+    }
+
+    if (data) {
+      if (isLoadMore) {
+        setPosts(prev => [...prev, ...(data as any)]);
+      } else {
+        setPosts(data as any);
+      }
+      setHasMore(data.length === POSTS_PER_PAGE);
+    }
+    setLoadingMore(false);
+  };
+
+  const handleLoadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchPosts(nextPage, true);
   };
 
   const fetchMembers = async () => {
@@ -565,14 +603,33 @@ export default function CommunityDetail() {
           </AnimatePresence>
 
           <div className="space-y-8">
-            {loading ? (
+            {loading && posts.length === 0 ? (
               [1, 2, 3].map((i) => (
                 <div key={i} className="glass rounded-3xl h-64 animate-pulse" />
               ))
             ) : posts.length > 0 ? (
-              posts.map((post) => (
-                <PostCard key={post.id} post={post} onDelete={() => fetchData()} onUpdate={() => fetchData()} />
-              ))
+              <>
+                {posts.map((post) => (
+                  <PostCard key={post.id} post={post} onDelete={() => { setPage(0); fetchData(); }} onUpdate={() => { setPage(0); fetchData(); }} />
+                ))}
+                
+                {hasMore && (
+                  <div className="pt-8 flex justify-center">
+                    <button 
+                      onClick={handleLoadMore}
+                      disabled={loadingMore}
+                      className="px-10 py-4 bg-surface border border-border-custom rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-foreground/40 hover:text-primary hover:border-primary/20 transition-all shadow-xl disabled:opacity-50 flex items-center space-x-3"
+                    >
+                      {loadingMore ? (
+                        <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Plus className="w-4 h-4" />
+                      )}
+                      <span>{loadingMore ? 'Loading More...' : 'Load Older Posts'}</span>
+                    </button>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="text-center py-20 bg-surface/30 rounded-[3rem] border border-dashed border-border-custom">
                 <MessageSquare className="w-12 h-12 text-text-muted mx-auto mb-6" />

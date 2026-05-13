@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Play, Calendar, Users, ArrowRight, Video, Zap, CheckCircle, Flame, Sparkles, Globe, Shield, X, MessageSquare } from 'lucide-react';
+import { Play, Calendar, Users, ArrowRight, Video, Zap, CheckCircle, Flame, Sparkles, Globe, Shield, X, MessageSquare, Newspaper } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import ReactPlayer from 'react-player';
-import { PortfolioItem } from '@/types';
+import { PortfolioItem, News } from '@/types';
 import { format } from 'date-fns';
 
 const Player = ReactPlayer as any;
@@ -31,6 +31,7 @@ export default function Home() {
   const [smedanUrl, setSmedanUrl] = useState('');
   const [playingVideo, setPlayingVideo] = useState<PortfolioItem | null>(null);
   const [featuredPortfolio, setFeaturedPortfolio] = useState<PortfolioItem[]>([]);
+  const [latestNews, setLatestNews] = useState<News[]>([]);
   const videoRef = useRef<HTMLVideoElement>(null);
   const { scrollYProgress } = useScroll();
   const yBg = useTransform(scrollYProgress, [0, 1], ['0%', '30%']);
@@ -40,9 +41,20 @@ export default function Home() {
     fetchCertificates();
     fetchFeaturedPortfolio();
     fetchUpcomingEvents();
+    fetchLatestNews();
   }, []);
 
   const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
+
+  const fetchLatestNews = async () => {
+    const { data } = await supabase
+      .from('news')
+      .select('*, profiles(username)')
+      .eq('is_published', true)
+      .order('created_at', { ascending: false })
+      .limit(3);
+    if (data) setLatestNews(data as any);
+  };
 
   const fetchUpcomingEvents = async () => {
     const { data } = await supabase
@@ -480,6 +492,73 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      {/* Blog/News Section */}
+      {latestNews.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-24">
+          <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-8">
+            <div className="space-y-6">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/20 text-primary text-xs font-bold uppercase tracking-widest">
+                <Newspaper className="w-4 h-4" />
+                Latest Insights
+              </div>
+              <h3 className="text-5xl sm:text-7xl font-display font-bold text-foreground leading-[0.9] tracking-tight">
+                Studio <span className="text-foreground/40 italic">Journal.</span>
+              </h3>
+            </div>
+            <Link to="/news" className="group flex items-center space-x-3 bg-surface border border-border-custom px-8 py-4 rounded-full text-text-muted hover:text-foreground font-bold uppercase tracking-widest text-sm transition-all shadow-sm">
+              <span>View All Posts</span>
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {latestNews.map((item, i) => (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="group relative flex flex-col bg-surface border border-border-custom rounded-[2.5rem] overflow-hidden hover:bg-surface-bright transition-all duration-500 shadow-xl shadow-black/5"
+              >
+                <Link to={`/news/${item.slug}`} className="flex flex-col h-full">
+                  <div className="aspect-[16/10] overflow-hidden relative">
+                    <img 
+                      src={item.image_url || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&q=80&w=800'} 
+                      alt={item.title} 
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                    />
+                    <div className="absolute top-6 left-6">
+                      <span className="bg-primary/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full border border-border-custom shadow-lg">
+                        {item.category || 'Editorial'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-8 space-y-4 flex flex-col flex-grow">
+                    <div className="flex items-center space-x-4 text-[10px] uppercase font-black tracking-widest text-text-muted">
+                        <div className="flex items-center space-x-1">
+                          <Calendar className="w-3 h-3" />
+                          <span>{format(new Date(item.created_at), 'MMMM dd, yyyy')}</span>
+                        </div>
+                    </div>
+                    <h4 className="text-2xl font-bold text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-tight">
+                      {item.title}
+                    </h4>
+                    <p className="text-text-muted text-sm line-clamp-2 leading-relaxed flex-grow">
+                      {item.excerpt || item.description}
+                    </p>
+                    <div className="pt-6 flex items-center justify-between border-t border-border-custom">
+                       <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">{item.profiles?.username || 'Admin'}</span>
+                       <ArrowRight className="w-5 h-5 text-text-muted group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                    </div>
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Heroic CTA Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-24">
