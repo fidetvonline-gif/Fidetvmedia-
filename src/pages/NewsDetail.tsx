@@ -1,3 +1,4 @@
+import { SEO } from '@/components/SEO';
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
@@ -201,6 +202,7 @@ export default function NewsDetail() {
       animate={{ opacity: 1 }}
       className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 bg-background"
     >
+      <SEO title={item.title} description={item.excerpt || item.description} />
       <Link to="/news" className="inline-flex items-center space-x-2 text-foreground/40 hover:text-primary transition-colors mb-12 group">
         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
         <span className="text-sm font-bold uppercase tracking-widest">Back to News</span>

@@ -1,3 +1,4 @@
+import { SEO } from '@/components/SEO';
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -149,6 +150,7 @@ export default function Home() {
 
   return (
     <div className="relative pb-32 overflow-hidden bg-background">
+      <SEO title="Home" description="Welcome to FideTV Media - Your partner in innovative media production, live streaming, and cinematography." />
       {/* Video Modal */}
       <AnimatePresence>
         {playingVideo && (
