@@ -1,6 +1,5 @@
 
-const YOUTUBE_API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY;
-const BASE_URL = 'https://www.googleapis.com/youtube/v3';
+const BASE_URL = '/api/youtube';
 
 export interface YouTubeStats {
   viewers: string;
@@ -10,19 +9,9 @@ export interface YouTubeStats {
 }
 
 export const fetchYouTubeStats = async (youtubeId: string): Promise<YouTubeStats | null> => {
-  if (!YOUTUBE_API_KEY || !youtubeId || YOUTUBE_API_KEY === 'your-youtube-api-key') {
-    // Return mock stats if API key is not configured to avoid console errors
-    return {
-      title: 'YouTube Video',
-      thumbnail: `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`,
-      viewers: '0',
-      isLive: false
-    };
-  }
-
   try {
     const response = await fetch(
-      `${BASE_URL}/videos?part=snippet,liveStreamingDetails,statistics&id=${youtubeId}&key=${YOUTUBE_API_KEY}`
+      `${BASE_URL}/videos?part=snippet,liveStreamingDetails,statistics&id=${youtubeId}`
     );
     
     if (!response.ok) {
@@ -56,5 +45,18 @@ export const fetchYouTubeStats = async (youtubeId: string): Promise<YouTubeStats
       viewers: '0',
       isLive: false
     };
+  }
+};
+export const fetchRecentUploads = async (channelId: string) => {
+  try {
+    const response = await fetch(
+      `${BASE_URL}/search?part=snippet&channelId=${channelId}&order=date&type=video&maxResults=5`
+    );
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.items || [];
+  } catch (error) {
+    console.error('Error fetching recent uploads', error);
+    return [];
   }
 };

@@ -7,7 +7,7 @@ import { Calendar, Users, Share2, Youtube, ExternalLink, Clock, AlertCircle, Glo
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { motion } from 'motion/react';
-import { fetchYouTubeStats, YouTubeStats } from '@/services/youtubeService';
+import { fetchYouTubeStats, YouTubeStats, fetchRecentUploads } from '@/services/youtubeService';
 
 import { DEFAULT_CHANNELS } from '@/constants/channels';
 
@@ -18,6 +18,7 @@ export default function Live() {
   const [dbChannels, setDbChannels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [ytStats, setYtStats] = useState<YouTubeStats | null>(null);
+  const [recentUploads, setRecentUploads] = useState<any[]>([]);
   
   const [activeChannelId, setActiveChannelId] = useState<string>('fidetv');
   const [activeTab, setActiveTab] = useState<'channels' | 'chat'>('channels');
@@ -92,6 +93,9 @@ export default function Live() {
           const stats = await fetchYouTubeStats(ev.youtube_id);
           setYtStats(stats);
         }
+        
+        const uploads = await fetchRecentUploads('UC_x5XG1OV2P6uZZ5FSM9Ttw');
+        setRecentUploads(uploads);
       }
       
       // Fetch custom TV Channels
@@ -308,11 +312,13 @@ export default function Live() {
                                activeChannel.url?.toLowerCase().includes('playlist') || 
                                activeChannel.url?.toLowerCase().includes('/hls/'),
                       hlsOptions: {
-                        enableWorker: false,
+                        enableWorker: true, // Enable worker for offloading
                         lowLatencyMode: true,
-                        backBufferLength: 60,
-                        manifestLoadingMaxRetry: 10,
-                        levelLoadingMaxRetry: 10,
+                        liveSyncDurationCount: 3, // Reduce to sync closer to live
+                        manifestLoadingMaxRetry: 5,
+                        levelLoadingMaxRetry: 5,
+                        maxBufferLength: 30, // Limit buffer to avoid build-up
+                        maxMaxBufferLength: 60,
                         xhrSetup: (xhr: any) => {
                           xhr.withCredentials = false;
                         }
@@ -490,7 +496,7 @@ export default function Live() {
                           </div>
                           <div className="flex flex-col justify-center overflow-hidden">
                              <div className="flex items-center space-x-1.5 mb-0.5">
-                                <channel.icon className="w-3 h-3 text-white/40" />
+                                {channel.logo ? <img src={channel.logo} className="w-4 h-4 object-contain rounded-full" alt={channel.name} /> : <channel.icon className="w-3 h-3 text-white/40" />}
                                 <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest">{channel.category}</span>
                              </div>
                              <h4 className="text-sm font-bold text-white truncate w-full">{channel.name}</h4>
@@ -499,6 +505,22 @@ export default function Live() {
                        </button>
                      );
                    })}
+                 </div>
+                 <div className="h-px w-full bg-white/10 my-4" />
+                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-white/40 px-2 pt-2">Recent Uploads</h3>
+                 <div className="space-y-3 px-2 pb-4">
+                   {recentUploads.map((video) => (
+                     <a 
+                       key={video.id.videoId} 
+                       href={`https://www.youtube.com/watch?v=${video.id.videoId}`}
+                       target="_blank"
+                       rel="noreferrer"
+                       className="flex gap-x-3 items-center p-2 rounded-lg hover:bg-white/5 transition-colors"
+                     >
+                         <img src={video.snippet.thumbnails.default.url} className="w-16 h-10 rounded object-cover" />
+                         <span className="text-xs text-white truncate">{video.snippet.title}</span>
+                     </a>
+                   ))}
                  </div>
               </div>
             </div>

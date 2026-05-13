@@ -88,7 +88,19 @@ export const DEFAULT_CHANNELS = [
     thumbnail: 'https://images.unsplash.com/photo-1493612276216-ee3925520721?auto=format&fit=crop&q=80&w=800',
     url: 'https://static.france24.com/live/F24_EN_HI_HLS/live_web.m3u8',
     icon: Globe,
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/4/4b/France_24_logo.svg',
     description: 'International news broadcasting from Paris, France.',
+    isLive: true
+  },
+  {
+    id: 'news_sky',
+    name: 'Sky News',
+    category: 'News',
+    thumbnail: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&q=80&w=800',
+    url: 'https://www.youtube.com/watch?v=9Auq9mYxFEE',
+    icon: Globe,
+    logo: 'https://upload.wikimedia.org/wikipedia/en/thumb/f/f6/Sky_News_logo.svg/1200px-Sky_News_logo.svg.png',
+    description: 'Sky News - First for breaking news & latest updates.',
     isLive: true
   },
   {
