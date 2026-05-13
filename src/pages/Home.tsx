@@ -520,16 +520,17 @@ export default function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="group relative flex flex-col bg-surface border border-border-custom rounded-[2.5rem] overflow-hidden hover:bg-surface-bright transition-all duration-500 shadow-xl shadow-black/5"
+                className="group relative flex flex-col bg-surface border border-border-custom rounded-[2.5rem] overflow-hidden hover:bg-surface-bright transition-all duration-500 shadow-xl shadow-black/5 cursor-pointer"
               >
-                <Link to={`/news/${item.slug}`} className="flex flex-col h-full">
+                <Link to={`/news/${item.slug}`} className="absolute inset-0 z-20" aria-label={`Read ${item.title}`} />
+                <div className="flex flex-col h-full relative z-10">
                   <div className="aspect-[16/10] overflow-hidden relative">
                     <img 
                       src={item.image_url || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&q=80&w=800'} 
                       alt={item.title} 
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
                     />
-                    <div className="absolute top-6 left-6">
+                    <div className="absolute top-6 left-6 z-30">
                       <span className="bg-primary/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full border border-border-custom shadow-lg">
                         {item.category || 'Editorial'}
                       </span>
@@ -553,7 +554,7 @@ export default function Home() {
                        <ArrowRight className="w-5 h-5 text-text-muted group-hover:text-primary group-hover:translate-x-1 transition-all" />
                     </div>
                   </div>
-                </Link>
+                </div>
               </motion.div>
             ))}
           </div>

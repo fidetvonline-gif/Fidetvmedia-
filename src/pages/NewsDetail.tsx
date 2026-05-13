@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { News } from '@/types';
-import { motion } from 'motion/react';
-import { Calendar, User, ArrowLeft, Share2, Bookmark } from 'lucide-react';
-import { format } from 'date-fns';
+import { News, Comment } from '@/types';
+import { motion, AnimatePresence } from 'motion/react';
+import { Calendar, User, ArrowLeft, Share2, Bookmark, Heart, MessageCircle, Send, Award } from 'lucide-react';
+import { format, formatDistanceToNow } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
 import ReactPlayer from 'react-player';
+import { cn } from '@/lib/utils';
 
 const Player = ReactPlayer as any;
 
@@ -16,6 +17,18 @@ export default function NewsDetail() {
   const [item, setItem] = useState<News | null>(null);
   const [loading, setLoading] = useState(true);
   const [relatedNews, setRelatedNews] = useState<News[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [isLiked, setIsLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(0);
+  const [user, setUser] = useState<any>(null);
+  const [submittingComment, setSubmittingComment] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+  }, []);
 
   const handleShare = () => {
     const url = window.location.href;
@@ -60,6 +73,8 @@ export default function NewsDetail() {
 
       console.log('NewsDetail: Data loaded:', data);
       setItem(data as any);
+      fetchComments(data.id);
+      fetchLikes(data.id);
     } catch (err) {
       console.error('NewsDetail: Unexpected error:', err);
       navigate('/news');
@@ -76,6 +91,87 @@ export default function NewsDetail() {
       .neq('slug', slug)
       .limit(3);
     if (data) setRelatedNews(data as any);
+  };
+
+  const fetchComments = async (newsId: string) => {
+    const { data } = await supabase
+      .from('comments')
+      .select('*, profiles(username, avatar_url, is_verified)')
+      .eq('post_id', `news_${newsId}`)
+      .order('created_at', { ascending: true });
+    if (data) setComments(data as any);
+  };
+
+  const fetchLikes = async (newsId: string) => {
+    // Try to get likes from a news_likes table if it exists
+    // Fallback to local state if table doesn't exist
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error, count } = await supabase
+        .from('news_likes')
+        .select('*', { count: 'exact' })
+        .eq('news_id', newsId);
+      
+      if (!error && count !== null) {
+        setLikesCount(count);
+        if (session?.user) {
+          setIsLiked(data.some(l => l.user_id === session.user.id));
+        }
+      }
+    } catch (e) {
+      // news_likes table might not exist
+      console.warn('news_likes table might not exist, skipping likes fetch');
+    }
+  };
+
+  const handleLike = async () => {
+    if (!user || !item) return;
+
+    try {
+      if (isLiked) {
+        const { error } = await supabase
+          .from('news_likes')
+          .delete()
+          .eq('news_id', item.id)
+          .eq('user_id', user.id);
+        
+        if (!error) {
+          setIsLiked(false);
+          setLikesCount(prev => Math.max(0, prev - 1));
+        }
+      } else {
+        const { error } = await supabase
+          .from('news_likes')
+          .insert({ news_id: item.id, user_id: user.id });
+        
+        if (!error) {
+          setIsLiked(true);
+          setLikesCount(prev => prev + 1);
+        }
+      }
+    } catch (e) {
+      alert('Could not process like. The feature might be in maintenance.');
+    }
+  };
+
+  const handleComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !item || !newComment.trim()) return;
+
+    setSubmittingComment(true);
+    const { error } = await supabase.from('comments').insert({
+      post_id: `news_${item.id}`,
+      author_id: user.id,
+      content: newComment
+    });
+
+    if (!error) {
+      setNewComment('');
+      fetchComments(item.id);
+    } else {
+      alert('Error posting comment: ' + error.message);
+    }
+    setSubmittingComment(false);
   };
 
   if (loading) return (
@@ -131,6 +227,16 @@ export default function NewsDetail() {
             </div>
           </div>
           <div className="flex items-center space-x-4">
+             <button 
+               onClick={handleLike} 
+               className={cn(
+                 "flex items-center space-x-2 px-4 py-2 rounded-xl border transition-all active:scale-95 shadow-sm",
+                 isLiked ? "bg-red-500/10 border-red-500/20 text-red-500" : "bg-surface border-border-custom text-foreground/40 hover:text-red-500"
+               )}
+             >
+               <Heart className={cn("w-5 h-5", isLiked && "fill-current")} />
+               <span className="text-sm font-bold">{likesCount}</span>
+             </button>
              <button onClick={handleShare} className="p-3 bg-surface border border-border-custom rounded-xl text-foreground/40 hover:text-primary transition-all active:scale-95 shadow-sm">
                <Share2 className="w-5 h-5" />
              </button>
@@ -187,6 +293,84 @@ export default function NewsDetail() {
                </div>
             </div>
           )}
+
+          {/* Comments Section */}
+          <section className="space-y-12 pt-20 border-t border-border-custom">
+            <div className="flex items-center justify-between">
+              <h3 className="text-2xl font-display font-bold text-foreground tracking-tight flex items-center gap-3">
+                <MessageCircle className="w-6 h-6 text-primary" />
+                Comments <span className="text-foreground/20">({comments.length})</span>
+              </h3>
+            </div>
+
+            {user ? (
+              <form onSubmit={handleComment} className="relative group">
+                <textarea
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="Share your thoughts on this story..."
+                  className="w-full bg-surface border border-border-custom rounded-[2rem] p-8 text-foreground min-h-[150px] focus:border-primary/50 transition-all shadow-inner outline-none placeholder:text-text-muted"
+                />
+                <button 
+                  disabled={submittingComment || !newComment.trim()}
+                  className="absolute bottom-6 right-6 px-8 py-4 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-2xl flex items-center gap-3 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-primary/20"
+                >
+                  {submittingComment ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                  Post Comment
+                </button>
+              </form>
+            ) : (
+              <div className="p-12 glass rounded-[2rem] text-center border-dashed border-border-custom space-y-6">
+                <p className="text-text-muted italic">Join the conversation. Sign in to leave a comment.</p>
+                <Link to="/auth" className="inline-flex px-8 py-4 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20">
+                  Sign In to Comment
+                </Link>
+              </div>
+            )}
+
+            <div className="space-y-8">
+              {comments.map((comment) => (
+                <motion.div
+                  key={comment.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex gap-6 group"
+                >
+                  <div className="w-12 h-12 bg-surface rounded-2xl flex items-center justify-center overflow-hidden border border-border-custom shadow-sm shrink-0">
+                    {comment.profiles?.avatar_url ? (
+                      <img src={comment.profiles.avatar_url} className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="w-6 h-6 text-foreground/20" />
+                    )}
+                  </div>
+                  <div className="flex-grow space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-foreground text-sm">{comment.profiles?.username || 'User'}</span>
+                        {comment.profiles?.is_verified && <Award className="w-3 h-3 text-primary" />}
+                      </div>
+                      <span className="text-[10px] text-foreground/40 font-medium italic">
+                        {formatDistanceToNow(new Date(comment.created_at))} ago
+                      </span>
+                    </div>
+                    <div className="bg-surface/50 border border-border-custom rounded-3xl p-6 shadow-sm">
+                      <p className="text-foreground/70 leading-relaxed italic">"{comment.content}"</p>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+
+              {comments.length === 0 && (
+                <div className="py-20 text-center text-foreground/20 italic font-light">
+                  No comments yet. Be the first to share your thoughts!
+                </div>
+              )}
+            </div>
+          </section>
         </div>
 
         <aside className="w-full lg:w-80 shrink-0 space-y-12">
