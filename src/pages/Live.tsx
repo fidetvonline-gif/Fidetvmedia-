@@ -156,7 +156,7 @@ export default function Live() {
     icon: Tv,
   };
 
-  const allChannels = React.useMemo(() => {
+  const allChannels = (() => {
     const dynamic = dbChannels.map((ch: any) => ({
       id: ch.id,
       name: ch.name,
@@ -171,7 +171,7 @@ export default function Live() {
     // Rotate/Randomize
     const list = [customBroadcast, ...dynamic];
     return list.sort(() => Math.random() - 0.5);
-  }, [dbChannels, event?.status, event?.youtube_id, event?.stream_url, event?.thumbnail_url, event?.description, event?.title]);
+  })();
 
   if (loading) {
     return (
