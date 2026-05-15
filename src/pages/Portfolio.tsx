@@ -60,7 +60,7 @@ export default function Portfolio() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         <div className="space-y-4">
           <h4 className="text-primary font-display font-bold uppercase tracking-[0.5em] text-xs">Curated Work</h4>
-          <h1 className="text-6xl sm:text-8xl font-display font-bold text-foreground tracking-tighter leading-[0.9] italic">
+          <h1 className="text-4xl sm:text-6xl md:text-8xl font-display font-bold text-foreground tracking-tighter leading-[0.9] italic">
             Visual Portfolio.
           </h1>
         </div>

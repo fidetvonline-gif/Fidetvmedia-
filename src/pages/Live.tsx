@@ -3,7 +3,7 @@ import ReactPlayer from 'react-player';
 import { supabase } from '@/lib/supabase';
 import { Event } from '@/types';
 import LiveChat from '@/components/LiveChat';
-import { Calendar, Users, Share2, Youtube, ExternalLink, Clock, AlertCircle, Globe, Tv, Film, MonitorPlay, MessageSquare } from 'lucide-react';
+import { Calendar, Users, Share2, Youtube, ExternalLink, Clock, AlertCircle, Globe, Tv, Film, MonitorPlay, MessageSquare, Play } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { motion } from 'motion/react';
@@ -152,6 +152,7 @@ export default function Live() {
   }
 
   const isFideTvLive = event?.status === 'live';
+  const isFideTvUpcoming = event?.status === 'upcoming';
   const customBroadcast: any = {
     id: 'fidetv',
     name: 'Main Broadcast',
@@ -188,16 +189,16 @@ export default function Live() {
           {/* Signal Indicator Overlay */}
           <div className="absolute top-6 left-6 z-20 flex items-center space-x-3 pointer-events-none drop-shadow-2xl">
             <div className={cn(
-              "px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.3em] flex items-center space-x-3 backdrop-blur-xl border transition-all duration-500",
-              (isPlayingFideTv && isFideTvLive) || !isPlayingFideTv 
+              "px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.3em] flex items-center space-x-3 backdrop-blur-xl border transition-all duration-500 shadow-lg",
+              isPlayingFideTv || !isPlayingFideTv 
                 ? "bg-red-600/90 text-white border-red-500/50" 
                 : "bg-black/60 text-white border-white/10"
             )}>
-              {((isPlayingFideTv && isFideTvLive) || !isPlayingFideTv) && <div className="w-2 h-2 bg-white rounded-full animate-pulse shadow-[0_0_10px_white]" />}
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse shadow-[0_0_10px_white]" />
               <span>
                 {isPlayingFideTv 
-                  ? (isFideTvLive ? 'Live Broadcast' : 'Offline') 
-                  : 'Live Channel'}
+                  ? (isFideTvLive ? 'Live Broadcast' : isFideTvUpcoming ? 'Upcoming Stream' : 'Channel Online') 
+                  : 'Live Network'}
               </span>
             </div>
             {isPlayingFideTv && isFideTvLive && (
@@ -453,11 +454,13 @@ export default function Live() {
                     <div className="w-24 h-16 rounded-lg overflow-hidden relative shrink-0 border border-white/10 shadow-lg">
                         {customBroadcast.thumbnail && <img src={customBroadcast.thumbnail} className="w-full h-full object-cover" />}
                         <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-all" />
-                        {isFideTvLive && (
-                           <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-red-600 rounded text-[8px] font-bold text-white uppercase tracking-wider shadow-[0_0_10px_red]">
-                              LIVE
-                           </div>
-                        )}
+                        <div className={cn(
+                           "absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[8px] font-bold text-white uppercase tracking-wider transition-colors duration-300",
+                           isFideTvLive ? "bg-red-600 shadow-[0_0_10px_red]" : 
+                           isFideTvUpcoming ? "bg-blue-600 shadow-[0_0_10px_blue]" : "bg-primary"
+                        )}>
+                           {isFideTvLive ? 'LIVE' : isFideTvUpcoming ? 'UPCOMING' : 'AUTO'}
+                        </div>
                     </div>
                     <div className="flex flex-col justify-center overflow-hidden">
                        <span className="text-[10px] text-primary font-bold uppercase tracking-widest mb-0.5">Primary Set</span>
@@ -571,5 +574,5 @@ export default function Live() {
 }
 
 // Ensure Play icon is imported
-import { Play } from 'lucide-react';
+// import { Play } from 'lucide-react';
 

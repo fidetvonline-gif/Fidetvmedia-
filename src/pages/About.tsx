@@ -45,7 +45,7 @@ export default function About() {
               animate={{ opacity: 1, x: 0 }}
             >
               <h4 className="text-primary font-display font-bold uppercase tracking-[0.5em] text-xs mb-4">Our Story</h4>
-              <h1 className="text-5xl sm:text-7xl font-display font-bold text-foreground tracking-tighter leading-tight italic">
+              <h1 className="text-4xl sm:text-5xl md:text-7xl font-display font-bold text-foreground tracking-tighter leading-tight italic">
                 Beyond the<br /><span className="text-primary">Lens.</span>
               </h1>
             </motion.div>

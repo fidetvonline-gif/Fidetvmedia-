@@ -109,18 +109,36 @@ export default function TourGuide() {
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
   
   // Use center position on mobile if the target is likely hidden or desktop-oriented
-  const effectivePosition = isMobile && step.target ? 'bottom' : step.position || 'center';
+  // On mobile, targets in the nav are often hidden in a menu, so we check if the element is actually visible
+  const [isTargetVisible, setIsTargetVisible] = useState(true);
+
+  useEffect(() => {
+    if (step.target) {
+      const element = document.querySelector(step.target);
+      if (element) {
+        const style = window.getComputedStyle(element);
+        const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && (element as HTMLElement).offsetWidth > 0;
+        setIsTargetVisible(isVisible);
+      } else {
+        setIsTargetVisible(false);
+      }
+    } else {
+      setIsTargetVisible(true);
+    }
+  }, [step.target, currentStep]);
+
+  const effectivePosition = (isMobile || !isTargetVisible) ? 'center' : step.position || 'center';
 
   return (
-    <div className="fixed inset-0 z-[100] pointer-events-none overflow-hidden">
+    <div className="fixed inset-0 z-[2000] pointer-events-none overflow-hidden">
       {/* Dim Overlay */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-black/60 pointer-events-auto transition-all duration-300"
+        className="absolute inset-0 bg-black/80 pointer-events-auto transition-all duration-300"
         style={{
-          clipPath: targetRect 
+          clipPath: (targetRect && isTargetVisible && !isMobile) 
             ? `polygon(0% 0%, 0% 100%, ${targetRect.left}px 100%, ${targetRect.left}px ${targetRect.top}px, ${targetRect.right}px ${targetRect.top}px, ${targetRect.right}px ${targetRect.bottom}px, ${targetRect.left}px ${targetRect.bottom}px, ${targetRect.left}px 100%, 100% 100%, 100% 0%)` 
             : 'none'
         }}
@@ -134,10 +152,10 @@ export default function TourGuide() {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
           className={cn(
-            "fixed z-[101] w-[calc(100%-2rem)] max-w-[320px] sm:max-w-[340px] pointer-events-auto",
-            (!targetRect || effectivePosition === 'center') && "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+            "fixed z-[2001] w-[calc(100%-2rem)] max-w-[320px] sm:max-w-[340px] pointer-events-auto",
+            (effectivePosition === 'center') && "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
           )}
-          style={targetRect && effectivePosition !== 'center' ? {
+          style={targetRect && effectivePosition !== 'center' && !isMobile ? {
             left: effectivePosition === 'bottom' || effectivePosition === 'top' 
               ? Math.max(16, Math.min(window.innerWidth - (window.innerWidth < 400 ? 336 : 356), targetRect.left + (targetRect.width / 2) - 170)) 
               : undefined,

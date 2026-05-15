@@ -228,7 +228,7 @@ export default function Home() {
               <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.4em] text-foreground">FIDE TV MEDIA</span>
             </div>
             
-            <h1 className="text-6xl sm:text-8xl lg:text-[10rem] xl:text-[12rem] leading-[0.8] font-display font-black uppercase text-foreground tracking-tighter mix-blend-difference mb-8">
+            <h1 className="text-4xl sm:text-6xl md:text-8xl lg:text-[10rem] xl:text-[12rem] leading-[0.8] font-display font-black uppercase text-foreground tracking-tighter mix-blend-difference mb-8">
               INNOVATIVE<br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-orange-400 to-primary-light animate-gradient-x">
                 AGENCY.
@@ -275,8 +275,9 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row justify-between items-end gap-10">
             <div className="space-y-6">
               <span className="text-[10px] font-black uppercase text-primary tracking-[0.5em]">Original Programming</span>
-              <h2 className="text-6xl sm:text-8xl font-display font-medium text-foreground tracking-tighter leading-none italic">
-                Signature<br />Productions.
+              <h2 className="text-4xl sm:text-6xl md:text-8xl font-display font-medium text-foreground tracking-tighter leading-none italic">
+                Signature<br />
+                Productions.
               </h2>
             </div>
             <Link to="/content" className="group flex items-center space-x-4 px-8 py-4 border border-border-custom rounded-2xl hover:border-foreground/20 transition-all text-[10px] font-black uppercase tracking-widest text-foreground">
@@ -576,7 +577,7 @@ export default function Home() {
           <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-black/20 rounded-full blur-[100px] -ml-32 -mb-32 mix-blend-overlay pointer-events-none" />
           
           <div className="relative z-10">
-            <h2 className="text-5xl sm:text-7xl md:text-8xl font-display font-black text-white mb-8 leading-[0.9] tracking-tighter">
+            <h2 className="text-3xl sm:text-5xl md:text-7xl md:text-8xl font-display font-black text-white mb-8 leading-[0.9] tracking-tighter">
               Ready to broadcast<br />your vision?
             </h2>
             <p className="text-white/90 max-w-2xl mx-auto mb-12 text-lg sm:text-xl font-medium">
