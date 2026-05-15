@@ -22,36 +22,39 @@ import ReloadPrompt from '@/components/ReloadPrompt';
 import InstallPrompt from '@/components/InstallPrompt';
 import MessageNotifier from '@/components/MessageNotifier';
 import SplashScreen from '@/components/SplashScreen';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export default function App() {
   return (
     <Router>
-      <SplashScreen />
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/services" element={<Services />} />
-          <Route path="/content" element={<Content />} />
-          <Route path="/portfolio" element={<Navigate to="/content" replace />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/live" element={<Live />} />
-          <Route path="/community" element={<Community />} />
-          <Route path="/community/:id" element={<CommunityDetail />} />
-          <Route path="/news" element={<News />} />
-          <Route path="/news/:slug" element={<NewsDetail />} />
-          <Route path="/booking" element={<Booking />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/profile/:username" element={<Profile />} />
-          <Route path="/messages" element={<Messages />} />
-          <Route path="/admin" element={<Admin />} />
-          <Route path="/policies" element={<Policies />} />
-          <Route path="/download" element={<DownloadApp />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Layout>
+      <ErrorBoundary>
+        <SplashScreen />
+        <Layout>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/services" element={<Services />} />
+            <Route path="/content" element={<Content />} />
+            <Route path="/portfolio" element={<Navigate to="/content" replace />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/live" element={<Live />} />
+            <Route path="/community" element={<Community />} />
+            <Route path="/community/:id" element={<CommunityDetail />} />
+            <Route path="/news" element={<News />} />
+            <Route path="/news/:slug" element={<NewsDetail />} />
+            <Route path="/booking" element={<Booking />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/profile/:username" element={<Profile />} />
+            <Route path="/messages" element={<Messages />} />
+            <Route path="/admin" element={<Admin />} />
+            <Route path="/policies" element={<Policies />} />
+            <Route path="/download" element={<DownloadApp />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Layout>
+      </ErrorBoundary>
       <ReloadPrompt />
       <InstallPrompt />
       <MessageNotifier />
