@@ -26,7 +26,7 @@ import SplashScreen from '@/components/SplashScreen';
 export default function App() {
   return (
     <Router>
-      <SplashScreen />
+      {/* <SplashScreen /> */}
       <Layout>
         <Routes>
           <Route path="/" element={<Home />} />
