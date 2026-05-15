@@ -143,14 +143,6 @@ export default function Live() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
-      </div>
-    );
-  }
-
   const isFideTvLive = event?.status === 'live';
   const isFideTvUpcoming = event?.status === 'upcoming';
   const customBroadcast: any = {
@@ -164,18 +156,30 @@ export default function Live() {
     icon: Tv,
   };
 
-  const dynamicChannels = dbChannels.map((ch: any) => ({
-    id: ch.id,
-    name: ch.name,
-    category: ch.category,
-    thumbnail: ch.thumbnail || 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e',
-    url: ch.url,
-    icon: Tv, // Use a default icon since we don't have mapping in this component easily
-    description: ch.description,
-    isLive: ch.is_active
-  }));
+  const allChannels = React.useMemo(() => {
+    const dynamic = dbChannels.map((ch: any) => ({
+      id: ch.id,
+      name: ch.name,
+      category: ch.category,
+      thumbnail: ch.thumbnail || 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e',
+      url: ch.url,
+      icon: Tv, // Use a default icon since we don't have mapping in this component easily
+      description: ch.description,
+      isLive: ch.is_active
+    }));
+    
+    // Rotate/Randomize
+    const list = [customBroadcast, ...dynamic];
+    return list.sort(() => Math.random() - 0.5);
+  }, [dbChannels, event?.status, event?.youtube_id, event?.stream_url, event?.thumbnail_url, event?.description, event?.title]);
 
-  const allChannels = [customBroadcast, ...dynamicChannels];
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
   const activeChannel = allChannels.find(c => c.id === activeChannelId) || customBroadcast;
   
   const isPlayingFideTv = activeChannel.id === 'fidetv';
@@ -443,7 +447,13 @@ export default function Live() {
                  
                  {/* Main User Channel */}
                  <button
-                    onClick={() => setActiveChannelId(customBroadcast.id)}
+                    onClick={() => {
+                       const playableChannels = allChannels.filter(c => c.isLive || (c.id === 'fidetv' && isFideTvUpcoming));
+                       const random = playableChannels.length > 0
+                          ? playableChannels[Math.floor(Math.random() * playableChannels.length)]
+                          : allChannels[0];
+                       setActiveChannelId(random.id);
+                    }}
                     className={cn(
                       "w-full text-left p-3 rounded-2xl flex gap-x-4 items-center group transition-all duration-300 border",
                       isPlayingFideTv 
