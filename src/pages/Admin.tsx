@@ -36,6 +36,7 @@ export default function Admin() {
   const [adminReply, setAdminReply] = useState('');
   const [dbErrors, setDbErrors] = useState<Record<string, string>>({});
   const [communityStats, setCommunityStats] = useState<any[]>([]);
+  const [visitCount, setVisitCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -133,7 +134,8 @@ export default function Admin() {
         fetchChannels(),
         fetchServices(),
         fetchSiteSettings(),
-        fetchAdUnits()
+        fetchAdUnits(),
+        fetchVisits()
       ]);
     }
     if (activeTab === 'events') await fetchEvents();
@@ -299,6 +301,19 @@ export default function Admin() {
         return acc;
       }, {});
       setCommunityStats(stats);
+    }
+  };
+
+  const fetchVisits = async () => {
+    try {
+      const { count, error } = await supabase
+        .from('site_visits')
+        .select('*', { count: 'exact', head: true });
+      
+      if (error) throw error;
+      setVisitCount(count || 0);
+    } catch (e) {
+      setDbErrors(prev => ({ ...prev, site_visits: 'Visit tracking table missing' }));
     }
   };
 
@@ -781,8 +796,9 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
               )}
 
               {/* Stats Bar */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
                 {[
+                  { label: 'Site Visits', value: visitCount, icon: Eye },
                   { label: 'Active Streams', value: events.filter(e => e.status === 'live').length, icon: Radio },
                   { label: 'Total Users', value: profiles.length, icon: ShieldCheck },
                   { label: 'Communities', value: communities.length, icon: Users },

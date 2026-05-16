@@ -45,7 +45,7 @@ export default defineConfig(({ mode }) => {
           ]
         },
         devOptions: {
-          enabled: true,
+          enabled: false,
           type: 'module'
         }
       })
@@ -67,6 +67,9 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       hmr: false,
+    },
+    optimizeDeps: {
+      include: ['react', 'react-dom'],
     },
   };
 });

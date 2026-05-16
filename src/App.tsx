@@ -1,4 +1,6 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
 import Layout from '@/components/Layout';
 import Home from '@/pages/Home';
 import About from '@/pages/About';
@@ -24,9 +26,32 @@ import MessageNotifier from '@/components/MessageNotifier';
 import SplashScreen from '@/components/SplashScreen';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 
+function AnalyticsTracker() {
+  const location = useLocation();
+  
+  useEffect(() => {
+    const trackVisit = async () => {
+      // Use a session storage flag to avoid double counting page refreshes during the same session
+      const sessionTracked = sessionStorage.getItem('fidetv_tracked');
+      if (!sessionTracked) {
+        try {
+          await supabase.from('site_visits').insert({ session_id: crypto.randomUUID() });
+          sessionStorage.setItem('fidetv_tracked', 'true');
+        } catch (e) {
+          // Silently fail if table doesn't exist yet
+        }
+      }
+    };
+    trackVisit();
+  }, []); // Only track once per app load/session
+
+  return null;
+}
+
 export default function App() {
   return (
     <Router>
+      <AnalyticsTracker />
       <ErrorBoundary>
         <SplashScreen />
         <Layout>

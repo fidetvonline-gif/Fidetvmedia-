@@ -38,9 +38,23 @@ async function startServer() {
         middlewareMode: true,
         hmr: false
       },
-      appType: "spa",
+      appType: "custom",
     });
+    
     app.use(vite.middlewares);
+
+    app.get('*all', async (req, res, next) => {
+      const url = req.originalUrl;
+      try {
+        const fs = await import("fs");
+        let template = fs.readFileSync(path.resolve(process.cwd(), 'index.html'), 'utf-8');
+        template = await vite.transformIndexHtml(url, template);
+        res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
+      } catch (e: any) {
+        vite.ssrFixStacktrace(e);
+        next(e);
+      }
+    });
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));

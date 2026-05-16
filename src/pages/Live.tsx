@@ -15,6 +15,7 @@ const Player = ReactPlayer as any;
 
 export default function Live() {
   const [event, setEvent] = useState<Event | null>(null);
+  const [events, setEvents] = useState<Event[]>([]);
   const [dbChannels, setDbChannels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [ytStats, setYtStats] = useState<YouTubeStats | null>(null);
@@ -91,24 +92,25 @@ export default function Live() {
     setPlayerError(false);
   };
   useEffect(() => {
-    const fetchLiveEvent = async () => {
+    const fetchLiveEventData = async () => {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      // Fetch all upcoming and live events for the schedule
+      const { data: eventsData } = await supabase
         .from('events')
         .select('*')
         .or('status.eq.live,status.eq.upcoming')
         .order('status', { ascending: false }) // live first
-        .order('start_time', { ascending: true })
-        .limit(1)
-        .single();
+        .order('start_time', { ascending: true });
 
-      if (data) {
-        const ev = data as Event;
-        setEvent(ev);
+      let currentEvent = null;
+      if (eventsData && eventsData.length > 0) {
+        setEvents(eventsData as Event[]);
+        currentEvent = eventsData.find(e => e.status === 'live') || eventsData[0];
+        setEvent(currentEvent);
         
-        // Fetch non-blocking data
-        if (ev.youtube_id) {
-          fetchYouTubeStats(ev.youtube_id).then(setYtStats).catch(console.error);
+        if (currentEvent.youtube_id) {
+          fetchYouTubeStats(currentEvent.youtube_id).then(setYtStats).catch(console.error);
         }
         fetchRecentUploads('UC_x5XG1OV2P6uZZ5FSM9Ttw').then(setRecentUploads).catch(console.error);
       }
@@ -122,12 +124,25 @@ export default function Live() {
         
       if (channelsData) {
         setDbChannels(channelsData);
+        
+        // If there's an active live channel that isn't the main broadcast, 
+        // we might want to prioritize it, but usually people want the main FideTV live if it's on.
+        if (currentEvent?.status === 'live') {
+          setActiveChannelId('fidetv');
+        } else {
+          const liveDbChannel = channelsData.find((c: any) => c.is_active);
+          if (liveDbChannel) {
+            setActiveChannelId(liveDbChannel.id);
+          } else if (channelsData.length > 0 && !currentEvent) {
+             setActiveChannelId(channelsData[0].id);
+          }
+        }
       }
       
       setLoading(false);
     };
 
-    fetchLiveEvent();
+    fetchLiveEventData();
 
     // Listen for status changes
     const channel = supabase
@@ -585,20 +600,49 @@ export default function Live() {
                    Up Next Schedule
                  </h3>
                  <div className="space-y-4 px-2 mt-4 transition-all duration-300">
-                    {event?.status === 'upcoming' && (
-                      <div className="relative pl-6 border-l-2 border-primary/30 py-1 group/item">
-                        <div className="absolute top-0 -left-[9px] w-4 h-4 rounded-full bg-primary border-4 border-black group-hover/item:scale-125 transition-transform shadow-[0_0_10px_rgba(242,125,38,0.5)]" />
-                        <span className="text-[10px] text-primary font-black uppercase tracking-[0.2em] leading-none">{format(new Date(event.start_time), 'HH:mm')}</span>
-                        <h5 className="text-sm font-bold text-white mt-1 leading-tight">{event.title}</h5>
-                        <p className="text-[11px] text-white/30 italic mt-0.5">Live Premiere</p>
+                    {events.filter(e => e.id !== (activeChannel.id === 'fidetv' ? event?.id : null)).map((ev, i) => (
+                      <div key={ev.id} className={cn(
+                        "relative pl-6 border-l-2 py-3 group/item transition-all",
+                        ev.status === 'live' ? "border-primary" : "border-white/10"
+                      )}>
+                        <div className={cn(
+                          "absolute top-0 -left-[9px] w-4 h-4 rounded-full border-4 border-black transition-transform shadow-xl",
+                          ev.status === 'live' ? "bg-red-500 animate-pulse shadow-red-500/20" : "bg-white/20 group-hover/item:bg-primary/50"
+                        )} />
+                         <div className="flex justify-between items-start">
+                            <div className="flex flex-col">
+                               <span className={cn(
+                                 "text-[10px] font-black uppercase tracking-[0.2em] leading-none mb-1",
+                                 ev.status === 'live' ? "text-red-500" : "text-primary"
+                               )}>
+                                 {ev.status === 'live' ? 'LIVE NOW' : format(new Date(ev.start_time), 'HH:mm')}
+                               </span>
+                               <h5 className="text-sm font-bold text-white leading-tight group-hover/item:text-primary transition-colors">{ev.title}</h5>
+                               <p className="text-[11px] text-white/30 italic mt-1 line-clamp-1">{ev.description}</p>
+                            </div>
+                            {ev.status === 'live' && (
+                               <button 
+                                 onClick={() => {
+                                   setEvent(ev);
+                                   setActiveChannelId('fidetv');
+                                 }}
+                                 className="px-3 py-1 bg-red-500 text-white text-[8px] font-black rounded-md hover:bg-red-600 transition-colors"
+                               >
+                                  SWITCH
+                               </button>
+                            )}
+                         </div>
+                      </div>
+                    ))}
+                    
+                    {events.length === 0 && (
+                      <div className="relative pl-6 border-l-2 border-white/10 py-1 opacity-60">
+                        <div className="absolute top-0 -left-[9px] w-4 h-4 rounded-full bg-white/10 border-4 border-black" />
+                        <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest leading-none">Continuous</span>
+                        <h5 className="text-sm font-bold text-white/60 mt-1 leading-tight">Global Media Feed</h5>
+                        <p className="text-[11px] text-white/20 italic mt-0.5">Automated Broadcast</p>
                       </div>
                     )}
-                    <div className="relative pl-6 border-l-2 border-white/10 py-1 opacity-60">
-                      <div className="absolute top-0 -left-[9px] w-4 h-4 rounded-full bg-white/10 border-4 border-black" />
-                      <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest leading-none">Continuous</span>
-                      <h5 className="text-sm font-bold text-white/60 mt-1 leading-tight">Global Media Feed</h5>
-                      <p className="text-[11px] text-white/20 italic mt-0.5">Automated Broadcast</p>
-                    </div>
                  </div>
                  <div className="h-px w-full bg-white/10 my-6" />
                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-white/40 px-2 pt-2">Recent Uploads</h3>
