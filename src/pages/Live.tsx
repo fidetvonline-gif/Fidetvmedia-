@@ -27,18 +27,19 @@ export default function Live() {
 
   const [isPiP, setIsPiP] = useState(false);
   const [isPiPDismissed, setIsPiPDismissed] = useState(false);
+  const [isZapping, setIsZapping] = useState(false);
+  const zappingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          // If the player container is not intersecting (visible), enable PiP
           if (!entry.isIntersecting) {
              setIsPiP(true);
           } else {
              setIsPiP(false);
-             setIsPiPDismissed(false); // Reset dismissal when it comes back into view
+             setIsPiPDismissed(false);
           }
         });
       },
@@ -52,8 +53,23 @@ export default function Live() {
   }, []);
 
   useEffect(() => {
+    // Trigger zapping effect
+    setIsZapping(true);
+    if (zappingTimeoutRef.current) clearTimeout(zappingTimeoutRef.current);
+    zappingTimeoutRef.current = setTimeout(() => {
+      setIsZapping(false);
+    }, 300);
+    
     setPlayerError(false);
     setIsPlayerReady(false);
+
+    // Safety timeout: if player takes too long to signal ready, hide overlay anyway
+    // so user can see if there's a play button or interaction needed
+    const safetyTimer = setTimeout(() => {
+      setIsPlayerReady(true);
+    }, 5000);
+
+    return () => clearTimeout(safetyTimer);
   }, [activeChannelId]);
 
   const handlePlayerError = (e: any) => {
@@ -89,13 +105,12 @@ export default function Live() {
       if (data) {
         const ev = data as Event;
         setEvent(ev);
-        if (ev.youtube_id) {
-          const stats = await fetchYouTubeStats(ev.youtube_id);
-          setYtStats(stats);
-        }
         
-        const uploads = await fetchRecentUploads('UC_x5XG1OV2P6uZZ5FSM9Ttw');
-        setRecentUploads(uploads);
+        // Fetch non-blocking data
+        if (ev.youtube_id) {
+          fetchYouTubeStats(ev.youtube_id).then(setYtStats).catch(console.error);
+        }
+        fetchRecentUploads('UC_x5XG1OV2P6uZZ5FSM9Ttw').then(setRecentUploads).catch(console.error);
       }
       
       // Fetch custom TV Channels
@@ -156,22 +171,25 @@ export default function Live() {
     icon: Tv,
   };
 
-  const allChannels = (() => {
+  const allChannels = React.useMemo(() => {
     const dynamic = dbChannels.map((ch: any) => ({
       id: ch.id,
       name: ch.name,
       category: ch.category,
       thumbnail: ch.thumbnail || 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e',
       url: ch.url,
-      icon: Tv, // Use a default icon since we don't have mapping in this component easily
+      icon: Tv,
       description: ch.description,
       isLive: ch.is_active
     }));
     
-    // Rotate/Randomize
-    const list = [customBroadcast, ...dynamic];
-    return list.sort(() => Math.random() - 0.5);
-  })();
+    // Sort consistently but including the custom broadcast
+    return [customBroadcast, ...dynamic].sort((a, b) => {
+       if (a.id === 'fidetv') return -1;
+       if (b.id === 'fidetv') return 1;
+       return a.name.localeCompare(b.name);
+    });
+  }, [dbChannels, isFideTvLive, isFideTvUpcoming]); // Stabilized dependencies
 
   if (loading) {
     return (
@@ -186,29 +204,32 @@ export default function Live() {
 
   return (
     <div className="min-h-screen bg-[#050505] text-white">
-      <div className="max-w-[1920px] mx-auto lg:h-[calc(100vh-80px)] flex flex-col lg:flex-row shadow-2xl">
+      <div className="max-w-[1920px] mx-auto lg:h-[calc(100vh-80px)] flex flex-col lg:flex-row shadow-2xl overflow-hidden">
         
         {/* Main Watch Area */}
         <div className="flex-grow flex flex-col relative z-10 border-r border-white/5 overflow-hidden">
-          {/* Signal Indicator Overlay */}
-          <div className="absolute top-6 left-6 z-20 flex items-center space-x-3 pointer-events-none drop-shadow-2xl">
+          {/* Enhanced Signal Indicator Overlay */}
+          <div className="absolute top-6 left-6 z-20 flex flex-col gap-2 pointer-events-none drop-shadow-2xl">
             <div className={cn(
-              "px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.3em] flex items-center space-x-3 backdrop-blur-xl border transition-all duration-500 shadow-lg",
-              isPlayingFideTv || !isPlayingFideTv 
-                ? "bg-red-600/90 text-white border-red-500/50" 
+              "px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.3em] flex items-center space-x-3 backdrop-blur-xl border transition-all duration-500",
+              isFideTvLive 
+                ? "bg-red-600/90 text-white border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.4)]" 
                 : "bg-black/60 text-white border-white/10"
             )}>
-              <div className="w-2 h-2 bg-white rounded-full animate-pulse shadow-[0_0_10px_white]" />
+              <div className={cn(
+                "w-2 h-2 rounded-full shadow-[0_0_10px_white]",
+                isFideTvLive ? "bg-white animate-pulse" : "bg-white/20"
+              )} />
               <span>
                 {isPlayingFideTv 
-                  ? (isFideTvLive ? 'Live Broadcast' : isFideTvUpcoming ? 'Upcoming Stream' : 'Channel Online') 
-                  : 'Live Network'}
+                  ? (isFideTvLive ? 'On Air' : isFideTvUpcoming ? 'Upcoming' : 'Standby') 
+                  : (activeChannel.isLive ? 'Network Live' : 'Streaming')}
               </span>
             </div>
             {isPlayingFideTv && isFideTvLive && (
-              <div className="hidden sm:flex px-4 py-2 bg-black/60 backdrop-blur-xl rounded-full text-[10px] font-black text-white uppercase tracking-[0.3em] border border-white/10 items-center shadow-lg transition-all">
-                <div className="w-1 h-1 bg-green-500 rounded-full mr-2 shadow-[0_0_8px_#22c55e]" />
-                Studio Link High
+              <div className="hidden sm:flex px-3 py-1.5 bg-black/60 backdrop-blur-xl rounded-full text-[9px] font-bold text-white/70 uppercase tracking-[0.2em] border border-white/10 items-center transition-all">
+                <Globe className="w-3 h-3 mr-2 text-primary" />
+                Global Broadcast
               </div>
             )}
           </div>
@@ -222,20 +243,26 @@ export default function Live() {
                  : "absolute inset-0 w-full h-full scale-100",
                isPiP && isPiPDismissed ? "opacity-0 pointer-events-none" : "opacity-100"
             )}>
-              {isPiP && !isPiPDismissed && (
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    setIsPiPDismissed(true);
-                  }}
-                  className="absolute top-2 right-2 w-8 h-8 bg-black/60 hover:bg-red-500 text-white rounded-full flex items-center justify-center z-[100] opacity-0 group-hover/pip:opacity-100 transition-all backdrop-blur-sm"
-                  title="Close Mini-Player"
-                >
-                  <AlertCircle className="w-4 h-4 hidden" /> {/* Dummy icon so we can cleanly replace with an X or just use text if we want. Actually a simple text 'X' is fine here */}
-                  <span className="text-xs font-bold font-sans">✕</span>
-                </button>
-              )}
+              {/* Zapping / Loading Overlay */}
+            {(isZapping || !isPlayerReady) && !playerError && (
+              <div className="absolute inset-0 z-[50] flex flex-col items-center justify-center bg-black transition-opacity duration-300">
+                <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
+                <div className="relative">
+                  <div className="w-16 h-16 border-2 border-primary/20 border-t-primary rounded-full animate-spin shadow-[0_0_20px_rgba(242,125,38,0.2)]" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-8 h-8 bg-primary/10 rounded-full animate-ping" />
+                  </div>
+                </div>
+                <div className="mt-6 flex flex-col items-center">
+                  <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.4em] animate-pulse">Tuning Channel</span>
+                  <div className="flex gap-1 mt-2">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="w-1 h-1 bg-primary/40 rounded-full animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
             {playerError ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#111111] z-30">
                 <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
@@ -293,6 +320,7 @@ export default function Live() {
                   muted={true}
                   playsinline={true}
                   onReady={handlePlayerReady}
+                  onStart={handlePlayerReady}
                   onError={handlePlayerError}
                   config={{
                     youtube: {
@@ -368,70 +396,102 @@ export default function Live() {
             </div>
           </div>
 
-          {/* info bar under video */}
-          <div className="h-24 lg:h-32 bg-[#0a0a0a] border-t border-white/5 flex items-center px-6 lg:px-10 shrink-0 relative overflow-hidden">
+          {/* Info bar under video - Redesigned for Premium look */}
+          <div className="bg-[#0a0a0a] border-t border-white/5 px-6 lg:px-10 py-6 shrink-0 relative overflow-hidden group/infobar">
              {/* gradient flare */}
-             <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 blur-[100px] rounded-full" />
+             <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 blur-[100px] rounded-full group-hover/infobar:bg-primary/10 transition-all duration-700" />
              
-             <div className="flex items-center justify-between w-full relative z-10 gap-x-6">
+             <div className="flex flex-col sm:flex-row sm:items-center justify-between w-full relative z-10 gap-6">
                  <div className="flex items-center gap-x-6">
-                    <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 shadow-lg">
-                       {activeChannel.icon ? <activeChannel.icon className="w-6 h-6 text-white/40" /> : <Tv className="w-6 h-6 text-primary" />}
+                    <div className="relative">
+                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-white/10 to-white/5 border border-white/10 flex items-center justify-center shrink-0 shadow-2xl relative z-10 overflow-hidden">
+                         {activeChannel.thumbnail ? (
+                           <img src={activeChannel.thumbnail} className="absolute inset-0 w-full h-full object-cover opacity-40" alt="" />
+                         ) : null}
+                         {activeChannel.icon ? <activeChannel.icon className="w-7 h-7 text-white/60 relative z-10" /> : <Tv className="w-7 h-7 text-primary relative z-10" />}
+                      </div>
+                      <div className="absolute -inset-2 bg-primary/20 blur-xl opacity-0 group-hover/infobar:opacity-100 transition-opacity duration-500" />
                     </div>
                     <div>
-                       <div className="flex items-center space-x-3 mb-1">
-                          <span className="px-2 py-0.5 bg-primary/20 text-primary uppercase font-bold text-[9px] rounded tracking-wider">
+                       <div className="flex items-center space-x-3 mb-1.5">
+                          <span className="px-2 py-0.5 bg-primary/20 text-primary uppercase font-bold text-[9px] rounded tracking-widest border border-primary/20">
                             {activeChannel.category}
                           </span>
+                          {isPlayingFideTv && (
+                            <span className="text-[10px] text-white/40 font-medium">Official Broadcast</span>
+                          )}
                        </div>
-                       <h2 className="text-xl lg:text-3xl font-display font-bold tracking-tight line-clamp-1 text-white">
+                       <h2 className="text-xl lg:text-3xl font-display font-black tracking-tight line-clamp-1 text-white bg-clip-text">
                           {isPlayingFideTv && event?.title ? event.title : activeChannel.name}
                        </h2>
+                       <p className="text-sm text-white/40 mt-1 max-w-2xl line-clamp-1 italic font-light">
+                          {activeChannel.description || 'Watch high-quality live streaming content on FideTV.'}
+                       </p>
                     </div>
                  </div>
 
-                 {isPlayingFideTv && isFideTvLive && ytStats && (
-                    <div className="hidden sm:flex items-center space-x-8 px-6 py-3 bg-white/5 rounded-2xl border border-white/10">
-                        <div className="flex items-center space-x-3">
-                           <Users className="w-5 h-5 text-white/40" />
-                           <div className="flex flex-col">
-                              <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Watching Now</span>
-                              <span className="text-lg font-bold text-white">{ytStats.viewers}</span>
-                           </div>
-                        </div>
-                    </div>
-                 )}
+                 <div className="flex items-center gap-4">
+                   {isPlayingFideTv && isFideTvLive && ytStats && (
+                      <div className="flex items-center space-x-8 px-6 py-3 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-sm">
+                          <div className="flex items-center space-x-3">
+                             <div className="relative">
+                               <Users className="w-5 h-5 text-white/40" />
+                               <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-ping" />
+                             </div>
+                             <div className="flex flex-col">
+                                <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest leading-none mb-1">Live Viewers</span>
+                                <span className="text-xl font-black text-white leading-none">{ytStats.viewers}</span>
+                             </div>
+                          </div>
+                      </div>
+                   )}
+                   <button 
+                     onClick={handleShare}
+                     className="p-4 bg-white/5 hover:bg-primary/20 rounded-2xl border border-white/10 transition-all group/share"
+                   >
+                     <Share2 className="w-5 h-5 text-white/40 group-hover:text-primary transition-colors" />
+                   </button>
+                 </div>
              </div>
           </div>
         </div>
 
-        {/* Sidebar / Interaction Panel */}
-        <div className="w-full lg:w-[450px] xl:w-[500px] flex-shrink-0 bg-[#000000] flex flex-col h-[500px] lg:h-full z-20 shadow-[-20px_0_40px_rgba(0,0,0,0.5)] border-l border-white/5">
-          {/* Tabs */}
-          <div className="flex w-full border-b border-white/10 shrink-0">
+        {/* Sidebar / Interaction Panel - Redesigned */}
+        <div className="w-full lg:w-[420px] xl:w-[480px] flex-shrink-0 bg-[#050505] flex flex-col h-[600px] lg:h-full z-20 shadow-[-30px_0_60px_rgba(0,0,0,0.8)] border-l border-white/10 relative">
+          {/* Tab Header with Glassmorphism */}
+          <div className="flex w-full border-b border-white/10 bg-black/40 backdrop-blur-md shrink-0 sticky top-0 z-30">
              <button 
                 onClick={() => setActiveTab('channels')}
                 className={cn(
-                  "flex-1 py-5 text-[11px] font-bold uppercase tracking-[0.2em] transition-all relative",
-                  activeTab === 'channels' ? "text-white bg-[#111111]" : "text-white/40 hover:text-white bg-[#050505]"
+                  "flex-1 py-6 text-[10px] font-black uppercase tracking-[0.3em] transition-all relative group",
+                  activeTab === 'channels' ? "text-white" : "text-white/30 hover:text-white"
                 )}
              >
-                Channel Guide
+                <div className="flex items-center justify-center gap-2">
+                  <MonitorPlay className={cn("w-3.5 h-3.5 transition-colors", activeTab === 'channels' ? "text-primary" : "text-current")} />
+                  Guide
+                </div>
                 {activeTab === 'channels' && (
-                  <motion.div layoutId="activetab" className="absolute bottom-0 left-0 right-0 h-1 bg-primary" />
+                  <motion.div layoutId="activetab" className="absolute bottom-0 left-0 right-0 h-1 bg-primary shadow-[0_-5px_15px_rgba(242,125,38,0.3)]" />
                 )}
              </button>
              <button 
                 onClick={() => setActiveTab('chat')}
                 className={cn(
-                  "flex-1 py-5 text-[11px] font-bold uppercase tracking-[0.2em] transition-all relative flex items-center justify-center space-x-2",
-                  activeTab === 'chat' ? "text-white bg-[#111111]" : "text-white/40 hover:text-white bg-[#050505]"
+                  "flex-1 py-6 text-[10px] font-black uppercase tracking-[0.3em] transition-all relative group",
+                  activeTab === 'chat' ? "text-white" : "text-white/30 hover:text-white"
                 )}
              >
-                <span>Live Chat</span>
-                <MessageSquare className="w-3 h-3" />
+                <div className="flex items-center justify-center gap-2">
+                  <MessageSquare className={cn("w-3.5 h-3.5 transition-colors", activeTab === 'chat' ? "text-primary" : "text-current")} />
+                  Social
+                  {/* Activity Indicator for chat */}
+                  {activeTab !== 'chat' && (
+                    <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
+                  )}
+                </div>
                 {activeTab === 'chat' && (
-                  <motion.div layoutId="activetab" className="absolute bottom-0 left-0 right-0 h-1 bg-primary" />
+                  <motion.div layoutId="activetab" className="absolute bottom-0 left-0 right-0 h-1 bg-primary shadow-[0_-5px_15px_rgba(242,125,38,0.3)]" />
                 )}
              </button>
           </div>
@@ -520,6 +580,27 @@ export default function Live() {
                    })}
                  </div>
                  <div className="h-px w-full bg-white/10 my-4" />
+                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-white/40 px-2 pt-2 flex items-center gap-2">
+                   <Clock className="w-3 h-3 text-primary" />
+                   Up Next Schedule
+                 </h3>
+                 <div className="space-y-4 px-2 mt-4 transition-all duration-300">
+                    {event?.status === 'upcoming' && (
+                      <div className="relative pl-6 border-l-2 border-primary/30 py-1 group/item">
+                        <div className="absolute top-0 -left-[9px] w-4 h-4 rounded-full bg-primary border-4 border-black group-hover/item:scale-125 transition-transform shadow-[0_0_10px_rgba(242,125,38,0.5)]" />
+                        <span className="text-[10px] text-primary font-black uppercase tracking-[0.2em] leading-none">{format(new Date(event.start_time), 'HH:mm')}</span>
+                        <h5 className="text-sm font-bold text-white mt-1 leading-tight">{event.title}</h5>
+                        <p className="text-[11px] text-white/30 italic mt-0.5">Live Premiere</p>
+                      </div>
+                    )}
+                    <div className="relative pl-6 border-l-2 border-white/10 py-1 opacity-60">
+                      <div className="absolute top-0 -left-[9px] w-4 h-4 rounded-full bg-white/10 border-4 border-black" />
+                      <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest leading-none">Continuous</span>
+                      <h5 className="text-sm font-bold text-white/60 mt-1 leading-tight">Global Media Feed</h5>
+                      <p className="text-[11px] text-white/20 italic mt-0.5">Automated Broadcast</p>
+                    </div>
+                 </div>
+                 <div className="h-px w-full bg-white/10 my-6" />
                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-white/40 px-2 pt-2">Recent Uploads</h3>
                  <div className="space-y-3 px-2 pb-4">
                    {recentUploads.map((video) => (
