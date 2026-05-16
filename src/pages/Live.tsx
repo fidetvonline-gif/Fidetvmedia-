@@ -11,6 +11,8 @@ import { fetchYouTubeStats, YouTubeStats, fetchRecentUploads } from '@/services/
 import AdBanner from '@/components/AdBanner';
 import { DEFAULT_CHANNELS } from '@/constants/channels';
 
+import HighPerformancePlayer from '@/components/HighPerformancePlayer';
+
 const Player = ReactPlayer as any;
 
 export default function Live() {
@@ -328,7 +330,7 @@ export default function Live() {
                      }} 
                    />
                 </div>
-              ) : (
+              ) : activeChannel.url?.toLowerCase().includes('youtube.com') || activeChannel.url?.toLowerCase().includes('youtu.be') ? (
                 <Player
                   key={activeChannel.id}
                   url={activeChannel.url}
@@ -351,33 +353,18 @@ export default function Live() {
                         autoplay: 1,
                         enablejsapi: 1
                       }
-                    },
-                    file: {
-                      attributes: {
-                        controlsList: "nodownload",
-                        playsInline: true,
-                        autoPlay: true,
-                        referrerPolicy: "no-referrer",
-                        crossOrigin: "anonymous"
-                      },
-                      forceHLS: activeChannel.url?.toLowerCase().includes('.m3u8') || 
-                               activeChannel.url?.toLowerCase().includes('playlist') || 
-                               activeChannel.url?.toLowerCase().includes('/hls/'),
-                      hlsOptions: {
-                        enableWorker: true, // Enable worker for offloading
-                        lowLatencyMode: true,
-                        liveSyncDurationCount: 3, // Reduce to sync closer to live
-                        manifestLoadingMaxRetry: 5,
-                        levelLoadingMaxRetry: 5,
-                        maxBufferLength: 30, // Limit buffer to avoid build-up
-                        maxMaxBufferLength: 60,
-                        xhrSetup: (xhr: any) => {
-                          xhr.withCredentials = false;
-                        }
-                      }
                     }
                   }}
                   style={{ position: 'absolute', top: 0, left: 0 }}
+                />
+              ) : (
+                <HighPerformancePlayer
+                  url={activeChannel.url}
+                  playing={true}
+                  muted={true}
+                  controls={true}
+                  onReady={handlePlayerReady}
+                  onError={handlePlayerError}
                 />
               )
             ) : (

@@ -10,6 +10,8 @@ import { PortfolioItem, News } from '@/types';
 import { format } from 'date-fns';
 import AdBanner from '@/components/AdBanner';
 
+import HighPerformancePlayer from '@/components/HighPerformancePlayer';
+
 const Player = ReactPlayer as any;
 
 const fadeInUp = {
@@ -183,7 +185,7 @@ export default function Home() {
                       allowFullScreen
                     ></iframe>
                   )
-                ) : (
+                ) : playingVideo?.video_url?.toLowerCase().includes('youtube.com') || playingVideo?.video_url?.toLowerCase().includes('youtu.be') ? (
                   <Player 
                     url={playingVideo?.video_url}
                     width="100%"
@@ -191,6 +193,13 @@ export default function Home() {
                     controls={true}
                     playing={true}
                     playsinline={true}
+                  />
+                ) : (
+                  <HighPerformancePlayer 
+                    url={playingVideo?.video_url}
+                    playing={true}
+                    muted={false}
+                    controls={true}
                   />
                 )}
             </div>

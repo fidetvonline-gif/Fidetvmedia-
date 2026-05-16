@@ -82,7 +82,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const checkProfile = async (userId: string) => {
     // Only check if not on auth or onboarding or policies pages
-    const publicPaths = ['/auth', '/onboarding', '/policies', '/about', '/contact', '/services'];
+    const publicPaths = ['/auth', '/onboarding', '/policies', '/about', '/contact', '/services', '/admin', '/profile'];
     if (publicPaths.includes(location.pathname)) return;
 
     const { data, error } = await supabase

@@ -6,6 +6,8 @@ import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import ReactPlayer from 'react-player';
 
+import HighPerformancePlayer from '@/components/HighPerformancePlayer';
+
 const Player = ReactPlayer as any;
 
 export default function Content() {
@@ -223,7 +225,7 @@ export default function Content() {
                       allowFullScreen
                     ></iframe>
                   )
-                ) : (
+                ) : playingVideo.stream_url?.toLowerCase().includes('youtube.com') || playingVideo.stream_url?.toLowerCase().includes('youtu.be') ? (
                   <Player 
                     url={playingVideo.stream_url}
                     width="100%"
@@ -231,6 +233,13 @@ export default function Content() {
                     controls={true}
                     playing={true}
                     playsinline={true}
+                  />
+                ) : (
+                  <HighPerformancePlayer 
+                    url={playingVideo.stream_url}
+                    playing={true}
+                    muted={false}
+                    controls={true}
                   />
                 )
               ) : (
