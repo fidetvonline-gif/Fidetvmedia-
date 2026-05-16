@@ -5,6 +5,7 @@ import { motion } from 'motion/react';
 import { Calendar, User, ArrowRight, Newspaper } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
+import AdBanner from '@/components/AdBanner';
 
 export default function News() {
   const [news, setNews] = useState<NewsType[]>([]);
@@ -40,6 +41,10 @@ export default function News() {
         <p className="max-w-md text-text-muted text-lg font-light leading-relaxed">
           Stay updated with the latest in media production, broadcasting technology, community highlights, and industry insights.
         </p>
+      </div>
+
+      <div className="mb-16">
+        <AdBanner placement="News Page Top" />
       </div>
 
       {loading ? (

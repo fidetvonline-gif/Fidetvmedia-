@@ -8,7 +8,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { motion } from 'motion/react';
 import { fetchYouTubeStats, YouTubeStats, fetchRecentUploads } from '@/services/youtubeService';
-
+import AdBanner from '@/components/AdBanner';
 import { DEFAULT_CHANNELS } from '@/constants/channels';
 
 const Player = ReactPlayer as any;
@@ -148,10 +148,10 @@ export default function Live() {
     const channel = supabase
       .channel('live-events')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, payload => {
-        fetchLiveEvent();
+        fetchLiveEventData();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tv_channels' }, payload => {
-        fetchLiveEvent();
+        fetchLiveEventData();
       })
       .subscribe();
 
@@ -179,7 +179,11 @@ export default function Live() {
     id: 'fidetv',
     name: 'Main Broadcast',
     category: 'Your Channel',
-    url: event?.youtube_id ? `https://www.youtube.com/watch?v=${event.youtube_id}` : event?.stream_url,
+    url: event?.youtube_id 
+      ? (event.youtube_id.includes('http') || event.youtube_id.includes('<iframe') 
+          ? event.youtube_id 
+          : `https://www.youtube.com/watch?v=${event.youtube_id}`)
+      : event?.stream_url,
     thumbnail: event?.thumbnail_url || 'https://images.unsplash.com/photo-1598899134739-24c46f58b8c0?auto=format&fit=crop&q=80&w=800',
     description: event?.description || 'Your live streaming channel offline.',
     isLive: isFideTvLive,

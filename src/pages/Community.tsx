@@ -6,6 +6,7 @@ import { Search, Users, ArrowRight, Plus, MessageSquare, TrendingUp, Globe, User
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import FollowButton from '@/components/FollowButton';
+import AdBanner from '@/components/AdBanner';
 
 export default function Community() {
   const [communities, setCommunities] = useState<CommunityType[]>([]);
@@ -179,6 +180,10 @@ export default function Community() {
                 </div>
               ))}
             </div>
+          </div>
+
+          <div className="py-4">
+             <AdBanner placement="Community Sidebar" />
           </div>
 
           <div className="glass rounded-[2.5rem] p-8 space-y-6">

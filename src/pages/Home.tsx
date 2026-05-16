@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import ReactPlayer from 'react-player';
 import { PortfolioItem, News } from '@/types';
 import { format } from 'date-fns';
+import AdBanner from '@/components/AdBanner';
 
 const Player = ReactPlayer as any;
 
@@ -246,6 +247,8 @@ export default function Home() {
                FideTV is an innovative agency that specializes in various services to help individuals and businesses thrive in the digital landscape.
             </p>
 
+            <AdBanner placement="Home Hero Bottom" className="mb-8" />
+
             <div className="flex flex-col sm:flex-row flex-wrap gap-5 items-start sm:items-center">
               <Link
                 to="/services"
@@ -287,7 +290,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="flex gap-8 px-4 sm:px-10 overflow-x-auto pb-20 no-scrollbar snap-x">
+        <div className="flex gap-8 px-4 sm:px-10 overflow-x-auto pb-12 no-scrollbar snap-x">
           {featuredPortfolio.map((show, i) => (
             <motion.div
               key={show.id || i}
@@ -319,6 +322,9 @@ export default function Home() {
               </p>
             </motion.div>
           ))}
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 pb-12">
+            <AdBanner placement="Home Portfolio Bottom" />
         </div>
       </section>
 
@@ -560,6 +566,9 @@ export default function Home() {
                 </div>
               </motion.div>
             ))}
+          </div>
+          <div className="mt-12 text-center max-w-4xl mx-auto">
+             <AdBanner placement="Home News Bottom" />
           </div>
         </section>
       )}

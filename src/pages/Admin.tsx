@@ -558,7 +558,17 @@ export default function Admin() {
                     Please run the following SQL code in your Supabase SQL Editor:
                   </p>
                   <pre className="bg-background/50 p-6 rounded-2xl text-[10px] font-mono text-foreground/40 overflow-x-auto border border-border-custom shadow-inner">
-{`CREATE TABLE IF NOT EXISTS public.ad_units (
+{`CREATE TABLE IF NOT EXISTS public.site_visits (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  session_id UUID NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.site_visits ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public can insert visits" ON public.site_visits FOR INSERT WITH CHECK (true);
+CREATE POLICY "Admin view visits" ON public.site_visits FOR SELECT USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
+
+CREATE TABLE IF NOT EXISTS public.ad_units (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
   platform TEXT NOT NULL CHECK (platform IN ('android', 'ios', 'web')),
@@ -595,7 +605,8 @@ CREATE POLICY "News likes viewable by everyone" ON public.news_likes FOR SELECT 
 CREATE POLICY "Authenticated users can like news" ON public.news_likes FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 CREATE POLICY "Users can unlike news" ON public.news_likes FOR DELETE USING (auth.uid() = user_id);
 
-INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://www.youtube.com/watch?v=0D-zn6YAqCY') ON CONFLICT (key) DO NOTHING;`}
+INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://www.youtube.com/watch?v=0D-zn6YAqCY') ON CONFLICT (key) DO NOTHING;
+`}
                   </pre>
                   <p className="text-[10px] text-foreground/40 font-medium italic mt-4 leading-relaxed">
                     Note: For a full database setup including all tables (Events, Portfolio, Services, etc.), please copy and run the contents of <span className="text-primary font-bold">supabase_schema.sql</span> from your project root.

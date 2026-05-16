@@ -352,4 +352,13 @@ ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Settings are viewable by everyone" ON public.site_settings FOR SELECT USING (true);
 CREATE POLICY "Only admin can manage site_settings" ON public.site_settings FOR ALL USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
 
-INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://www.youtube.com/watch?v=0D-zn6YAqCY') ON CONFLICT (key) DO NOTHING;
+-- 15. Site Visits Table
+CREATE TABLE IF NOT EXISTS public.site_visits (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  session_id UUID NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.site_visits ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public can insert visits" ON public.site_visits FOR INSERT WITH CHECK (true);
+CREATE POLICY "Admin view visits" ON public.site_visits FOR SELECT USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
