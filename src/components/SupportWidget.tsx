@@ -37,7 +37,7 @@ export default function SupportWidget() {
   }, []);
 
   useEffect(() => {
-    if (!isOpen || !user) return;
+    if (!user) return;
 
     const fetchMessages = async () => {
       const { data } = await supabase
@@ -49,7 +49,9 @@ export default function SupportWidget() {
       if (data) setMessages(data as any);
     };
 
-    fetchMessages();
+    if (isOpen) {
+      fetchMessages();
+    }
 
     const channel = supabase
       .channel(`support-${user.id}`)
@@ -81,7 +83,7 @@ export default function SupportWidget() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isOpen, user]);
+  }, [user]); // Only depend on user, not isOpen
 
   useEffect(() => {
     if (scrollRef.current) {

@@ -153,7 +153,6 @@ export default function HighPerformancePlayer({
         playsInline={playsinline}
         poster={poster}
         crossOrigin="anonymous"
-        referrerPolicy="no-referrer"
       />
       
       {loading && !error && (

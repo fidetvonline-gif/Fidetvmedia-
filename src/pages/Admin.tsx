@@ -98,7 +98,9 @@ export default function Admin() {
     checkAdmin();
     fetchData();
     fetchCertificates();
+  }, [activeTab]);
 
+  useEffect(() => {
     if (!isAdmin) return;
 
     const channel = supabase
@@ -117,7 +119,7 @@ export default function Admin() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [activeTab, isAdmin]);
+  }, [isAdmin]);
 
   const fetchData = async () => {
     setLoading(true);

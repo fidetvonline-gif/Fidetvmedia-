@@ -43,14 +43,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        checkProfile(session.user.id);
+        checkProfile(session.user.id, session.user.email);
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        checkProfile(session.user.id);
+        checkProfile(session.user.id, session.user.email);
       }
     });
 
@@ -78,12 +78,22 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       subscription.unsubscribe();
       supabase.removeChannel(channel);
     };
+  }, []);
+
+  // Separate effect for path-based profile checking
+  useEffect(() => {
+    if (user) {
+      checkProfile(user.id, user.email);
+    }
   }, [location.pathname]);
 
-  const checkProfile = async (userId: string) => {
+  const checkProfile = async (userId: string, email?: string) => {
     // Only check if not on auth or onboarding or policies pages
-    const publicPaths = ['/auth', '/onboarding', '/policies', '/about', '/contact', '/services', '/admin', '/profile'];
-    if (publicPaths.includes(location.pathname)) return;
+    const publicPaths = ['/auth', '/onboarding', '/policies', '/about', '/contact', '/services', '/admin', '/profile', '/download'];
+    if (publicPaths.some(path => location.pathname.startsWith(path))) return;
+
+    // Exempt admin from being forced to onboarding
+    if (email === 'fidetvonline@gmail.com') return;
 
     const { data, error } = await supabase
       .from('profiles')
@@ -91,6 +101,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       .eq('id', userId)
       .single();
     
+    // If no profile or no username, go to onboarding
+    // Error code PGRST116 means no rows found
     if (error || !data?.username) {
       navigate('/onboarding');
     }

@@ -26,6 +26,48 @@ export default function Messages() {
     fetchUser();
   }, []);
 
+  useEffect(() => {
+    if (!user) return;
+
+    let channel: any;
+
+    const setupSync = async () => {
+      const channelName = 'direct_messages_sync';
+      const existing = supabase.getChannels().find(c => c.topic === `realtime:${channelName}`);
+      if (existing) {
+        await supabase.removeChannel(existing);
+      }
+
+      channel = supabase
+        .channel(channelName)
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'direct_messages',
+          filter: `receiver_id=eq.${user.id}`
+        }, () => {
+          fetchData(user.id);
+        })
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'direct_messages',
+          filter: `sender_id=eq.${user.id}`
+        }, () => {
+          fetchData(user.id);
+        })
+        .subscribe();
+    };
+
+    setupSync();
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [user]);
+
   const fetchUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     setUser(user);
@@ -60,34 +102,7 @@ export default function Messages() {
       setMessages(msgs);
     }
     setLoading(false);
-
-    // Subscribe to new messages
-    const subscription = supabase
-      .channel('direct_messages_sync')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'direct_messages',
-        filter: `receiver_id=eq.${userId}`
-      }, (payload) => {
-        // Needs a full refetch to get profile joins easily, or we can just refetch all
-        fetchData(userId);
-      })
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'direct_messages',
-        filter: `sender_id=eq.${userId}`
-      }, (payload) => {
-        fetchData(userId);
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(subscription);
-    };
   };
-
   useEffect(() => {
     if (activeChat) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

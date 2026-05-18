@@ -147,18 +147,32 @@ export default function Live() {
     fetchLiveEventData();
 
     // Listen for status changes
-    const channel = supabase
-      .channel('live-events')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, payload => {
-        fetchLiveEventData();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tv_channels' }, payload => {
-        fetchLiveEventData();
-      })
-      .subscribe();
+    let channel: any;
+
+    const setupRealtime = async () => {
+      const channelName = 'live-events';
+      const existing = supabase.getChannels().find(c => c.topic === `realtime:${channelName}`);
+      if (existing) {
+        await supabase.removeChannel(existing);
+      }
+
+      channel = supabase
+        .channel(channelName)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, payload => {
+          fetchLiveEventData();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'tv_channels' }, payload => {
+          fetchLiveEventData();
+        })
+        .subscribe();
+    };
+
+    setupRealtime();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, []);
 

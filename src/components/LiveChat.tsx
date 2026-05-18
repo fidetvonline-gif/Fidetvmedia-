@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { Send, User as UserIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { Link } from 'react-router-dom';
 
 interface Message {
   id: string;
@@ -41,36 +42,50 @@ export default function LiveChat({ eventId }: { eventId: string }) {
     fetchMessages();
 
     // Real-time subscription
-    const channel = supabase
-      .channel(`live-chat-${eventId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'comments',
-          filter: `post_id=eq.live_${eventId}`,
-        },
-        async (payload) => {
-          // Fetch the profile for the new message
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('username, avatar_url')
-            .eq('id', payload.new.author_id)
-            .single();
+    let channel: any;
 
-          const newMessage = {
-            ...payload.new,
-            profiles: profile,
-          } as Message;
+    const setupChat = async () => {
+      const channelName = `live-chat-${eventId}`;
+      const existing = supabase.getChannels().find(c => c.topic === `realtime:${channelName}`);
+      if (existing) {
+        await supabase.removeChannel(existing);
+      }
 
-          setMessages((prev) => [...prev, newMessage]);
-        }
-      )
-      .subscribe();
+      channel = supabase
+        .channel(channelName)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'comments',
+            filter: `post_id=eq.live_${eventId}`,
+          },
+          async (payload) => {
+            // Fetch the profile for the new message
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('username, avatar_url')
+              .eq('id', payload.new.author_id)
+              .single();
+
+            const newMessage = {
+              ...payload.new,
+              profiles: profile,
+            } as Message;
+
+            setMessages((prev) => [...prev, newMessage]);
+          }
+        )
+        .subscribe();
+    };
+
+    setupChat();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [eventId]);
 
@@ -176,6 +191,3 @@ export default function LiveChat({ eventId }: { eventId: string }) {
     </div>
   );
 }
-
-// Add Link import for the fallback
-import { Link } from 'react-router-dom';

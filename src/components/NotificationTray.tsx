@@ -29,13 +29,55 @@ export default function NotificationTray() {
   const trayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    let channel: any;
+
+    const setupRealtime = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
+      
       if (user) {
         fetchNotifications(user.id);
-        setupSubscription(user.id);
+        
+        const channelName = `user-notifications-${user.id}`;
+        
+        // Remove existing channel with same name if it exists to avoid "already subscribed" errors
+        const existingChannel = supabase.getChannels().find(c => c.topic === `realtime:${channelName}`);
+        if (existingChannel) {
+          await supabase.removeChannel(existingChannel);
+        }
+
+        channel = supabase
+          .channel(channelName)
+          .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `recipient_id=eq.${user.id}`
+          }, async (payload) => {
+            // Fetch actor info
+            const { data: actor } = await supabase
+              .from('profiles')
+              .select('username, avatar_url, full_name')
+              .eq('id', payload.new.actor_id)
+              .single();
+
+            const newNotif = { ...payload.new, actor } as Notification;
+            setNotifications(prev => [newNotif, ...prev]);
+            setUnreadCount(prev => prev + 1);
+            
+            // Show browser notification if permitted
+            if (Notification.permission === 'granted' && !document.hasFocus()) {
+               new Notification(`${actor?.username} ${getVerb(newNotif.type)}`, {
+                 body: `Check your FideTV notifications for more details.`,
+                 icon: actor?.avatar_url || '/icon.svg'
+               });
+            }
+          })
+          .subscribe();
       }
-    });
+    };
+
+    setupRealtime();
 
     const handleClickOutside = (event: MouseEvent) => {
       if (trayRef.current && !trayRef.current.contains(event.target as Node)) {
@@ -44,43 +86,13 @@ export default function NotificationTray() {
     };
 
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const setupSubscription = (userId: string) => {
-    const channel = supabase
-      .channel(`user-notifications-${userId}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'notifications',
-        filter: `recipient_id=eq.${userId}`
-      }, async (payload) => {
-        // Fetch actor info
-        const { data: actor } = await supabase
-          .from('profiles')
-          .select('username, avatar_url, full_name')
-          .eq('id', payload.new.actor_id)
-          .single();
-
-        const newNotif = { ...payload.new, actor } as Notification;
-        setNotifications(prev => [newNotif, ...prev]);
-        setUnreadCount(prev => prev + 1);
-        
-        // Show browser notification if permitted
-        if (Notification.permission === 'granted' && !document.hasFocus()) {
-           new Notification(`${actor?.username} ${getVerb(newNotif.type)}`, {
-             body: `Check your FideTV notifications for more details.`,
-             icon: actor?.avatar_url || '/icon.svg'
-           });
-        }
-      })
-      .subscribe();
-
     return () => {
-      supabase.removeChannel(channel);
+      document.removeEventListener('mousedown', handleClickOutside);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
-  };
+  }, []);
 
   const fetchNotifications = async (userId: string) => {
     const { data, error } = await supabase
