@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Community as CommunityType } from '@/types';
-import { motion } from 'motion/react';
-import { Search, Users, ArrowRight, Plus, MessageSquare, TrendingUp, Globe, User } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Search, Users, ArrowRight, Plus, MessageSquare, TrendingUp, Globe, User, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import FollowButton from '@/components/FollowButton';
@@ -14,6 +14,11 @@ export default function Community() {
   const [search, setSearch] = useState('');
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [suggestedUsers, setSuggestedUsers] = useState<any[]>([]);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [newImageUrl, setNewImageUrl] = useState('');
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -22,6 +27,43 @@ export default function Community() {
     fetchCommunities();
     fetchSuggestedUsers();
   }, []);
+
+  const handleCreateCommunity = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) return;
+    setCreating(true);
+
+    const { data: community, error } = await supabase
+      .from('communities')
+      .insert({
+        name: newName,
+        description: newDescription,
+        image_url: newImageUrl
+      })
+      .select()
+      .single();
+
+    if (error) {
+      alert(error.message);
+    } else if (community) {
+      // Add creator as admin
+      await supabase
+        .from('community_members')
+        .insert({
+          community_id: community.id,
+          user_id: currentUser.id,
+          role: 'admin',
+          status: 'approved'
+        });
+      
+      setShowCreateModal(false);
+      setNewName('');
+      setNewDescription('');
+      setNewImageUrl('');
+      fetchCommunities();
+    }
+    setCreating(false);
+  };
 
   const fetchCommunities = async () => {
     const { data } = await supabase
@@ -61,10 +103,96 @@ export default function Community() {
             Join the <span className="text-muted">Circle.</span>
           </h1>
         </div>
-        <p className="max-w-md text-text-muted text-lg font-light leading-relaxed">
-          Find your niche, collaborate with experts, and grow your media presence in our specialized sub-communities.
-        </p>
+        <div className="flex flex-col items-end gap-6">
+          <p className="max-w-md text-text-muted text-lg font-light leading-relaxed text-right">
+            Find your niche, collaborate with experts, and grow your media presence in our specialized sub-communities.
+          </p>
+          {currentUser && (
+            <button 
+              onClick={() => setShowCreateModal(true)}
+              className="px-8 py-4 bg-primary text-white font-black uppercase tracking-widest text-[10px] rounded-2xl flex items-center gap-3 shadow-xl shadow-primary/20 hover:scale-105 transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Initialize New Hub</span>
+            </button>
+          )}
+        </div>
       </div>
+
+      <AnimatePresence>
+        {showCreateModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/90 backdrop-blur-md"
+            onClick={() => setShowCreateModal(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-surface border border-border-custom rounded-[3rem] p-10 sm:p-16 w-full max-w-2xl shadow-[0_0_100px_-20px_rgba(0,0,0,0.5)] relative overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+               <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-32 -mt-32" />
+               
+               <div className="relative z-10 space-y-12">
+                  <div className="flex justify-between items-center">
+                    <div className="space-y-2">
+                       <h2 className="text-3xl font-display font-bold text-foreground">Launch a Hub.</h2>
+                       <p className="text-[10px] text-primary uppercase font-black tracking-widest">Architect a New Community</p>
+                    </div>
+                    <button onClick={() => setShowCreateModal(false)} className="p-4 bg-background border border-border-custom rounded-full hover:bg-red-500 hover:text-white transition-all">
+                       <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleCreateCommunity} className="space-y-8">
+                     <div className="space-y-3">
+                        <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">Hub Designation (Name)</label>
+                        <input 
+                          value={newName}
+                          onChange={e => setNewName(e.target.value)}
+                          required
+                          placeholder="e.g. Cinema Enthusiasts"
+                          className="w-full bg-background border border-border-custom rounded-2xl p-6 text-foreground focus:border-primary/50 transition-colors shadow-inner outline-none"
+                        />
+                     </div>
+
+                     <div className="space-y-3">
+                        <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">Description</label>
+                        <textarea 
+                          value={newDescription}
+                          onChange={e => setNewDescription(e.target.value)}
+                          required
+                          placeholder="What is this collective about?"
+                          className="w-full bg-background border border-border-custom rounded-2xl p-6 text-foreground h-32 resize-none focus:border-primary/50 transition-colors shadow-inner outline-none"
+                        />
+                     </div>
+
+                     <div className="space-y-3">
+                        <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">Thumbnail Image URL</label>
+                        <input 
+                          value={newImageUrl}
+                          onChange={e => setNewImageUrl(e.target.value)}
+                          placeholder="https://images.unsplash.com/..."
+                          className="w-full bg-background border border-border-custom rounded-2xl p-6 text-foreground focus:border-primary/50 transition-colors shadow-inner outline-none"
+                        />
+                     </div>
+
+                     <button 
+                       disabled={creating}
+                       className="w-full py-8 bg-primary text-white font-black uppercase tracking-[0.4em] text-xs rounded-[2rem] shadow-2xl shadow-primary/30 hover:bg-primary/90 transition-all font-display disabled:opacity-50"
+                     >
+                       {creating ? 'Architecting...' : 'System: Deploy Hub'}
+                     </button>
+                  </form>
+               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="flex flex-col lg:flex-row gap-12">
         {/* Main Content */}

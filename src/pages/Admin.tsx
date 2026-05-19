@@ -639,6 +639,24 @@ CREATE TABLE IF NOT EXISTS public.site_settings (
 
 ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Settings viewable by everyone" ON public.site_settings FOR SELECT USING (true);
+CREATE POLICY "Communities viewable by everyone" ON public.communities FOR SELECT USING (true);
+CREATE POLICY "Authenticated users can create communities" ON public.communities FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Admins manage member roles" ON public.community_members FOR UPDATE USING (
+  EXISTS (
+    SELECT 1 FROM public.community_members m
+    WHERE m.community_id = public.community_members.community_id
+    AND m.user_id = auth.uid()
+    AND m.role IN ('moderator', 'admin')
+  ) OR (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com')
+);
+CREATE POLICY "Admins manage member removal" ON public.community_members FOR DELETE USING (
+  EXISTS (
+    SELECT 1 FROM public.community_members m
+    WHERE m.community_id = public.community_members.community_id
+    AND m.user_id = auth.uid()
+    AND m.role IN ('moderator', 'admin')
+  ) OR (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com')
+);
 CREATE POLICY "Admin manage settings" ON public.site_settings FOR ALL USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
 
 CREATE TABLE IF NOT EXISTS public.news_likes (
@@ -1085,36 +1103,52 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                     if (confirm('Import current default services to database?')) {
                       const defaultServices = [
                         {
-                          title: 'Video Production',
-                          icon: 'Video',
-                          description: 'From concept to final cut, we create cinematic video content that tells your story with power and precision.',
-                          features: ['4K Cinematography', 'Professional Editing', 'Motion Graphics', 'Sound Design'],
-                          price: 'Starting at ₦1,500,000',
+                          title: 'Digital Engineering',
+                          icon: 'Monitor',
+                          description: 'Elite web architectures and scalable software solutions engineered for high-performance digital ecosystems.',
+                          features: ['React & Next.js Systems', 'Custom API Architecture', 'Cloud Infrastructure', 'Sophisticated UX/UI'],
+                          price: 'Starting at ₦1,800,000',
                           order_index: 0
                         },
                         {
-                          title: 'Live Streaming',
-                          icon: 'Radio',
-                          description: 'Ultra-low latency, multi-camera broadcasting for concerts, conferences, and virtual events.',
-                          features: ['Multi-platform Stream', 'Live Tech Support', 'Interaction Tools', 'HD Quality'],
-                          price: 'Starting at ₦2,000,000',
+                          title: 'Hub Ecosystems',
+                          icon: 'Smartphone',
+                          description: 'Native and cross-platform mobile applications that deliver seamless, high-density user experiences.',
+                          features: ['iOS & Android Systems', 'Real-time Synchronization', 'Premium UI Components', 'Store Optimization'],
+                          price: 'Starting at ₦2,500,000',
                           order_index: 1
                         },
                         {
-                          title: 'Event Coverage',
-                          icon: 'Camera',
-                          description: 'Comprehensive media coverage for large-scale events, combining photography and videography.',
-                          features: ['Full Day Coverage', 'Quick Turnaround', 'High-Res Photos', 'Highlight Reels'],
+                          title: 'Cinematic Production',
+                          icon: 'Video',
+                          description: 'High-end visual storytelling and brand cinematography that captures attention and elevates identity.',
+                          features: ['8K Narrative Production', 'Elite Color Grading', 'Motion Directing', 'Sound Engineering'],
                           price: 'Starting at ₦3,000,000',
                           order_index: 2
                         },
                         {
-                          title: 'Interviews & Podcasts',
-                          icon: 'Mic',
-                          description: 'Professional sets and high-end audio for crisp, engaging talk content and interviews.',
-                          features: ['Multi-Mic Setup', 'Video Recording', 'Lighting Design', 'Post Production'],
-                          price: 'Starting at ₦800,000',
+                          title: 'Global Streaming',
+                          icon: 'Radio',
+                          description: 'Standard-setting live broadcasting with worldwide reach and ultra-low latency infrastructure.',
+                          features: ['Multi-Region CDNs', 'Interactive Live Tools', 'Broadcast Engineering', 'Full Event Mastery'],
+                          price: 'Starting at ₦2,200,000',
                           order_index: 3
+                        },
+                        {
+                          title: 'Brand Architecture',
+                          icon: 'Layout',
+                          description: 'Strategic digital identity and ecosystem design that positions brands for market dominance.',
+                          features: ['Design Systems', 'Strategy Research', 'Asset Architecture', 'Market Positioning'],
+                          price: 'Starting at ₦1,500,000',
+                          order_index: 4
+                        },
+                        {
+                          title: 'Signature Shows',
+                          icon: 'Mic',
+                          description: 'Premium content frameworks and podcast architectures designed for maximum engagement and retention.',
+                          features: ['Multi-Camera Setup', 'Audio Engineering', 'Guest Strategy', 'Post-Production'],
+                          price: 'Starting at ₦1,200,000',
+                          order_index: 5
                         }
                       ];
                       

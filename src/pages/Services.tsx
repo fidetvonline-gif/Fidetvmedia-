@@ -66,7 +66,7 @@ export default function Services() {
         order_index: 0
       },
       {
-        title: 'App Ecosystems',
+        title: 'Hub Ecosystems',
         icon: 'Smartphone',
         description: 'Native and cross-platform mobile applications that deliver seamless, high-density user experiences.',
         features: ['iOS & Android Systems', 'Real-time Synchronization', 'Premium UI Components', 'Store Optimization'],

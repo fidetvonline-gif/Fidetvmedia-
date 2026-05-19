@@ -143,7 +143,7 @@ export default function Home() {
       delay: 0.3
     },
     {
-      title: 'App Ecosystems',
+      title: 'Hub Ecosystems',
       description: 'Crafting intuitive mobile experiences.',
       icon: Smartphone,
       className: 'md:col-span-2 md:row-span-1 bg-surface border-white/5 hover:border-white/20',

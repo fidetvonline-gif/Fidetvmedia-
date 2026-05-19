@@ -166,18 +166,18 @@ CREATE POLICY "Authenticated users can join communities" ON public.community_mem
 CREATE POLICY "Users can leave communities" ON public.community_members FOR DELETE USING (auth.uid() = user_id);
 CREATE POLICY "Admins/Moderators can manage member roles" ON public.community_members FOR UPDATE USING (
   EXISTS (
-    SELECT 1 FROM public.community_members
-    WHERE community_id = community_id
-    AND user_id = auth.uid()
-    AND role IN ('moderator', 'admin')
+    SELECT 1 FROM public.community_members m
+    WHERE m.community_id = public.community_members.community_id
+    AND m.user_id = auth.uid()
+    AND m.role IN ('moderator', 'admin')
   ) OR (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com')
 );
 CREATE POLICY "Admins/Moderators can remove members" ON public.community_members FOR DELETE USING (
   EXISTS (
-    SELECT 1 FROM public.community_members
-    WHERE community_id = community_id
-    AND user_id = auth.uid()
-    AND role IN ('moderator', 'admin')
+    SELECT 1 FROM public.community_members m
+    WHERE m.community_id = public.community_members.community_id
+    AND m.user_id = auth.uid()
+    AND m.role IN ('moderator', 'admin')
   ) OR (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com')
 );
 CREATE POLICY "Events are viewable by everyone" ON public.events FOR SELECT USING (true);
@@ -185,7 +185,7 @@ CREATE POLICY "Only admin can manage events" ON public.events FOR ALL USING (aut
 
 -- Communities: Everyone can read, only admin can create/delete, moderators can update
 CREATE POLICY "Communities viewable by everyone" ON public.communities FOR SELECT USING (true);
-CREATE POLICY "Only global admin can create communities" ON public.communities FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
+CREATE POLICY "Authenticated users can create communities" ON public.communities FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 CREATE POLICY "Admins can delete their own communities or global admin" ON public.communities FOR DELETE USING (
   EXISTS (
     SELECT 1 FROM public.community_members
