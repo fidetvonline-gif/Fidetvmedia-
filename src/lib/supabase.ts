@@ -14,5 +14,14 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // and most Supabase calls will fail. The app will show a setup message.
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder'
+  supabaseAnonKey || 'placeholder',
+  {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true,
+      storageKey: 'fidetv-auth-token',
+      storage: window.localStorage,
+    }
+  }
 );

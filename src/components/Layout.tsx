@@ -54,24 +54,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       }
     });
 
-    // Real-time synchronization: refresh on major content changes
+    // Targeted refetching is handled in individual components
     const channel = supabase.channel('content-sync')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public' },
-        (payload) => {
-          // Exclude high-frequency or non-critical tables to prevent excessive reloading
-          const excludedTables = ['comments', 'messages', 'profiles', 'bookings'];
-          if (excludedTables.includes(payload.table)) return;
-
-          console.log(`Real-time update in ${payload.table}:`, payload);
-          
-          // Small delay to allow the DB operation to finish and propagate
-          setTimeout(() => {
-            window.location.reload();
-          }, 1500);
-        }
-      )
       .subscribe();
 
     return () => {

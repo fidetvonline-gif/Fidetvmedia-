@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Play, ZoomIn, ExternalLink, Filter } from 'lucide-react';
+import { Play, ZoomIn, ExternalLink, Filter, ArrowUpRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
@@ -40,40 +40,48 @@ export default function Portfolio() {
   };
 
   const staticProjects = [
+    { id: 'web-1', title: 'Fintech Dashboard Design', category: 'Web Development', image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=2070', type: 'image' },
+    { id: 'app-1', title: 'E-commerce Mobile Platform', category: 'App Development', image: 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&q=80&w=2070', type: 'image' },
     { id: 1, title: 'Summer Jazz Festival', category: 'Live Events', image: 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&q=80&w=2070', type: 'video' },
     { id: 2, title: 'Brand Launch: NEXA', category: 'Commercial', image: 'https://images.unsplash.com/photo-1551818255-e6e10975bc17?auto=format&fit=crop&q=80&w=2070', type: 'video' },
     { id: 3, title: 'Corporate Summit 2026', category: 'Corporate', image: 'https://images.unsplash.com/photo-1475721027785-f74dea327912?auto=format&fit=crop&q=80&w=2070', type: 'image' },
     { id: 4, title: 'Artist Spotlight', category: 'Interviews', image: 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&q=80&w=2070', type: 'video' },
-    { id: 5, title: 'Gala Night Coverage', category: 'Live Events', image: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?auto=format&fit=crop&q=80&w=2070', type: 'image' },
-    { id: 6, title: 'Product Cinematography', category: 'Commercial', image: 'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?auto=format&fit=crop&q=80&w=2012', type: 'video' },
   ];
 
   const projects = [...dbProjects, ...staticProjects];
 
-  const categories = ['all', 'Live Events', 'Commercial', 'Corporate', 'Interviews'];
+  const categories = ['all', 'Web Development', 'App Development', 'Live Events', 'Commercial', 'Corporate', 'Interviews'];
 
   const filteredProjects = filter === 'all' ? projects : projects.filter(p => p.category === filter);
 
 
   return (
-    <div className="py-24 space-y-24 mb-32">
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-        <div className="space-y-4">
-          <h4 className="text-primary font-display font-bold uppercase tracking-[0.5em] text-xs">Curated Work</h4>
-          <h1 className="text-4xl sm:text-6xl md:text-8xl font-display font-bold text-foreground tracking-tighter leading-[0.9] italic">
-            Visual Portfolio.
+    <div className="py-24 space-y-32 mb-32 bg-background">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+        <div className="space-y-8">
+          <div className="flex items-center gap-3">
+             <div className="h-px w-8 bg-primary/30" />
+             <span className="text-primary font-display font-medium uppercase tracking-[0.5em] text-[10px]">The Archive</span>
+          </div>
+          <h1 className="text-5xl sm:text-7xl md:text-9xl font-display font-bold text-foreground tracking-tighter leading-[0.85] italic">
+            Engineered<br /><span className="text-primary mix-blend-difference">Excellence.</span>
           </h1>
+          <p className="text-xl sm:text-2xl text-foreground font-serif font-light leading-relaxed italic opacity-70 max-w-2xl">
+            A selection of high-performance digital solutions and cinematic productions crafted by our studio.
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-4 pt-8">
-          <Filter className="w-5 h-5 text-text-muted mr-2" />
+          <div className="w-10 h-10 rounded-full bg-surface-bright border border-border-custom flex items-center justify-center mr-4">
+             <Filter className="w-4 h-4 text-primary" />
+          </div>
           {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setFilter(cat)}
               className={cn(
-                "px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all",
-                filter === cat ? "bg-primary text-white" : "glass text-text-muted hover:text-foreground"
+                "px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all border",
+                filter === cat ? "bg-primary text-white border-primary shadow-xl shadow-primary/20" : "bg-surface-bright/50 text-text-muted border-border-custom hover:border-primary/50 hover:text-foreground"
               )}
             >
               {cat}
@@ -83,57 +91,51 @@ export default function Portfolio() {
       </section>
 
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
           <AnimatePresence mode="popLayout">
             {filteredProjects.map((project) => (
               <motion.div
                 key={project.id}
                 layout
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
+                initial={{ opacity: 0, y: 40 }}
+                animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.4 }}
-                className="group relative aspect-[4/5] rounded-[2.5rem] overflow-hidden bg-surface border border-border-custom shadow-xl"
+                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                className="group relative aspect-[4/5] rounded-[3rem] overflow-hidden bg-surface border border-border-custom shadow-2xl hover:border-primary/30 transition-all duration-700"
               >
                 <img 
                   src={project.image} 
                   alt={project.title} 
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-40"
+                  className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 opacity-60 group-hover:opacity-40 grayscale group-hover:grayscale-0"
                   referrerPolicy="no-referrer"
                 />
 
-                <div className="absolute top-6 left-6 z-10 flex flex-col gap-2">
-                   <span className="px-3 py-1 bg-surface-bright/80 backdrop-blur-md border border-border-custom rounded-full text-[9px] font-black uppercase tracking-[0.2em] text-primary">
+                <div className="absolute top-8 left-8 z-10 flex flex-col gap-3">
+                   <span className="px-5 py-2 bg-background/80 backdrop-blur-xl border border-border-custom rounded-full text-[9px] font-black uppercase tracking-[0.3em] text-primary shadow-xl">
                      {project.category}
                    </span>
-                   {project.status && project.status === 'offline' && (
-                     <span className="px-3 py-1 bg-surface/50 backdrop-blur-md border border-border-custom rounded-full text-[9px] font-black uppercase tracking-[0.2em] text-text-muted">
-                       Recap Available
-                     </span>
-                   )}
                 </div>
                 
-                <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-60 transition-opacity group-hover:opacity-100" />
+                <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-80" />
                 
-                <div className="absolute inset-0 p-8 flex flex-col justify-end">
-                   <div className="space-y-4 translate-y-6 group-hover:translate-y-0 transition-transform duration-500">
-                      <p className="text-[10px] uppercase tracking-widest font-black text-primary">{project.category}</p>
-                      <h4 className="text-2xl font-display font-bold text-foreground">{project.title}</h4>
+                <div className="absolute inset-0 p-10 flex flex-col justify-end">
+                   <div className="space-y-6 translate-y-8 group-hover:translate-y-0 transition-all duration-700 ease-[0.16, 1, 0.3, 1]">
+                      <h4 className="text-3xl sm:text-4xl font-display font-medium text-foreground tracking-tighter italic leading-none">{project.title}</h4>
                       
-                      <div className="flex space-x-3 opacity-0 group-hover:opacity-100 transition-opacity delay-100">
+                      <div className="flex space-x-3 opacity-0 group-hover:opacity-100 transition-opacity duration-700 delay-100">
                         <button 
                           onClick={() => setPlayingVideo(project)}
-                          className="w-full h-12 bg-foreground text-background font-black uppercase tracking-widest text-[10px] rounded-2xl flex items-center justify-center hover:bg-primary hover:text-white transition-all shadow-xl shadow-foreground/20"
+                          className="w-full h-14 bg-primary text-white font-black uppercase tracking-[0.3em] text-[10px] rounded-2xl flex items-center justify-center hover:bg-primary/90 transition-all shadow-2xl shadow-primary/30"
                         >
                           {project.type === 'video' ? (
                             <>
-                              <Play className="w-4 h-4 fill-current mr-2" />
-                              <span>Watch Now</span>
+                              <Play className="w-4 h-4 fill-current mr-3" />
+                              <span>Experience</span>
                             </>
                           ) : (
                             <>
-                              <ZoomIn className="w-4 h-4 mr-2" />
-                              <span>View Project</span>
+                              <ExternalLink className="w-4 h-4 mr-3" />
+                              <span>View Case</span>
                             </>
                           )}
                         </button>
@@ -147,23 +149,25 @@ export default function Portfolio() {
       </section>
 
       {/* Video Reel Accent */}
-      <section className="bg-primary py-32 overflow-hidden relative">
-        <div className="absolute inset-0 opacity-10 flex space-x-10 -rotate-12 translate-y-20 scale-150">
+      <section className="bg-surface py-48 overflow-hidden relative border-y border-border-custom">
+        <div className="absolute inset-0 opacity-5 flex space-x-16 -rotate-6 translate-y-32 scale-125">
            {Array.from({ length: 4 }).map((_, i) => (
-             <div key={i} className="flex flex-col space-y-10">
+             <div key={i} className="flex flex-col space-y-16">
                 {Array.from({ length: 5 }).map((_, j) => (
-                   <div key={j} className="w-96 aspect-video bg-white rounded-3xl" />
+                   <div key={j} className="w-[30rem] aspect-video bg-foreground rounded-[3rem]" />
                 ))}
              </div>
            ))}
         </div>
         
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-           <h2 className="text-6xl sm:text-8xl font-display font-black text-white italic tracking-tighter opacity-20 absolute -top-10 left-0 w-full select-none">PORTFOLIO</h2>
-           <h3 className="text-4xl sm:text-5xl font-display font-bold text-white mb-8">Capturing Excellence Across the Globe.</h3>
-           <Link to="/contact" className="inline-flex items-center space-x-4 bg-white text-primary px-12 py-5 rounded-full font-black uppercase tracking-widest text-sm hover:scale-105 transition-transform">
-              <span>Work With Us</span>
-              <ExternalLink className="w-5 h-5" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center space-y-16">
+           <div className="space-y-6">
+              <span className="text-[10px] font-black uppercase tracking-[0.6em] text-primary">Status: Active</span>
+              <h3 className="text-5xl sm:text-8xl font-display font-bold text-foreground tracking-tighter italic leading-none">Architecting the<br />Digital Future.</h3>
+           </div>
+           <Link to="/contact" className="inline-flex items-center space-x-6 bg-primary text-white px-16 py-7 rounded-[2rem] font-black uppercase tracking-[0.4em] text-xs hover:scale-105 transition-all shadow-2xl shadow-primary/30">
+              <span>Initialize Partnership</span>
+              <ArrowUpRight className="w-6 h-6" />
            </Link>
         </div>
       </section>

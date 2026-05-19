@@ -37,106 +37,121 @@ export default function About() {
 
   return (
     <div className="py-24 space-y-32 mb-32 bg-background">
-       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col lg:flex-row gap-20 items-center">
-          <div className="lg:w-1/2 space-y-10">
+          <div className="lg:w-1/2 space-y-12">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
+              className="space-y-6"
             >
-              <h4 className="text-primary font-display font-bold uppercase tracking-[0.5em] text-xs mb-4">Our Story</h4>
-              <h1 className="text-4xl sm:text-5xl md:text-7xl font-display font-bold text-foreground tracking-tighter leading-tight italic">
-                Beyond the<br /><span className="text-primary">Lens.</span>
+              <div className="flex items-center gap-3">
+                 <div className="h-px w-8 bg-primary/30" />
+                 <span className="text-primary font-display font-medium uppercase tracking-[0.5em] text-[10px]">The Genesis</span>
+              </div>
+              <h1 className="text-5xl sm:text-7xl md:text-9xl font-display font-bold text-foreground tracking-tighter leading-[0.85] italic">
+                Beyond the<br /><span className="text-primary mix-blend-difference">Aesthetic.</span>
               </h1>
             </motion.div>
-            <p className="text-xl text-foreground/60 font-light leading-relaxed">
-              Founded at the intersection of media and community, FideTV started with a simple mission: to make professional-grade broadcasting and media production accessible to everyone.
+            <p className="text-xl sm:text-2xl text-foreground font-serif font-light leading-relaxed italic opacity-80">
+              Founded at the intersection of media and digital engineering, FideTV architected a new paradigm: where cinematic excellence meets high-performance software.
             </p>
-            <div className="space-y-6">
-              <p className="text-foreground/40 leading-relaxed font-light italic">
-                Today, we are a full-scale media agency and streaming platform serving thousands of creators and hundreds of businesses. Our commitment to quality and community remains unchanged. We don't just capture events; we create experiences that last.
+            <div className="space-y-8">
+              <p className="text-text-muted leading-relaxed font-light italic max-w-xl">
+                Today, we operate as a full-spectrum digital agency and premium content network. We don't just capture data or frames; we engineer experiences that dominate the digital landscape.
               </p>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {certUrl && (
-                  <div className="p-6 glass rounded-2xl border border-border-custom flex flex-col items-start space-y-4">
-                    <div className="flex items-center space-x-3">
-                      <CheckCircle className="w-6 h-6 text-green-500 shrink-0" />
-                      <h4 className="text-foreground font-bold text-sm">CAC Registered</h4>
+                  <div className="p-8 bg-surface-bright/50 backdrop-blur-xl rounded-[2rem] border border-border-custom flex flex-col items-start space-y-6 transition-all hover:bg-surface group">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center border border-green-500/20">
+                        <CheckCircle className="w-5 h-5 text-green-500" />
+                      </div>
+                      <h4 className="text-foreground font-black text-[10px] uppercase tracking-widest leading-none">CAC Registered</h4>
                     </div>
-                    <p className="text-foreground/60 text-[10px] leading-relaxed">FIDE TV MEDIA is registered with the Corporate Affairs Commission (BN - 3647744).</p>
-                    <a href={certUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-foreground text-[10px] font-bold uppercase tracking-widest transition-colors">
-                      View Certificate &rarr;
+                    <p className="text-text-muted text-[11px] leading-relaxed italic">Registered with the Corporate Affairs Commission (BN - 3647744).</p>
+                    <a href={certUrl} target="_blank" rel="noopener noreferrer" className="text-primary group-hover:text-foreground text-[10px] font-black uppercase tracking-[0.3em] transition-all">
+                      Verification Certificate &rarr;
                     </a>
                   </div>
                 )}
 
                 {smedanUrl && (
-                  <div className="p-6 glass rounded-2xl border border-border-custom flex flex-col items-start space-y-4">
-                    <div className="flex items-center space-x-3">
-                      <CheckCircle className="w-6 h-6 text-green-500 shrink-0" />
-                      <h4 className="text-foreground font-bold text-sm">SMEDAN Verified</h4>
+                  <div className="p-8 bg-surface-bright/50 backdrop-blur-xl rounded-[2rem] border border-border-custom flex flex-col items-start space-y-6 transition-all hover:bg-surface group">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center border border-green-500/20">
+                        <CheckCircle className="w-5 h-5 text-green-500" />
+                      </div>
+                      <h4 className="text-foreground font-black text-[10px] uppercase tracking-widest leading-none">SMEDAN Verified</h4>
                     </div>
-                    <p className="text-foreground/60 text-[10px] leading-relaxed">FIDE TV MEDIA is a verified entity with the Small and Medium Enterprises Development Agency. (Number - SUIN28515358)</p>
-                    <a href={smedanUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-foreground text-[10px] font-bold uppercase tracking-widest transition-colors">
-                      View Certificate &rarr;
+                    <p className="text-text-muted text-[11px] leading-relaxed italic">Verified with the Small and Medium Enterprises Development Agency. (SUIN28515358)</p>
+                    <a href={smedanUrl} target="_blank" rel="noopener noreferrer" className="text-primary group-hover:text-foreground text-[10px] font-black uppercase tracking-[0.3em] transition-all">
+                      Verification Certificate &rarr;
                     </a>
                   </div>
                 )}
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-8 pt-10 border-t border-border-custom">
+            <div className="grid grid-cols-2 gap-12 pt-12 border-t border-border-custom">
               <div>
-                <h3 className="text-4xl font-display font-bold text-foreground">12</h3>
-                <p className="text-[10px] uppercase tracking-widest text-foreground/40 font-bold">Years Experience</p>
+                <h3 className="text-4xl sm:text-6xl font-display font-medium text-foreground tracking-tighter italic">12</h3>
+                <p className="text-[10px] uppercase tracking-[0.4em] text-text-muted font-black mt-2">Years of Mastery</p>
               </div>
               <div>
-                <h3 className="text-4xl font-display font-bold text-foreground">450+</h3>
-                <p className="text-[10px] uppercase tracking-widest text-foreground/40 font-bold">Success Events</p>
+                <h3 className="text-4xl sm:text-6xl font-display font-medium text-foreground tracking-tighter italic">450+</h3>
+                <p className="text-[10px] uppercase tracking-[0.4em] text-text-muted font-black mt-2">Global Projects</p>
               </div>
             </div>
           </div>
 
           <div className="lg:w-1/2 relative">
-             <div className="relative aspect-[4/5] rounded-[3rem] overflow-hidden">
+             <div className="relative aspect-[4/5] rounded-[4rem] overflow-hidden shadow-2xl border border-border-custom bg-surface">
                 <img 
                   src="https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&q=80&w=2071" 
                   alt="Our Team" 
-                  className="w-full h-full object-cover grayscale opacity-60"
+                  className="w-full h-full object-cover grayscale opacity-30 group-hover:scale-105 transition-all duration-1000"
                   referrerPolicy="no-referrer"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-60" />
              </div>
              {/* Floating Accent */}
-             <div className="absolute -bottom-10 -right-10 w-48 h-48 glass rounded-[2rem] p-8 hidden sm:flex flex-col justify-center space-y-2 border-primary/20">
-                <Zap className="w-8 h-8 text-primary" />
-                <p className="text-xs font-bold text-foreground uppercase tracking-widest">Driven by Innovation</p>
+             <div className="absolute -bottom-10 -right-10 w-56 h-56 bg-surface border border-border-custom rounded-[3rem] p-10 hidden sm:flex flex-col justify-center space-y-6 shadow-2xl backdrop-blur-xl">
+                <Zap className="w-10 h-10 text-primary" />
+                <p className="text-[10px] font-black text-foreground uppercase tracking-[0.4em] leading-tight italic">Driven by<br />Innovation</p>
              </div>
           </div>
         </div>
       </section>
 
        {/* Values */}
-      <section className="bg-surface py-32">
+      <section className="bg-surface-bright/30 backdrop-blur-md py-32 sm:py-48 mt-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-           <div className="text-center mb-20 space-y-4">
-              <h2 className="text-xs font-bold uppercase tracking-[0.5em] text-primary">Core Values</h2>
-              <h3 className="text-4xl sm:text-5xl font-display font-bold text-foreground">Built on Principles.</h3>
+           <div className="flex flex-col sm:flex-row justify-between items-end mb-24 gap-8">
+              <div className="space-y-6">
+                 <h2 className="text-[10px] font-black uppercase tracking-[0.6em] text-primary">Core Philosophy</h2>
+                 <h3 className="text-5xl sm:text-8xl font-display font-medium text-foreground tracking-tighter italic leading-none">Built on<br />Principles.</h3>
+              </div>
+              <p className="text-text-muted font-serif italic text-lg sm:text-2xl max-w-md opacity-60 leading-relaxed">
+                We believe in systemic excellence and creative integrity as the foundation for every project.
+              </p>
            </div>
 
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-16 sm:gap-24">
               {[
-                { title: 'Excellence', description: 'We never settle for "good enough". Every frame must be perfect.', icon: Award },
-                { title: 'Community', description: 'FideTV is a hub for connection. We grow when our community grows.', icon: Heart },
-                { title: 'Innovation', description: 'Constantly pushing the boundaries of what streaming and media can be.', icon: Target },
+                { title: 'Excellence', description: 'We never settle for "good enough". Every pixel and frame must resonate with perfection.', icon: Award },
+                { title: 'Community', description: 'FideTV is a hub for connection. We prioritize collective growth over individual gain.', icon: Heart },
+                { title: 'Innovation', description: 'Constantly pushing the boundaries of what streaming and digital expression can achieve.', icon: Target },
               ].map((val, i) => (
-                <div key={i} className="space-y-6">
-                  <div className="w-16 h-16 bg-background rounded-2xl flex items-center justify-center border border-border-custom">
-                    <val.icon className="w-8 h-8 text-primary" />
+                <div key={i} className="space-y-10 group">
+                  <div className="w-20 h-20 bg-background rounded-3xl flex items-center justify-center border border-border-custom transition-all group-hover:scale-110 group-hover:bg-primary group-hover:text-white shadow-xl">
+                    <val.icon className="w-10 h-10 transition-colors" />
                   </div>
-                  <h4 className="text-2xl font-display font-bold text-foreground">{val.title}</h4>
-                  <p className="text-foreground/60 font-light leading-relaxed italic">{val.description}</p>
+                  <div className="space-y-6">
+                    <h4 className="text-3xl sm:text-4xl font-display font-medium text-foreground tracking-tighter italic">{val.title}</h4>
+                    <p className="text-text-muted font-serif font-light leading-relaxed italic text-lg sm:text-xl opacity-70 group-hover:opacity-100 transition-opacity">{val.description}</p>
+                  </div>
                 </div>
               ))}
            </div>

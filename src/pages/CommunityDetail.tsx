@@ -51,16 +51,26 @@ export default function CommunityDetail() {
     fetchData();
   }, [id]);
 
+  const [joinStatus, setJoinStatus] = useState<'none' | 'pending' | 'approved'>('none');
+
   const checkMembership = async (userId: string, communityId: string) => {
      const { data } = await supabase
        .from('community_members')
-       .select('role')
+       .select('role, status')
        .eq('user_id', userId)
        .eq('community_id', communityId)
        .maybeSingle();
      
-     setIsMember(!!data);
-     setMemberRole(data?.role || null);
+     if (data) {
+       const status = data.status || 'approved';
+       setJoinStatus(status as any);
+       setIsMember(status === 'approved');
+       setMemberRole(data.role || null);
+     } else {
+       setJoinStatus('none');
+       setIsMember(false);
+       setMemberRole(null);
+     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,7 +84,7 @@ export default function CommunityDetail() {
   const toggleMembership = async () => {
     if (!user || !id) return;
     
-    if (isMember) {
+    if (joinStatus !== 'none') {
       const { error } = await supabase
         .from('community_members')
         .delete()
@@ -82,15 +92,15 @@ export default function CommunityDetail() {
         .eq('community_id', id);
       if (!error) {
         setIsMember(false);
-        setMemberCount(prev => prev - 1);
+        setJoinStatus('none');
+        setMemberCount(prev => isMember ? prev - 1 : prev);
       }
     } else {
       const { error } = await supabase
         .from('community_members')
-        .insert({ user_id: user.id, community_id: id });
+        .insert({ user_id: user.id, community_id: id, status: 'pending' });
       if (!error) {
-        setIsMember(true);
-        setMemberCount(prev => prev + 1);
+        setJoinStatus('pending');
       }
     }
   };
@@ -512,12 +522,14 @@ export default function CommunityDetail() {
                     onClick={toggleMembership}
                     className={cn(
                       "px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all",
-                      isMember 
+                      joinStatus === 'approved' 
                         ? "bg-foreground/5 border border-border-custom text-text-muted hover:text-red-500 hover:border-red-500/20" 
+                        : joinStatus === 'pending'
+                        ? "bg-yellow-500/10 border border-yellow-500/20 text-yellow-500"
                         : "bg-primary text-white shadow-lg shadow-primary/20 hover:scale-105"
                     )}
                   >
-                    {isMember ? 'Leave Hub' : 'Join Hub'}
+                    {joinStatus === 'approved' ? 'Leave Hub' : joinStatus === 'pending' ? 'Pending Approval' : 'Join Hub'}
                   </button>
                 )}
                 {user && (

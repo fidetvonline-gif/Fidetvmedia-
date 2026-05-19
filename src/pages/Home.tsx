@@ -2,7 +2,7 @@ import { SEO } from '@/components/SEO';
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Play, Calendar, Users, ArrowRight, Video, Zap, CheckCircle, Flame, Sparkles, Globe, Shield, X, MessageSquare, Newspaper } from 'lucide-react';
+import { Play, Calendar, Users, ArrowRight, Video, Zap, CheckCircle, Flame, Sparkles, Globe, Shield, X, MessageSquare, Newspaper, Monitor, Smartphone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import ReactPlayer from 'react-player';
@@ -121,31 +121,31 @@ export default function Home() {
 
   const bentoItems = [
     {
-      title: 'Cinematic Production',
-      description: 'High-end cinematography mapping your brand identity.',
-      icon: Video,
+      title: 'Digital Engineering',
+      description: 'Sophisticated web and mobile architectures built for scale.',
+      icon: Monitor,
       className: 'md:col-span-2 md:row-span-2 bg-gradient-to-br from-surface to-surface-bright border-primary/20 hover:border-primary/50',
       delay: 0.1,
-      image: 'https://images.unsplash.com/photo-1601506521937-0121a7fc2a6b?auto=format&fit=crop&q=80&w=1200'
+      image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=1200'
+    },
+    {
+      title: 'Cinematic Production',
+      description: 'High-end visual storytelling.',
+      icon: Video,
+      className: 'md:col-span-1 md:row-span-1 bg-surface border-white/5 hover:bg-surface-bright',
+      delay: 0.2
     },
     {
       title: 'Global Streaming',
       description: 'Zero-latency broadcasting.',
       icon: Globe,
-      className: 'md:col-span-1 md:row-span-1 bg-surface border-white/5 hover:bg-surface-bright',
-      delay: 0.2
-    },
-    {
-      title: 'Creative Strategy',
-      description: 'Dominate the digital sphere.',
-      icon: Zap,
       className: 'md:col-span-1 md:row-span-1 bg-primary/10 border-primary/20 hover:bg-primary/20 text-primary-light',
       delay: 0.3
     },
     {
-      title: 'Live Event Mastery',
-      description: 'Unforgettable experiences captured in real-time.',
-      icon: Flame,
+      title: 'App Ecosystems',
+      description: 'Crafting intuitive mobile experiences.',
+      icon: Smartphone,
       className: 'md:col-span-2 md:row-span-1 bg-surface border-white/5 hover:border-white/20',
       delay: 0.4
     }
@@ -153,7 +153,7 @@ export default function Home() {
 
   return (
     <div className="relative pb-32 overflow-hidden bg-background">
-      <SEO title="Home" description="Welcome to FideTV Media - Your partner in innovative media production, live streaming, and cinematography." />
+      <SEO title="Home" description="Welcome to FideTV Media - Your partner in innovative media production, web development, and digital strategy." />
       {/* Video Modal */}
       <AnimatePresence>
         {playingVideo && (
@@ -161,16 +161,16 @@ export default function Home() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 sm:p-8"
+            className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/95 backdrop-blur-sm p-4 sm:p-8"
             onClick={() => setPlayingVideo(null)}
           >
             <div 
-              className="relative w-full max-w-6xl aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/10"
+              className="relative w-full max-w-6xl aspect-video bg-black rounded-[3rem] overflow-hidden shadow-[0_0_100px_-20px_rgba(0,0,0,0.5)] border border-white/10"
               onClick={e => e.stopPropagation()}
             >
               <button
                 onClick={() => setPlayingVideo(null)}
-                className="absolute top-4 right-4 z-50 p-2 bg-black/50 hover:bg-white/10 rounded-full text-white backdrop-blur-md transition-all opacity-100"
+                className="absolute top-8 right-8 z-50 p-4 bg-black/50 hover:bg-white/10 rounded-full text-white backdrop-blur-md transition-all opacity-100"
               >
                 <X className="w-6 h-6" />
               </button>
@@ -208,11 +208,11 @@ export default function Home() {
       </AnimatePresence>
 
       {/* Background Orbs */}
-      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-primary/20 rounded-full blur-[120px] mix-blend-screen pointer-events-none" />
-      <div className="absolute top-1/3 right-1/4 w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-[150px] mix-blend-screen pointer-events-none" />
+      <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[150px] mix-blend-screen pointer-events-none" />
+      <div className="absolute top-1/3 right-1/4 w-[700px] h-[700px] bg-orange-500/5 rounded-full blur-[180px] mix-blend-screen pointer-events-none" />
 
       {/* Hero Section */}
-      <section className="relative min-h-[75vh] flex flex-col justify-center py-10 px-4 sm:px-6 lg:px-8">
+      <section className="relative min-h-screen flex flex-col justify-center py-20 px-4 sm:px-6 lg:px-8">
         <motion.div style={{ y: yBg, opacity: opacityHero }} className="absolute inset-0 z-0">
           <video 
             ref={videoRef}
@@ -221,60 +221,58 @@ export default function Home() {
             loop 
             muted 
             playsInline
-            className="w-full h-full object-cover opacity-50 mix-blend-luminosity scale-105"
+            className="w-full h-full object-cover opacity-30 mix-blend-luminosity scale-110"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-background/20" />
-          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/40 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-background via-transparent to-transparent" />
         </motion.div>
 
-        <div className="relative z-10 max-w-7xl mx-auto w-full flex flex-col justify-center h-full gap-6 lg:gap-10">
+        <div className="relative z-10 max-w-7xl mx-auto w-full flex flex-col justify-center h-full">
           <motion.div
-            initial={{ opacity: 0, filter: 'blur(10px)', y: 20 }}
+            initial={{ opacity: 0, filter: 'blur(20px)', y: 40 }}
             animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
-            transition={{ duration: 1.2, ease: 'easeOut' }}
+            transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1] }}
           >
-            <div className="inline-flex items-center gap-3 px-5 py-2 rounded-full bg-surface-bright/20 border border-border-custom backdrop-blur-xl mb-8 shadow-2xl">
+            <div className="inline-flex items-center gap-4 px-6 py-2.5 rounded-full bg-surface-bright/30 border border-border-custom backdrop-blur-2xl mb-12 shadow-2xl">
               <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.4em] text-foreground">FIDE TV MEDIA</span>
+              <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.5em] text-foreground opacity-80 font-mono">EST. 2021 • PREMIUM STUDIO</span>
             </div>
             
-            <h1 className="text-4xl sm:text-6xl md:text-8xl lg:text-[10rem] xl:text-[12rem] leading-[0.8] font-display font-black uppercase text-foreground tracking-tighter mix-blend-difference mb-8">
-              INNOVATIVE<br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-orange-400 to-primary-light animate-gradient-x">
-                AGENCY.
+            <h1 className="text-5xl sm:text-8xl md:text-9xl lg:text-[11rem] xl:text-[14rem] leading-[0.8] font-display font-black uppercase text-foreground tracking-tighter mb-12">
+              BEYOND<br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-orange-400 to-primary-light italic font-medium">
+                DIGITAL.
               </span>
             </h1>
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.6, duration: 1 }}
-            className="max-w-3xl"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8, duration: 1.2 }}
+            className="max-w-4xl"
           >
-            <p className="text-lg sm:text-2xl text-text-muted font-light mb-10 sm:mb-12 leading-relaxed tracking-tight border-l-4 border-primary pl-6">
-               FideTV is an innovative agency that specializes in various services to help individuals and businesses thrive in the digital landscape.
+            <p className="text-xl sm:text-3xl text-text-muted font-serif font-light mb-14 leading-tight italic opacity-70">
+              FideTV is an elite creative agency architecting digital excellence across media production, software engineering, and global strategy.
             </p>
 
-            <AdBanner placement="Home Hero Bottom" className="mb-8" />
-
-            <div className="flex flex-col sm:flex-row flex-wrap gap-5 items-start sm:items-center">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-6 items-start sm:items-center">
               <Link
                 to="/services"
-                className="group w-full sm:w-auto px-8 sm:px-10 py-5 bg-primary text-white font-black uppercase tracking-widest text-xs flex items-center justify-center space-x-4 hover:bg-primary/90 rounded-2xl transition-all shadow-xl shadow-primary/20"
+                className="group w-full sm:w-auto px-12 sm:px-16 py-6 bg-primary text-white font-black uppercase tracking-[0.3em] text-xs flex items-center justify-center space-x-6 hover:bg-primary/90 rounded-[2rem] transition-all shadow-2xl shadow-primary/20"
               >
-                <span>Explore Services</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <span>The Ecosystem</span>
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
               </Link>
               
               <button 
                 onClick={() => navigate('/live')}
-                className="group w-full sm:w-auto px-8 sm:px-10 py-5 bg-surface-bright border border-border-custom backdrop-blur-md text-foreground font-black uppercase tracking-widest text-xs flex items-center justify-center space-x-3 hover:bg-surface rounded-2xl transition-all shadow-lg"
+                className="group w-full sm:w-auto px-12 py-6 bg-surface-bright/50 border border-border-custom backdrop-blur-xl text-foreground font-black uppercase tracking-[0.3em] text-xs flex items-center justify-center space-x-4 hover:bg-surface rounded-[2rem] transition-all shadow-xl"
               >
-                <div className="w-8 h-8 rounded-full bg-foreground/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Play className="w-4 h-4 fill-current ml-0.5" />
+                <div className="w-10 h-10 rounded-full bg-foreground/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Play className="w-5 h-5 fill-current ml-1" />
                 </div>
-                <span>Watch Live TV</span>
+                <span>Broadcast Live</span>
               </button>
             </div>
           </motion.div>
@@ -282,60 +280,61 @@ export default function Home() {
       </section>
 
       {/* Featured Shows Horizontal Scroller */}
-      <section className="py-20 relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-16">
-          <div className="flex flex-col sm:flex-row justify-between items-end gap-10">
-            <div className="space-y-6">
-              <span className="text-[10px] font-black uppercase text-primary tracking-[0.5em]">Original Programming</span>
-              <h2 className="text-4xl sm:text-6xl md:text-8xl font-display font-medium text-foreground tracking-tighter leading-none italic">
+      <section className="py-32 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-24">
+          <div className="flex flex-col sm:flex-row justify-between items-end gap-16">
+            <div className="space-y-8">
+              <span className="text-[10px] font-black uppercase text-primary tracking-[0.6em]">Original Frameworks</span>
+              <h2 className="text-5xl sm:text-7xl md:text-9xl font-display font-medium text-foreground tracking-tighter leading-none italic">
                 Signature<br />
-                Productions.
+                Masterpieces.
               </h2>
             </div>
-            <Link to="/content" className="group flex items-center space-x-4 px-8 py-4 border border-border-custom rounded-2xl hover:border-foreground/20 transition-all text-[10px] font-black uppercase tracking-widest text-foreground">
+            <Link to="/content" className="group flex items-center space-x-6 px-10 py-5 border border-border-custom rounded-3xl hover:border-foreground/20 transition-all text-[10px] font-black uppercase tracking-[0.4em] text-foreground bg-surface-bright/20 backdrop-blur-md">
               <span>Enter Content Hub</span>
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
+              <ArrowRight className="w-6 h-6 group-hover:translate-x-3 transition-transform" />
             </Link>
           </div>
         </div>
 
-        <div className="flex gap-8 px-4 sm:px-10 overflow-x-auto pb-12 no-scrollbar snap-x">
+        <div className="flex gap-10 px-4 sm:px-20 overflow-x-auto pb-20 no-scrollbar snap-x">
           {featuredPortfolio.map((show, i) => (
             <motion.div
               key={show.id || i}
-              initial={{ opacity: 0, x: 50 }}
+              initial={{ opacity: 0, x: 100 }}
               whileInView={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.1 }}
+              transition={{ delay: i * 0.1, duration: 0.8 }}
               viewport={{ once: true }}
-              className="flex-shrink-0 w-[300px] sm:w-[500px] snap-start"
+              className="flex-shrink-0 w-[85vw] sm:w-[600px] snap-center"
             >
-              <div className="group relative aspect-[4/5] rounded-[3rem] overflow-hidden border border-border-custom bg-surface mb-8">
-                <img src={show.image_url || `https://images.unsplash.com/photo-1523050335392-9beffa5d2205?auto=format&fit=crop&q=80&w=500`} alt={show.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 opacity-60 group-hover:opacity-80" />
+              <div className="group relative aspect-[4/5] rounded-[4rem] overflow-hidden border border-border-custom bg-surface mb-10 shadow-2xl">
+                <img src={show.image_url || `https://images.unsplash.com/photo-1523050335392-9beffa5d2205?auto=format&fit=crop&q=80&w=600`} alt={show.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 opacity-50 group-hover:opacity-80" />
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
-                <div className="absolute inset-0 p-8 sm:p-10 flex flex-col justify-end pointer-events-none">
-                   <div className="space-y-4">
-                      <span className="text-[10px] font-black uppercase text-primary tracking-[0.3em]">{show.category}</span>
-                      <h3 className="text-3xl sm:text-5xl font-display font-bold text-foreground tracking-tight leading-none">{show.title}</h3>
+                <div className="absolute inset-0 p-12 sm:p-16 flex flex-col justify-end pointer-events-none">
+                   <div className="space-y-6">
+                      <span className="text-[10px] font-black uppercase text-primary tracking-[0.5em]">{show.category}</span>
+                      <h3 className="text-4xl sm:text-6xl font-display font-bold text-foreground tracking-tighter leading-none italic">{show.title}</h3>
                    </div>
                 </div>
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                    {show.youtube_id || show.video_url ? (
-                     <button onClick={() => setPlayingVideo(show)} className="w-16 h-16 sm:w-20 sm:h-20 bg-foreground/20 hover:bg-primary backdrop-blur-md rounded-full flex items-center justify-center text-white scale-90 group-hover:scale-100 transition-all duration-300 shadow-2xl pointer-events-auto">
-                       <Play className="w-8 h-8 sm:w-10 sm:h-10 fill-current ml-1 sm:ml-2" />
+                     <button onClick={() => setPlayingVideo(show)} className="w-24 h-24 sm:w-32 sm:h-32 bg-primary/20 hover:bg-primary backdrop-blur-xl border border-white/20 rounded-full flex items-center justify-center text-white scale-90 group-hover:scale-100 transition-all duration-500 shadow-2xl pointer-events-auto">
+                       <Play className="w-12 h-12 sm:w-16 sm:h-16 fill-current ml-2 sm:ml-3" />
                      </button>
                    ) : null}
                 </div>
               </div>
-              <p className="text-text-muted font-light text-lg leading-relaxed px-6 italic">
+              <p className="text-text-muted font-serif font-light text-xl sm:text-2xl leading-relaxed px-10 italic opacity-60 group-hover:opacity-100 transition-opacity">
                 "{show.description}"
               </p>
             </motion.div>
           ))}
         </div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 pb-12">
-            <AdBanner placement="Home Portfolio Bottom" />
-        </div>
       </section>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 pb-12">
+          <AdBanner placement="Home Portfolio Bottom" />
+      </div>
 
       {/* Metrics Section */}
       <section className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10">

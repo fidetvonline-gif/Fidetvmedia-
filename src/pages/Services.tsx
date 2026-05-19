@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
-import { Video, Play, Camera, Mic, Radio, Zap, ArrowRight, CheckCircle2, X } from 'lucide-react';
+import { Video, Play, Camera, Mic, Radio, Zap, ArrowRight, CheckCircle2, X, Monitor, Smartphone, Layout, Cpu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactPlayer from 'react-player';
 import { supabase } from '@/lib/supabase';
@@ -15,6 +15,10 @@ const ICON_MAP: Record<string, any> = {
   Camera,
   Mic,
   Zap,
+  Monitor,
+  Smartphone,
+  Layout,
+  Cpu
 };
 
 export default function Services() {
@@ -54,36 +58,52 @@ export default function Services() {
     
     const defaultServices = [
       {
-        title: 'Video Production',
-        icon: 'Video',
-        description: 'From concept to final cut, we create cinematic video content that tells your story with power and precision.',
-        features: ['4K Cinematography', 'Professional Editing', 'Motion Graphics', 'Sound Design'],
-        price: 'Starting at ₦1,500,000',
+        title: 'Digital Engineering',
+        icon: 'Monitor',
+        description: 'Elite web architectures and scalable software solutions engineered for high-performance digital ecosystems.',
+        features: ['React & Next.js Systems', 'Custom API Architecture', 'Cloud Infrastructure', 'Sophisticated UX/UI'],
+        price: 'Starting at ₦1,800,000',
         order_index: 0
       },
       {
-        title: 'Live Streaming',
-        icon: 'Radio',
-        description: 'Ultra-low latency, multi-camera broadcasting for concerts, conferences, and virtual events.',
-        features: ['Multi-platform Stream', 'Live Tech Support', 'Interaction Tools', 'HD Quality'],
-        price: 'Starting at ₦2,000,000',
+        title: 'App Ecosystems',
+        icon: 'Smartphone',
+        description: 'Native and cross-platform mobile applications that deliver seamless, high-density user experiences.',
+        features: ['iOS & Android Systems', 'Real-time Synchronization', 'Premium UI Components', 'Store Optimization'],
+        price: 'Starting at ₦2,500,000',
         order_index: 1
       },
       {
-        title: 'Event Coverage',
-        icon: 'Camera',
-        description: 'Comprehensive media coverage for large-scale events, combining photography and videography.',
-        features: ['Full Day Coverage', 'Quick Turnaround', 'High-Res Photos', 'Highlight Reels'],
+        title: 'Cinematic Production',
+        icon: 'Video',
+        description: 'High-end visual storytelling and brand cinematography that captures attention and elevates identity.',
+        features: ['8K Narrative Production', 'Elite Color Grading', 'Motion Directing', 'Sound Engineering'],
         price: 'Starting at ₦3,000,000',
         order_index: 2
       },
       {
-        title: 'Interviews & Podcasts',
-        icon: 'Mic',
-        description: 'Professional sets and high-end audio for crisp, engaging talk content and interviews.',
-        features: ['Multi-Mic Setup', 'Video Recording', 'Lighting Design', 'Post Production'],
-        price: 'Starting at ₦800,000',
+        title: 'Global Streaming',
+        icon: 'Radio',
+        description: 'Standard-setting live broadcasting with worldwide reach and ultra-low latency infrastructure.',
+        features: ['Multi-Region CDNs', 'Interactive Live Tools', 'Broadcast Engineering', 'Full Event Mastery'],
+        price: 'Starting at ₦2,200,000',
         order_index: 3
+      },
+      {
+        title: 'Brand Architecture',
+        icon: 'Layout',
+        description: 'Strategic digital identity and ecosystem design that positions brands for market dominance.',
+        features: ['Design Systems', 'Strategy Research', 'Asset Architecture', 'Market Positioning'],
+        price: 'Starting at ₦1,500,000',
+        order_index: 4
+      },
+      {
+        title: 'Signature Shows',
+        icon: 'Mic',
+        description: 'Premium content frameworks and podcast architectures designed for maximum engagement and retention.',
+        features: ['Multi-Camera Setup', 'Audio Engineering', 'Guest Strategy', 'Post-Production'],
+        price: 'Starting at ₦1,200,000',
+        order_index: 5
       }
     ];
 
@@ -157,15 +177,15 @@ export default function Services() {
         >
           <div className="flex items-center justify-center gap-3">
             <div className="h-px w-8 bg-primary/30" />
-            <h4 className="text-primary font-display font-black uppercase tracking-[0.5em] text-[10px] sm:text-xs">What We Do</h4>
+            <span className="text-primary font-display font-black uppercase tracking-[0.5em] text-[10px] sm:text-xs">Excellence in Digital</span>
             <div className="h-px w-8 bg-primary/30" />
           </div>
           <h1 className="text-5xl sm:text-7xl md:text-9xl font-display font-bold text-foreground tracking-tighter leading-[0.8] italic">
-            Elite Media<br />Services
+            Elite Digital<br />Solutions.
           </h1>
         </motion.div>
-        <p className="text-lg sm:text-2xl text-text-muted max-w-3xl mx-auto font-light leading-relaxed px-4 italic">
-          We combine cutting-edge technology with creative artistry to deliver media that captures attention and inspires action.
+        <p className="text-lg sm:text-2xl text-text-muted max-w-3xl mx-auto font-serif font-light leading-relaxed px-4 italic opacity-80">
+          We combine cutting-edge technology with creative mastery to deliver experiences that transcend the ordinary. From cinematic production to software architecture.
         </p>
       </section>
 
@@ -184,69 +204,70 @@ export default function Services() {
                   initial={{ opacity: 0, y: 40 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-100px" }}
-                  className="bg-surface rounded-[2.5rem] sm:rounded-[4rem] p-10 sm:p-16 flex flex-col justify-between hover:border-primary/20 transition-all duration-700 border border-border-custom group shadow-xl hover:shadow-2xl shadow-foreground/5 relative overflow-hidden"
+                  className="bg-surface rounded-[3rem] sm:rounded-[5rem] p-10 sm:p-20 flex flex-col justify-between hover:border-primary/20 transition-all duration-700 border border-border-custom group shadow-2xl hover:shadow-[0_40px_100px_-20px_rgba(0,0,0,0.1)] shadow-black/5 relative overflow-hidden"
                 >
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-[100px] -mr-32 -mt-32" />
+                  <div className="absolute top-0 right-0 w-80 h-80 bg-primary/5 rounded-full blur-[120px] -mr-40 -mt-40 transition-transform duration-700 group-hover:scale-125" />
                   
-                  <div className="space-y-12 relative z-10">
+                  <div className="space-y-16 relative z-10">
                     <div className="flex justify-between items-start">
-                      <div className="w-20 h-20 sm:w-24 sm:h-24 bg-background border border-border-custom rounded-3xl sm:rounded-[2rem] flex items-center justify-center group-hover:scale-110 group-hover:bg-primary transition-all duration-700 shadow-inner">
-                        <Icon className="w-10 h-10 sm:w-12 sm:h-12 text-primary group-hover:text-white transition-all duration-700" />
+                      <div className="w-24 h-24 sm:w-32 sm:h-32 bg-background border border-border-custom rounded-[2.5rem] flex items-center justify-center group-hover:scale-105 group-hover:bg-primary group-hover:border-primary transition-all duration-700 shadow-xl">
+                        <Icon className="w-12 h-12 sm:w-16 sm:h-16 text-primary group-hover:text-white transition-all duration-700" />
                       </div>
-                      <span className="text-xs font-mono text-foreground/10 uppercase font-black tracking-widest leading-none bg-foreground/5 px-4 py-2 rounded-full">0{i+1}</span>
+                      <span className="text-xs font-mono text-foreground/5 uppercase font-black tracking-widest leading-none bg-foreground/5 px-6 py-3 rounded-full">INDEX_0{i+1}</span>
                     </div>
                     
-                    <div className="space-y-6">
-                      <h3 className="text-3xl sm:text-4xl font-display font-bold text-foreground tracking-tighter uppercase">{service.title}</h3>
-                      <p className="text-text-muted leading-relaxed font-light text-base sm:text-lg italic">{service.description}</p>
+                    <div className="space-y-8">
+                      <h3 className="text-4xl sm:text-6xl font-display font-medium text-foreground tracking-tighter italic leading-none">{service.title}</h3>
+                      <p className="text-text-muted leading-relaxed font-serif font-light text-lg sm:text-2xl italic opacity-70 group-hover:opacity-100 transition-opacity">{service.description}</p>
                     </div>
 
-                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-8 border-t border-border-custom/50">
                       {service.features.map((feature, idx) => (
-                        <li key={idx} className="flex items-center space-x-4 text-xs sm:text-sm text-text-muted font-medium">
-                          <div className="w-5 h-5 bg-primary/10 rounded-full flex items-center justify-center border border-primary/20 shrink-0">
+                        <li key={idx} className="flex items-center space-x-4 text-xs sm:text-sm text-text-muted font-bold tracking-[0.1em] uppercase">
+                          <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center border border-primary/20 shrink-0">
                             <CheckCircle2 className="w-3 h-3 text-primary" />
                           </div>
-                          <span className="uppercase tracking-widest leading-tight">{feature}</span>
+                          <span>{feature}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
 
-                  <div className="mt-12 sm:mt-20 pt-10 sm:pt-16 border-t border-border-custom flex flex-col sm:flex-row justify-between items-center gap-10 relative z-10">
-                    <div className="text-center sm:text-left space-y-1">
-                      <p className="text-[10px] uppercase tracking-[0.3em] text-text-muted font-black italic">Investment Structure</p>
-                      <p className="text-2xl font-display font-bold text-foreground tracking-tighter">{service.price}</p>
+                  <div className="mt-16 sm:mt-24 pt-16 border-t border-border-custom flex flex-col sm:flex-row justify-between items-center gap-12 relative z-10">
+                    <div className="text-center sm:text-left space-y-2">
+                      <p className="text-[10px] uppercase tracking-[0.4em] text-text-muted font-black">Project Threshold</p>
+                      <p className="text-3xl sm:text-4xl font-display font-black text-foreground tracking-tighter">{service.price}</p>
                     </div>
                     <Link
                       to="/booking"
-                      className="w-full sm:w-auto px-12 py-6 bg-primary text-white font-black uppercase tracking-[0.2em] text-[10px] rounded-2xl hover:bg-primary/90 transition-all shadow-xl shadow-primary/20 text-center scale-100 hover:scale-105 active:scale-95"
+                      className="w-full sm:w-auto px-14 py-7 bg-primary text-white font-black uppercase tracking-[0.3em] text-xs rounded-3xl hover:bg-primary/90 transition-all shadow-2xl shadow-primary/30 text-center scale-100 hover:scale-105 active:scale-95"
                     >
-                      Secure Booking
+                      Initialize Project
                     </Link>
                   </div>
                 </motion.div>
               );
             })
           ) : (
-            <div className="col-span-full py-40 text-center bg-surface border border-dashed border-border-custom rounded-[4rem] flex flex-col items-center justify-center space-y-10 shadow-sm">
+            <div className="col-span-full py-40 text-center bg-surface border border-dashed border-border-custom rounded-[5rem] flex flex-col items-center justify-center space-y-12 shadow-sm">
               <Zap className="w-24 h-24 text-foreground/5 animate-pulse" />
-              <div className="space-y-4">
-                <h3 className="text-3xl font-display font-bold text-foreground tracking-tight">No Services Available</h3>
-                <p className="text-text-muted max-w-sm mx-auto italic font-light leading-relaxed">Our elite service packages are currently being updated. Check back soon or contact support for direct inquiries.</p>
+              <div className="space-y-6">
+                <h3 className="text-4xl font-display font-bold text-foreground tracking-tighter italic">Studio Refresh in Progress</h3>
+                <p className="text-text-muted max-w-sm mx-auto font-serif italic font-light text-lg leading-relaxed opacity-60">Our elite service architecture is currently undergoing a systemic transition. Direct inquiries remain active.</p>
               </div>
               {isAdmin && (
                 <button
                   onClick={seedServices}
-                  className="px-12 py-6 bg-primary text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
+                  className="px-14 py-7 bg-primary text-white font-black uppercase tracking-[0.3em] text-xs rounded-3xl shadow-2xl shadow-primary/30 hover:scale-105 active:scale-95 transition-all"
                 >
-                  Seed Services Dataset
+                  Deploy Service Framework
                 </button>
               )}
             </div>
           )}
         </div>
       </section>
+
 
       {/* Featured Video Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

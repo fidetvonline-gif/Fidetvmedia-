@@ -121,6 +121,49 @@ export default function Admin() {
     };
   }, [isAdmin]);
 
+  const [communitySubTab, setCommunitySubTab] = useState<'hubs' | 'requests' | 'posts'>('hubs');
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+  const [allPosts, setAllPosts] = useState<any[]>([]);
+
+  const fetchCommunityRequests = async () => {
+    const { data } = await supabase
+      .from('community_members')
+      .select('*, profiles(username, avatar_url, full_name), communities(name)')
+      .eq('status', 'pending');
+    if (data) setPendingRequests(data);
+  };
+
+  const fetchAllPosts = async () => {
+    const { data } = await supabase
+      .from('posts')
+      .select('*, profiles(username, avatar_url), communities(name)')
+      .order('created_at', { ascending: false });
+    if (data) setAllPosts(data);
+  };
+
+  const handleRequestAction = async (requestId: string, approve: boolean) => {
+    if (approve) {
+      await supabase.from('community_members').update({ status: 'approved' }).eq('id', requestId);
+    } else {
+      await supabase.from('community_members').delete().eq('id', requestId);
+    }
+    fetchCommunityRequests();
+    fetchCommunityStats();
+  };
+
+  const deletePost = async (postId: string) => {
+    if (!confirm('Delete this post and all its comments?')) return;
+    await supabase.from('posts').delete().eq('id', postId);
+    fetchAllPosts();
+  };
+
+  useEffect(() => {
+    if (activeTab === 'communities') {
+      if (communitySubTab === 'requests') fetchCommunityRequests();
+      if (communitySubTab === 'posts') fetchAllPosts();
+    }
+  }, [activeTab, communitySubTab]);
+
   const fetchData = async () => {
     setLoading(true);
     if (activeTab === 'overview') {
@@ -565,6 +608,9 @@ export default function Admin() {
   session_id UUID NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- 2. Community Management V2 (Join Request Logic)
+ALTER TABLE public.community_members ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'approved' CHECK (status IN ('pending', 'approved'));
 
 ALTER TABLE public.site_visits ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public can insert visits" ON public.site_visits FOR INSERT WITH CHECK (true);
@@ -1407,24 +1453,115 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
           )}
 
           {activeTab === 'communities' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-               {communities.map(c => (
-                 <div key={c.id} className="bg-surface border border-border-custom rounded-[2rem] p-8 space-y-6 flex flex-col group hover:border-foreground/20 transition-all shadow-sm">
-                    <div className="flex justify-between items-start">
-                       <div className="w-16 h-16 bg-background rounded-2xl flex items-center justify-center border border-border-custom text-primary group-hover:scale-105 transition-transform shadow-inner">
-                          {c.image_url ? <img src={c.image_url} className="w-full h-full object-cover rounded-2xl" /> : <Users className="w-8 h-8 text-foreground/20" />}
-                       </div>
-                       <div className="flex space-x-2">
-                          <button onClick={() => { setEditingId(c.id); setTitle(c.name); setDescription(c.description); setImageUrl(c.image_url || ''); setIsEditing(true); }} className="p-2 text-foreground/40 hover:text-foreground transition-colors"><Edit2 className="w-4 h-4" /></button>
-                          <button onClick={() => handleDelete('communities', c.id)} className="p-2 text-foreground/40 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
-                       </div>
+            <div className="space-y-12">
+               {/* Sub-tab Navigation */}
+               <div className="flex gap-4 p-2 bg-surface rounded-2xl border border-border-custom w-fit">
+                  {[
+                    { id: 'hubs', name: 'Elite Hubs', icon: Users },
+                    { id: 'requests', name: 'Join Requests', icon: ShieldAlert },
+                    { id: 'posts', name: 'Manage Feed', icon: MessageSquare }
+                  ].map(sub => (
+                    <button
+                      key={sub.id}
+                      onClick={() => setCommunitySubTab(sub.id as any)}
+                      className={cn(
+                        "px-6 py-3 rounded-xl flex items-center space-x-2 text-[10px] font-black uppercase tracking-widest transition-all",
+                        communitySubTab === sub.id ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-foreground/40 hover:text-foreground"
+                      )}
+                    >
+                      <sub.icon className="w-3.5 h-3.5" />
+                      <span>{sub.name}</span>
+                    </button>
+                  ))}
+               </div>
+
+               {communitySubTab === 'hubs' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {communities.map(c => (
+                    <div key={c.id} className="bg-surface border border-border-custom rounded-[2rem] p-8 space-y-6 flex flex-col group hover:border-foreground/20 transition-all shadow-sm">
+                        <div className="flex justify-between items-start">
+                          <div className="w-16 h-16 bg-background rounded-2xl flex items-center justify-center border border-border-custom text-primary group-hover:scale-105 transition-transform shadow-inner">
+                              {c.image_url ? <img src={c.image_url} className="w-full h-full object-cover rounded-2xl" /> : <Users className="w-8 h-8 text-foreground/20" />}
+                          </div>
+                          <div className="flex space-x-2">
+                              <button onClick={() => { setEditingId(c.id); setTitle(c.name); setDescription(c.description); setImageUrl(c.image_url || ''); setIsEditing(true); }} className="p-2 text-foreground/40 hover:text-foreground transition-colors"><Edit2 className="w-4 h-4" /></button>
+                              <button onClick={() => handleDelete('communities', c.id)} className="p-2 text-foreground/40 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <h3 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">{c.name}</h3>
+                          <p className="text-xs text-foreground/40 leading-relaxed line-clamp-2 italic">{c.description}</p>
+                        </div>
                     </div>
-                    <div className="space-y-1">
-                       <h3 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">{c.name}</h3>
-                       <p className="text-xs text-foreground/40 leading-relaxed line-clamp-2 italic">{c.description}</p>
-                    </div>
+                  ))}
+                </div>
+               )}
+
+               {communitySubTab === 'requests' && (
+                 <div className="bg-surface rounded-3xl border border-border-custom overflow-hidden">
+                    {pendingRequests.length > 0 ? (
+                      <table className="w-full text-left text-sm">
+                        <thead>
+                          <tr className="bg-background/50 text-foreground/40 uppercase text-[10px] font-black tracking-widest border-b border-border-custom">
+                            <th className="px-8 py-6">User</th>
+                            <th className="px-8 py-6">Hub Requested</th>
+                            <th className="px-8 py-6">Requested At</th>
+                            <th className="px-8 py-6 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border-custom">
+                          {pendingRequests.map(req => (
+                            <tr key={req.id} className="hover:bg-foreground/5 transition-colors">
+                              <td className="px-8 py-6">
+                                <div className="flex items-center gap-3">
+                                  <img src={req.profiles?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${req.user_id}`} className="w-8 h-8 rounded-full" />
+                                  <span className="font-bold">{req.profiles?.username}</span>
+                                </div>
+                              </td>
+                              <td className="px-8 py-6 text-foreground/60">{req.communities?.name}</td>
+                              <td className="px-8 py-6 text-xs italic text-foreground/40">{format(new Date(req.created_at), 'MMM dd, HH:mm')}</td>
+                              <td className="px-8 py-6 text-right space-x-2">
+                                <button onClick={() => handleRequestAction(req.id, true)} className="px-4 py-2 bg-green-500 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-green-600 transition-all">Approve</button>
+                                <button onClick={() => handleRequestAction(req.id, false)} className="px-4 py-2 bg-red-500 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-600 transition-all">Decline</button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div className="py-20 text-center text-foreground/20 uppercase font-black tracking-widest text-xs italic">No Pending Requests</div>
+                    )}
                  </div>
-               ))}
+               )}
+
+               {communitySubTab === 'posts' && (
+                 <div className="bg-surface rounded-3xl border border-border-custom overflow-hidden">
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="bg-background/50 text-foreground/40 uppercase text-[10px] font-black tracking-widest border-b border-border-custom">
+                          <th className="px-8 py-6">Author</th>
+                          <th className="px-8 py-6">Hub</th>
+                          <th className="px-8 py-6">Content Snippet</th>
+                          <th className="px-8 py-6 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border-custom">
+                        {allPosts.map(post => (
+                          <tr key={post.id} className="hover:bg-foreground/5 transition-colors">
+                            <td className="px-8 py-6 font-bold">{post.profiles?.username}</td>
+                            <td className="px-8 py-6 text-[10px] uppercase font-black text-primary tracking-widest">{post.communities?.name}</td>
+                            <td className="px-8 py-6 text-xs text-foreground/60 line-clamp-1 italic">{post.content}</td>
+                            <td className="px-8 py-6 text-right">
+                              <button onClick={() => deletePost(post.id)} className="p-2 text-foreground/40 hover:text-red-500 transition-colors">
+                                <Trash2 className="w-5 h-5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                 </div>
+               )}
             </div>
           )}
 
