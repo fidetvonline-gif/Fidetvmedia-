@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
-import { Video, Play, Camera, Mic, Radio, Zap, ArrowRight, CheckCircle2, X, Monitor, Smartphone, Layout, Cpu } from 'lucide-react';
+import { Video, Play, Camera, Mic, Radio, Zap, ArrowRight, CheckCircle2, X, Monitor, Smartphone, Layout, Cpu, BarChart3, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactPlayer from 'react-player';
 import { supabase } from '@/lib/supabase';
@@ -18,7 +18,9 @@ const ICON_MAP: Record<string, any> = {
   Monitor,
   Smartphone,
   Layout,
-  Cpu
+  Cpu,
+  BarChart3,
+  Globe
 };
 
 export default function Services() {
@@ -60,8 +62,8 @@ export default function Services() {
       {
         title: 'Digital Engineering',
         icon: 'Monitor',
-        description: 'Elite web architectures and scalable software solutions engineered for high-performance digital ecosystems.',
-        features: ['React & Next.js Systems', 'Custom API Architecture', 'Cloud Infrastructure', 'Sophisticated UX/UI'],
+        description: 'Elite web architectures and specialized website creation engineered for high-performance digital ecosystems.',
+        features: ['Premium Web Design', 'Custom API Architecture', 'Cloud Infrastructure', 'Sophisticated UX/UI'],
         price: 'Starting at ₦1,800,000',
         order_index: 0
       },
@@ -74,12 +76,20 @@ export default function Services() {
         order_index: 1
       },
       {
+        title: 'Premium Advertising',
+        icon: 'BarChart3',
+        description: 'Strategic brand placement and targeted media campaigns designed for maximum market penetration.',
+        features: ['Ad Placement Strategy', 'Targeted Campaigns', 'Performance Analytics', 'Media Buying'],
+        price: 'Starting at ₦1,000,000',
+        order_index: 2
+      },
+      {
         title: 'Cinematic Production',
         icon: 'Video',
         description: 'High-end visual storytelling and brand cinematography that captures attention and elevates identity.',
         features: ['8K Narrative Production', 'Elite Color Grading', 'Motion Directing', 'Sound Engineering'],
         price: 'Starting at ₦3,000,000',
-        order_index: 2
+        order_index: 3
       },
       {
         title: 'Global Streaming',
@@ -87,7 +97,7 @@ export default function Services() {
         description: 'Standard-setting live broadcasting with worldwide reach and ultra-low latency infrastructure.',
         features: ['Multi-Region CDNs', 'Interactive Live Tools', 'Broadcast Engineering', 'Full Event Mastery'],
         price: 'Starting at ₦2,200,000',
-        order_index: 3
+        order_index: 4
       },
       {
         title: 'Brand Architecture',
@@ -95,7 +105,7 @@ export default function Services() {
         description: 'Strategic digital identity and ecosystem design that positions brands for market dominance.',
         features: ['Design Systems', 'Strategy Research', 'Asset Architecture', 'Market Positioning'],
         price: 'Starting at ₦1,500,000',
-        order_index: 4
+        order_index: 5
       },
       {
         title: 'Signature Shows',
@@ -103,7 +113,15 @@ export default function Services() {
         description: 'Premium content frameworks and podcast architectures designed for maximum engagement and retention.',
         features: ['Multi-Camera Setup', 'Audio Engineering', 'Guest Strategy', 'Post-Production'],
         price: 'Starting at ₦1,200,000',
-        order_index: 5
+        order_index: 6
+      },
+      {
+        title: 'Media Strategy',
+        icon: 'Globe',
+        description: 'Futuristic consulting and long-term content roadmaps for the evolving media landscape.',
+        features: ['Future Readiness', 'Content Roadmaps', 'Innovation Labs', 'Trend Analysis'],
+        price: 'Starting at ₦2,000,000',
+        order_index: 7
       }
     ];
 
@@ -125,6 +143,75 @@ export default function Services() {
     if (data) setServices(data);
     setLoading(false);
   };
+
+  const fallbackServices = [
+    {
+      id: 'd1',
+      title: 'Digital Engineering',
+      icon: 'Monitor',
+      description: 'Elite web architectures and specialized website creation engineered for high-performance digital ecosystems.',
+      features: ['Premium Web Design', 'Custom API Architecture', 'Cloud Infrastructure', 'Sophisticated UX/UI'],
+      price: 'Starting at ₦1,800,000',
+    },
+    {
+      id: 'd2',
+      title: 'Hub Ecosystems',
+      icon: 'Smartphone',
+      description: 'Native and cross-platform mobile applications that deliver seamless, high-density user experiences.',
+      features: ['iOS & Android Systems', 'Real-time Synchronization', 'Premium UI Components', 'Store Optimization'],
+      price: 'Starting at ₦2,500,000',
+    },
+    {
+      id: 'd3',
+      title: 'Premium Advertising',
+      icon: 'BarChart3',
+      description: 'Strategic brand placement and targeted media campaigns designed for maximum market penetration.',
+      features: ['Ad Placement Strategy', 'Targeted Campaigns', 'Performance Analytics', 'Media Buying'],
+      price: 'Starting at ₦1,000,000',
+    },
+    {
+      id: 'd4',
+      title: 'Cinematic Production',
+      icon: 'Video',
+      description: 'High-end visual storytelling and brand cinematography that captures attention and elevates identity.',
+      features: ['8K Narrative Production', 'Elite Color Grading', 'Motion Directing', 'Sound Engineering'],
+      price: 'Starting at ₦3,000,000',
+    },
+    {
+      id: 'd5',
+      title: 'Global Streaming',
+      icon: 'Radio',
+      description: 'Standard-setting live broadcasting with worldwide reach and ultra-low latency infrastructure.',
+      features: ['Multi-Region CDNs', 'Interactive Live Tools', 'Broadcast Engineering', 'Full Event Mastery'],
+      price: 'Starting at ₦2,200,000',
+    },
+    {
+      id: 'd6',
+      title: 'Brand Architecture',
+      icon: 'Layout',
+      description: 'Strategic digital identity and ecosystem design that positions brands for market dominance.',
+      features: ['Design Systems', 'Strategy Research', 'Asset Architecture', 'Market Positioning'],
+      price: 'Starting at ₦1,500,000',
+    },
+    {
+      id: 'd7',
+      title: 'Signature Shows',
+      icon: 'Mic',
+      description: 'Premium content frameworks and podcast architectures designed for maximum engagement and retention.',
+      features: ['Multi-Camera Setup', 'Audio Engineering', 'Guest Strategy', 'Post-Production'],
+      price: 'Starting at ₦1,200,000',
+    },
+    {
+      id: 'd8',
+      title: 'Media Strategy',
+      icon: 'Globe',
+      description: 'Futuristic consulting and long-term content roadmaps for the evolving media landscape.',
+      features: ['Future Readiness', 'Content Roadmaps', 'Innovation Labs', 'Trend Analysis'],
+      price: 'Starting at ₦2,000,000',
+    }
+  ];
+
+  const displayServices = services.length > 0 ? services : (loading ? [] : fallbackServices);
 
   return (
     <div className="py-24 space-y-32 mb-32 relative bg-background">
@@ -195,8 +282,8 @@ export default function Services() {
             Array(4).fill(0).map((_, i) => (
               <div key={i} className="bg-surface rounded-[3rem] p-12 h-[500px] animate-pulse border border-border-custom" />
             ))
-          ) : services.length > 0 ? (
-            services.map((service, i) => {
+          ) : displayServices.length > 0 ? (
+            displayServices.map((service, i) => {
               const Icon = ICON_MAP[service.icon || 'Video'] || Video;
               return (
                 <motion.div
@@ -268,6 +355,54 @@ export default function Services() {
         </div>
       </section>
 
+
+      {/* Future of Media Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32 border-t border-border-custom relative overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+        
+        <div className="flex flex-col lg:flex-row gap-20 items-center">
+          <div className="lg:w-1/2 space-y-12">
+            <div className="space-y-6">
+              <h2 className="text-4xl sm:text-6xl font-display font-bold text-foreground tracking-tighter italic">
+                The Future<br />of Media.
+              </h2>
+              <p className="text-xl text-text-muted font-serif font-light leading-relaxed italic opacity-80">
+                We are not just observers of the digital revolution; we are its architects. Our innovation lab is dedicated to the next frontier of human connection and strategic advertising.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+              {[
+                { title: 'AI-Driven Content', desc: 'Generative architectures for personalized storytelling.' },
+                { title: 'Immersive Realities', desc: 'VR/AR ecosystems that transcend physical boundaries.' },
+                { title: 'Meta-Communities', desc: 'Hyper-engaged hubs with zero-friction interaction.' },
+                { title: 'Predictive Advertising', desc: 'Data-informed creative that anticipates audience desire.' }
+              ].map((item, i) => (
+                <div key={i} className="space-y-4 p-8 bg-surface rounded-[2rem] border border-border-custom hover:border-primary/20 transition-all group">
+                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
+                      <Zap className="w-5 h-5" />
+                   </div>
+                   <h4 className="text-lg font-display font-medium text-foreground">{item.title}</h4>
+                   <p className="text-sm text-text-muted leading-relaxed italic">{item.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div className="lg:w-1/2 relative">
+             <div className="relative aspect-square rounded-[5rem] overflow-hidden border border-border-custom shadow-2xl">
+                <img 
+                  src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=1200" 
+                  className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-1000 scale-110 hover:scale-100" 
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
+             </div>
+             <div className="absolute -bottom-10 -right-10 w-64 h-64 bg-primary/20 rounded-full blur-[80px] animate-pulse" />
+             <div className="absolute -top-10 -left-10 w-48 h-48 bg-primary/10 rounded-full blur-[60px]" />
+          </div>
+        </div>
+      </section>
 
       {/* Featured Video Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

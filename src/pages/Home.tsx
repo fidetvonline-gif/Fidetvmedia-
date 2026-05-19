@@ -2,7 +2,7 @@ import { SEO } from '@/components/SEO';
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Play, Calendar, Users, ArrowRight, Video, Zap, CheckCircle, Flame, Sparkles, Globe, Shield, X, MessageSquare, Newspaper, Monitor, Smartphone } from 'lucide-react';
+import { Play, Calendar, Users, ArrowRight, Video, Zap, CheckCircle, Flame, Sparkles, Globe, Shield, X, MessageSquare, Newspaper, Monitor, Smartphone, BarChart3, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import ReactPlayer from 'react-player';
@@ -122,32 +122,46 @@ export default function Home() {
   const bentoItems = [
     {
       title: 'Digital Engineering',
-      description: 'Sophisticated web and mobile architectures built for scale.',
+      description: 'Elite web design and specialized platform architecture.',
       icon: Monitor,
       className: 'md:col-span-2 md:row-span-2 bg-gradient-to-br from-surface to-surface-bright border-primary/20 hover:border-primary/50',
       delay: 0.1,
       image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=1200'
     },
     {
-      title: 'Cinematic Production',
-      description: 'High-end visual storytelling.',
-      icon: Video,
+      title: 'Premium Advertising',
+      description: 'Performance-driven media placement and campaigns.',
+      icon: BarChart3,
       className: 'md:col-span-1 md:row-span-1 bg-surface border-white/5 hover:bg-surface-bright',
       delay: 0.2
     },
     {
-      title: 'Global Streaming',
-      description: 'Zero-latency broadcasting.',
-      icon: Globe,
+      title: 'Media Strategy',
+      description: 'Futuristic consulting for standard-setting brands.',
+      icon: Zap,
       className: 'md:col-span-1 md:row-span-1 bg-primary/10 border-primary/20 hover:bg-primary/20 text-primary-light',
       delay: 0.3
     },
     {
       title: 'Hub Ecosystems',
-      description: 'Crafting intuitive mobile experiences.',
-      icon: Smartphone,
+      description: 'Architecting high-engagement digital communities.',
+      icon: Users,
       className: 'md:col-span-2 md:row-span-1 bg-surface border-white/5 hover:border-white/20',
       delay: 0.4
+    },
+    {
+      title: 'Cinematic Production',
+      description: '8K Narrative Production and Video Storytelling.',
+      icon: Video,
+      className: 'md:col-span-1 md:row-span-1 bg-surface border-white/5 hover:border-white/20',
+      delay: 0.5
+    },
+    {
+      title: 'Global Streaming',
+      description: 'Ultra-low latency world-class broadcasting.',
+      icon: Radio,
+      className: 'md:col-span-1 md:row-span-1 bg-surface border-white/5 hover:border-white/20',
+      delay: 0.6
     }
   ];
 

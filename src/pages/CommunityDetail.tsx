@@ -199,20 +199,6 @@ export default function CommunityDetail() {
     }
   };
 
-  const removeMember = async (userId: string) => {
-    if (!id) return;
-    const { error } = await supabase
-      .from('community_members')
-      .delete()
-      .eq('community_id', id)
-      .eq('user_id', userId);
-    
-    if (!error) {
-      fetchMembers();
-      fetchData();
-    }
-  };
-
   const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPostContent.trim() || !user || !id) return;
@@ -293,6 +279,35 @@ export default function CommunityDetail() {
     setIsUpdatingCommunity(false);
   };
 
+  const removeMember = async (targetUserId: string) => {
+    if (!id || !confirm('Are you sure you want to remove this member?')) return;
+    const { error } = await supabase
+      .from('community_members')
+      .delete()
+      .eq('community_id', id)
+      .eq('user_id', targetUserId);
+    if (!error) fetchMembers();
+  };
+
+  const deletePost = async (postId: string) => {
+    if (!confirm('Are you sure you want to delete this post?')) return;
+    const { error } = await supabase.from('posts').delete().eq('id', postId);
+    if (!error) {
+      setPosts(prev => prev.filter(p => (p as any).id !== postId));
+    } else {
+      alert('Error deleting post');
+    }
+  };
+
+  const handleJoinRequest = async (requestId: string, approve: boolean) => {
+    if (approve) {
+      await supabase.from('community_members').update({ status: 'approved' }).eq('id', requestId);
+    } else {
+      await supabase.from('community_members').delete().eq('id', requestId);
+    }
+    fetchMembers();
+  };
+
   const isModerator = memberRole === 'moderator' || memberRole === 'admin' || user?.email === 'fidetvonline@gmail.com';
 
   if (loading && !community) return <div className="max-w-4xl mx-auto py-40 text-center text-gray-500">Loading Hub...</div>;
@@ -331,49 +346,76 @@ export default function CommunityDetail() {
                 <p className="text-text-muted text-sm">Control who can moderate or participate in your community.</p>
               </div>
 
-              <div className="max-h-[50vh] overflow-y-auto space-y-4 pr-4 custom-scrollbar">
-                {communityMembers.map((member) => (
-                  <div key={member.id} className="flex items-center justify-between p-4 bg-foreground/5 rounded-2xl border border-border-custom hover:border-foreground/10 transition-all">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 rounded-full overflow-hidden bg-primary/20 shrink-0">
-                        {member.profiles?.avatar_url ? (
-                          <img src={member.profiles.avatar_url} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Users className="w-5 h-5 text-primary" />
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h3 className="text-sm font-black uppercase text-primary tracking-widest pl-1">Join Requests</h3>
+                  <div className="max-h-[30vh] overflow-y-auto space-y-4 pr-1 custom-scrollbar">
+                    {communityMembers.filter(m => m.status === 'pending').length > 0 ? (
+                      communityMembers.filter(m => m.status === 'pending').map((req) => (
+                        <div key={req.id} className="flex items-center justify-between p-4 bg-yellow-500/5 rounded-2xl border border-yellow-500/10">
+                          <div className="flex items-center space-x-3">
+                            <img src={req.profiles?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${req.user_id}`} className="w-8 h-8 rounded-full" />
+                            <span className="text-sm font-bold">{req.profiles?.username}</span>
                           </div>
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-foreground font-bold text-sm">{member.profiles?.full_name || member.profiles?.username}</p>
-                        <p className="text-xs text-text-muted">@{member.profiles?.username}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <select 
-                        value={member.role}
-                        onChange={(e) => updateMemberRole(member.user_id, e.target.value)}
-                        disabled={member.user_id === user?.id && member.role === 'admin'} // Can't demote self from admin easily
-                        className="bg-background border border-border-custom rounded-lg text-xs text-foreground px-3 py-2 outline-none focus:border-primary/50"
-                      >
-                        <option value="member">Member</option>
-                        <option value="moderator">Moderator</option>
-                        <option value="admin">Admin</option>
-                      </select>
-                      
-                      {member.user_id !== user?.id && (
-                        <button 
-                          onClick={() => removeMember(member.user_id)}
-                          className="p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-all"
-                          title="Remove Member"
-                        >
-                          <UserMinus className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
+                          <div className="flex gap-2">
+                            <button onClick={() => handleJoinRequest(req.id, true)} className="px-3 py-1.5 bg-green-500 text-white text-[10px] font-black uppercase rounded-lg">Approve</button>
+                            <button onClick={() => handleJoinRequest(req.id, false)} className="px-3 py-1.5 bg-red-500 text-white text-[10px] font-black uppercase rounded-lg">Decline</button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-text-muted italic p-2">No pending join requests.</p>
+                    )}
                   </div>
-                ))}
+                </div>
+
+                <div className="space-y-2">
+                  <h3 className="text-sm font-black uppercase text-text-muted tracking-widest pl-1">Approved Members</h3>
+                  <div className="max-h-[40vh] overflow-y-auto space-y-4 pr-1 custom-scrollbar">
+                    {communityMembers.filter(m => m.status === 'approved').map((member) => (
+                      <div key={member.id} className="flex items-center justify-between p-4 bg-foreground/5 rounded-2xl border border-border-custom hover:border-foreground/10 transition-all">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 rounded-full overflow-hidden bg-primary/20 shrink-0">
+                            {member.profiles?.avatar_url ? (
+                              <img src={member.profiles.avatar_url} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Users className="w-5 h-5 text-primary" />
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-foreground font-bold text-sm">{member.profiles?.full_name || member.profiles?.username}</p>
+                            <p className="text-xs text-text-muted">@{member.profiles?.username}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <select 
+                            value={member.role}
+                            onChange={(e) => updateMemberRole(member.user_id, e.target.value)}
+                            disabled={member.user_id === user?.id && member.role === 'admin'} 
+                            className="bg-background border border-border-custom rounded-lg text-xs text-foreground px-3 py-2 outline-none focus:border-primary/50"
+                          >
+                            <option value="member">Member</option>
+                            <option value="moderator">Moderator</option>
+                            <option value="admin">Admin</option>
+                          </select>
+                          
+                          {member.user_id !== user?.id && (
+                            <button 
+                              onClick={() => removeMember(member.user_id)}
+                              className="p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition-all"
+                              title="Remove Member"
+                            >
+                              <UserMinus className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </motion.div>
           </motion.div>
@@ -621,8 +663,19 @@ export default function CommunityDetail() {
               ))
             ) : posts.length > 0 ? (
               <>
-                {posts.map((post) => (
-                  <PostCard key={post.id} post={post} onDelete={() => { setPage(0); fetchData(); }} onUpdate={() => { setPage(0); fetchData(); }} />
+                {posts.map((post: any) => (
+                  <div key={post.id} className="relative group">
+                    <PostCard post={post} onDelete={() => { setPage(0); fetchData(); }} onUpdate={() => { setPage(0); fetchData(); }} />
+                    {isModerator && (
+                      <button 
+                        onClick={() => deletePost(post.id)}
+                        className="absolute top-4 right-4 p-2 bg-background/80 hover:bg-red-500 hover:text-white rounded-xl shadow-lg opacity-0 group-hover:opacity-100 transition-all z-10"
+                        title="Delete Post (Moderator)"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 ))}
                 
                 {hasMore && (

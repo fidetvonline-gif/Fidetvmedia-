@@ -1105,8 +1105,8 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                         {
                           title: 'Digital Engineering',
                           icon: 'Monitor',
-                          description: 'Elite web architectures and scalable software solutions engineered for high-performance digital ecosystems.',
-                          features: ['React & Next.js Systems', 'Custom API Architecture', 'Cloud Infrastructure', 'Sophisticated UX/UI'],
+                          description: 'Elite web architectures and specialized website creation engineered for high-performance digital ecosystems.',
+                          features: ['Premium Web Design', 'Custom API Architecture', 'Cloud Infrastructure', 'Sophisticated UX/UI'],
                           price: 'Starting at ₦1,800,000',
                           order_index: 0
                         },
@@ -1119,12 +1119,20 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                           order_index: 1
                         },
                         {
+                          title: 'Premium Advertising',
+                          icon: 'BarChart3',
+                          description: 'Strategic brand placement and targeted media campaigns designed for maximum market penetration.',
+                          features: ['Ad Placement Strategy', 'Targeted Campaigns', 'Performance Analytics', 'Media Buying'],
+                          price: 'Starting at ₦1,000,000',
+                          order_index: 2
+                        },
+                        {
                           title: 'Cinematic Production',
                           icon: 'Video',
                           description: 'High-end visual storytelling and brand cinematography that captures attention and elevates identity.',
                           features: ['8K Narrative Production', 'Elite Color Grading', 'Motion Directing', 'Sound Engineering'],
                           price: 'Starting at ₦3,000,000',
-                          order_index: 2
+                          order_index: 3
                         },
                         {
                           title: 'Global Streaming',
@@ -1132,7 +1140,7 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                           description: 'Standard-setting live broadcasting with worldwide reach and ultra-low latency infrastructure.',
                           features: ['Multi-Region CDNs', 'Interactive Live Tools', 'Broadcast Engineering', 'Full Event Mastery'],
                           price: 'Starting at ₦2,200,000',
-                          order_index: 3
+                          order_index: 4
                         },
                         {
                           title: 'Brand Architecture',
@@ -1140,7 +1148,7 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                           description: 'Strategic digital identity and ecosystem design that positions brands for market dominance.',
                           features: ['Design Systems', 'Strategy Research', 'Asset Architecture', 'Market Positioning'],
                           price: 'Starting at ₦1,500,000',
-                          order_index: 4
+                          order_index: 5
                         },
                         {
                           title: 'Signature Shows',
@@ -1148,7 +1156,15 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                           description: 'Premium content frameworks and podcast architectures designed for maximum engagement and retention.',
                           features: ['Multi-Camera Setup', 'Audio Engineering', 'Guest Strategy', 'Post-Production'],
                           price: 'Starting at ₦1,200,000',
-                          order_index: 5
+                          order_index: 6
+                        },
+                        {
+                          title: 'Media Strategy',
+                          icon: 'Globe',
+                          description: 'Futuristic consulting and long-term content roadmaps for the evolving media landscape.',
+                          features: ['Future Readiness', 'Content Roadmaps', 'Innovation Labs', 'Trend Analysis'],
+                          price: 'Starting at ₦2,000,000',
+                          order_index: 7
                         }
                       ];
                       
