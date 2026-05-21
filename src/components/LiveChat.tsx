@@ -181,10 +181,13 @@ export default function LiveChat({ eventId }: { eventId: string }) {
             </button>
           </form>
         ) : (
-          <div className="text-center p-2">
-            <p className="text-xs text-text-muted italic">
-              Please <Link to="/auth" className="text-primary font-bold hover:underline">sign in</Link> to chat.
-            </p>
+          <div className="text-center p-4">
+            <Link 
+              to="/auth" 
+              className="inline-flex w-full items-center justify-center gap-2 px-6 py-3.5 bg-primary hover:bg-primary/90 text-white font-black uppercase text-[10px] tracking-widest rounded-full transition-all active:scale-95 shadow-lg shadow-primary/20"
+            >
+              <span>Live Comment: Click here to join the chat</span>
+            </Link>
           </div>
         )}
       </div>

@@ -423,8 +423,8 @@ export default function Home() {
                 {/* Micro overlay indicators */}
                 <div className="absolute bottom-6 left-6 right-6 z-20 p-4.5 rounded-2xl bg-background/90 backdrop-blur-md border border-border-custom shadow-lg flex items-center justify-between">
                   <div className="space-y-1">
-                    <span className="text-[9px] font-black uppercase text-primary tracking-widest block">Agency Hub</span>
-                    <span className="text-xs font-bold text-foreground">FideTV Creative HQ</span>
+                    <span className="text-[9px] font-black uppercase text-primary tracking-widest block">Global Broadcast</span>
+                    <span className="text-xs font-bold text-foreground">Connecting Africa to the World</span>
                   </div>
                   <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
                     <Sparkles className="w-4 h-4 text-primary animate-pulse" />

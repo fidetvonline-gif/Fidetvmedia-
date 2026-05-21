@@ -3,7 +3,7 @@ import ReactPlayer from 'react-player';
 import { supabase } from '@/lib/supabase';
 import { Event } from '@/types';
 import LiveChat from '@/components/LiveChat';
-import { Calendar, Users, Share2, Youtube, ExternalLink, Clock, AlertCircle, Globe, Tv, Film, MonitorPlay, MessageSquare, Play } from 'lucide-react';
+import { Calendar, Users, Share2, Youtube, ExternalLink, Clock, AlertCircle, Globe, Tv, Film, MonitorPlay, MessageSquare, Play, VolumeX, Volume2, Pause } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { motion } from 'motion/react';
@@ -15,6 +15,13 @@ import HighPerformancePlayer from '@/components/HighPerformancePlayer';
 
 const Player = ReactPlayer as any;
 
+function getYouTubeId(url: string | undefined): string | null {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+}
+
 export default function Live() {
   const [event, setEvent] = useState<Event | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
@@ -25,8 +32,11 @@ export default function Live() {
   
   const [activeChannelId, setActiveChannelId] = useState<string>('fidetv');
   const [activeTab, setActiveTab] = useState<'channels' | 'chat'>('channels');
+  const [chatMode, setChatMode] = useState<'youtube' | 'fidetv'>('youtube');
   const [playerError, setPlayerError] = useState(false);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [isMuted, setIsMuted] = useState(true);
 
   const [isPiP, setIsPiP] = useState(false);
   const [isPiPDismissed, setIsPiPDismissed] = useState(false);
@@ -65,6 +75,8 @@ export default function Live() {
     
     setPlayerError(false);
     setIsPlayerReady(false);
+    setIsPlaying(true);
+    setIsMuted(true);
 
     // Safety timeout: if player takes too long to signal ready, hide overlay anyway
     // so user can see if there's a play button or interaction needed
@@ -238,6 +250,18 @@ export default function Live() {
     });
   }, [dbChannels, isFideTvLive, isFideTvUpcoming]); // Stabilized dependencies
 
+  useEffect(() => {
+    if (!loading) {
+      const activeCh = allChannels.find(c => c.id === activeChannelId) || customBroadcast;
+      const ytId = getYouTubeId(activeCh?.url);
+      if (ytId) {
+        setChatMode('youtube');
+      } else {
+        setChatMode('fidetv');
+      }
+    }
+  }, [activeChannelId, loading, allChannels, customBroadcast]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -246,6 +270,8 @@ export default function Live() {
     );
   }
   const activeChannel = allChannels.find(c => c.id === activeChannelId) || customBroadcast;
+  
+  const currentYtId = getYouTubeId(activeChannel?.url);
   
   const isPlayingFideTv = activeChannel.id === 'fidetv';
 
@@ -313,9 +339,9 @@ export default function Live() {
             {playerError ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#111111] z-30">
                 <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
-                <h3 className="text-xl font-bold mb-2 text-white">Stream Unavailable</h3>
+                <h3 className="text-xl font-bold mb-2 text-white">Stream Offline</h3>
                 <p className="text-white/60 text-sm mb-6 px-8 text-center italic">
-                  This channel is currently having trouble loading. It might be offline or restricted in your region.
+                  This broadcast feed is currently offline or undergoing scheduled maintenance.
                 </p>
                 <div className="flex gap-4">
                   <button 
@@ -323,18 +349,10 @@ export default function Live() {
                        setPlayerError(false);
                        setActiveChannelId(activeChannelId); // Force re-render
                     }}
-                    className="px-6 py-2 bg-white/10 hover:bg-white/20 rounded-full text-xs font-bold uppercase tracking-widest border border-white/10 transition-all text-white"
+                    className="px-8 py-3 bg-primary hover:scale-105 active:scale-95 rounded-full text-xs font-bold uppercase tracking-widest border border-primary/10 transition-all text-white shadow-lg shadow-primary/20"
                   >
-                    Retry Loading
+                    Retry Connection
                   </button>
-                  <a 
-                    href={activeChannel.url} 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="px-6 py-2 bg-primary hover:bg-primary/80 rounded-full text-xs font-bold uppercase tracking-widest transition-all text-white"
-                  >
-                    Open Source
-                  </a>
                 </div>
               </div>
             ) : null}
@@ -357,32 +375,101 @@ export default function Live() {
                    />
                 </div>
               ) : activeChannel.url?.toLowerCase().includes('youtube.com') || activeChannel.url?.toLowerCase().includes('youtu.be') ? (
-                <Player
-                  key={activeChannel.id}
-                  url={activeChannel.url}
-                  width="100%"
-                  height="100%"
-                  playing={true}
-                  controls={true}
-                  muted={true}
-                  playsinline={true}
-                  onReady={handlePlayerReady}
-                  onStart={handlePlayerReady}
-                  onError={handlePlayerError}
-                  config={{
-                    youtube: {
-                      playerVars: { 
-                        showinfo: 0, 
-                        modestbranding: 1, 
-                        rel: 0, 
-                        origin: typeof window !== 'undefined' ? window.location.origin : '',
-                        autoplay: 1,
-                        enablejsapi: 1
-                      }
-                    }
-                  }}
-                  style={{ position: 'absolute', top: 0, left: 0 }}
-                />
+                <div className="w-full h-full absolute inset-0 overflow-hidden select-none">
+                  {/* YouTube Player with pointer-events disabled to block all YouTube links/branding interaction */}
+                  <div className="w-[102%] h-[102%] -top-[1%] -left-[1%] absolute pointer-events-none z-0">
+                    <Player
+                      key={activeChannel.id}
+                      url={activeChannel.url}
+                      width="100%"
+                      height="100%"
+                      playing={isPlaying}
+                      controls={false}
+                      muted={isMuted}
+                      playsinline={true}
+                      onReady={handlePlayerReady}
+                      onStart={handlePlayerReady}
+                      onError={handlePlayerError}
+                      config={{
+                        youtube: {
+                          playerVars: { 
+                            showinfo: 0, 
+                            modestbranding: 1, 
+                            rel: 0, 
+                            origin: typeof window !== 'undefined' ? window.location.origin : '',
+                            autoplay: 1,
+                            enablejsapi: 1,
+                            controls: 0,
+                            disablekb: 1,
+                            fs: 0,
+                            iv_load_policy: 3
+                          }
+                        }
+                      }}
+                      style={{ position: 'absolute', top: 0, left: 0 }}
+                    />
+                  </div>
+
+                  {/* Absolute Click Interceptor Layer & Invisible Full Cover Mask */}
+                  <div 
+                    onClick={() => setIsPlaying(!isPlaying)}
+                    className="absolute inset-x-0 top-0 bottom-14 z-10 cursor-pointer"
+                  />
+
+                  {/* Dynamic Click-to-Play/Pause or Unmute HUD Elements */}
+                  {isMuted && (
+                    <motion.button
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsMuted(false);
+                      }}
+                      className="absolute z-20 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-6 py-4 bg-background/90 backdrop-blur-md border border-border-custom rounded-2xl flex items-center gap-3 text-xs font-black uppercase text-text-muted hover:text-white transition-all shadow-xl shadow-black/40 hover:scale-105 active:scale-95"
+                    >
+                      <VolumeX className="w-5 h-5 text-primary animate-bounce" />
+                      <span>Click to Unmute Broadcast</span>
+                    </motion.button>
+                  )}
+
+                  {/* Custom elegant white-label controls HUD */}
+                  <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-[#0a0a0a]/95 to-transparent z-20 flex items-center justify-between px-6 pointer-events-auto">
+                     <div className="flex items-center gap-4">
+                       <button 
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           setIsPlaying(!isPlaying);
+                         }}
+                         className="p-1.5 hover:bg-white/10 rounded-lg text-white transition-all active:scale-95"
+                       >
+                         {isPlaying ? <Pause className="w-4 h-4 fill-white text-white" /> : <Play className="w-4 h-4 fill-white text-white" />}
+                       </button>
+
+                       <button 
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           setIsMuted(!isMuted);
+                         }}
+                         className="p-1.5 hover:bg-white/10 rounded-lg text-white transition-colors"
+                       >
+                         {isMuted ? (
+                           <VolumeX className="w-4 h-4 text-white/50" />
+                         ) : (
+                           <Volume2 className="w-4 h-4 text-white" />
+                         )}
+                       </button>
+
+                       <div className="flex items-center gap-2">
+                         <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                         <span className="text-[9px] font-black uppercase tracking-widest text-[#f0f0f0]">FideTV Broadcast</span>
+                       </div>
+                     </div>
+
+                     <div className="text-[9px] font-bold text-white/40 font-mono tracking-widest uppercase">
+                       Direct Stream
+                     </div>
+                  </div>
+                </div>
               ) : (
                 <HighPerformancePlayer
                   url={activeChannel.url}
@@ -688,37 +775,27 @@ export default function Live() {
                "absolute inset-0 bg-[#0a0a0a] flex flex-col transition-all duration-300",
                activeTab === 'chat' ? "translate-x-0 opacity-100" : "translate-x-full opacity-0 pointer-events-none"
             )}>
-              {!event ? (
-                 <div className="p-10 text-center flex flex-col items-center justify-center h-full">
-                    <MessageSquare className="w-10 h-10 text-white/20 mb-4" />
-                    <p className="text-white/40 text-sm italic">Live chat will be available when FideTV goes live.</p>
-                 </div>
-              ) : (
-                <>
-                  <div className="px-6 py-4 border-b border-white/10 bg-[#111111] shrink-0">
-                     <p className="text-[10px] uppercase font-bold text-white/40 tracking-widest text-center">
-                       Chatting in: <span className="text-white">{event.title}</span>
-                     </p>
-                  </div>
-                  <div className="flex-grow overflow-hidden relative">
-                    {/* Inner chat component should inherit the dark background ideally, 
-                        or we force dark theme tokens on it by wrapping in a 'dark' class if needed */}
-                    <div 
-                      className="h-full w-full"
-                      style={{
-                        '--background': '#050505',
-                        '--surface': '#111111',
-                        '--surface-bright': '#1a1a1a',
-                        '--foreground': '#ffffff',
-                        '--border-color': 'rgba(255, 255, 255, 0.1)',
-                        '--border-custom': 'rgba(255, 255, 255, 0.1)'
-                      } as React.CSSProperties}
-                    >
-                      <LiveChat eventId={event.id} />
-                    </div>
-                  </div>
-                </>
-              )}
+              <div className="px-6 py-4 border-b border-white/10 bg-[#111111] shrink-0">
+                 <p className="text-[10px] uppercase font-bold text-white/40 tracking-widest text-center">
+                   Live Comments & Chat
+                 </p>
+              </div>
+
+              <div className="flex-grow overflow-hidden relative">
+                <div 
+                  className="h-full w-full"
+                  style={{
+                    '--background': '#050505',
+                    '--surface': '#111111',
+                    '--surface-bright': '#1a1a1a',
+                    '--foreground': '#ffffff',
+                    '--border-color': 'rgba(255, 255, 255, 0.1)',
+                    '--border-custom': 'rgba(255, 255, 255, 0.1)'
+                  } as React.CSSProperties}
+                >
+                  <LiveChat eventId={event ? event.id : `channel_${activeChannelId}`} />
+                </div>
+              </div>
             </div>
           </div>
         </div>
