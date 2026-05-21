@@ -34,6 +34,14 @@ function AnalyticsTracker() {
       // Use a session storage flag to avoid double counting page refreshes during the same session
       const sessionTracked = sessionStorage.getItem('fidetv_tracked');
       if (!sessionTracked) {
+        // Track locally
+        try {
+          const localVisits = parseInt(localStorage.getItem('fidetv_local_visits') || '0', 10);
+          localStorage.setItem('fidetv_local_visits', (localVisits + 1).toString());
+        } catch (e) {
+          // ignore localStorage failure in private modes
+        }
+
         try {
           await supabase.from('site_visits').insert({ session_id: crypto.randomUUID() });
           sessionStorage.setItem('fidetv_tracked', 'true');

@@ -22,6 +22,11 @@ export const supabase = createClient(
       detectSessionInUrl: true,
       storageKey: 'fidetv-auth-token',
       storage: window.localStorage,
+      lock: async (name, acquireTimeout, fn) => {
+        // Bypass navigator.locks completely in nested iframe development sandboxes 
+        // to prevent multi-tab permission limits and lock-stealing error prompts.
+        return fn();
+      }
     }
   }
 );

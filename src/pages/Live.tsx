@@ -127,17 +127,29 @@ export default function Live() {
       if (channelsData) {
         setDbChannels(channelsData);
         
-        // If there's an active live channel that isn't the main broadcast, 
-        // we might want to prioritize it, but usually people want the main FideTV live if it's on.
-        if (currentEvent?.status === 'live') {
-          setActiveChannelId('fidetv');
+        const queryParams = new URLSearchParams(window.location.search);
+        const urlChannelId = queryParams.get('channel');
+        if (urlChannelId) {
+          setActiveChannelId(urlChannelId);
         } else {
-          const liveDbChannel = channelsData.find((c: any) => c.is_active);
-          if (liveDbChannel) {
-            setActiveChannelId(liveDbChannel.id);
-          } else if (channelsData.length > 0 && !currentEvent) {
-             setActiveChannelId(channelsData[0].id);
+          // If there's an active live channel that isn't the main broadcast, 
+          // we might want to prioritize it, but usually people want the main FideTV live if it's on.
+          if (currentEvent?.status === 'live') {
+            setActiveChannelId('fidetv');
+          } else {
+            const liveDbChannel = channelsData.find((c: any) => c.is_active);
+            if (liveDbChannel) {
+              setActiveChannelId(liveDbChannel.id);
+            } else if (channelsData.length > 0 && !currentEvent) {
+               setActiveChannelId(channelsData[0].id);
+            }
           }
+        }
+      } else {
+        const queryParams = new URLSearchParams(window.location.search);
+        const urlChannelId = queryParams.get('channel');
+        if (urlChannelId) {
+          setActiveChannelId(urlChannelId);
         }
       }
       
@@ -650,6 +662,9 @@ export default function Live() {
                     )}
                  </div>
                  <div className="h-px w-full bg-white/10 my-6" />
+                 <div className="px-2 py-4">
+                    <AdBanner placement="Community Sidebar" />
+                 </div>
                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-white/40 px-2 pt-2">Recent Uploads</h3>
                  <div className="space-y-3 px-2 pb-4">
                    {recentUploads.map((video) => (
