@@ -8,6 +8,8 @@ import {
 import { Link } from 'react-router-dom';
 
 export default function Partner() {
+  const [user, setUser] = useState<any>(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
     pseudonym: '',
@@ -19,6 +21,26 @@ export default function Partner() {
     portfolioUrl: '',
     primaryPlatform: 'YouTube'
   });
+
+  React.useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser(session.user);
+        setFormData(prev => ({
+          ...prev,
+          name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
+          email: session.user.email || ''
+        }));
+      }
+      setCheckingAuth(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -149,8 +171,45 @@ ${formData.pitch}
 
           {/* Form container column */}
           <div className="lg:col-span-7">
-            <AnimatePresence mode="wait">
-              {!isSubmitted ? (
+            {checkingAuth ? (
+              <div className="bg-surface rounded-[3rem] p-12 sm:p-16 border border-border-custom shadow-2xl flex flex-col items-center justify-center space-y-4">
+                <div className="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+                <p className="text-xs uppercase font-extrabold text-foreground/40 tracking-widest font-mono">Initializing Broadcast Hub...</p>
+              </div>
+            ) : !user ? (
+              <motion.div 
+                initial={{ opacity: 0, y: 15 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                className="bg-surface rounded-[3rem] p-12 sm:p-16 border border-border-custom shadow-2xl text-center space-y-8 relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-[40px] -mr-16 -mt-16" />
+                
+                <div className="w-20 h-20 bg-primary/10 border border-primary/20 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                  <Award className="w-10 h-10 text-primary" />
+                </div>
+
+                <div className="space-y-3">
+                  <h2 className="text-3xl font-display font-medium text-foreground tracking-tighter italic">Membership Required</h2>
+                  <p className="text-[10px] uppercase font-extrabold text-primary tracking-widest font-mono">Awaiting Partner Authentication</p>
+                </div>
+
+                <p className="text-sm font-sans text-foreground/50 leading-relaxed max-w-sm mx-auto">
+                  Only registered FideTV users can submit Broadcaster applications. Create an account or sign in to start sharing your voice on the platform!
+                </p>
+
+                <div className="pt-4">
+                  <Link 
+                    to="/auth?redirect=/partner" 
+                    className="inline-flex items-center gap-3 px-10 py-5 bg-primary text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/20 cursor-pointer"
+                  >
+                    <span>Connect Profile / Auth</span>
+                    <ArrowUpRight className="w-4 h-4" />
+                  </Link>
+                </div>
+              </motion.div>
+            ) : (
+              <AnimatePresence mode="wait">
+                {!isSubmitted ? (
                 <motion.div 
                   initial={{ opacity: 0, y: 15 }} 
                   animate={{ opacity: 1, y: 0 }} 
@@ -345,6 +404,7 @@ ${formData.pitch}
                 </motion.div>
               )}
             </AnimatePresence>
+            )}
           </div>
 
         </div>

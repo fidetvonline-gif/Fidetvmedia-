@@ -28,6 +28,7 @@ export default function Admin() {
   const [news, setNews] = useState<News[]>([]);
   const [communities, setCommunities] = useState<Community[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [expandedBookingId, setExpandedBookingId] = useState<string | null>(null);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [siteSettings, setSiteSettings] = useState<Record<string, string>>({});
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
@@ -2482,6 +2483,34 @@ CREATE POLICY "Admin manage ad units" ON public.ad_units FOR ALL USING (auth.jwt
                           <div className="space-y-1">
                             <p className="font-bold text-foreground">{book.client_name}</p>
                             <p className="text-[10px] text-foreground/40 italic">{book.client_email}</p>
+                            
+                            {(book.budget || book.message) && (
+                              <button 
+                                onClick={() => setExpandedBookingId(expandedBookingId === book.id ? null : book.id)}
+                                className="text-[10px] text-primary hover:underline font-bold uppercase tracking-wider block pt-1 cursor-pointer"
+                              >
+                                {expandedBookingId === book.id ? 'Collapse Proposal ▲' : 'View Full Proposal Details ▼'}
+                              </button>
+                            )}
+
+                            {expandedBookingId === book.id && (
+                              <div className="mt-3 p-4 bg-background border border-border-custom rounded-2xl space-y-3 xl:max-w-2xl">
+                                {book.budget && (
+                                  <div>
+                                    <span className="text-[9px] text-foreground/40 font-black uppercase tracking-widest block">Metrics / Selection:</span>
+                                    <span className="text-xs text-foreground/80 font-medium">{book.budget}</span>
+                                  </div>
+                                )}
+                                {book.message && (
+                                  <div>
+                                    <span className="text-[9px] text-foreground/40 font-black uppercase tracking-widest block">Proposal Details:</span>
+                                    <pre className="text-xs text-foreground/70 font-sans whitespace-pre-wrap leading-relaxed mt-1 break-words">
+                                      {book.message}
+                                    </pre>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td className="px-8 py-6 text-xs text-foreground/60 font-medium">{book.event_type}</td>

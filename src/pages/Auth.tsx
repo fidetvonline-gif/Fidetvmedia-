@@ -31,7 +31,12 @@ export default function Auth() {
       .eq('id', userId)
       .single();
     
-    if (data?.username) {
+    const params = new URLSearchParams(window.location.search);
+    const redirectUrl = params.get('redirect');
+
+    if (redirectUrl) {
+      navigate(redirectUrl);
+    } else if (data?.username) {
       navigate('/profile');
     } else {
       navigate('/onboarding');

@@ -150,6 +150,11 @@ export default function Community() {
         supabase.from('profiles').select('*').eq('id', user.id).maybeSingle().then(({ data }) => {
           if (data) setCurrentUserProfile(data);
         });
+        setPartnerForm(prev => ({
+          ...prev,
+          fullName: user.user_metadata?.full_name || user.user_metadata?.name || '',
+          email: user.email || ''
+        }));
       }
     });
 
@@ -812,7 +817,15 @@ export default function Community() {
                Approved Broadcasters get special verified badges, dedicated custom streaming links, and custom analytics widgets.
              </p>
              <button 
-               onClick={() => setShowPartnerModal(true)} 
+               onClick={() => {
+                 if (!currentUser) {
+                   if (confirm("You must be logged in to submit a partnership proposal. Click OK to connect your account.")) {
+                     window.location.href = "/auth?redirect=/partner";
+                   }
+                 } else {
+                   setShowPartnerModal(true);
+                 }
+               }} 
                className="inline-block pt-3 text-[9px] font-black text-white hover:text-primary uppercase tracking-[0.2em] transition-colors cursor-pointer text-left"
              >
                Submit Proposal &rarr;
