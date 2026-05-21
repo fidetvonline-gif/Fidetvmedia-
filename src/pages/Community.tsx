@@ -108,6 +108,7 @@ export default function Community() {
   
   // Spotlight Slider Index
   const [spotlightIndex, setSpotlightIndex] = useState(0);
+  const [spotlitCreators, setSpotlitCreators] = useState<any[]>(FALLBACK_SPOTLIGHTS);
   
   // Live Connections Shoutbox State
   const [shouts, setShouts] = useState<Shout[]>([]);
@@ -120,13 +121,27 @@ export default function Community() {
   const [newImageUrl, setNewImageUrl] = useState('');
   const [creating, setCreating] = useState(false);
 
+  // Partner proposal modal state
+  const [showPartnerModal, setShowPartnerModal] = useState(false);
+  const [submittingProposal, setSubmittingProposal] = useState(false);
+  const [partnerForm, setPartnerForm] = useState({
+    fullName: '',
+    brandName: '',
+    email: '',
+    specialty: 'Broadcasting',
+    streamUrl: '',
+    reason: '',
+    frequency: 'Weekly'
+  });
+
   // Auto-rotating spotlight effect
   useEffect(() => {
+    if (spotlitCreators.length === 0) return;
     const timer = setInterval(() => {
-      setSpotlightIndex(prev => (prev + 1) % FALLBACK_SPOTLIGHTS.length);
+      setSpotlightIndex(prev => (prev + 1) % spotlitCreators.length);
     }, 9000);
     return () => clearInterval(timer);
-  }, []);
+  }, [spotlitCreators.length]);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -137,6 +152,25 @@ export default function Community() {
         });
       }
     });
+
+    const fetchSpotlights = async () => {
+      const { data } = await supabase
+        .from('site_settings')
+        .select('*')
+        .eq('key', 'creator_spotlights')
+        .maybeSingle();
+      if (data?.value) {
+        try {
+          const parsed = JSON.parse(data.value);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setSpotlitCreators(parsed);
+          }
+        } catch (e) {
+          console.error("Error setting spotlights from site settings:", e);
+        }
+      }
+    };
+    fetchSpotlights();
 
     fetchCommunities();
     fetchSuggestedUsers();
@@ -302,7 +336,43 @@ export default function Community() {
     return true;
   });
 
-  const spotlight = FALLBACK_SPOTLIGHTS[spotlightIndex];
+  const spotlight = spotlitCreators[spotlightIndex] || FALLBACK_SPOTLIGHTS[0];
+
+  const handleSubmitProposal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmittingProposal(true);
+    try {
+      const compiledMessage = `Brand/Agency: ${partnerForm.brandName || 'N/A'}\nStream URL: ${partnerForm.streamUrl || 'N/A'}\nStreaming frequency: ${partnerForm.frequency || 'N/A'}\nReason to Join FideTV:\n${partnerForm.reason}`;
+      const { error } = await supabase.from('bookings').insert({
+        client_name: partnerForm.fullName,
+        client_email: partnerForm.email,
+        event_type: 'Partner Application',
+        date: new Date().toISOString().split('T')[0],
+        budget: partnerForm.specialty,
+        message: compiledMessage,
+        status: 'pending'
+      });
+
+      if (error) throw error;
+
+      alert('Proposal submitted successfully! Our broadcast acquisition team will review and follow up within 48-72 business hours.');
+      setPartnerForm({
+        fullName: '',
+        brandName: '',
+        email: '',
+        specialty: 'Broadcasting',
+        streamUrl: '',
+        reason: '',
+        frequency: 'Weekly'
+      });
+      setShowPartnerModal(false);
+    } catch (err: any) {
+      console.error(err);
+      alert('Error submitting proposal: ' + err.message);
+    } finally {
+      setSubmittingProposal(false);
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 space-y-16">
@@ -401,7 +471,7 @@ export default function Community() {
             
             {/* Auto-rotation Indicators */}
             <div className="absolute bottom-0 inset-x-0 flex justify-center gap-2 z-20">
-              {FALLBACK_SPOTLIGHTS.map((_, i) => (
+              {spotlitCreators.map((_, i) => (
                 <button
                   key={i}
                   onClick={() => setSpotlightIndex(i)}
@@ -741,9 +811,12 @@ export default function Community() {
              <p className="text-[11px] text-text-muted leading-relaxed font-light">
                Approved Broadcasters get special verified badges, dedicated custom streaming links, and custom analytics widgets.
              </p>
-             <Link to="/contact" className="inline-block pt-3 text-[9px] font-black text-white hover:text-primary uppercase tracking-[0.2em] transition-colors">
+             <button 
+               onClick={() => setShowPartnerModal(true)} 
+               className="inline-block pt-3 text-[9px] font-black text-white hover:text-primary uppercase tracking-[0.2em] transition-colors cursor-pointer text-left"
+             >
                Submit Proposal &rarr;
-             </Link>
+             </button>
           </div>
         </div>
 
@@ -818,6 +891,140 @@ export default function Community() {
                      >
                        {creating ? 'Architecting...' : 'Deploy Collective Hub'}
                      </button>
+                  </form>
+               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Become a Partner Proposal Modal */}
+      <AnimatePresence>
+        {showPartnerModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/90 backdrop-blur-md"
+            onClick={() => setShowPartnerModal(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-surface border border-border-custom rounded-[2.5rem] p-8 sm:p-12 w-full max-w-2xl shadow-[0_0_100px_-20px_rgba(0,0,0,0.5)] relative overflow-hidden text-left"
+              onClick={e => e.stopPropagation()}
+            >
+               {/* Ambient radial blur graphic */}
+               <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-32 -mt-32" />
+               
+               <div className="relative z-10 space-y-8 max-h-[85vh] overflow-y-auto pr-1">
+                  <div className="flex justify-between items-center">
+                    <div className="space-y-1">
+                       <h2 className="text-2xl font-display font-bold text-foreground">Become a Partner</h2>
+                       <p className="text-[9px] text-primary uppercase font-black tracking-widest">Submit Broadcast Network Proposal</p>
+                    </div>
+                    <button onClick={() => setShowPartnerModal(false)} className="p-3 bg-background border border-border-custom rounded-full hover:bg-red-500 hover:text-white transition-all">
+                       <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleSubmitProposal} className="space-y-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[9px] uppercase font-black tracking-widest text-foreground/40 ml-2">Full Name</label>
+                        <input 
+                          value={partnerForm.fullName}
+                          onChange={e => setPartnerForm(prev => ({ ...prev, fullName: e.target.value }))}
+                          required
+                          placeholder="e.g. Fidelis Oruche"
+                          className="w-full bg-background border border-border-custom rounded-xl p-4 text-xs text-foreground focus:border-primary/50 transition-colors shadow-inner outline-none"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[9px] uppercase font-black tracking-widest text-foreground/40 ml-2">Email Address</label>
+                        <input 
+                          type="email"
+                          value={partnerForm.email}
+                          onChange={e => setPartnerForm(prev => ({ ...prev, email: e.target.value }))}
+                          required
+                          placeholder="e.g. fidelis@fidetv.com"
+                          className="w-full bg-background border border-border-custom rounded-xl p-4 text-xs text-foreground focus:border-primary/50 transition-colors shadow-inner outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[9px] uppercase font-black tracking-widest text-foreground/40 ml-2">Brand or Agency Name</label>
+                        <input 
+                          value={partnerForm.brandName}
+                          onChange={e => setPartnerForm(prev => ({ ...prev, brandName: e.target.value }))}
+                          placeholder="e.g. Fide Broadcasts Ltd"
+                          className="w-full bg-background border border-border-custom rounded-xl p-4 text-xs text-foreground focus:border-primary/50 transition-colors shadow-inner outline-none"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[9px] uppercase font-black tracking-widest text-foreground/40 ml-2">Streaming Specialty Genre</label>
+                        <select 
+                          value={partnerForm.specialty}
+                          onChange={e => setPartnerForm(prev => ({ ...prev, specialty: e.target.value }))}
+                          className="w-full bg-background border border-border-custom rounded-xl p-4 text-xs text-foreground focus:border-primary/50 transition-colors shadow-inner outline-none"
+                        >
+                          <option value="Broadcasting">News & Broadcasting</option>
+                          <option value="Sports">Sports Broadcasting</option>
+                          <option value="Visual Production">Visual & Cinematic Arts</option>
+                          <option value="Strategy">Strategy & Podcasting</option>
+                          <option value="Community Media">Local Community Broadcast</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[9px] uppercase font-black tracking-widest text-foreground/40 ml-2">Expected Frequency</label>
+                        <select 
+                          value={partnerForm.frequency}
+                          onChange={e => setPartnerForm(prev => ({ ...prev, frequency: e.target.value }))}
+                          className="w-full bg-background border border-border-custom rounded-xl p-4 text-xs text-foreground focus:border-primary/50 transition-colors shadow-inner outline-none"
+                        >
+                          <option value="Daily">Daily Broadcasts</option>
+                          <option value="Weekly">Weekly Broadcasts</option>
+                          <option value="Bi-weekly">Bi-weekly Events</option>
+                          <option value="Monthly">Monthly Live Forums</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[9px] uppercase font-black tracking-widest text-foreground/40 ml-2">Twitch/YouTube Channel URL</label>
+                        <input 
+                          value={partnerForm.streamUrl}
+                          onChange={e => setPartnerForm(prev => ({ ...prev, streamUrl: e.target.value }))}
+                          placeholder="https://youtube.com/c/..."
+                          className="w-full bg-background border border-border-custom rounded-xl p-4 text-xs text-foreground focus:border-primary/50 transition-colors shadow-inner outline-none font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[9px] uppercase font-black tracking-widest text-foreground/40 ml-2">Proposal Details & Alignment Statement</label>
+                      <textarea 
+                        value={partnerForm.reason}
+                        onChange={e => setPartnerForm(prev => ({ ...prev, reason: e.target.value }))}
+                        required
+                        placeholder="Tell us about your streaming plans, production camera workflows, why you would love to partner with FideTV..."
+                        className="w-full bg-background border border-border-custom rounded-xl p-4 text-xs text-foreground h-28 resize-none focus:border-primary/50 transition-colors shadow-inner outline-none text-left"
+                      />
+                    </div>
+
+                    <button 
+                      disabled={submittingProposal}
+                      className="w-full py-5 bg-primary text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-xl shadow-primary/20 hover:bg-primary/95 transition-all font-display disabled:opacity-50 mt-2"
+                    >
+                      {submittingProposal ? 'Architecting Application Connection...' : 'Acquire Partnership Review'}
+                    </button>
                   </form>
                </div>
             </motion.div>

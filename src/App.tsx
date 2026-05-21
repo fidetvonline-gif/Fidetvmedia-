@@ -17,6 +17,7 @@ import Auth from '@/pages/Auth';
 import Profile from '@/pages/Profile';
 import Messages from '@/pages/Messages';
 import Admin from '@/pages/Admin';
+import Partner from '@/pages/Partner';
 import Onboarding from '@/pages/Onboarding';
 import Policies from '@/pages/Policies';
 import DownloadApp from '@/pages/DownloadApp';
@@ -76,6 +77,7 @@ export default function App() {
             <Route path="/news" element={<News />} />
             <Route path="/news/:slug" element={<NewsDetail />} />
             <Route path="/booking" element={<Booking />} />
+            <Route path="/partner" element={<Partner />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/profile" element={<Profile />} />

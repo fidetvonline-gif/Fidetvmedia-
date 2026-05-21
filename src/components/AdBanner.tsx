@@ -93,7 +93,7 @@ export default function AdBanner({ placement, className }: AdBannerProps) {
             <h4 className="text-sm font-bold text-foreground font-display uppercase tracking-tight">FideTV Premium Streams</h4>
             <p className="text-[10px] text-foreground/40 leading-relaxed italic">Unlock high bit-rate stream playback, crystal clear multi-cam, and exclusive content spaces.</p>
          </div>
-         <Link to="/booking" className="block w-full py-2.5 bg-primary hover:bg-primary/90 text-white rounded-xl text-[9px] font-black uppercase tracking-wider text-center active:scale-95 transition-all shadow-md shadow-primary/10">
+         <Link to="/live" className="block w-full py-2.5 bg-primary hover:bg-primary/90 text-white rounded-xl text-[9px] font-black uppercase tracking-wider text-center active:scale-95 transition-all shadow-md shadow-primary/10">
             Join the Network
          </Link>
       </div>

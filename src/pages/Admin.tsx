@@ -41,6 +41,19 @@ export default function Admin() {
     socialInstagram: '',
     socialLinkedin: '',
   });
+  const [creatorSpotlights, setCreatorSpotlights] = useState<any[]>([]);
+  const [editingSpotlightIndex, setEditingSpotlightIndex] = useState<number | null>(null);
+  const [spotlightForm, setSpotlightForm] = useState({
+    id: '',
+    username: '',
+    full_name: '',
+    avatar_url: '',
+    bio: '',
+    is_verified: true,
+    role: '',
+    followers: 1000,
+    specialty: ''
+  });
   const [uploadingHero, setUploadingHero] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [adUnits, setAdUnits] = useState<any[]>([]);
@@ -250,6 +263,13 @@ export default function Admin() {
           console.error('Error parsing team members:', e);
         }
       }
+      if (settings.creator_spotlights) {
+        try {
+          setCreatorSpotlights(JSON.parse(settings.creator_spotlights));
+        } catch (e) {
+          console.error('Error parsing creator spotlights:', e);
+        }
+      }
     }
   };
 
@@ -395,6 +415,71 @@ export default function Admin() {
       socialX: '',
       socialInstagram: '',
       socialLinkedin: '',
+    });
+  };
+
+  const saveCreatorSpotlight = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const updatedSpotlights = [...creatorSpotlights];
+    const formWithId = spotlightForm.id ? spotlightForm : { ...spotlightForm, id: `spotlight-${Date.now()}` };
+    if (editingSpotlightIndex !== null) {
+      updatedSpotlights[editingSpotlightIndex] = formWithId;
+    } else {
+      updatedSpotlights.push(formWithId);
+    }
+    setCreatorSpotlights(updatedSpotlights);
+    setSiteSettings(prev => ({ ...prev, creator_spotlights: JSON.stringify(updatedSpotlights) }));
+    await supabase.from('site_settings').upsert({
+      key: 'creator_spotlights',
+      value: JSON.stringify(updatedSpotlights),
+      updated_at: new Date().toISOString()
+    });
+    setSpotlightForm({
+      id: '',
+      username: '',
+      full_name: '',
+      avatar_url: '',
+      bio: '',
+      is_verified: true,
+      role: '',
+      followers: 1000,
+      specialty: ''
+    });
+    setEditingSpotlightIndex(null);
+    alert('Creator Spotlight updated!');
+  };
+
+  const handleDeleteCreatorSpotlight = async (index: number) => {
+    if (confirm('Are you sure you want to remove this spotlighted creator?')) {
+      const updated = creatorSpotlights.filter((_, i) => i !== index);
+      setCreatorSpotlights(updated);
+      setSiteSettings(prev => ({ ...prev, creator_spotlights: JSON.stringify(updated) }));
+      await supabase.from('site_settings').upsert({
+        key: 'creator_spotlights',
+        value: JSON.stringify(updated),
+        updated_at: new Date().toISOString()
+      });
+      alert('Spotlight removed!');
+    }
+  };
+
+  const handleEditCreatorSpotlight = (index: number) => {
+    setEditingSpotlightIndex(index);
+    setSpotlightForm(creatorSpotlights[index]);
+  };
+
+  const cancelSpotlightForm = () => {
+    setEditingSpotlightIndex(null);
+    setSpotlightForm({
+      id: '',
+      username: '',
+      full_name: '',
+      avatar_url: '',
+      bio: '',
+      is_verified: true,
+      role: '',
+      followers: 1000,
+      specialty: ''
     });
   };
 
@@ -1150,6 +1235,219 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                                   onClick={() => handleDeleteTeamMember(idx)}
                                   className="p-2 bg-red-500/10 hover:bg-red-500 hover:text-white border border-red-500/20 rounded-lg transition-all text-red-500"
                                   title="Delete member from roster"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Creator Spotlights Management Block */}
+              <div className="bg-surface rounded-[2.5rem] p-10 border border-border-custom space-y-8 shadow-sm">
+                <div className="flex items-center justify-between border-b border-border-custom pb-6 flex-wrap gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center border border-primary/20">
+                      <Sparkles className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-display font-bold text-foreground uppercase tracking-tight">FideTV Creator Spotlights</h2>
+                      <p className="text-[10px] text-foreground/40 font-bold uppercase tracking-widest mt-1 italic">Add, modify, or reorganize spotlighted creators shown on the Community hub.</p>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-[10px] bg-primary/10 border border-primary/20 text-primary font-bold px-3 py-1.5 rounded-full uppercase tracking-wider">
+                      {creatorSpotlights.length} Spotlighted Users
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
+                  {/* Spotlight form block */}
+                  <div className="xl:col-span-5 bg-background/35 p-8 border border-border-custom rounded-3xl space-y-6">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-foreground pb-2 border-b border-border-custom">
+                      {editingSpotlightIndex !== null ? '✏️ Edit Spotlight Profile' : '➕ Add Spotlight Creator'}
+                    </h3>
+
+                    <form onSubmit={saveCreatorSpotlight} className="space-y-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] uppercase font-bold tracking-widest text-text-muted">Full Name</label>
+                        <input 
+                          type="text"
+                          required
+                          value={spotlightForm.full_name || ''}
+                          onChange={(e) => setSpotlightForm(prev => ({ ...prev, full_name: e.target.value }))}
+                          placeholder="e.g. Mary Adeboye"
+                          className="w-full bg-background border border-border-custom rounded-xl p-3 text-xs text-foreground focus:border-primary/50"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] uppercase font-bold tracking-widest text-text-muted">Username (without @)</label>
+                        <input 
+                          type="text"
+                          required
+                          value={spotlightForm.username || ''}
+                          onChange={(e) => setSpotlightForm(prev => ({ ...prev, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') }))}
+                          placeholder="e.g. mary_adeboye"
+                          className="w-full bg-background border border-border-custom rounded-xl p-3 text-xs text-foreground focus:border-primary/50"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] uppercase font-bold tracking-widest text-text-muted">Category Profile Specialty / Badge</label>
+                        <input 
+                          type="text"
+                          required
+                          value={spotlightForm.specialty || ''}
+                          onChange={(e) => setSpotlightForm(prev => ({ ...prev, specialty: e.target.value }))}
+                          placeholder="e.g. Broadcasting (or Visual Production, Strategy)"
+                          className="w-full bg-background border border-border-custom rounded-xl p-3 text-xs text-foreground focus:border-primary/50"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] uppercase font-bold tracking-widest text-text-muted">Spotlight Role Badge</label>
+                        <input 
+                          type="text"
+                          required
+                          value={spotlightForm.role || ''}
+                          onChange={(e) => setSpotlightForm(prev => ({ ...prev, role: e.target.value }))}
+                          placeholder="e.g. Lead Broadcast Anchor"
+                          className="w-full bg-background border border-border-custom rounded-xl p-3 text-xs text-foreground focus:border-primary/50"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] uppercase font-bold tracking-widest text-text-muted">Followers / Connection Count</label>
+                        <input 
+                          type="number"
+                          required
+                          value={spotlightForm.followers || 0}
+                          onChange={(e) => setSpotlightForm(prev => ({ ...prev, followers: parseInt(e.target.value) || 0 }))}
+                          className="w-full bg-background border border-border-custom rounded-xl p-3 text-xs text-foreground focus:border-primary/50"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] uppercase font-bold tracking-widest text-text-muted">Spotlight Bio Statement</label>
+                        <textarea 
+                          rows={3}
+                          required
+                          value={spotlightForm.bio || ''}
+                          onChange={(e) => setSpotlightForm(prev => ({ ...prev, bio: e.target.value }))}
+                          placeholder="Write a highly engaging quote or description about this creator..."
+                          className="w-full bg-background border border-border-custom rounded-xl p-3 text-xs text-foreground focus:border-primary/50 leading-relaxed font-sans"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] uppercase font-bold tracking-widest text-text-muted">Profile Avatar Image URL</label>
+                        <input 
+                          type="text"
+                          required
+                          value={spotlightForm.avatar_url || ''}
+                          onChange={(e) => setSpotlightForm(prev => ({ ...prev, avatar_url: e.target.value }))}
+                          placeholder="https://images.unsplash.com/etc..."
+                          className="w-full bg-background border border-border-custom rounded-xl p-3 text-xs text-foreground focus:border-primary/50 font-mono"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2 py-2">
+                        <input 
+                          type="checkbox"
+                          id="is_verified_spot"
+                          checked={spotlightForm.is_verified ?? true}
+                          onChange={(e) => setSpotlightForm(prev => ({ ...prev, is_verified: e.target.checked }))}
+                          className="w-4 h-4 rounded text-primary focus:ring-primary border-border-custom"
+                        />
+                        <label htmlFor="is_verified_spot" className="text-xs font-bold text-foreground uppercase tracking-wider cursor-pointer">Show Verified Badge</label>
+                      </div>
+
+                      <div className="flex gap-2 pt-4">
+                        <button
+                          type="submit"
+                          className="flex-grow py-3 bg-primary text-white font-black uppercase tracking-widest text-[10px] rounded-xl hover:scale-102 active:scale-98 transition-all"
+                        >
+                          {editingSpotlightIndex !== null ? 'Save Spotlight Changes' : 'Add Spotlight'}
+                        </button>
+                        {editingSpotlightIndex !== null && (
+                          <button
+                            type="button"
+                            onClick={cancelSpotlightForm}
+                            className="px-4 py-3 bg-surface border border-border-custom text-foreground font-bold text-[10px] uppercase rounded-xl"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+                    </form>
+                  </div>
+
+                  {/* Spotlight list grid */}
+                  <div className="xl:col-span-7 space-y-4">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-foreground pb-2 border-b border-border-custom flex items-center gap-2">
+                      <span>Spotlight Roster</span>
+                      <span className="text-[9px] font-bold text-foreground/30 font-mono italic">(Defaults will display if list is empty)</span>
+                    </h3>
+
+                    {creatorSpotlights.length === 0 ? (
+                      <div className="p-12 text-center bg-background/15 border border-border-custom rounded-3xl">
+                        <Sparkles className="w-10 h-10 text-foreground/20 mx-auto mb-2" />
+                        <h4 className="text-sm font-bold text-foreground">No custom spotlights specified</h4>
+                        <p className="text-xs text-foreground/40 mt-1 max-w-sm mx-auto leading-relaxed">
+                          FideTV community is showing standard fallbacks (Mary Adeboye, Jacob Mensah, Sophia Nwachukwu). Start styling dynamic ones here!
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[580px] overflow-y-auto custom-scrollbar pr-1">
+                        {creatorSpotlights.map((spot, idx) => (
+                          <div 
+                            key={idx}
+                            className="p-5 bg-background border border-border-custom rounded-2xl flex flex-col justify-between hover:border-primary/25 transition-all shadow-xs shrink-0"
+                          >
+                            <div className="flex gap-4">
+                              <div className="w-16 h-16 rounded-xl bg-surface overflow-hidden border border-border-custom shrink-0">
+                                <img 
+                                  referrerPolicy="no-referrer"
+                                  src={spot.avatar_url || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200"} 
+                                  alt={spot.full_name}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <h4 className="text-xs font-black text-foreground flex items-center gap-1">
+                                  <span>{spot.full_name}</span>
+                                  {spot.is_verified && <CheckCircle2 className="w-3.5 h-3.5 text-primary" />}
+                                </h4>
+                                <span className="text-[8px] uppercase font-mono text-foreground/40 block">@{spot.username}</span>
+                                <span className="text-[9px] uppercase font-black tracking-widest text-primary block mt-1">{spot.role}</span>
+                                <span className="text-[8.5px] uppercase font-bold tracking-widest text-foreground/60 block">{spot.specialty} · {spot.followers?.toLocaleString()} followers</span>
+                                <p className="text-[10px] text-foreground/50 leading-relaxed line-clamp-2 italic pr-2 mt-1">"{spot.bio}"</p>
+                              </div>
+                            </div>
+
+                            <div className="flex justify-between items-center pt-3 mt-3 border-t border-border-custom/40">
+                              <span className="text-[8px] uppercase tracking-widest text-foreground/30 font-bold">Spotlight Node</span>
+                              <div className="flex gap-1">
+                                <button 
+                                  type="button"
+                                  onClick={() => handleEditCreatorSpotlight(idx)}
+                                  className="p-2 bg-surface hover:bg-surface-bright border border-border-custom rounded-lg transition-colors text-foreground"
+                                  title="Edit spotlight details"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button 
+                                  type="button"
+                                  onClick={() => handleDeleteCreatorSpotlight(idx)}
+                                  className="p-2 bg-red-500/10 hover:bg-red-500 hover:text-white border border-red-500/20 rounded-lg transition-all text-red-500"
+                                  title="Remove spotlight"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
