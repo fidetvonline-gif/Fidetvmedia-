@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { Community, Post } from '@/types';
 import PostCard from '@/components/PostCard';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Plus, Image as ImageIcon, Video, MessageSquare, Users, Globe, Info, Edit3, Camera, Check, X, Shield, UserMinus } from 'lucide-react';
+import { ArrowLeft, Plus, Image as ImageIcon, Video, MessageSquare, Users, Globe, Info, Edit3, Camera, Check, X, Shield, UserMinus, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactPlayer from 'react-player';
 import { format } from 'date-fns';
@@ -27,6 +27,8 @@ export default function CommunityDetail() {
   const [memberRole, setMemberRole] = useState<'member' | 'moderator' | 'admin' | null>(null);
   const [memberCount, setMemberCount] = useState(0);
   const [moderators, setModerators] = useState<any[]>([]);
+  const [approvedMembers, setApprovedMembers] = useState<any[]>([]);
+  const [editIsPrivate, setEditIsPrivate] = useState(false);
 
   const [isEditingCommunity, setIsEditingCommunity] = useState(false);
   const [editName, setEditName] = useState('');
@@ -75,14 +77,14 @@ export default function CommunityDetail() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
-      const file = e.target.files[0];
-      setMediaFile(file);
-      setMediaPreview(URL.createObjectURL(file));
+       const file = e.target.files[0];
+       setMediaFile(file);
+       setMediaPreview(URL.createObjectURL(file));
     }
   };
 
   const toggleMembership = async () => {
-    if (!user || !id) return;
+    if (!user || !id || !community) return;
     
     if (joinStatus !== 'none') {
       const { error } = await supabase
@@ -94,43 +96,63 @@ export default function CommunityDetail() {
         setIsMember(false);
         setJoinStatus('none');
         setMemberCount(prev => isMember ? prev - 1 : prev);
+        fetchMembers();
+        fetchData();
       }
     } else {
+      // Dynamic status based on community privacy
+      const status = (community as any).is_private ? 'pending' : 'approved';
       const { error } = await supabase
         .from('community_members')
-        .insert({ user_id: user.id, community_id: id, status: 'pending' });
+        .insert({ user_id: user.id, community_id: id, status: status, role: 'member' });
       if (!error) {
-        setJoinStatus('pending');
+        setJoinStatus(status);
+        if (status === 'approved') {
+          setIsMember(true);
+          setMemberCount(prev => prev + 1);
+        }
+        fetchMembers();
+        fetchData();
       }
     }
   };
 
   const fetchData = async () => {
     setLoading(true);
-    const [comRes, countRes, modRes] = await Promise.all([
+    const [comRes, countRes, modRes, membRes] = await Promise.all([
       supabase.from('communities').select('*').eq('id', id).single(),
       supabase
         .from('community_members')
         .select('id', { count: 'exact' })
-        .eq('community_id', id),
+        .eq('community_id', id)
+        .eq('status', 'approved'),
       supabase
         .from('community_members')
         .select('profiles(username, avatar_url)')
         .eq('community_id', id)
-        .in('role', ['moderator', 'admin'])
+        .eq('status', 'approved')
+        .in('role', ['moderator', 'admin']),
+      supabase
+        .from('community_members')
+        .select('role, status, profiles(id, username, avatar_url, full_name)')
+        .eq('community_id', id)
+        .eq('status', 'approved')
+        .limit(10)
     ]);
 
     if (comRes.data) {
       setCommunity(comRes.data);
       setEditName(comRes.data.name);
       setEditDescription(comRes.data.description || '');
+      setEditIsPrivate(!!comRes.data.is_private);
     }
     
     // Initial fetch of posts
     await fetchPosts(0, false);
     
     if (countRes.count !== null) setMemberCount(countRes.count);
-    if (modRes.data) setModerators(modRes.data.map(m => m.profiles));
+    if (modRes.data) setModerators(modRes.data.map(m => m.profiles).filter(Boolean));
+    if (membRes.data) setApprovedMembers(membRes.data.filter(m => m.profiles));
     setLoading(false);
   };
 
@@ -261,14 +283,30 @@ export default function CommunityDetail() {
       }
     }
 
-    const { error } = await supabase
+    let updatePayload: any = {
+      name: editName,
+      description: editDescription,
+      image_url,
+      is_private: editIsPrivate
+    };
+
+    let { error } = await supabase
       .from('communities')
-      .update({
-        name: editName,
-        description: editDescription,
-        image_url
-      })
+      .update(updatePayload)
       .eq('id', id);
+
+    if (error && error.message?.includes('column "is_private" of relation "communities" does not exist')) {
+      console.warn("is_private column does not exist, falling back to basic fields");
+      const { error: retryError } = await supabase
+        .from('communities')
+        .update({
+          name: editName,
+          description: editDescription,
+          image_url
+        })
+        .eq('id', id);
+      error = retryError;
+    }
 
     if (!error) {
       setIsEditingCommunity(false);
@@ -309,6 +347,8 @@ export default function CommunityDetail() {
   };
 
   const isModerator = memberRole === 'moderator' || memberRole === 'admin' || user?.email === 'fidetvonline@gmail.com';
+  const isAdminCheck = user?.email === 'fidetvonline@gmail.com';
+  const hasAccess = !community?.is_private || isMember || isModerator || isAdminCheck;
 
   if (loading && !community) return <div className="max-w-4xl mx-auto py-40 text-center text-gray-500">Loading Hub...</div>;
   if (!community) return <div className="max-w-4xl mx-auto py-40 text-center text-gray-500">Hub not found.</div>;
@@ -495,6 +535,18 @@ export default function CommunityDetail() {
                   />
                 </div>
 
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-text-muted tracking-widest pl-1">Hub Security & Privacy</label>
+                  <select
+                    value={editIsPrivate ? 'private' : 'public'}
+                    onChange={(e) => setEditIsPrivate(e.target.value === 'private')}
+                    className="w-full bg-background border border-border-custom rounded-2xl px-6 py-4 text-foreground focus:outline-none focus:border-primary/40 transition-all font-display text-sm font-semibold selection:bg-primary shadow-inner"
+                  >
+                    <option value="public">🌍 Public (Anyone can view discussion threads & members)</option>
+                    <option value="private">🔒 Private (Only approved members can view discussion threads & members)</option>
+                  </select>
+                </div>
+
                 <div className="flex justify-end pt-4">
                   <button
                     type="submit"
@@ -532,8 +584,8 @@ export default function CommunityDetail() {
                   <h1 className="text-3xl md:text-5xl font-display font-medium text-foreground tracking-tighter">{community.name}</h1>
                   <div className="flex items-center space-x-3 mt-2">
                     <span className="flex items-center space-x-1 text-[10px] font-black uppercase text-text-muted tracking-widest">
-                      <Globe className="w-3 h-3" />
-                      <span>Public Group</span>
+                      {(community as any).is_private ? <Lock className="w-3 h-3 text-red-500" /> : <Globe className="w-3 h-3 text-green-500" />}
+                      <span>{(community as any).is_private ? 'Private Group' : 'Public Group'}</span>
                     </span>
                     <span className="w-1 h-1 bg-border-custom rounded-full" />
                     <span className="text-[10px] font-black uppercase text-primary tracking-widest">{memberCount.toLocaleString()} Members</span>
@@ -589,120 +641,156 @@ export default function CommunityDetail() {
             </p>
           </header>
 
-          <AnimatePresence>
-            {isCreating && (
-              <motion.form
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                onSubmit={handleCreatePost}
-                className="glass rounded-[2rem] p-8 space-y-6 overflow-hidden border-primary/20 shadow-2xl shadow-primary/5"
-              >
-                <textarea
-                  value={newPostContent}
-                  onChange={(e) => setNewPostContent(e.target.value)}
-                  placeholder={`What's happening in ${community.name}?`}
-                  className="w-full bg-transparent border-none focus:ring-0 text-lg text-foreground placeholder:text-text-muted resize-none min-h-[120px]"
-                />
-                
-                {mediaPreview && (
-                  <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-background border border-border-custom">
-                    {mediaFile?.type.startsWith('image') ? (
-                      <img src={mediaPreview} className="w-full h-full object-cover" />
-                    ) : (
-                      <video src={mediaPreview} controls playsInline className="w-full h-full object-cover" />
-                    )}
-                    <button 
-                      onClick={() => { setMediaFile(null); setMediaPreview(null); }}
-                      className="absolute top-4 right-4 p-2 bg-black/60 rounded-xl text-white hover:bg-red-500 transition-colors z-10"
-                    >
-                      <Plus className="w-5 h-5 rotate-45" />
-                    </button>
-                  </div>
-                )}
-                {!mediaPreview && newPostContent.match(/(https?:\/\/[^\s]+)/g)?.find(u => Player.canPlay(u)) && (
-                  <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-background border border-border-custom">
-                    <Player 
-                      url={newPostContent.match(/(https?:\/\/[^\s]+)/g)?.find(u => Player.canPlay(u))} 
-                      className="absolute top-0 left-0"
-                      width="100%"
-                      height="100%"
-                      controls 
-                    />
-                  </div>
-                )}
-
-                <div className="flex justify-between items-center pt-4 border-t border-border-custom">
-                  <div className="flex space-x-4">
-                    <label className="p-2 text-text-muted hover:text-primary transition-colors cursor-pointer">
-                      <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
-                      <ImageIcon className="w-5 h-5" />
-                    </label>
-                    <label className="p-2 text-text-muted hover:text-primary transition-colors cursor-pointer">
-                      <input type="file" className="hidden" accept="video/*" onChange={handleFileChange} />
-                      <Video className="w-5 h-5" />
-                    </label>
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={!newPostContent.trim() || uploading}
-                    className="px-8 py-3 bg-primary text-white font-bold rounded-xl disabled:opacity-50 hover:bg-primary/90 transition-all font-display uppercase tracking-widest text-xs flex items-center space-x-2"
-                  >
-                    {uploading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                    <span>{uploading ? 'Uploading...' : 'Post to Hub'}</span>
-                  </button>
-                </div>
-              </motion.form>
-            )}
-          </AnimatePresence>
-
-          <div className="space-y-8">
-            {loading && posts.length === 0 ? (
-              [1, 2, 3].map((i) => (
-                <div key={i} className="glass rounded-3xl h-64 animate-pulse" />
-              ))
-            ) : posts.length > 0 ? (
-              <>
-                {posts.map((post: any) => (
-                  <div key={post.id} className="relative group">
-                    <PostCard post={post} onDelete={() => { setPage(0); fetchData(); }} onUpdate={() => { setPage(0); fetchData(); }} />
-                    {isModerator && (
-                      <button 
-                        onClick={() => deletePost(post.id)}
-                        className="absolute top-4 right-4 p-2 bg-background/80 hover:bg-red-500 hover:text-white rounded-xl shadow-lg opacity-0 group-hover:opacity-100 transition-all z-10"
-                        title="Delete Post (Moderator)"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                
-                {hasMore && (
-                  <div className="pt-8 flex justify-center">
-                    <button 
-                      onClick={handleLoadMore}
-                      disabled={loadingMore}
-                      className="px-10 py-4 bg-surface border border-border-custom rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-foreground/40 hover:text-primary hover:border-primary/20 transition-all shadow-xl disabled:opacity-50 flex items-center space-x-3"
-                    >
-                      {loadingMore ? (
-                        <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <Plus className="w-4 h-4" />
-                      )}
-                      <span>{loadingMore ? 'Loading More...' : 'Load Older Posts'}</span>
-                    </button>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="text-center py-20 bg-surface/30 rounded-[3rem] border border-dashed border-border-custom">
-                <MessageSquare className="w-12 h-12 text-text-muted mx-auto mb-6" />
-                <h3 className="text-2xl font-display font-medium text-text-muted">The hub is quiet.</h3>
-                <p className="text-text-muted mt-2">Start a conversation for the community!</p>
+          {!hasAccess ? (
+            <div className="glass rounded-[2.5rem] p-12 text-center border-dashed border border-primary/20 bg-primary/5 space-y-6 flex flex-col items-center justify-center py-24">
+              <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mb-2">
+                <Lock className="w-8 h-8 text-primary animate-pulse" />
               </div>
-            )}
-          </div>
+              <div className="space-y-2">
+                <h3 className="text-2xl font-display font-medium text-foreground tracking-tight">Private Community Hub</h3>
+                <p className="text-sm text-text-muted max-w-md mx-auto leading-relaxed">
+                  This Creative Hub sector is set to private. Join index to pitch ideas, collaborate, and access member exclusive discussions.
+                </p>
+              </div>
+              {user ? (
+                <button
+                  onClick={toggleMembership}
+                  className={cn(
+                    "px-10 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all cursor-pointer shadow-xl font-display",
+                    joinStatus === 'pending'
+                      ? "bg-yellow-500/10 border border-yellow-500/20 text-yellow-500"
+                      : "bg-primary text-white shadow-primary/20 hover:scale-105 active:scale-95"
+                  )}
+                >
+                  {joinStatus === 'pending' ? '⏳ Request Pending Approval' : '🔑 Request Access'}
+                </button>
+              ) : (
+                <Link
+                  to="/auth"
+                  className="px-10 py-5 bg-primary text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl shadow-xl hover:scale-105 active:scale-95 transition-all inline-block font-display"
+                >
+                  Sign In & Join Hub
+                </Link>
+              )}
+            </div>
+          ) : (
+            <>
+              <AnimatePresence>
+                {isCreating && (
+                  <motion.form
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    onSubmit={handleCreatePost}
+                    className="glass rounded-[2rem] p-8 space-y-6 overflow-hidden border-primary/20 shadow-2xl shadow-primary/5"
+                  >
+                    <textarea
+                      value={newPostContent}
+                      onChange={(e) => setNewPostContent(e.target.value)}
+                      placeholder={`What's happening in ${community.name}?`}
+                      className="w-full bg-transparent border-none focus:ring-0 text-lg text-foreground placeholder:text-text-muted resize-none min-h-[120px]"
+                    />
+                    
+                    {mediaPreview && (
+                      <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-background border border-border-custom">
+                        {mediaFile?.type.startsWith('image') ? (
+                          <img src={mediaPreview} className="w-full h-full object-cover" />
+                        ) : (
+                          <video src={mediaPreview} controls playsInline className="w-full h-full object-cover" />
+                        )}
+                        <button 
+                          onClick={() => { setMediaFile(null); setMediaPreview(null); }}
+                          className="absolute top-4 right-4 p-2 bg-black/60 rounded-xl text-white hover:bg-red-500 transition-colors z-10"
+                        >
+                          <Plus className="w-5 h-5 rotate-45" />
+                        </button>
+                      </div>
+                    )}
+                    {!mediaPreview && newPostContent.match(/(https?:\/\/[^\s]+)/g)?.find(u => Player.canPlay(u)) && (
+                      <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-background border border-border-custom">
+                        <Player 
+                          url={newPostContent.match(/(https?:\/\/[^\s]+)/g)?.find(u => Player.canPlay(u))} 
+                          className="absolute top-0 left-0"
+                          width="100%"
+                          height="100%"
+                          controls 
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex justify-between items-center pt-4 border-t border-border-custom">
+                      <div className="flex space-x-4">
+                        <label className="p-2 text-text-muted hover:text-primary transition-colors cursor-pointer">
+                          <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
+                          <ImageIcon className="w-5 h-5" />
+                        </label>
+                        <label className="p-2 text-text-muted hover:text-primary transition-colors cursor-pointer">
+                          <input type="file" className="hidden" accept="video/*" onChange={handleFileChange} />
+                          <Video className="w-5 h-5" />
+                        </label>
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={!newPostContent.trim() || uploading}
+                        className="px-8 py-3 bg-primary text-white font-bold rounded-xl disabled:opacity-50 hover:bg-primary/90 transition-all font-display uppercase tracking-widest text-xs flex items-center space-x-2"
+                      >
+                        {uploading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                        <span>{uploading ? 'Uploading...' : 'Post to Hub'}</span>
+                      </button>
+                    </div>
+                  </motion.form>
+                )}
+              </AnimatePresence>
+
+              <div className="space-y-8">
+                {loading && posts.length === 0 ? (
+                  [1, 2, 3].map((i) => (
+                    <div key={i} className="glass rounded-3xl h-64 animate-pulse" />
+                  ))
+                ) : posts.length > 0 ? (
+                  <>
+                    {posts.map((post: any) => (
+                      <div key={post.id} className="relative group">
+                        <PostCard post={post} onDelete={() => { setPage(0); fetchData(); }} onUpdate={() => { setPage(0); fetchData(); }} />
+                        {isModerator && (
+                          <button 
+                            onClick={() => deletePost(post.id)}
+                            className="absolute top-4 right-4 p-2 bg-background/80 hover:bg-red-500 hover:text-white rounded-xl shadow-lg opacity-0 group-hover:opacity-100 transition-all z-10"
+                            title="Delete Post (Moderator)"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    
+                    {hasMore && (
+                      <div className="pt-8 flex justify-center">
+                        <button 
+                          onClick={handleLoadMore}
+                          disabled={loadingMore}
+                          className="px-10 py-4 bg-surface border border-border-custom rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-foreground/40 hover:text-primary hover:border-primary/20 transition-all shadow-xl disabled:opacity-50 flex items-center space-x-3"
+                        >
+                          {loadingMore ? (
+                            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Plus className="w-4 h-4" />
+                          )}
+                          <span>{loadingMore ? 'Loading More...' : 'Load Older Posts'}</span>
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-20 bg-surface/30 rounded-[3rem] border border-dashed border-border-custom">
+                    <MessageSquare className="w-12 h-12 text-text-muted mx-auto mb-6" />
+                    <h3 className="text-2xl font-display font-medium text-text-muted">The hub is quiet.</h3>
+                    <p className="text-text-muted mt-2">Start a conversation for the community!</p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Info Sidebar */}
@@ -719,7 +807,7 @@ export default function CommunityDetail() {
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] uppercase font-black text-text-muted">Privacy</p>
-                <p className="text-sm text-foreground/70">Public Group</p>
+                <p className="text-sm text-foreground/70">{(community as any).is_private ? '🔒 Private Group' : '🌍 Public Group'}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] uppercase font-black text-text-muted">Moderators</p>
@@ -727,10 +815,42 @@ export default function CommunityDetail() {
                   {moderators.length > 0 ? moderators.map((mod, i) => (
                     <span key={i} className="text-sm text-primary font-bold">@{mod.username}</span>
                   )) : (
-                    <p className="text-sm text-text-muted italic">No moderators assigned</p>
+                    <p className="text-sm text-text-muted italic animate-pulse">Assigning mods...</p>
                   )}
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div className="glass rounded-[2rem] p-8 space-y-6">
+            <h3 className="font-display font-bold text-foreground flex items-center space-x-2">
+              <Users className="w-4 h-4 text-primary" />
+              <span className="text-xs uppercase tracking-widest">Co-Creators</span>
+            </h3>
+            
+            <div className="space-y-4">
+              {approvedMembers.length > 0 ? (
+                <div className="grid grid-cols-5 gap-2">
+                  {approvedMembers.map((memb, i) => (
+                    <Link
+                      key={i}
+                      to={`/profile/${memb.profiles?.username}`}
+                      title={`${memb.profiles?.full_name || memb.profiles?.username} (${memb.role || 'member'})`}
+                      className="w-10 h-10 rounded-xl bg-surface-bright border border-border-custom overflow-hidden block hover:border-primary/50 transition-all cursor-pointer shadow-sm shrink-0"
+                    >
+                      {memb.profiles?.avatar_url ? (
+                        <img src={memb.profiles.avatar_url} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-foreground/40 font-bold text-[10px] uppercase bg-primary/10">
+                          {memb.profiles?.username?.substring(0, 2) || 'CR'}
+                        </div>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-text-muted italic">Become the first pioneer!</p>
+              )}
             </div>
           </div>
 

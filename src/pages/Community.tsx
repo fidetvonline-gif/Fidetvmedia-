@@ -4,7 +4,8 @@ import { Community as CommunityType } from '@/types';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Search, Users, ArrowRight, Plus, MessageSquare, TrendingUp, Globe, User, X, 
-  Sparkles, Send, Heart, Award, CheckCircle2, ShieldCheck, Filter, MapPin
+  Sparkles, Send, Heart, Award, CheckCircle2, ShieldCheck, Filter, MapPin,
+  Trash2, Edit2, Check
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -113,6 +114,8 @@ export default function Community() {
   // Live Connections Shoutbox State
   const [shouts, setShouts] = useState<Shout[]>([]);
   const [newShoutContent, setNewShoutContent] = useState('');
+  const [editingShoutId, setEditingShoutId] = useState<string | null>(null);
+  const [editingShoutContent, setEditingShoutContent] = useState('');
   
   // Create Hub Modal
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -277,6 +280,32 @@ export default function Community() {
     });
     setShouts(updated);
     localStorage.setItem('fidetv_live_shouts', JSON.stringify(updated));
+  };
+
+  const handleDeleteShout = (shoutId: string) => {
+    if (!window.confirm("Are you sure you want to delete this notice wall post?")) return;
+    const updated = shouts.filter(s => s.id !== shoutId);
+    setShouts(updated);
+    localStorage.setItem('fidetv_live_shouts', JSON.stringify(updated));
+  };
+
+  const handleStartEditShout = (shoutId: string, content: string) => {
+    setEditingShoutId(shoutId);
+    setEditingShoutContent(content);
+  };
+
+  const handleSaveEditShout = (shoutId: string) => {
+    if (!editingShoutContent.trim()) return;
+    const updated = shouts.map(s => {
+      if (s.id === shoutId) {
+        return { ...s, content: editingShoutContent.trim() };
+      }
+      return s;
+    });
+    setShouts(updated);
+    localStorage.setItem('fidetv_live_shouts', JSON.stringify(updated));
+    setEditingShoutId(null);
+    setEditingShoutContent('');
   };
 
   const handleCreateCommunity = async (e: React.FormEvent) => {
@@ -667,56 +696,111 @@ export default function Community() {
             {/* Shouts Wall Index */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <AnimatePresence initial={false}>
-                {shouts.slice(0, 6).map((shout) => (
-                  <motion.div
-                    key={shout.id}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="p-5 rounded-2xl bg-surface-bright border border-border-custom relative hover:border-white/10 transition-colors flex flex-col justify-between group"
-                  >
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full border border-border-custom overflow-hidden bg-surface shrink-0">
-                          {shout.avatar_url ? (
-                            <img src={shout.avatar_url} alt={shout.username} className="w-full h-full object-cover" />
-                          ) : (
-                            <User className="w-4 h-4 text-text-muted mx-auto my-auto" />
+                {shouts.slice(0, 6).map((shout) => {
+                  const isAdmin = currentUser?.email === 'fidetvonline@gmail.com';
+                  const isShoutAuthor = currentUserProfile?.username === shout.username || shout.username === currentUser?.email?.split('@')[0];
+                  const canManageShout = isAdmin || isShoutAuthor;
+                  const isEditingThis = editingShoutId === shout.id;
+
+                  return (
+                    <motion.div
+                      key={shout.id}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      className="p-5 rounded-2xl bg-surface-bright border border-border-custom relative hover:border-white/10 transition-colors flex flex-col justify-between group/shout"
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-8 h-8 rounded-full border border-border-custom overflow-hidden bg-surface shrink-0">
+                              {shout.avatar_url ? (
+                                <img src={shout.avatar_url} alt={shout.username} className="w-full h-full object-cover" />
+                              ) : (
+                                <User className="w-4 h-4 text-text-muted mx-auto my-auto" />
+                              )}
+                            </div>
+                            
+                            <div className="flex flex-col min-w-0">
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs font-bold text-foreground truncate">{shout.full_name}</span>
+                                {shout.is_verified && <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />}
+                              </div>
+                              <span className="text-[9px] text-[#ffffff]/35 uppercase tracking-widest truncate">@{shout.username}</span>
+                            </div>
+                          </div>
+
+                          {canManageShout && !isEditingThis && (
+                            <div className="flex items-center gap-1 opacity-0 group-hover/shout:opacity-100 transition-opacity shrink-0">
+                              <button 
+                                onClick={() => handleStartEditShout(shout.id, shout.content)}
+                                className="p-1 text-foreground/40 hover:text-primary transition-colors cursor-pointer"
+                                title="Edit Shout"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteShout(shout.id)}
+                                className="p-1 text-foreground/40 hover:text-red-500 transition-colors cursor-pointer"
+                                title="Delete Shout"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           )}
                         </div>
-                        
-                        <div className="flex flex-col min-w-0">
-                          <div className="flex items-center gap-1">
-                            <span className="text-xs font-bold text-foreground truncate">{shout.full_name}</span>
-                            {shout.is_verified && <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />}
+
+                        {isEditingThis ? (
+                          <div className="space-y-2 mt-2">
+                            <textarea
+                              value={editingShoutContent}
+                              onChange={(e) => setEditingShoutContent(e.target.value)}
+                              maxLength={160}
+                              rows={2}
+                              className="w-full bg-[#111111] p-3.5 rounded-xl border border-white/10 text-xs text-white focus:outline-none focus:border-primary/40 focus:bg-[#151515] transition-all"
+                            />
+                            <div className="flex justify-end gap-1.5">
+                              <button 
+                                onClick={() => setEditingShoutId(null)}
+                                className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider text-foreground/40 hover:text-foreground cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                              <button 
+                                onClick={() => handleSaveEditShout(shout.id)}
+                                className="px-3 py-1 bg-primary hover:bg-primary/90 text-white rounded text-[8px] font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer"
+                              >
+                                <Check className="w-2.5 h-2.5" />
+                                <span>Save</span>
+                              </button>
+                            </div>
                           </div>
-                          <span className="text-[9px] text-[#ffffff]/35 uppercase tracking-widest truncate">@{shout.username}</span>
-                        </div>
+                        ) : (
+                          <p className="text-xs text-foreground/80 leading-relaxed font-light italic">
+                            "{shout.content}"
+                          </p>
+                        )}
                       </div>
 
-                      <p className="text-xs text-foreground/80 leading-relaxed font-light italic">
-                        "{shout.content}"
-                      </p>
-                    </div>
+                      <div className="pt-4 mt-4 border-t border-border-custom flex justify-between items-center">
+                        <span className="text-[8px] text-text-muted font-mono uppercase">
+                          {shout.role_badge || "⚡ Producer"}
+                        </span>
 
-                    <div className="pt-4 mt-4 border-t border-border-custom flex justify-between items-center">
-                      <span className="text-[8px] text-text-muted font-mono uppercase">
-                        {shout.role_badge || "⚡ Producer"}
-                      </span>
-
-                      <button
-                        onClick={() => handleLikeShout(shout.id)}
-                        className={cn(
-                          "flex items-center gap-1 px-3 py-1 bg-white/5 hover:bg-white/10 rounded-full text-[9px] font-bold tracking-widest transition-colors",
-                          shout.has_liked ? "text-primary bg-primary/10 border border-primary/20" : "text-white/40 border border-transparent"
-                        )}
-                      >
-                        <Heart className={cn("w-3 h-3 transition-transform", shout.has_liked ? "fill-primary scale-120 animate-pulse text-primary" : "")} />
-                        <span>{shout.likes}</span>
-                      </button>
-                    </div>
-                  </motion.div>
-                ))}
+                        <button
+                          onClick={() => handleLikeShout(shout.id)}
+                          className={cn(
+                            "flex items-center gap-1 px-3 py-1 bg-white/5 hover:bg-white/10 rounded-full text-[9px] font-bold tracking-widest transition-colors",
+                            shout.has_liked ? "text-primary bg-primary/10 border border-primary/20" : "text-white/40 border border-transparent"
+                          )}
+                        >
+                          <Heart className={cn("w-3 h-3 transition-transform", shout.has_liked ? "fill-primary scale-120 animate-pulse text-primary" : "")} />
+                          <span>{shout.likes}</span>
+                        </button>
+                      </div>
+                    </motion.div>
+                  );
+                })}
               </AnimatePresence>
             </div>
           </div>

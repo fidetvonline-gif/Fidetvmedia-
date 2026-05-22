@@ -17,7 +17,7 @@ import { fetchYouTubeStats, YouTubeStats } from '@/services/youtubeService';
 import { DEFAULT_CHANNELS } from '@/constants/channels';
 import AdBanner from '@/components/AdBanner';
 
-type AdminTab = 'overview' | 'events' | 'news' | 'communities' | 'bookings' | 'users' | 'support' | 'portfolio' | 'channels' | 'services' | 'site' | 'ads';
+type AdminTab = 'overview' | 'events' | 'news' | 'communities' | 'bookings' | 'partnerships' | 'users' | 'support' | 'portfolio' | 'channels' | 'services' | 'site' | 'ads';
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
@@ -29,6 +29,7 @@ export default function Admin() {
   const [communities, setCommunities] = useState<Community[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [expandedBookingId, setExpandedBookingId] = useState<string | null>(null);
+  const [linkedProfileIds, setLinkedProfileIds] = useState<Record<string, string>>({});
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [siteSettings, setSiteSettings] = useState<Record<string, string>>({});
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
@@ -214,6 +215,9 @@ export default function Admin() {
     if (activeTab === 'news') await fetchNews();
     if (activeTab === 'communities') await fetchCommunities();
     if (activeTab === 'bookings') await fetchBookings();
+    if (activeTab === 'partnerships') {
+      await Promise.all([fetchBookings(), fetchProfiles()]);
+    }
     if (activeTab === 'users') await fetchProfiles();
     if (activeTab === 'support') await fetchSupportChats();
     if (activeTab === 'portfolio') await fetchPortfolio();
@@ -745,6 +749,97 @@ export default function Admin() {
     }
   };
 
+  const handleConfirmPartner = async (book: any) => {
+    try {
+      setLoading(true);
+      // 1. Update booking status
+      const { error: bookingError } = await supabase
+        .from('bookings')
+        .update({ status: 'confirmed' })
+        .eq('id', book.id);
+      if (bookingError) throw bookingError;
+
+      // 2. Identify selected profile (manual pick or auto match)
+      const autoMatch = profiles.find(p => 
+        p.full_name?.toLowerCase() === book.client_name.toLowerCase() ||
+        p.username?.toLowerCase() === book.client_name.toLowerCase()
+      );
+      const selectedId = linkedProfileIds[book.id] || autoMatch?.id;
+
+      let matchedProfile = null;
+      if (selectedId) {
+        matchedProfile = profiles.find(p => p.id === selectedId);
+        // Update user profile verified status
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ is_verified: true })
+          .eq('id', selectedId);
+        if (profileError) {
+          console.error("Could not verify profile:", profileError);
+        }
+      }
+
+      // 3. Construct spotlight details
+      const parsedFollowers = parseInt(book.budget?.match(/\d+/)?.[0] || '1200', 10) || 1200;
+      const parsedCategory = book.event_type.replace('Partner Application:', '').replace('Partner Application', '').trim() || 'Broadcaster';
+
+      const newSpotlight = {
+        id: `spotlight-${Date.now()}`,
+        username: matchedProfile?.username || book.client_name.toLowerCase().replace(/[^a-z0-9]/g, '') || `partner_${Date.now()}`,
+        full_name: matchedProfile?.full_name || book.client_name,
+        avatar_url: matchedProfile?.avatar_url || 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&h=400',
+        bio: matchedProfile?.bio || `Official FideTV Approved Partner Broadcaster. Category: ${parsedCategory}.`,
+        is_verified: true,
+        role: parsedCategory,
+        followers: parsedFollowers
+      };
+
+      // 4. Save to site_settings creator_spotlights
+      // Avoid duplicate spotlight if already exists for this username
+      const cleanSpotlights = creatorSpotlights.filter(s => s.username?.toLowerCase() !== newSpotlight.username.toLowerCase());
+      const updatedSpotlights = [newSpotlight, ...cleanSpotlights];
+      
+      setCreatorSpotlights(updatedSpotlights);
+      setSiteSettings(prev => ({ ...prev, creator_spotlights: JSON.stringify(updatedSpotlights) }));
+      
+      const { error: settingError } = await supabase.from('site_settings').upsert({
+        key: 'creator_spotlights',
+        value: JSON.stringify(updatedSpotlights),
+        updated_at: new Date().toISOString()
+      });
+
+      if (settingError) throw settingError;
+
+      alert(`Success! "${book.client_name}" approved as partner. Verified badge applied and account added to Creator Spotlight.`);
+      
+      await Promise.all([fetchBookings(), fetchProfiles()]);
+    } catch (err: any) {
+      console.error(err);
+      alert('Error confirming partner: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRejectPartner = async (bookId: string) => {
+    if (confirm('Are you sure you want to cancel/reject this partnership proposal?')) {
+      try {
+        setLoading(true);
+        const { error } = await supabase
+          .from('bookings')
+          .update({ status: 'cancelled' })
+          .eq('id', bookId);
+        if (error) throw error;
+        alert('Proposal status set to cancelled.');
+        await fetchBookings();
+      } catch (err: any) {
+        alert(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
   const resetForm = () => {
     setTitle(''); setDescription(''); setExcerpt(''); setContent(''); setImageUrl(''); setYoutubeId('');
     setStreamUrl(''); setStartTime(''); setStatus('upcoming');
@@ -786,15 +881,17 @@ export default function Admin() {
                <h1 className="text-4xl font-display font-bold text-foreground tracking-tighter">Admin <span className="text-foreground/40 italic">Studio.</span></h1>
                <p className="text-foreground/40 font-medium tracking-wide">Command center for FideTV Media content and community.</p>
             </div>
-            <button 
-              onClick={() => { resetForm(); setIsEditing(true); }}
-              className="px-8 py-4 bg-primary text-white font-bold rounded-2xl flex items-center space-x-3 shadow-lg shadow-primary/20 hover:scale-105 transition-all active:scale-95"
-            >
-              <Plus className="w-5 h-5" />
-              <span className="uppercase tracking-widest text-xs">
-                Create {activeTab === 'events' ? 'Event' : activeTab === 'communities' ? 'Community' : activeTab === 'news' ? 'Article' : activeTab === 'portfolio' ? 'Portfolio Item' : activeTab === 'channels' ? 'TV Channel' : activeTab}
-              </span>
-            </button>
+            {activeTab !== 'site' && activeTab !== 'bookings' && activeTab !== 'support' && activeTab !== 'partnerships' && activeTab !== 'overview' && (
+              <button 
+                onClick={() => { resetForm(); setIsEditing(true); }}
+                className="px-8 py-4 bg-primary text-white font-bold rounded-2xl flex items-center space-x-3 shadow-lg shadow-primary/20 hover:scale-105 transition-all active:scale-95"
+              >
+                <Plus className="w-5 h-5" />
+                <span className="uppercase tracking-widest text-xs">
+                  Create {activeTab === 'events' ? 'Event' : activeTab === 'communities' ? 'Community' : activeTab === 'news' ? 'Article' : activeTab === 'portfolio' ? 'Portfolio Item' : activeTab === 'channels' ? 'TV Channel' : activeTab === 'services' ? 'Service' : activeTab}
+                </span>
+              </button>
+            )}
          </div>
 
          {/* Tabs Navigation */}
@@ -809,6 +906,7 @@ export default function Admin() {
               { id: 'communities', name: 'Communities', icon: Users },
               { id: 'users', name: 'Users', icon: ShieldCheck },
               { id: 'bookings', name: 'Bookings', icon: BookOpen },
+              { id: 'partnerships', name: 'Partnerships', icon: Award },
               { id: 'support', name: 'Support', icon: MessageSquare },
               { id: 'site', name: 'Site Setup', icon: Settings },
               { id: 'ads', name: 'Google Ads', icon: DollarSign }
@@ -1347,16 +1445,56 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                         />
                       </div>
 
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-bold tracking-widest text-text-muted">Profile Avatar Image URL</label>
-                        <input 
-                          type="text"
-                          required
-                          value={spotlightForm.avatar_url || ''}
-                          onChange={(e) => setSpotlightForm(prev => ({ ...prev, avatar_url: e.target.value }))}
-                          placeholder="https://images.unsplash.com/etc..."
-                          className="w-full bg-background border border-border-custom rounded-xl p-3 text-xs text-foreground focus:border-primary/50 font-mono"
-                        />
+                      <div className="space-y-2">
+                        <label className="text-[10px] uppercase font-bold tracking-widest text-text-muted block">Profile Avatar Image</label>
+                        
+                        <div className="flex gap-3 items-center">
+                          <input 
+                            type="text"
+                            required
+                            value={spotlightForm.avatar_url || ''}
+                            onChange={(e) => setSpotlightForm(prev => ({ ...prev, avatar_url: e.target.value }))}
+                            placeholder="URL link or upload photograph below..."
+                            className="flex-1 bg-background border border-border-custom rounded-xl p-3 text-xs text-foreground focus:border-primary/50 font-mono"
+                          />
+                          {spotlightForm.avatar_url && (
+                            <div className="w-11 h-11 rounded-xl bg-surface border border-border-custom overflow-hidden shrink-0">
+                              <img src={spotlightForm.avatar_url} alt="Profile preview" className="w-full h-full object-cover" />
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-background border border-dashed border-border-custom hover:border-primary/50 hover:bg-foreground/5 rounded-xl cursor-pointer text-[10px] font-black uppercase tracking-wider text-foreground/60 hover:text-primary transition-all select-none">
+                            {uploading ? (
+                              <>
+                                <div className="w-3.5 h-3.5 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+                                <span>Uploading photograph...</span>
+                              </>
+                            ) : (
+                              <>
+                                <span>Upload Custom Photograph File</span>
+                              </>
+                            )}
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              className="hidden" 
+                              disabled={uploading}
+                              onChange={async (e) => {
+                                if (!e.target.files?.[0]) return;
+                                const file = e.target.files[0];
+                                const fileName = `spotlight-${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+                                await handleFileUpload(
+                                  e, 
+                                  'event-thumbnails', 
+                                  fileName, 
+                                  (url) => setSpotlightForm(prev => ({ ...prev, avatar_url: url }))
+                                );
+                              }} 
+                            />
+                          </label>
+                        </div>
                       </div>
 
                       <div className="flex items-center gap-2 py-2">
@@ -2476,7 +2614,7 @@ CREATE POLICY "Admin manage ad units" ON public.ad_units FOR ALL USING (auth.jwt
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border-custom bg-background/20">
-                    {bookings.map(book => (
+                    {bookings.filter(book => !book.event_type.startsWith('Partner Application') && book.event_type !== 'Partner Application').map(book => (
                       <tr key={book.id} className="hover:bg-foreground/5 transition-colors">
                         <td className="px-8 py-6 text-foreground/40 font-mono text-xs italic">{book.date}</td>
                         <td className="px-8 py-6">
@@ -2532,6 +2670,154 @@ CREATE POLICY "Admin manage ad units" ON public.ad_units FOR ALL USING (auth.jwt
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'partnerships' && (
+            <div className="space-y-6">
+              <div className="bg-surface rounded-3xl p-8 border border-border-custom shadow-sm space-y-2 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-2xl" />
+                 <h3 className="text-xl font-display font-medium text-foreground italic flex items-center gap-2">
+                   <Award className="w-5 h-5 text-primary" />
+                   <span>Broadcaster & Creator Partnership Applications</span>
+                 </h3>
+                 <p className="text-[11px] text-foreground/55 leading-relaxed max-w-2xl">
+                   Approving an application updates the status of the booking proposal, grants the associated user account a <span className="text-primary font-bold">verified badge</span>, and automatically populates their details onto the FideTV Creator Spotlight carousel!
+                 </p>
+              </div>
+
+              <div className="bg-surface rounded-[2.5rem] overflow-hidden border border-border-custom shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="bg-background/50 text-foreground/40 uppercase text-[10px] font-black tracking-widest border-b border-border-custom">
+                        <th className="px-8 py-6">Date</th>
+                        <th className="px-8 py-6">Applicant</th>
+                        <th className="px-8 py-6">Category</th>
+                        <th className="px-8 py-6">Link registered User Account</th>
+                        <th className="px-8 py-6">Status</th>
+                        <th className="px-8 py-6">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border-custom bg-background/20">
+                      {bookings
+                        .filter(book => book.event_type.startsWith('Partner Application') || book.event_type === 'Partner Application')
+                        .map(book => {
+                          const autoMatch = profiles.find(p => 
+                            p.full_name?.toLowerCase() === book.client_name.toLowerCase() ||
+                            p.username?.toLowerCase() === book.client_name.toLowerCase()
+                          );
+                          const selectedId = linkedProfileIds[book.id] || autoMatch?.id || '';
+
+                          return (
+                            <tr key={book.id} className="hover:bg-foreground/5 transition-colors">
+                              <td className="px-8 py-6 text-foreground/40 font-mono text-xs italic">{book.date}</td>
+                              <td className="px-8 py-6">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <p className="font-bold text-foreground">{book.client_name}</p>
+                                    <span className="text-[9px] bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full uppercase font-black tracking-wider">
+                                      {book.budget?.split(' ')[0] || 'Broadcaster'}
+                                    </span>
+                                  </div>
+                                  <p className="text-[10px] text-foreground/40 italic">{book.client_email}</p>
+                                  
+                                  <button 
+                                    onClick={() => setExpandedBookingId(expandedBookingId === book.id ? null : book.id)}
+                                    className="text-[10px] text-primary hover:underline font-bold uppercase tracking-wider block pt-1 cursor-pointer"
+                                  >
+                                    {expandedBookingId === book.id ? 'Collapse Pitch ▲' : 'View Full Broadcaster Vision & Pitch ▼'}
+                                  </button>
+
+                                  {expandedBookingId === book.id && (
+                                    <div className="mt-3 p-4 bg-background border border-border-custom rounded-2xl space-y-3 xl:max-w-2xl">
+                                      {book.budget && (
+                                        <div>
+                                          <span className="text-[9px] text-foreground/40 font-black uppercase tracking-widest block">Metrical/Audience Data:</span>
+                                          <span className="text-xs text-foreground/80 font-medium">{book.budget}</span>
+                                        </div>
+                                      )}
+                                      {book.message && (
+                                        <div>
+                                          <span className="text-[9px] text-foreground/40 font-black uppercase tracking-widest block">Proposal Vision & Details:</span>
+                                          <pre className="text-xs text-foreground/70 font-sans whitespace-pre-wrap leading-relaxed mt-1 break-words bg-foreground/5 p-3 rounded-xl border border-border-custom font-mono text-[11px]">
+                                            {book.message}
+                                          </pre>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-8 py-6 text-xs text-foreground/60 font-medium">
+                                {book.event_type.replace('Partner Application:', '').replace('Partner Application', '').trim() || 'General Broadcaster'}
+                              </td>
+                              <td className="px-8 py-6">
+                                <div className="flex flex-col gap-1.5 max-w-xs">
+                                  <select 
+                                    value={selectedId}
+                                    onChange={(e) => setLinkedProfileIds(prev => ({ ...prev, [book.id]: e.target.value }))}
+                                    className="bg-background border border-border-custom rounded-xl p-2.5 text-xs text-foreground focus:border-primary/50"
+                                  >
+                                    <option value="">-- Manual Link / Auto-verify --</option>
+                                    {profiles.map(p => (
+                                      <option key={p.id} value={p.id}>
+                                        {p.full_name ? `${p.full_name} (@${p.username})` : `@${p.username}`}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  {autoMatch && !linkedProfileIds[book.id] && (
+                                    <span className="text-[9px] text-green-500 font-bold uppercase tracking-wider flex items-center gap-1">
+                                      ✨ Auto-matched: @{autoMatch.username}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-8 py-6">
+                                <span className={cn(
+                                  "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
+                                  book.status === 'confirmed' ? "bg-green-500/10 text-green-500 border border-green-500/20" : "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20"
+                                )}>
+                                  {book.status}
+                                </span>
+                              </td>
+                              <td className="px-8 py-6">
+                                {book.status !== 'confirmed' ? (
+                                  <div className="flex space-x-2">
+                                     <button 
+                                       onClick={() => handleConfirmPartner(book)} 
+                                       title="Approve & Upgrade user to Verified Creator" 
+                                       className="p-2.5 bg-background border border-border-custom text-foreground/40 hover:text-green-500 hover:border-green-500/30 hover:scale-105 active:scale-95 transition-all rounded-xl shadow-sm cursor-pointer"
+                                     >
+                                       <CheckCircle2 className="w-4.5 h-4.5" />
+                                     </button>
+                                     <button 
+                                       onClick={() => handleRejectPartner(book.id)} 
+                                       title="Reject proposal" 
+                                       className="p-2.5 bg-background border border-border-custom text-foreground/40 hover:text-red-500 hover:border-red-500/30 hover:scale-105 active:scale-95 transition-all rounded-xl shadow-sm cursor-pointer"
+                                     >
+                                       <XCircle className="w-4.5 h-4.5" />
+                                     </button>
+                                  </div>
+                                ) : (
+                                  <span className="text-[10px] text-foreground/30 font-bold uppercase tracking-widest">Confirmed Done ✅</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+
+                      {bookings.filter(book => book.event_type.startsWith('Partner Application') || book.event_type === 'Partner Application').length === 0 && (
+                        <tr>
+                          <td colSpan={6} className="text-center py-16 text-foreground/40 font-bold text-xs uppercase tracking-widest font-mono">
+                            No partnership requests found.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}

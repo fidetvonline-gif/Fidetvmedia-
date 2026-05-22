@@ -156,7 +156,8 @@ export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onD
     if (showComments) fetchComments();
   }, [showComments]);
 
-  const canManage = user && (user.id === post.author_id || user.email === 'fidetvonline@gmail.com');
+  const canEdit = user && user.id === post.author_id;
+  const canDelete = user && (user.id === post.author_id || user.email === 'fidetvonline@gmail.com');
 
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   const urls = post.content.match(urlRegex) || [];
@@ -196,15 +197,15 @@ export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onD
           </div>
         </div>
         <div className="flex items-center space-x-2">
-          {canManage && (
-            <>
-              <button onClick={() => setIsEditing(!isEditing)} className="p-2 text-foreground/40 hover:text-primary transition-colors">
-                <Edit2 className="w-4 h-4" />
-              </button>
-              <button onClick={handleDelete} className="p-2 text-foreground/40 hover:text-red-500 transition-colors">
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </>
+          {canEdit && (
+            <button onClick={() => setIsEditing(!isEditing)} className="p-2 text-foreground/40 hover:text-primary transition-colors" title="Edit Post">
+              <Edit2 className="w-4 h-4" />
+            </button>
+          )}
+          {canDelete && (
+            <button onClick={handleDelete} className="p-2 text-foreground/40 hover:text-red-500 transition-colors" title="Delete Post">
+              <Trash2 className="w-4 h-4" />
+            </button>
           )}
           <div className="relative group">
             <button className="p-2 text-foreground/40 hover:text-foreground transition-colors">

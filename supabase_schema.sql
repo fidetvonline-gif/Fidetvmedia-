@@ -22,6 +22,7 @@ CREATE TABLE public.community_members (
   community_id UUID REFERENCES public.communities(id) ON DELETE CASCADE NOT NULL,
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
   role TEXT DEFAULT 'member' CHECK (role IN ('member', 'moderator', 'admin')),
+  status TEXT DEFAULT 'approved' CHECK (status IN ('pending', 'approved')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   UNIQUE(community_id, user_id)
 );
@@ -50,6 +51,7 @@ CREATE TABLE public.communities (
   name TEXT NOT NULL,
   description TEXT,
   image_url TEXT,
+  is_private BOOLEAN DEFAULT false NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 

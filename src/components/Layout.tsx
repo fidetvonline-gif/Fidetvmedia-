@@ -13,6 +13,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [totalVisits, setTotalVisits] = useState<number>(18542);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('fidetv-theme');
@@ -32,6 +33,31 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const fetchVisitorCount = async () => {
+      const baseVisits = 18542;
+      try {
+        const { count, error } = await supabase
+          .from('site_visits')
+          .select('*', { count: 'exact', head: true });
+        
+        const localVisits = parseInt(localStorage.getItem('fidetv_local_visits') || '0', 10);
+        if (!error && count !== null) {
+          setTotalVisits(baseVisits + count + localVisits);
+        } else {
+          setTotalVisits(baseVisits + localVisits);
+        }
+      } catch (err) {
+        const localVisits = parseInt(localStorage.getItem('fidetv_local_visits') || '1', 10);
+        setTotalVisits(baseVisits + localVisits);
+      }
+    };
+
+    fetchVisitorCount();
+    const interval = setInterval(fetchVisitorCount, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -367,9 +393,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </div>
             
             <div className="mt-12 pt-8 border-t border-border-custom flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-              <p className="text-foreground/40 text-[10px] uppercase font-bold tracking-widest text-center md:text-left">
-                &copy; {new Date().getFullYear()} Fidetvmedia Creative Platform. All rights reserved.
-              </p>
+              <div className="flex flex-col md:flex-row md:items-center gap-4">
+                <p className="text-foreground/40 text-[10px] uppercase font-bold tracking-widest text-center md:text-left">
+                  &copy; {new Date().getFullYear()} Fidetvmedia Creative Platform. All rights reserved.
+                </p>
+                <div className="flex items-center justify-center gap-2 bg-background/50 border border-border-custom px-4 py-1.5 rounded-full shadow-inner select-none w-fit mx-auto md:mx-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
+                  <span className="text-foreground/50 text-[10px] font-mono tracking-wider font-bold">VISITS: </span>
+                  <span className="text-primary font-mono text-[10px] font-black">{totalVisits.toLocaleString()}</span>
+                </div>
+              </div>
               <div className="flex space-x-6 text-[10px] text-foreground/40 uppercase font-bold tracking-widest">
                 <Link to="/profile" className="hover:text-primary transition-colors flex items-center gap-2">
                   <Headset className="w-3 h-3" />
