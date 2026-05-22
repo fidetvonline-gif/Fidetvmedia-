@@ -94,7 +94,7 @@ export default function About() {
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-12 pt-12 border-t border-border-custom">
+            <div className="grid grid-cols-2 gap-6 sm:gap-12 pt-12 border-t border-border-custom">
               <div>
                 <h3 className="text-4xl sm:text-6xl font-display font-medium text-foreground tracking-tighter italic">12</h3>
                 <p className="text-[10px] uppercase tracking-[0.4em] text-text-muted font-black mt-2">Years of Mastery</p>

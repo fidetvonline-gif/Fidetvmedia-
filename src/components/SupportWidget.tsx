@@ -110,14 +110,14 @@ export default function SupportWidget() {
   if (!user) return null; // Support only for logged in users for now
 
   return (
-    <div className="fixed bottom-8 right-8 z-[200]">
+    <div className="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 z-[200]">
       <AnimatePresence>
         {isOpen && (
           <motion.div
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="absolute bottom-20 right-0 w-[350px] sm:w-[400px] h-[500px] glass rounded-[2.5rem] border-white/10 shadow-2xl overflow-hidden flex flex-col"
+            className="absolute bottom-20 right-0 w-[calc(100vw-2rem)] max-w-[350px] sm:w-[400px] sm:max-w-none h-[500px] glass rounded-[2.5rem] border-white/10 shadow-2xl overflow-hidden flex flex-col"
           >
             <div className="p-6 bg-surface-bright/50 border-b border-white/10 flex justify-between items-center">
               <div className="flex items-center gap-3">

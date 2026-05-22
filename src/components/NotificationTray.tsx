@@ -182,7 +182,7 @@ export default function NotificationTray() {
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="absolute right-0 mt-4 w-80 sm:w-96 bg-surface border border-white/5 rounded-[2rem] shadow-2xl overflow-hidden z-[100]"
+            className="absolute right-0 mt-4 w-[calc(100vw-2rem)] max-w-[320px] sm:max-w-[384px] sm:w-96 bg-surface border border-white/5 rounded-[2rem] shadow-2xl overflow-hidden z-[100]"
           >
             <div className="p-6 border-b border-white/5 flex items-center justify-between">
               <h3 className="text-white font-display font-bold">Notifications</h3>

@@ -140,7 +140,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground">
+    <div className="min-h-screen flex flex-col bg-background text-foreground overflow-x-hidden">
       {/* <TourGuide /> */}
       <nav className={cn(
         "fixed top-0 left-0 right-0 z-50 transition-all duration-500",

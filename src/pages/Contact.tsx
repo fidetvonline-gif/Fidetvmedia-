@@ -63,21 +63,21 @@ export default function Contact() {
           </div>
 
           <div className="lg:w-1/2">
-            <div className="bg-surface rounded-[4rem] p-12 sm:p-20 border border-border-custom shadow-[0_40px_100px_-20px_rgba(0,0,0,0.15)] relative overflow-hidden shadow-black/10">
+            <div className="bg-surface rounded-[4rem] p-6 sm:p-12 lg:p-20 border border-border-custom shadow-[0_40px_100px_-20px_rgba(0,0,0,0.15)] relative overflow-hidden shadow-black/10">
                <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-[150px] -mr-48 -mt-48 transition-transform duration-1000 group-hover:scale-125" />
                
                 <form className="space-y-10 relative z-10">
                   <div className="space-y-4">
                     <label className="text-[10px] uppercase font-black tracking-[0.5em] text-text-muted ml-6 opacity-60">Authentication Name</label>
-                    <input type="text" placeholder="Identity" className="w-full bg-background border border-border-custom rounded-3xl p-7 text-foreground placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-all font-display shadow-2xl shadow-black/5" />
+                    <input type="text" placeholder="Identity" className="w-full bg-background border border-border-custom rounded-3xl p-4 sm:p-7 text-foreground placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-all font-display shadow-2xl shadow-black/5 text-sm sm:text-base" />
                   </div>
                   <div className="space-y-4">
                     <label className="text-[10px] uppercase font-black tracking-[0.5em] text-text-muted ml-6 opacity-60">Digital Signature (Email)</label>
-                    <input type="email" placeholder="Verification required" className="w-full bg-background border border-border-custom rounded-3xl p-7 text-foreground placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-all font-display shadow-2xl shadow-black/5" />
+                    <input type="email" placeholder="Verification required" className="w-full bg-background border border-border-custom rounded-3xl p-4 sm:p-7 text-foreground placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-all font-display shadow-2xl shadow-black/5 text-sm sm:text-base" />
                   </div>
                   <div className="space-y-4">
                     <label className="text-[10px] uppercase font-black tracking-[0.5em] text-text-muted ml-6 opacity-60">Mission Objective</label>
-                    <select className="w-full bg-background border border-border-custom rounded-3xl p-7 text-foreground placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-all appearance-none font-display shadow-2xl shadow-black/5">
+                    <select className="w-full bg-background border border-border-custom rounded-3xl p-4 sm:p-7 text-foreground placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-all appearance-none font-display shadow-2xl shadow-black/5 text-sm sm:text-base">
                       <option>Strategic Partnership</option>
                       <option>Digital Architecture (Web/App)</option>
                       <option>Cinematic Production</option>
@@ -87,12 +87,12 @@ export default function Contact() {
                   </div>
                   <div className="space-y-4">
                     <label className="text-[10px] uppercase font-black tracking-[0.5em] text-text-muted ml-6 opacity-60">Brief / Protocol</label>
-                    <textarea placeholder="Outline your vision..." className="w-full bg-background border border-border-custom rounded-3xl p-7 text-foreground placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-all min-h-[200px] resize-none font-display shadow-2xl shadow-black/5"></textarea>
+                    <textarea placeholder="Outline your vision..." className="w-full bg-background border border-border-custom rounded-3xl p-4 sm:p-7 text-foreground placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-all min-h-[160px] sm:min-h-[200px] resize-none font-display shadow-2xl shadow-black/5 text-sm sm:text-base"></textarea>
                   </div>
 
-                  <button className="w-full bg-primary text-white font-black uppercase tracking-[0.4em] py-8 rounded-3xl hover:bg-primary/90 transition-all flex items-center justify-center space-x-6 shadow-2xl shadow-primary/30 group font-display text-xs">
+                  <button className="w-full bg-primary text-white font-black uppercase tracking-[0.4em] py-5 sm:py-8 rounded-3xl hover:bg-primary/90 transition-all flex items-center justify-center space-x-6 shadow-2xl shadow-primary/30 group font-display text-xs">
                     <span>Initialize Communication</span>
-                    <Send className="w-6 h-6 group-hover:translate-x-2 group-hover:-translate-y-2 transition-transform" />
+                    <Send className="w-5 h-5 sm:w-6 sm:h-6 group-hover:translate-x-2 group-hover:-translate-y-2 transition-transform" />
                   </button>
                </form>
             </div>
