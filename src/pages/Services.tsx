@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import ReactPlayer from 'react-player';
 import { supabase } from '@/lib/supabase';
 import { Service } from '@/types';
+import FAQ from '@/components/FAQ';
 
 const Player = ReactPlayer as any;
 
@@ -402,6 +403,11 @@ export default function Services() {
              <div className="absolute -top-10 -left-10 w-48 h-48 bg-primary/10 rounded-full blur-[60px]" />
           </div>
         </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <FAQ />
       </section>
 
       {/* Featured Video Section */}
