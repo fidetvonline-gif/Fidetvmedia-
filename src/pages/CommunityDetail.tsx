@@ -1,10 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Community, Post } from '@/types';
 import PostCard from '@/components/PostCard';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Plus, Image as ImageIcon, Video, MessageSquare, Users, Globe, Info, Edit3, Camera, Check, X, Shield, UserMinus, Lock } from 'lucide-react';
+import { 
+  ArrowLeft, Plus, Image as ImageIcon, Video, MessageSquare, Users, Globe, Info, Edit3, 
+  Camera, Check, X, Shield, UserMinus, Lock, Mic, MicOff, Volume2, VolumeX, 
+  MessageSquare as MessageIcon, Headphones, Radio, Signal, Wifi, Activity, Sparkles, Send 
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactPlayer from 'react-player';
 import { format } from 'date-fns';
@@ -42,6 +46,141 @@ export default function CommunityDetail() {
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  // Community Redesign & Connection States
+  const [activeTab, setActiveTab] = useState<'feed' | 'chat' | 'voice'>('feed');
+  const [siteTotalVisits, setSiteTotalVisits] = useState(18542);
+  const [activeOnSite, setActiveOnSite] = useState(38);
+  
+  const [loungeMessages, setLoungeMessages] = useState<any[]>(() => {
+    const defaultMessages = [
+      { id: 'm1', username: 'mary_adeboye', full_name: 'Mary Adeboye', avatar_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=200&auto=format&fit=crop', text: 'Hey guys! Staging is set up for our broadcasting review. Check out the Voice Channels tab to discuss live!', time: '10:15 M', is_pioneer: true },
+      { id: 'm2', username: 'sophia_media', full_name: 'Sophia Nwachukwu', avatar_url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=200&auto=format&fit=crop', text: 'I am here as well! Excited about the new media pipelines we are launching this week under high bandwidth latency constraints.', time: '10:18 M', is_pioneer: true },
+      { id: 'm3', username: 'jacob_cinematic', full_name: 'Jacob Mensah', avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop', text: 'Stunning presets in the latest hub update! Let me know if anyone wants video rendering templates or drone raw materials.', time: '10:22 M', is_pioneer: true }
+    ];
+    return defaultMessages;
+  });
+  const [newChatText, setNewChatText] = useState('');
+  const [isTypingSim, setIsTypingSim] = useState(false);
+
+  // Voice States
+  const [activeVoiceChannel, setActiveVoiceChannel] = useState<string | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isDeafened, setIsDeafened] = useState(false);
+  const [simLiveSpeakers, setSimLiveSpeakers] = useState<string[]>([]);
+  
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Scroll to bottom helper for lounge chat
+  useEffect(() => {
+    if (activeTab === 'chat' && chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [loungeMessages, activeTab]);
+
+  // Handle simulated auto-reply in Lounge Chat
+  const handleSendLoungeChat = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newChatText.trim()) return;
+
+    const username = user?.email?.split('@')[0] || 'anonymous_pioneer';
+    const fullName = user?.user_metadata?.full_name || 'Creative Pioneer';
+    const avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${username}`;
+
+    const newMsg = {
+      id: `u-${Date.now()}`,
+      username: username,
+      full_name: fullName,
+      avatar_url: avatar,
+      text: newChatText.trim(),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      is_pioneer: false
+    };
+
+    const updated = [...loungeMessages, newMsg];
+    setLoungeMessages(updated);
+    setNewChatText('');
+
+    // Trigger typing simulation
+    setIsTypingSim(true);
+    setTimeout(() => {
+      const replies = [
+        "That is impressive! Let's schedule a deep dive segment on the Channels tab.",
+        "Totally agree. Let's hop onto the '🎙️ Creators Stage' Voice Room to discuss this right now!",
+        "Brilliant ideas! The live media configurations here are perfect for testing that scale.",
+        "Yes, we are pushing high-definition feeds soon. Stay tuned!",
+        "Awesome insights. Mary Adeboye was saying similar things about media reach during our project review."
+      ];
+      const randomReply = replies[Math.floor(Math.random() * replies.length)];
+      const randomPioneers = [
+        { name: 'Mary Adeboye', username: 'mary_adeboye', av: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=200&auto=format&fit=crop' },
+        { name: 'Sophia Nwachukwu', username: 'sophia_media', av: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=200&auto=format&fit=crop' },
+        { name: 'Jacob Mensah', username: 'jacob_cinematic', av: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop' }
+      ];
+      const chosenPioneer = randomPioneers[Math.floor(Math.random() * randomPioneers.length)];
+
+      const simMsg = {
+        id: `sim-${Date.now()}`,
+        username: chosenPioneer.username,
+        full_name: chosenPioneer.name,
+        avatar_url: chosenPioneer.av,
+        text: randomReply,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        is_pioneer: true
+      };
+      
+      setLoungeMessages(prev => [...prev, simMsg]);
+      setIsTypingSim(false);
+    }, 1500);
+  };
+
+  // Voice simulator speaks tick
+  useEffect(() => {
+    if (!activeVoiceChannel) {
+      setSimLiveSpeakers([]);
+      return;
+    }
+    const interval = setInterval(() => {
+      const pool = ['mary_adeboye', 'sophia_media', 'jacob_cinematic'];
+      const activeCount = Math.floor(Math.random() * 3); // 0, 1 or 2 speakers
+      const active: string[] = [];
+      for (let i = 0; i < activeCount; i++) {
+        const item = pool[Math.floor(Math.random() * pool.length)];
+        if (!active.includes(item)) {
+          active.push(item);
+        }
+      }
+      setSimLiveSpeakers(active);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [activeVoiceChannel]);
+
+  // Site total & active users state ticks
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const { count } = await supabase
+          .from('site_visits')
+          .select('*', { count: 'exact', head: true });
+        if (count !== null) {
+          setSiteTotalVisits(18542 + count);
+        }
+      } catch (err) {
+        console.warn("DB visits check skipped");
+      }
+      setActiveOnSite(Math.floor(Math.random() * 15) + 36);
+    };
+    fetchStats();
+
+    const metricInterval = setInterval(() => {
+      setActiveOnSite(prev => {
+        const delta = Math.random() > 0.5 ? 1 : -1;
+        const newVal = prev + delta;
+        return newVal < 28 ? 28 : newVal > 58 ? 58 : newVal;
+      });
+    }, 10000);
+    return () => clearInterval(metricInterval);
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -641,6 +780,56 @@ export default function CommunityDetail() {
             </p>
           </header>
 
+          {/* Social Media Mode Navigation Tabs */}
+          {hasAccess && (
+            <div className="flex bg-surface-bright/70 backdrop-blur-md rounded-2xl p-1.5 border border-border-custom gap-2 shadow-2xl mb-8">
+              <button
+                onClick={() => setActiveTab('feed')}
+                className={cn(
+                  "flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer",
+                  activeTab === 'feed'
+                    ? "bg-primary text-white shadow-lg shadow-primary/25 scale-[1.02]"
+                    : "text-text-muted hover:text-foreground hover:bg-foreground/5"
+                )}
+              >
+                <Radio className="w-4 h-4 text-primary group-hover:animate-pulse" />
+                <span>Feed Hub ({posts.length})</span>
+              </button>
+              
+              <button
+                onClick={() => setActiveTab('chat')}
+                className={cn(
+                  "flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer relative",
+                  activeTab === 'chat'
+                    ? "bg-primary text-white shadow-lg shadow-primary/25 scale-[1.02]"
+                    : "text-text-muted hover:text-foreground hover:bg-foreground/5"
+                )}
+              >
+                <MessageIcon className="w-4 h-4 text-indigo-400" />
+                <span>Lounge Chat</span>
+                <span className="absolute -top-1 -right-1 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-full text-[7px] font-mono px-1.5 py-0.5 animate-pulse uppercase">Active</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('voice')}
+                className={cn(
+                  "flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer relative",
+                  activeTab === 'voice'
+                    ? "bg-primary text-white shadow-lg shadow-primary/25 scale-[1.02]"
+                    : "text-text-muted hover:text-foreground hover:bg-foreground/5"
+                )}
+              >
+                <Headphones className={cn("w-4 h-4 text-green-400", activeVoiceChannel && "animate-bounce")} />
+                <span>Voice Call</span>
+                {activeVoiceChannel ? (
+                  <span className="w-2.5 h-2.5 rounded-full bg-green-400 inline-block animate-ping" />
+                ) : (
+                  <span className="bg-emerald-500/10 text-emerald-400 text-[6px] rounded px-1 border border-emerald-500/20">99ms</span>
+                )}
+              </button>
+            </div>
+          )}
+
           {!hasAccess ? (
             <div className="glass rounded-[2.5rem] p-12 text-center border-dashed border border-primary/20 bg-primary/5 space-y-6 flex flex-col items-center justify-center py-24">
               <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mb-2">
@@ -659,7 +848,7 @@ export default function CommunityDetail() {
                     "px-10 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all cursor-pointer shadow-xl font-display",
                     joinStatus === 'pending'
                       ? "bg-yellow-500/10 border border-yellow-500/20 text-yellow-500"
-                      : "bg-primary text-white shadow-primary/20 hover:scale-105 active:scale-95"
+                      : "bg-primary text-white shadow-primary/20 hover:scale-[1.03] active:scale-95"
                   )}
                 >
                   {joinStatus === 'pending' ? '⏳ Request Pending Approval' : '🔑 Request Access'}
@@ -667,129 +856,490 @@ export default function CommunityDetail() {
               ) : (
                 <Link
                   to="/auth"
-                  className="px-10 py-5 bg-primary text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl shadow-xl hover:scale-105 active:scale-95 transition-all inline-block font-display"
+                  className="px-10 py-5 bg-primary text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl shadow-xl hover:scale-[1.03] active:scale-95 transition-all inline-block font-display"
                 >
                   Sign In & Join Hub
                 </Link>
               )}
             </div>
           ) : (
-            <>
-              <AnimatePresence>
-                {isCreating && (
-                  <motion.form
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    onSubmit={handleCreatePost}
-                    className="glass rounded-[2rem] p-8 space-y-6 overflow-hidden border-primary/20 shadow-2xl shadow-primary/5"
-                  >
-                    <textarea
-                      value={newPostContent}
-                      onChange={(e) => setNewPostContent(e.target.value)}
-                      placeholder={`What's happening in ${community.name}?`}
-                      className="w-full bg-transparent border-none focus:ring-0 text-lg text-foreground placeholder:text-text-muted resize-none min-h-[120px]"
-                    />
-                    
-                    {mediaPreview && (
-                      <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-background border border-border-custom">
-                        {mediaFile?.type.startsWith('image') ? (
-                          <img src={mediaPreview} className="w-full h-full object-cover" />
-                        ) : (
-                          <video src={mediaPreview} controls playsInline className="w-full h-full object-cover" />
-                        )}
-                        <button 
-                          onClick={() => { setMediaFile(null); setMediaPreview(null); }}
-                          className="absolute top-4 right-4 p-2 bg-black/60 rounded-xl text-white hover:bg-red-500 transition-colors z-10"
-                        >
-                          <Plus className="w-5 h-5 rotate-45" />
-                        </button>
-                      </div>
-                    )}
-                    {!mediaPreview && newPostContent.match(/(https?:\/\/[^\s]+)/g)?.find(u => Player.canPlay(u)) && (
-                      <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-background border border-border-custom">
-                        <Player 
-                          url={newPostContent.match(/(https?:\/\/[^\s]+)/g)?.find(u => Player.canPlay(u))} 
-                          className="absolute top-0 left-0"
-                          width="100%"
-                          height="100%"
-                          controls 
-                        />
-                      </div>
-                    )}
-
-                    <div className="flex justify-between items-center pt-4 border-t border-border-custom">
-                      <div className="flex space-x-4">
-                        <label className="p-2 text-text-muted hover:text-primary transition-colors cursor-pointer">
-                          <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
-                          <ImageIcon className="w-5 h-5" />
-                        </label>
-                        <label className="p-2 text-text-muted hover:text-primary transition-colors cursor-pointer">
-                          <input type="file" className="hidden" accept="video/*" onChange={handleFileChange} />
-                          <Video className="w-5 h-5" />
-                        </label>
-                      </div>
-                      <button
-                        type="submit"
-                        disabled={!newPostContent.trim() || uploading}
-                        className="px-8 py-3 bg-primary text-white font-bold rounded-xl disabled:opacity-50 hover:bg-primary/90 transition-all font-display uppercase tracking-widest text-xs flex items-center space-x-2"
+            <div className="w-full">
+              {/* TAB 1: DISCUSSION FEED */}
+              {activeTab === 'feed' && (
+                <>
+                  <AnimatePresence>
+                    {isCreating && (
+                      <motion.form
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        onSubmit={handleCreatePost}
+                        className="glass rounded-[2rem] p-8 space-y-6 overflow-hidden border-primary/20 shadow-2xl shadow-primary/5 mb-8"
                       >
-                        {uploading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                        <span>{uploading ? 'Uploading...' : 'Post to Hub'}</span>
-                      </button>
-                    </div>
-                  </motion.form>
-                )}
-              </AnimatePresence>
-
-              <div className="space-y-8">
-                {loading && posts.length === 0 ? (
-                  [1, 2, 3].map((i) => (
-                    <div key={i} className="glass rounded-3xl h-64 animate-pulse" />
-                  ))
-                ) : posts.length > 0 ? (
-                  <>
-                    {posts.map((post: any) => (
-                      <div key={post.id} className="relative group">
-                        <PostCard post={post} onDelete={() => { setPage(0); fetchData(); }} onUpdate={() => { setPage(0); fetchData(); }} />
-                        {isModerator && (
-                          <button 
-                            onClick={() => deletePost(post.id)}
-                            className="absolute top-4 right-4 p-2 bg-background/80 hover:bg-red-500 hover:text-white rounded-xl shadow-lg opacity-0 group-hover:opacity-100 transition-all z-10"
-                            title="Delete Post (Moderator)"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
+                        <textarea
+                          value={newPostContent}
+                          onChange={(e) => setNewPostContent(e.target.value)}
+                          placeholder={`What's happening in ${community.name}?`}
+                          className="w-full bg-transparent border-none focus:ring-0 text-lg text-foreground placeholder:text-text-muted resize-none min-h-[120px]"
+                        />
+                        
+                        {mediaPreview && (
+                          <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-background border border-border-custom">
+                            {mediaFile?.type.startsWith('image') ? (
+                              <img src={mediaPreview} className="w-full h-full object-cover" />
+                            ) : (
+                              <video src={mediaPreview} controls playsInline className="w-full h-full object-cover" />
+                            )}
+                            <button 
+                              type="button"
+                              onClick={() => { setMediaFile(null); setMediaPreview(null); }}
+                              className="absolute top-4 right-4 p-2 bg-black/60 rounded-xl text-white hover:bg-red-500 transition-colors z-10"
+                            >
+                              <Plus className="w-5 h-5 rotate-45" />
+                            </button>
+                          </div>
                         )}
+                        {!mediaPreview && newPostContent.match(/(https?:\/\/[^\s]+)/g)?.find(u => Player.canPlay(u)) && (
+                          <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-background border border-border-custom">
+                            <Player 
+                              url={newPostContent.match(/(https?:\/\/[^\s]+)/g)?.find(u => Player.canPlay(u))} 
+                              className="absolute top-0 left-0"
+                              width="100%"
+                              height="100%"
+                              controls 
+                            />
+                          </div>
+                        )}
+
+                        <div className="flex justify-between items-center pt-4 border-t border-border-custom">
+                          <div className="flex space-x-4">
+                            <label className="p-2 text-text-muted hover:text-primary transition-colors cursor-pointer">
+                              <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
+                              <ImageIcon className="w-5 h-5" />
+                            </label>
+                            <label className="p-2 text-text-muted hover:text-primary transition-colors cursor-pointer">
+                              <input type="file" className="hidden" accept="video/*" onChange={handleFileChange} />
+                              <Video className="w-5 h-5" />
+                            </label>
+                          </div>
+                          <button
+                            type="submit"
+                            disabled={!newPostContent.trim() || uploading}
+                            className="px-8 py-3 bg-primary text-white font-bold rounded-xl disabled:opacity-50 hover:bg-primary/90 transition-all font-display uppercase tracking-widest text-xs flex items-center space-x-2"
+                          >
+                            {uploading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                            <span>{uploading ? 'Uploading...' : 'Post to Hub'}</span>
+                          </button>
+                        </div>
+                      </motion.form>
+                    )}
+                  </AnimatePresence>
+
+                  <div className="space-y-8">
+                    {loading && posts.length === 0 ? (
+                      [1, 2, 3].map((i) => (
+                        <div key={i} className="glass rounded-3xl h-64 animate-pulse" />
+                      ))
+                    ) : posts.length > 0 ? (
+                      <>
+                        {posts.map((post: any) => (
+                          <div key={post.id} className="relative group">
+                            <PostCard post={post} onDelete={() => { setPage(0); fetchData(); }} onUpdate={() => { setPage(0); fetchData(); }} />
+                            {isModerator && (
+                              <button 
+                                onClick={() => deletePost(post.id)}
+                                className="absolute top-4 right-4 p-2 bg-background/80 hover:bg-red-500 hover:text-white rounded-xl shadow-lg opacity-0 group-hover:opacity-100 transition-all z-10"
+                                title="Delete Post (Moderator)"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        
+                        {hasMore && (
+                          <div className="pt-8 flex justify-center">
+                            <button 
+                              onClick={handleLoadMore}
+                              disabled={loadingMore}
+                              className="px-10 py-4 bg-surface border border-border-custom rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-foreground/40 hover:text-primary hover:border-primary/20 transition-all shadow-xl disabled:opacity-50 flex items-center space-x-3"
+                            >
+                              {loadingMore ? (
+                                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <Plus className="w-4 h-4" />
+                              )}
+                              <span>{loadingMore ? 'Loading More...' : 'Load Older Posts'}</span>
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="text-center py-20 bg-surface/30 rounded-[3rem] border border-dashed border-border-custom">
+                        <MessageSquare className="w-12 h-12 text-text-muted mx-auto mb-6" />
+                        <h3 className="text-2xl font-display font-medium text-text-muted">The hub is quiet.</h3>
+                        <p className="text-text-muted mt-2">Start a conversation for the community!</p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* TAB 2: LIVE LOUNGE CHAT */}
+              {activeTab === 'chat' && (
+                <div className="glass rounded-[2rem] border border-border-custom p-6 flex flex-col h-[580px] justify-between shadow-2xl overflow-hidden bg-background/50">
+                  {/* Chat header info */}
+                  <div className="flex items-center justify-between pb-4 border-b border-white/5 mb-4">
+                    <div className="flex items-center space-x-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse" />
+                      <p className="font-display font-bold text-sm text-foreground"># lounge-chat-stream</p>
+                      <p className="text-[10px] text-text-muted font-mono uppercase bg-white/5 px-2 py-0.5 rounded">Active Sync</p>
+                    </div>
+                    <span className="text-[10px] text-text-muted font-black uppercase tracking-widest">{loungeMessages.length} Messages logged</span>
+                  </div>
+
+                  {/* Message stream */}
+                  <div className="flex-1 overflow-y-auto space-y-4 pr-1 custom-scrollbar min-h-[340px]">
+                    <AnimatePresence initial={false}>
+                      {loungeMessages.map((msg, idx) => (
+                        <motion.div 
+                          key={msg.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className={cn(
+                            "flex items-start gap-3 p-3 rounded-2xl transition-all hover:bg-white/5",
+                            !msg.is_pioneer && "bg-primary/5 border border-primary/5"
+                          )}
+                        >
+                          <img 
+                            src={msg.avatar_url} 
+                            alt={msg.username} 
+                            className="w-10 h-10 rounded-full bg-cover shadow-inner bg-primary/20 shrink-0" 
+                          />
+                          <div className="space-y-1">
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-sm font-bold text-foreground">{msg.full_name}</span>
+                              <span className="text-[10px] text-text-muted">@{msg.username}</span>
+                              <span className="text-[9px] text-text-muted font-mono">{msg.time}</span>
+                              {msg.is_pioneer && (
+                                <span className="bg-primary/15 text-primary text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md border border-primary/25">
+                                  CO-CREATOR
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                    
+                    {isTypingSim && (
+                      <div className="flex items-center space-x-2 p-3 text-xs text-text-muted italic">
+                        <div className="flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" style={{ animationName: 'bounce', animationDuration: '1s', animationIterationCount: 'infinite', animationDelay: '0ms' }} />
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" style={{ animationName: 'bounce', animationDuration: '1s', animationIterationCount: 'infinite', animationDelay: '150ms' }} />
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" style={{ animationName: 'bounce', animationDuration: '1s', animationIterationCount: 'infinite', animationDelay: '300ms' }} />
+                        </div>
+                        <span>A co-creator is writing a reply...</span>
+                      </div>
+                    )}
+                    <div ref={chatEndRef} />
+                  </div>
+
+                  {/* Chat input box */}
+                  <form onSubmit={handleSendLoungeChat} className="mt-4 pt-4 border-t border-white/5 flex gap-2">
+                    <input
+                      type="text"
+                      value={newChatText}
+                      onChange={(e) => setNewChatText(e.target.value)}
+                      placeholder={`Message #lounge-chat-stream in ${community.name}...`}
+                      className="flex-1 bg-background/80 border border-border-custom rounded-2xl px-6 py-4 text-sm text-foreground focus:outline-none focus:border-indigo-500/40 transition-all font-display shadow-inner"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!newChatText.trim()}
+                      className="px-6 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center hover:bg-indigo-500 hover:scale-[1.03] active:scale-95 disabled:opacity-40 transition-all"
+                    >
+                      <Send className="w-4 h-4 mr-2" />
+                      <span>Send</span>
+                    </button>
+                  </form>
+                </div>
+              )}
+
+              {/* TAB 3: HIGH-FIDELITY VOICE CALL VoIP */}
+              {activeTab === 'voice' && (
+                <div className="glass rounded-[2rem] border border-border-custom p-8 space-y-8 shadow-2xl bg-[#0b0c10] text-white">
+                  
+                  {/* VoIP Header and Telemetry */}
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-white/5 pb-6">
+                    <div>
+                      <h4 className="text-xl font-display font-medium flex items-center gap-2">
+                        <Radio className="w-5 h-5 text-green-400 animate-pulse" />
+                        <span>Interactive Voice Sector</span>
+                      </h4>
+                      <p className="text-xs text-text-muted mt-1">Simulated WebRTC direct connection for low latency high-fidelity team planning.</p>
+                    </div>
+
+                    <div className="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-xl text-[10px] font-mono border border-white/5">
+                      <Signal className="w-3.5 h-3.5 text-green-400 animate-pulse" />
+                      <span>CONNECTED</span>
+                      <span className="text-text-muted">|</span>
+                      <span className="text-indigo-400">12ms RTT</span>
+                      <span className="text-text-muted">|</span>
+                      <span className="text-green-400">Opus 48k</span>
+                    </div>
+                  </div>
+
+                  {/* Channel selectors list */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {[
+                      { id: 'stage', title: '🎙️ Creators Stage', desc: 'Main broadcast review with partners' },
+                      { id: 'brainstorm', title: '💡 Active Brainstorming', desc: 'Rapid strategy & pitch board' },
+                      { id: 'hangout', title: '🖥️ Co-Working Hangout', desc: 'Ambience code, design, screen-share' }
+                    ].map((chan) => (
+                      <div 
+                        key={chan.id}
+                        className={cn(
+                          "p-5 rounded-2xl border transition-all text-left flex flex-col justify-between h-36 relative overflow-hidden",
+                          activeVoiceChannel === chan.id
+                            ? "bg-gradient-to-br from-green-500/15 to-emerald-500/5 border-green-500/30 shadow-lg shadow-green-500/5 scale-[1.02]"
+                            : "bg-white/5 border-white/5 hover:border-white/10 hover:bg-white/10"
+                        )}
+                      >
+                        <div>
+                          <p className="font-display font-bold text-sm text-foreground">{chan.title}</p>
+                          <p className="text-[10px] text-text-muted mt-1 leading-relaxed">{chan.desc}</p>
+                        </div>
+                        
+                        <div className="flex items-center justify-between pt-2">
+                          <span className="text-[8px] font-mono text-green-400 uppercase font-black uppercase tracking-wider">
+                            {activeVoiceChannel === chan.id ? '🔊 Connected' : 'Empty'}
+                          </span>
+                          
+                          <button
+                            onClick={() => {
+                              if (activeVoiceChannel === chan.id) {
+                                setActiveVoiceChannel(null);
+                              } else {
+                                setActiveVoiceChannel(chan.id);
+                              }
+                            }}
+                            className={cn(
+                              "px-3 py-1.5 text-[8px] font-black uppercase tracking-widest rounded-lg transition-all cursor-pointer",
+                              activeVoiceChannel === chan.id
+                                ? "bg-red-500 hover:bg-red-600 text-white"
+                                : "bg-primary hover:bg-primary/90 text-white"
+                            )}
+                          >
+                            {activeVoiceChannel === chan.id ? 'Disconnect' : 'Connect'}
+                          </button>
+                        </div>
                       </div>
                     ))}
-                    
-                    {hasMore && (
-                      <div className="pt-8 flex justify-center">
-                        <button 
-                          onClick={handleLoadMore}
-                          disabled={loadingMore}
-                          className="px-10 py-4 bg-surface border border-border-custom rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-foreground/40 hover:text-primary hover:border-primary/20 transition-all shadow-xl disabled:opacity-50 flex items-center space-x-3"
-                        >
-                          {loadingMore ? (
-                            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                          ) : (
-                            <Plus className="w-4 h-4" />
+                  </div>
+
+                  {/* Active Speaker Grid (rendered when connected) */}
+                  {activeVoiceChannel ? (
+                    <div className="space-y-6 bg-white/5 p-6 rounded-2xl border border-white/5 animate-fade-in">
+                      
+                      {/* Audio Visualizer Waves (Simulation) */}
+                      <div className="flex items-center justify-between bg-black/60 p-4 rounded-xl border border-white/5">
+                        <div className="flex items-center gap-3">
+                          <Volume2 className="w-5 h-5 text-green-400 animate-pulse" />
+                          <div>
+                            <p className="text-xs font-bold font-display">Opus Audio Transmission Engine</p>
+                            <p className="text-[9px] text-text-muted">Simulated stream signals based on voice amplitude levels.</p>
+                          </div>
+                        </div>
+
+                        {/* Animated waveform visualizer bars */}
+                        <div className="flex gap-1 h-8 items-end">
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((i) => {
+                            // Randomize animation timings
+                            const durations = ['0.5s', '0.7s', '0.4s', '0.8s', '0.6s'];
+                            const delay = `${i * 50}ms`;
+                            return (
+                              <div 
+                                key={i}
+                                className={cn(
+                                  "w-1 bg-green-500 rounded-full transition-all",
+                                  isMuted && "h-1 bg-white/20"
+                                )}
+                                style={{
+                                  height: isMuted ? '4px' : '100%',
+                                  animationName: isMuted ? 'none' : 'bounce',
+                                  animationDuration: '0.8s',
+                                  animationTimingFunction: 'ease-in-out',
+                                  animationIterationCount: 'infinite',
+                                  animationDirection: 'alternate',
+                                  animationDelay: isMuted ? '0s' : delay,
+                                }}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Speakers Grid list */}
+                      <div className="space-y-3">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Participants in Voice Channel</p>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          
+                          {/* User Avatar Card */}
+                          <div className={cn(
+                            "flex items-center justify-between p-4 bg-black/40 rounded-xl border transition-all",
+                            !isMuted ? "border-green-500/20 shadow-md ring-1 ring-green-500/10" : "border-white/5"
+                          )}>
+                            <div className="flex items-center gap-3">
+                              <div className="relative">
+                                <img 
+                                  src={user?.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${user?.email}`}
+                                  className={cn(
+                                    "w-10 h-10 rounded-full bg-cover transition-all border shrink-0 bg-primary/20",
+                                    !isMuted ? "border-green-400 scale-105" : "border-white/10"
+                                  )}
+                                />
+                                {!isMuted && (
+                                  <span className="absolute top-0 right-0 w-3 h-3 rounded-full bg-green-400 animate-ping border-2 border-black" />
+                                )}
+                              </div>
+                              <div>
+                                <p className="text-sm font-bold">{user?.user_metadata?.full_name || 'You (Creative Pioneer)'}</p>
+                                <p className="text-[10px] text-text-muted">@{user?.email?.split('@')[0] || 'anonymous'}</p>
+                              </div>
+                            </div>
+                            
+                            <span className="text-[9px] uppercase font-black tracking-widest text-green-400 py-0.5 px-2 bg-green-500/10 rounded">
+                              {!isMuted ? '🎙️ Speaking' : '🔇 Muted'}
+                            </span>
+                          </div>
+
+                          {/* Sophia Nwachukwu Avatar Card */}
+                          <div className={cn(
+                            "flex items-center justify-between p-4 bg-black/40 rounded-xl border transition-all",
+                            simLiveSpeakers.includes('sophia_media') ? "border-green-500/20 shadow-md ring-1 ring-green-500/10" : "border-white/5"
+                          )}>
+                            <div className="flex items-center gap-3">
+                              <div className="relative">
+                                <img 
+                                  src="https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=200&auto=format&fit=crop"
+                                  className={cn(
+                                    "w-10 h-10 rounded-full bg-cover transition-all border shrink-0 bg-primary/20",
+                                    simLiveSpeakers.includes('sophia_media') ? "border-green-400 scale-105" : "border-white/10"
+                                  )}
+                                />
+                                {simLiveSpeakers.includes('sophia_media') && (
+                                  <span className="absolute top-0 right-0 w-3 h-3 rounded-full bg-green-400 animate-ping border-2 border-black" />
+                                )}
+                              </div>
+                              <div>
+                                <p className="text-sm font-bold">Sophia Nwachukwu</p>
+                                <p className="text-[10px] text-text-muted">@sophia_media</p>
+                              </div>
+                            </div>
+                            
+                            <span className="text-[9px] uppercase font-black tracking-widest py-0.5 px-2 rounded bg-white/5 text-text-muted">
+                              {simLiveSpeakers.includes('sophia_media') ? '🎙️ Speaking' : 'Active'}
+                            </span>
+                          </div>
+
+                          {/* Mary Adeboye Avatar Card */}
+                          <div className={cn(
+                            "flex items-center justify-between p-4 bg-black/40 rounded-xl border transition-all",
+                            simLiveSpeakers.includes('mary_adeboye') ? "border-green-500/20 shadow-md ring-1 ring-green-500/10" : "border-white/5"
+                          )}>
+                            <div className="flex items-center gap-3">
+                              <div className="relative">
+                                <img 
+                                  src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=200&auto=format&fit=crop"
+                                  className={cn(
+                                    "w-10 h-10 rounded-full bg-cover transition-all border shrink-0 bg-primary/20",
+                                    simLiveSpeakers.includes('mary_adeboye') ? "border-green-400 scale-105" : "border-white/10"
+                                  )}
+                                />
+                                {simLiveSpeakers.includes('mary_adeboye') && (
+                                  <span className="absolute top-0 right-0 w-3 h-3 rounded-full bg-green-400 animate-ping border-2 border-black" />
+                                )}
+                              </div>
+                              <div>
+                                <p className="text-sm font-bold">Mary Adeboye</p>
+                                <p className="text-[10px] text-text-muted">@mary_adeboye</p>
+                              </div>
+                            </div>
+                            
+                            <span className="text-[9px] uppercase font-black tracking-widest py-0.5 px-2 rounded bg-white/5 text-text-muted">
+                              {simLiveSpeakers.includes('mary_adeboye') ? '🎙️ Speaking' : 'Active'}
+                            </span>
+                          </div>
+
+                          {/* Jacob Mensah Avatar Card */}
+                          <div className={cn(
+                            "flex items-center justify-between p-4 bg-black/40 rounded-xl border border-white/5 transition-all"
+                          )}>
+                            <div className="flex items-center gap-3">
+                              <div className="relative">
+                                <img 
+                                  src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop"
+                                  className="w-10 h-10 rounded-full bg-cover border border-white/10 shrink-0 bg-primary/20"
+                                />
+                              </div>
+                              <div>
+                                <p className="text-sm font-bold">Jacob Mensah</p>
+                                <p className="text-[10px] text-text-muted">@jacob_cinematic</p>
+                              </div>
+                            </div>
+                            
+                            <span className="text-[9px] uppercase font-black tracking-widest text-text-muted/50 py-0.5 px-2 bg-white/5 rounded">
+                              🔇 Muted
+                            </span>
+                          </div>
+
+                        </div>
+                      </div>
+
+                      {/* Mic and stream controls bar */}
+                      <div className="flex justify-center items-center gap-4 bg-black/40 p-4 rounded-xl border border-white/5">
+                        <button
+                          onClick={() => setIsMuted(!isMuted)}
+                          className={cn(
+                            "w-12 h-12 rounded-full flex items-center justify-center transition-all cursor-pointer",
+                            isMuted 
+                              ? "bg-red-500 hover:bg-red-600 text-white" 
+                              : "bg-white/10 hover:bg-white/20 text-white"
                           )}
-                          <span>{loadingMore ? 'Loading More...' : 'Load Older Posts'}</span>
+                          title={isMuted ? 'Unmute microphone' : 'Mute microphone'}
+                        >
+                          {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            if (activeVoiceChannel) {
+                              setActiveVoiceChannel(null);
+                            }
+                          }}
+                          className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-black uppercase tracking-widest text-[10px] rounded-full flex items-center gap-2 transition-all cursor-pointer"
+                        >
+                          <span>Disconnect Room</span>
                         </button>
                       </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="text-center py-20 bg-surface/30 rounded-[3rem] border border-dashed border-border-custom">
-                    <MessageSquare className="w-12 h-12 text-text-muted mx-auto mb-6" />
-                    <h3 className="text-2xl font-display font-medium text-text-muted">The hub is quiet.</h3>
-                    <p className="text-text-muted mt-2">Start a conversation for the community!</p>
-                  </div>
-                )}
-              </div>
-            </>
+
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 bg-white/5 rounded-2xl border border-dashed border-white/10">
+                      <Headphones className="w-12 h-12 text-green-400 mx-auto mb-4 animate-pulse" />
+                      <p className="font-display font-bold text-sm">You are not connected inside a voice channel.</p>
+                      <p className="text-xs text-text-muted mt-1 max-w-sm mx-auto leading-relaxed">
+                        Join any channel above to experience high-latency crystal voice discussions, real-time whiteboarding audio cues and collaboration.
+                      </p>
+                    </div>
+                  )}
+
+                </div>
+              )}
+            </div>
           )}
         </div>
 
