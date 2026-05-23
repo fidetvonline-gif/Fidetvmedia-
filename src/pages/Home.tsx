@@ -45,8 +45,16 @@ export default function Home() {
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [channels, setChannels] = useState<any[]>(DEFAULT_CHANNELS);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user || null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+    });
+
     fetchCertificates();
     fetchFeaturedPortfolio();
     fetchUpcomingEvents();
@@ -54,6 +62,10 @@ export default function Home() {
     fetchSiteSettings();
     fetchTvChannels();
     checkAdmin();
+
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
 
   const fetchTvChannels = async () => {
@@ -381,22 +393,40 @@ export default function Home() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5, duration: 1 }}
-                className="flex flex-col sm:flex-row gap-5 items-stretch sm:items-center"
+                className="flex flex-wrap gap-4 items-center"
               >
+                {!user ? (
+                  <Link
+                    to="/auth"
+                    id="cta-sign-in"
+                    className="group px-7 py-4.5 bg-gradient-to-r from-primary to-[#e0650d] text-white font-extrabold text-center rounded-2xl hover:opacity-95 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-primary/20 flex items-center justify-center space-x-3 uppercase tracking-wider text-xs"
+                  >
+                    <span>Create Account / Sign In</span>
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </Link>
+                ) : (
+                  <Link
+                    to="/profile"
+                    id="cta-view-profile"
+                    className="group px-7 py-4.5 bg-gradient-to-r from-emerald-500 to-green-600 text-white font-extrabold text-center rounded-2xl hover:opacity-95 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-green-500/20 flex items-center justify-center space-x-3 uppercase tracking-wider text-xs"
+                  >
+                    <span>Go to My Profile</span>
+                    <Users className="w-4 h-4 text-white" />
+                  </Link>
+                )}
+
                 <Link
                   to="/services"
-                  className="group px-8 py-4.5 bg-primary text-white font-bold text-center rounded-2xl hover:bg-primary/95 transition-all shadow-lg shadow-primary/20 flex items-center justify-center space-x-3"
+                  className="px-6 py-4.5 bg-surface border border-border-custom hover:border-primary/30 text-foreground font-bold rounded-2xl transition-all shadow-sm flex items-center justify-center space-x-2"
                 >
-                  <span>View What We Offer</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  <span>Services We Offer</span>
                 </Link>
                 
                 <Link 
                   to="/live"
-                  className="group px-8 py-4.5 bg-surface border border-border-custom hover:border-[#e0650d]/40 text-foreground text-center font-bold rounded-2xl transition-all shadow-sm flex items-center justify-center space-x-2.5 relative overflow-hidden"
+                  className="group px-6 py-4.5 bg-surface border border-border-custom hover:border-[#e0650d]/40 text-foreground text-center font-bold rounded-2xl transition-all shadow-sm flex items-center justify-center space-x-2.5 relative overflow-hidden"
                 >
                   <span className="absolute left-0 top-0 w-1 h-full bg-red-500 animate-pulse" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping absolute top-4 right-4" />
                   <span className="w-2 h-2 rounded-full bg-red-500" />
                   <span>Watch Live Channels</span>
                   <Play className="w-3.5 h-3.5 fill-current text-primary group-hover:scale-110 transition-transform" />

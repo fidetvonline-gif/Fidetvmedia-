@@ -219,7 +219,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   to="/auth"
                   className="px-6 py-2 bg-primary text-white text-sm font-bold rounded-full hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
                 >
-                  Join Now
+                  Sign In / Join
                 </Link>
               )}
             </div>
@@ -317,7 +317,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         onClick={() => setIsMenuOpen(false)}
                         className="block w-full py-5 bg-primary text-center text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-primary/20"
                       >
-                        Join Fidetvmedia
+                        Sign In / Join
                       </Link>
                     )}
                   </div>
