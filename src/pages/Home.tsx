@@ -36,6 +36,8 @@ export default function Home() {
   const [playingVideo, setPlayingVideo] = useState<PortfolioItem | null>(null);
   const [featuredPortfolio, setFeaturedPortfolio] = useState<PortfolioItem[]>([]);
   const [latestNews, setLatestNews] = useState<News[]>([]);
+  const [displayedChannels, setDisplayedChannels] = useState<any[]>([]);
+  const [displayedVideos, setDisplayedVideos] = useState<PortfolioItem[]>([]);
   const videoRef = useRef<HTMLVideoElement>(null);
   const { scrollYProgress } = useScroll();
   const yBg = useTransform(scrollYProgress, [0, 0.5], ['0%', '20%']);
@@ -46,6 +48,32 @@ export default function Home() {
   const [channels, setChannels] = useState<any[]>(DEFAULT_CHANNELS);
   const [isAdmin, setIsAdmin] = useState(false);
   const [user, setUser] = useState<any>(null);
+
+  // Dynamic automatic rotation of channels every 2 minutes (120000ms)
+  useEffect(() => {
+    if (channels.length > 0) {
+      const rotate = () => {
+        const shuffled = [...channels].sort(() => 0.5 - Math.random());
+        setDisplayedChannels(shuffled.slice(0, 3));
+      };
+      rotate();
+      const interval = setInterval(rotate, 120000);
+      return () => clearInterval(interval);
+    }
+  }, [channels]);
+
+  // Dynamic automatic rotation of portfolio videos every 2 minutes (120000ms)
+  useEffect(() => {
+    if (featuredPortfolio.length > 0) {
+      const rotate = () => {
+        const shuffled = [...featuredPortfolio].sort(() => 0.5 - Math.random());
+        setDisplayedVideos(shuffled.slice(0, 3));
+      };
+      rotate();
+      const interval = setInterval(rotate, 120000);
+      return () => clearInterval(interval);
+    }
+  }, [featuredPortfolio]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -595,20 +623,35 @@ export default function Home() {
                 We are live streaming! Watch live TV channels and official broadcasts directly. Simply click any station below to tune in instantly.
               </p>
             </div>
-            <Link 
-              to="/live" 
-              className="group flex items-center space-x-2.5 px-6 py-3.5 border border-border-custom hover:border-foreground/20 rounded-xl hover:bg-surface transition-all text-xs font-bold tracking-wider text-foreground bg-background shadow-xs"
-            >
-              <span>See Full Live Grid</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </Link>
+            
+            <div className="flex flex-wrap items-center gap-3">
+              <button 
+                onClick={() => {
+                  const shuffled = [...channels].sort(() => 0.5 - Math.random());
+                  setDisplayedChannels(shuffled.slice(0, 3));
+                }}
+                className="group flex items-center space-x-2 px-5 py-3 border border-red-500/25 hover:border-red-500/40 rounded-xl bg-red-500/5 hover:bg-red-500/10 transition-all text-xs font-bold tracking-wider text-red-400 font-mono shadow-xs cursor-pointer"
+                title="Shuffle active stations randomly"
+              >
+                <Zap className="w-4 h-4 text-red-500 animate-bounce" />
+                <span>Shuffle Stations</span>
+              </button>
+              
+              <Link 
+                to="/live" 
+                className="group flex items-center space-x-2.5 px-6 py-3.5 border border-border-custom hover:border-foreground/20 rounded-xl hover:bg-surface transition-all text-xs font-bold tracking-wider text-foreground bg-background shadow-xs"
+              >
+                <span>See Full Live Grid</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
           </div>
         </div>
 
         {/* Live Stations Responsive Grid */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {channels.slice(0, 3).map((ch, i) => (
+            {(displayedChannels.length > 0 ? displayedChannels : channels.slice(0, 3)).map((ch, i) => (
               <motion.div
                 key={ch.id}
                 initial={{ opacity: 0, y: 30 }}
@@ -692,20 +735,35 @@ export default function Home() {
                 Take a quick look at some of our favorite recordings, event coverage, interviews, and community segments.
               </p>
             </div>
-            <Link 
-              to="/content" 
-              className="group flex items-center space-x-2.5 px-6 py-3.5 border border-border-custom hover:border-foreground/20 rounded-xl hover:bg-surface transition-all text-xs font-bold tracking-wider text-foreground bg-background shadow-xs"
-            >
-              <span>Explore All Videos</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </Link>
+            
+            <div className="flex flex-wrap items-center gap-3">
+              <button 
+                onClick={() => {
+                  const shuffled = [...featuredPortfolio].sort(() => 0.5 - Math.random());
+                  setDisplayedVideos(shuffled.slice(0, 3));
+                }}
+                className="group flex items-center space-x-2 px-5 py-3 border border-primary/25 hover:border-primary/40 rounded-xl bg-primary/5 hover:bg-primary/10 transition-all text-xs font-bold tracking-wider text-primary font-mono shadow-xs cursor-pointer"
+                title="Shuffle featured videos randomly"
+              >
+                <Zap className="w-4 h-4 text-primary animate-bounce" />
+                <span>Shuffle Videos</span>
+              </button>
+              
+              <Link 
+                to="/content" 
+                className="group flex items-center space-x-2.5 px-6 py-3.5 border border-border-custom hover:border-foreground/20 rounded-xl hover:bg-surface transition-all text-xs font-bold tracking-wider text-foreground bg-background shadow-xs"
+              >
+                <span>Explore All Videos</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
           </div>
         </div>
 
         {/* Videos Grid */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {featuredPortfolio.slice(0, 3).map((show, i) => (
+            {(displayedVideos.length > 0 ? displayedVideos : featuredPortfolio.slice(0, 3)).map((show, i) => (
               <motion.div
                 key={show.id || i}
                 initial={{ opacity: 0, y: 30 }}

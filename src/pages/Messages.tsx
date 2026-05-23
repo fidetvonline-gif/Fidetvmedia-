@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Send, User, Check, CheckCheck, EyeOff, X, Eye, Paperclip, Image as ImageIcon, Trash2, Loader2, MessageSquare, DownloadCloud, Zap } from 'lucide-react';
+import { Search, Send, User, Check, CheckCheck, EyeOff, X, Eye, Paperclip, Image as ImageIcon, Trash2, Loader2, MessageSquare, DownloadCloud, Zap, ExternalLink } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 
 export default function Messages() {
+  const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -337,29 +339,41 @@ export default function Messages() {
                 const unread = contact.lastMessage && contact.lastMessage.receiver_id === user.id && !contact.lastMessage.is_view_once && !contact.lastMessage.is_viewed;
 
                 return (
-                  <button
+                  <div
                     key={contact.profile.id}
                     onClick={() => setActiveChat(contact.profile)}
                     className={`
-                      w-full flex items-center justify-between p-4 rounded-3xl transition-all relative group
+                      w-full flex items-center justify-between p-4 rounded-3xl transition-all relative group cursor-pointer border
                       ${isActive 
-                        ? 'bg-primary/20 border border-primary/30 shadow-xl shadow-primary/5' 
-                        : 'hover:bg-foreground/5 border border-transparent hover:border-border-custom'
+                        ? 'bg-primary/20 border-primary/40 shadow-xl shadow-primary/5' 
+                        : 'bg-surface/30 hover:bg-foreground/5 border-border-custom/50 hover:border-border-custom'
                       }
                     `}
                   >
                     {unread && <div className="absolute left-2 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-primary rounded-full shadow-[0_0_12px_#FFD700]" />}
                     
-                    <div className="flex items-center gap-4 overflow-hidden text-left relative z-10">
-                      <div className="relative">
-                        <div className="w-14 h-14 rounded-[1.25rem] overflow-hidden bg-surface-bright shrink-0 border border-border-custom group-hover:scale-105 transition-transform duration-500">
+                    <div className="flex items-center gap-4 overflow-hidden text-left relative z-10 w-full">
+                      <div 
+                        className="relative cursor-pointer shrink-0"
+                        title="View Profile"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (contact.profile.username) {
+                            navigate(`/profile/${contact.profile.username}`);
+                          }
+                        }}
+                      >
+                        <div className="w-14 h-14 rounded-2xl overflow-hidden bg-background/50 border border-border-custom group-hover:scale-105 transition-transform duration-500 relative group/avatar">
                           {contact.profile.avatar_url ? (
                             <img src={contact.profile.avatar_url} alt={contact.profile.username} className="w-full h-full object-cover" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center">
+                            <div className="w-full h-full flex items-center justify-center bg-primary/10">
                               <User className="w-6 h-6 text-primary" />
                             </div>
                           )}
+                          <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center">
+                            <ExternalLink className="w-4 h-4 text-white drop-shadow" />
+                          </div>
                         </div>
                         {unread && (
                           <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full border-2 border-background flex" />
@@ -367,26 +381,44 @@ export default function Messages() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex justify-between items-center mb-1">
-                          <span className="font-bold text-foreground text-[15px] truncate max-w-[120px]">
-                            {contact.profile.full_name || contact.profile.username}
+                          <span 
+                            className="font-bold text-foreground text-[15px] truncate max-w-[124px] hover:text-primary transition-colors cursor-pointer flex items-center gap-1 group/name"
+                            title="View Profile"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (contact.profile.username) {
+                                navigate(`/profile/${contact.profile.username}`);
+                              }
+                            }}
+                          >
+                            <span className="truncate">{contact.profile.full_name || contact.profile.username}</span>
+                            <ExternalLink className="w-3 h-3 opacity-0 group-hover/name:opacity-100 transition-opacity text-primary shrink-0" />
                           </span>
-                          {contact.lastMessage && (
+                          {contact.lastMessage ? (
                             <span className="text-[9px] text-foreground/40 font-bold uppercase tracking-tighter shrink-0">
                               {formatDistanceToNow(new Date(contact.lastMessage.created_at))}
                             </span>
+                          ) : (
+                            <span className="text-[8px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-black uppercase tracking-widest shrink-0">
+                              New
+                            </span>
                           )}
                         </div>
-                        {contact.lastMessage && (
-                          <div className={`text-xs truncate ${unread ? 'text-foreground font-bold' : 'text-foreground/40'}`}>
+                        {contact.lastMessage ? (
+                          <div className={`text-xs truncate ${unread ? 'text-foreground font-bold font-sans' : 'text-foreground/40'}`}>
                             {contact.lastMessage.sender_id === user.id && <span className="text-primary mr-1">You:</span>}
                             {contact.lastMessage.is_view_once 
                               ? 'Sent a view-once message'
                               : contact.lastMessage.content || 'Sent an attachment'}
                           </div>
+                        ) : (
+                          <div className="text-[10px] text-foreground/30 font-medium italic">
+                            No messages yet. Say hello!
+                          </div>
                         )}
                       </div>
                     </div>
-                  </button>
+                  </div>
                 );
               })
             ) : (
@@ -402,36 +434,71 @@ export default function Messages() {
 
         {/* Chat Area */}
         {activeChat ? (
-          <div className="flex-1 flex flex-col h-full bg-foreground/5">
+          <div className="flex-1 flex flex-col h-full bg-foreground/5 animate-in fade-in duration-300">
             {/* Header */}
-            <div className="px-6 py-4 border-b border-border-custom flex items-center gap-4 bg-surface/50">
+            <div className="px-6 py-4 border-b border-border-custom flex items-center gap-4 bg-surface/50 backdrop-blur-md">
               <button 
                 onClick={() => setActiveChat(null)}
-                className="md:hidden p-2 -ml-2 text-foreground/40 hover:text-foreground"
+                className="md:hidden p-2 -ml-2 text-foreground/40 hover:text-foreground transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
-              <div className="w-10 h-10 rounded-full overflow-hidden bg-primary/20 shrink-0">
+              <div 
+                className="w-11 h-11 rounded-2xl overflow-hidden bg-primary/20 shrink-0 cursor-pointer hover:scale-105 hover:opacity-90 transition-all select-none border border-border-custom"
+                onClick={() => {
+                  if (activeChat.username) {
+                    navigate(`/profile/${activeChat.username}`);
+                  }
+                }}
+                title="View Profile"
+              >
                 {activeChat.avatar_url ? (
                   <img src={activeChat.avatar_url} alt={activeChat.username} className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center">
+                  <div className="w-full h-full flex items-center justify-center bg-primary/10">
                     <User className="w-5 h-5 text-primary" />
                   </div>
                 )}
               </div>
-              <div>
-                <h3 className="font-bold text-foreground">{activeChat.full_name || activeChat.username}</h3>
-                <p className="text-xs text-foreground/40">@{activeChat.username}</p>
-              </div>
-              <button 
-                onClick={deleteConversation}
-                disabled={deletingConversation}
-                className="ml-auto p-2 text-foreground/40 hover:text-red-500 transition-colors"
-                title="Delete Conversation"
+              <div 
+                className="cursor-pointer group/headerInfo text-left"
+                onClick={() => {
+                  if (activeChat.username) {
+                    navigate(`/profile/${activeChat.username}`);
+                  }
+                }}
+                title="View Profile"
               >
-                {deletingConversation ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
-              </button>
+                <h3 className="font-bold text-foreground group-hover/headerInfo:text-primary transition-colors flex items-center gap-1.5 text-base leading-none">
+                  <span>{activeChat.full_name || activeChat.username}</span>
+                  <ExternalLink className="w-3.5 h-3.5 opacity-0 group-hover/headerInfo:opacity-100 transition-opacity text-primary" />
+                </h3>
+                <p className="text-xs text-foreground/40 mt-1">@{activeChat.username}</p>
+              </div>
+              
+              <div className="ml-auto flex items-center gap-3">
+                <button 
+                  onClick={() => {
+                    if (activeChat.username) {
+                      navigate(`/profile/${activeChat.username}`);
+                    }
+                  }}
+                  className="px-4 py-2 bg-foreground/5 hover:bg-foreground/10 hover:text-primary border border-border-custom rounded-xl text-xs font-bold uppercase tracking-wider text-foreground/60 transition-all flex items-center gap-1.5"
+                  title="Visit Profile"
+                >
+                  <User className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Profile</span>
+                </button>
+                
+                <button 
+                  onClick={deleteConversation}
+                  disabled={deletingConversation}
+                  className="p-2 text-foreground/40 hover:text-red-500 transition-colors rounded-xl hover:bg-red-500/10"
+                  title="Delete Conversation"
+                >
+                  {deletingConversation ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
 
             {/* Messages */}
