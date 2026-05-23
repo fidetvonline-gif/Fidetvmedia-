@@ -693,9 +693,9 @@ export default function CommunityDetail() {
         {/* Main Feed */}
         <div className="flex-grow space-y-8 w-full">
           <header className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="w-20 h-20 bg-surface-bright rounded-[2rem] flex items-center justify-center border border-white/10 text-primary shadow-2xl">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="flex items-center space-x-4 animate-fadeIn">
+                <div className="w-20 h-20 bg-surface-bright rounded-[2rem] flex items-center justify-center border border-white/10 text-primary shadow-2xl shrink-0">
                   {community.image_url ? (
                     <img src={community.image_url} alt={community.name} className="w-full h-full object-cover rounded-[2rem]" />
                   ) : (
@@ -714,7 +714,7 @@ export default function CommunityDetail() {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center flex-wrap gap-4 self-start md:self-auto">
                 {isModerator && (
                   <button
                     onClick={() => setIsManagingMembers(true)}
@@ -733,7 +733,7 @@ export default function CommunityDetail() {
                     <Edit3 className="w-6 h-6" />
                   </button>
                 )}
-                {user && (
+                {user ? (
                   <button
                     onClick={toggleMembership}
                     className={cn(
@@ -747,6 +747,13 @@ export default function CommunityDetail() {
                   >
                     {joinStatus === 'approved' ? 'Leave Hub' : joinStatus === 'pending' ? 'Pending Approval' : 'Join Hub'}
                   </button>
+                ) : (
+                  <Link
+                    to={`/auth?redirect=/community/${id}`}
+                    className="px-8 py-4 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-primary/20 hover:scale-105 hover:bg-primary/90 text-center flex items-center justify-center"
+                  >
+                    Join Hub
+                  </Link>
                 )}
                 {user && (
                   <button

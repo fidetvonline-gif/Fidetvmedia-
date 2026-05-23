@@ -7,6 +7,47 @@ import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import AdBanner from '@/components/AdBanner';
 
+const STATIC_RELEASE_POST: NewsType = {
+  id: 'fidetv-release-v2',
+  slug: 'major-release-v2',
+  title: 'FideTV Major Release: 25 Active Live Channels, Dynamic Audio Spaces & Mobile Optimization!',
+  excerpt: 'We are thrilled to unveil a massive update to FideTV, boasting 25 active 24/7 live-streaming channels, brand-new real-time Audio Spaces, immersive mobile optimization, and seamless community interactions!',
+  description: 'We are thrilled to unveil a massive update to FideTV, boasting 25 active 24/7 live-streaming channels, brand-new real-time Audio Spaces, immersive mobile optimization, and seamless community interactions!',
+  content: `We are incredibly proud to announce the next major milestone for **FideTV Media Hub**! Our team has been working around the clock to bring you a fully synchronized, ultra-high performance media platform that is perfectly customized for both creators and visitors.
+
+Here are the exciting new features and capabilities live on FideTV right now:
+
+### 📺 25 Active 24/7 Live Broadcast Channels
+FideTV now hosts **25 fully active, 24/7 high-definition broadcast channels** running continuously! Dive into a rich, curated array of live sports, interactive educational masterclasses, community discussion forums, creative documentaries, and direct cultural showcases. No matter your interests, there is a specialized active stream waiting for you on the **Live tab** right now!
+
+### 🎙️ Interactive Live Audio Spaces
+Introducing **FideTV Spaces**! Inspired by modern audio-conversational lobbies, you can now enter dedicated, browser-native live voice chat rooms directly on FideTV. Connect your microphone to host roundtable discussions, join community technical huddles, or participate in live broadcasting reviews alongside seasoned media pioneers.
+
+### 📱 Full Mobile Experience Redesign
+We have fully rebuilt our navigation structures to suit all mobile viewport sizes perfectly:
+* **Always-Accessible Mobile Drawer**: Redesigned the slide-out navigation menu overlay with deep stacking clearance, protecting it from being covered by video players.
+* **Direct Mobile Actions**: Repositioned the community join buttons to sit cleanly in mobile headers so you can easily engage with sub-communities on the fly.
+* **Solid Background Clearance**: Handled ambient color alphas so the drawer menu remains crisp and highly legible regardless of content scrolling underneath it.
+
+### 💬 Notice Wall & Collective Engagement
+Collaborative teams can now write social shouts, post links, receive likes, and share milestones with fellow creatives directly inside localized sub-communities. It is the perfect bulletin board for managing community media assets, drone raw templates, or organizing schedules.
+
+---
+
+We are dedicated to building a supportive, highly specialized network for global Sub-Saharan and international digital broadcasting creators. We cannot wait to see you explore and participate in our newly polished services!
+
+*Connect your profile, join a Creative Hub, or hop into a Live Space today to get started!*`,
+  category: 'Platform Updates',
+  author_id: 'admin',
+  is_published: true,
+  image_url: 'https://images.unsplash.com/photo-1478737270239-2f02b77fc618?q=80&w=800&auto=format&fit=crop',
+  created_at: '2026-05-23T12:00:00Z',
+  profiles: {
+    username: 'fidetv_admin',
+    avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=fidetv_admin'
+  } as any
+};
+
 export default function News() {
   const [news, setNews] = useState<NewsType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,7 +63,11 @@ export default function News() {
       .eq('is_published', true)
       .order('created_at', { ascending: false });
     
-    if (data) setNews(data as any);
+    let combinedNews: NewsType[] = [STATIC_RELEASE_POST];
+    if (data) {
+      combinedNews = [STATIC_RELEASE_POST, ...(data as any).filter((item: any) => item.slug !== 'major-release-v2')];
+    }
+    setNews(combinedNews);
     setLoading(false);
   };
 

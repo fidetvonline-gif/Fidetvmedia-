@@ -143,7 +143,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen flex flex-col bg-background text-foreground overflow-x-hidden">
       {/* <TourGuide /> */}
       <nav className={cn(
-        "fixed top-0 left-0 right-0 z-50 transition-all duration-500",
+        "fixed top-0 left-0 right-0 transition-all duration-500",
+        isMenuOpen ? "z-[99999]" : "z-50",
         isScrolled 
           ? "bg-background/80 backdrop-blur-md border-b border-border-custom py-2 shadow-2xl" 
           : "bg-background border-b border-border-custom py-4"
@@ -254,7 +255,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-background z-[90] md:hidden"
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] md:hidden"
                 onClick={() => setIsMenuOpen(false)}
               />
               <motion.div
@@ -344,7 +345,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </AnimatePresence>
       </main>
 
-      {location.pathname !== '/messages' && location.pathname !== '/live-chat' && (
+      {location.pathname !== '/messages' && location.pathname !== '/live-chat' && !location.pathname.startsWith('/community') && (
         <footer className="bg-surface border-t border-border-custom py-12">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
