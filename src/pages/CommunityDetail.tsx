@@ -847,20 +847,67 @@ export default function CommunityDetail() {
               {/* TAB 1: DISCUSSION FEED */}
               {activeTab === 'feed' && (
                 <>
-                  <AnimatePresence>
-                    {isCreating && (
+                  {/* Facebook-style Interactive Composer Card */}
+                  <div className="glass rounded-[2rem] p-6 mb-8 border border-border-custom hover:border-primary/20 transition-all shadow-xl shadow-black/5">
+                    {!isCreating ? (
+                      <div>
+                        <div className="flex items-center space-x-4">
+                          <div className="w-12 h-12 rounded-2xl bg-surface/50 border border-border-custom overflow-hidden flex-shrink-0 flex items-center justify-center">
+                            {user?.user_metadata?.avatar_url ? (
+                              <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full bg-primary/10 flex items-center justify-center text-primary font-bold uppercase tracking-widest text-[11px]">
+                                {user?.email?.slice(0, 2) || 'Me'}
+                              </div>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setIsCreating(true)}
+                            className="flex-grow bg-foreground/5 hover:bg-foreground/10 transition-colors rounded-2xl py-3.5 px-5 text-left text-sm text-foreground/40 border border-border-custom font-medium cursor-pointer"
+                          >
+                            What's on your mind, {user?.email?.split('@')[0] || 'friend'}? Share with the hub...
+                          </button>
+                        </div>
+                        <div className="flex justify-between items-center pt-4 mt-4 border-t border-border-custom font-bold text-[10px] uppercase tracking-widest text-foreground/40">
+                          <button onClick={() => setIsCreating(true)} className="flex items-center space-x-2 hover:text-primary transition-colors py-2 px-3 hover:bg-foreground/5 rounded-xl">
+                            <ImageIcon className="w-4 h-4 text-green-500" />
+                            <span>Photo</span>
+                          </button>
+                          <button onClick={() => setIsCreating(true)} className="flex items-center space-x-2 hover:text-primary transition-colors py-2 px-3 hover:bg-foreground/5 rounded-xl">
+                            <Video className="w-4 h-4 text-rose-500" />
+                            <span>Video</span>
+                          </button>
+                          <button onClick={() => setIsCreating(true)} className="flex items-center space-x-2 hover:text-primary transition-colors py-2 px-3 hover:bg-foreground/5 rounded-xl">
+                            <Send className="w-4 h-4 text-sky-500" />
+                            <span>Share</span>
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
                       <motion.form
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
                         onSubmit={handleCreatePost}
-                        className="glass rounded-[2rem] p-8 space-y-6 overflow-hidden border-primary/20 shadow-2xl shadow-primary/5 mb-8"
+                        className="space-y-6 overflow-hidden"
                       >
+                        <div className="flex justify-between items-center pb-3 border-b border-border-custom">
+                          <h4 className="text-xs font-black uppercase tracking-widest text-foreground/60">Create New Post</h4>
+                          <button 
+                            type="button" 
+                            onClick={() => setIsCreating(false)}
+                            className="text-[10px] font-black uppercase tracking-wider text-foreground/30 hover:text-red-500 transition-colors"
+                          >
+                            Close
+                          </button>
+                        </div>
+
                         <textarea
                           value={newPostContent}
                           onChange={(e) => setNewPostContent(e.target.value)}
                           placeholder={`What's happening in ${community.name}?`}
                           className="w-full bg-transparent border-none focus:ring-0 text-lg text-foreground placeholder:text-text-muted resize-none min-h-[120px]"
+                          autoFocus
                         />
                         
                         {mediaPreview && (
@@ -875,7 +922,7 @@ export default function CommunityDetail() {
                               onClick={() => { setMediaFile(null); setMediaPreview(null); }}
                               className="absolute top-4 right-4 p-2 bg-black/60 rounded-xl text-white hover:bg-red-500 transition-colors z-10"
                             >
-                              <Plus className="w-5 h-5 rotate-45" />
+                              <Plus className="w-3.5 h-3.5 rotate-45" />
                             </button>
                           </div>
                         )}
@@ -913,7 +960,7 @@ export default function CommunityDetail() {
                         </div>
                       </motion.form>
                     )}
-                  </AnimatePresence>
+                  </div>
 
                   <div className="space-y-8">
                     {loading && posts.length === 0 ? (

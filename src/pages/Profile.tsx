@@ -5,7 +5,7 @@ import {
   User, Settings, Grid, Heart, MessageSquare, LogOut, Camera, 
   Edit3, AlertTriangle, Twitter, Instagram, Linkedin, X, Check, 
   ShieldCheck, ShieldAlert, Award, FileText, Calendar, Star, Send, CheckCircle2,
-  Users
+  Users, Plus, Image as ImageIcon, Video
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -43,6 +43,12 @@ export default function Profile() {
   });
 
   const [uploading, setUploading] = useState(false);
+
+  const [isCreatingPost, setIsCreatingPost] = useState(false);
+  const [newPostContent, setNewPostContent] = useState('');
+  const [postMediaFile, setPostMediaFile] = useState<File | null>(null);
+  const [postMediaPreview, setPostMediaPreview] = useState<string | null>(null);
+  const [postUploading, setPostUploading] = useState(false);
 
   const navigate = useNavigate();
 
@@ -262,6 +268,58 @@ export default function Profile() {
       .order('created_at', { ascending: false });
 
     if (data) setPosts(data as any);
+  };
+
+  const handlePostFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setPostMediaFile(file);
+      const url = URL.createObjectURL(file);
+      setPostMediaPreview(url);
+    }
+  };
+
+  const handleCreatePost = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPostContent.trim() || !user) return;
+
+    setPostUploading(true);
+    let media_url = '';
+    let type: 'text' | 'image' | 'video' = 'text';
+
+    if (postMediaFile) {
+      const fileExt = postMediaFile.name.split('.').pop();
+      const fileName = `${user.id}-${Math.random()}.${fileExt}`;
+      const filePath = `post-media/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('event-thumbnails')
+        .upload(filePath, postMediaFile);
+          
+      if (!uploadError) {
+        media_url = supabase.storage.from('event-thumbnails').getPublicUrl(filePath).data.publicUrl;
+        type = postMediaFile.type.startsWith('image') ? 'image' : 'video';
+      }
+    }
+
+    const { error } = await supabase.from('posts').insert({
+      author_id: user.id,
+      content: newPostContent,
+      media_url: media_url || undefined,
+      type
+    });
+
+    if (!error) {
+      setNewPostContent('');
+      setPostMediaFile(null);
+      setPostMediaPreview(null);
+      setIsCreatingPost(false);
+      // Refresh posts
+      await fetchUserPosts(profile?.id || user.id);
+    } else {
+      alert(error.message || 'Error creating post');
+    }
+    setPostUploading(false);
   };
 
   const handleSignOut = async () => {
@@ -600,14 +658,120 @@ export default function Profile() {
 
              <div className="grid grid-cols-1 gap-8">
                 {activeTab === 'posts' ? (
-                  posts.length > 0 ? (
-                    posts.map((post) => <PostCard key={post.id} post={post} />)
-                  ) : (
-                    <div className="text-center py-20 bg-surface/30 rounded-[3rem] border border-dashed border-border-custom">
-                      <MessageSquare className="w-12 h-12 text-foreground/20 mx-auto mb-6" />
-                      <h3 className="text-xl font-display font-medium text-foreground/40 italic">You haven't posted anything yet.</h3>
-                    </div>
-                  )
+                  <>
+                    {isOwnProfile && (
+                      <div className="glass rounded-[2rem] p-6 mb-8 border border-border-custom hover:border-primary/20 transition-all shadow-xl shadow-black/5">
+                        {!isCreatingPost ? (
+                          <div>
+                            <div className="flex items-center space-x-4">
+                              <div className="w-12 h-12 rounded-2xl bg-surface/50 border border-border-custom overflow-hidden flex-shrink-0 flex items-center justify-center">
+                                {profile?.avatar_url ? (
+                                  <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full bg-primary/10 flex items-center justify-center text-primary font-bold uppercase tracking-widest text-[11px]">
+                                    {profile?.username?.slice(0, 2).toUpperCase() || 'ME'}
+                                  </div>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setIsCreatingPost(true)}
+                                className="flex-grow bg-foreground/5 hover:bg-foreground/10 transition-colors rounded-2xl py-3.5 px-5 text-left text-sm text-foreground/40 border border-border-custom font-medium cursor-pointer"
+                              >
+                                What's on your mind, {profile?.username || 'friend'}? Share with your followers...
+                              </button>
+                            </div>
+                            <div className="flex justify-between items-center pt-4 mt-4 border-t border-border-custom font-bold text-[10px] uppercase tracking-widest text-foreground/40">
+                              <button onClick={() => setIsCreatingPost(true)} className="flex items-center space-x-2 hover:text-primary transition-colors py-2 px-3 hover:bg-foreground/5 rounded-xl">
+                                <ImageIcon className="w-4 h-4 text-green-500" />
+                                <span>Photo</span>
+                              </button>
+                              <button onClick={() => setIsCreatingPost(true)} className="flex items-center space-x-2 hover:text-primary transition-colors py-2 px-3 hover:bg-foreground/5 rounded-xl">
+                                <Video className="w-4 h-4 text-rose-500" />
+                                <span>Video</span>
+                              </button>
+                              <button onClick={() => setIsCreatingPost(true)} className="flex items-center space-x-2 hover:text-primary transition-colors py-2 px-3 hover:bg-foreground/5 rounded-xl">
+                                <Send className="w-4 h-4 text-sky-500" />
+                                <span>Share</span>
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <motion.form
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            onSubmit={handleCreatePost}
+                            className="space-y-6 overflow-hidden"
+                          >
+                            <div className="flex justify-between items-center pb-3 border-b border-border-custom">
+                              <h4 className="text-xs font-black uppercase tracking-widest text-foreground/60">Create New Post</h4>
+                              <button 
+                                type="button" 
+                                onClick={() => setIsCreatingPost(false)}
+                                className="text-[10px] font-black uppercase tracking-wider text-foreground/30 hover:text-red-500 transition-colors"
+                              >
+                                Close
+                              </button>
+                            </div>
+
+                            <textarea
+                              value={newPostContent}
+                              onChange={(e) => setNewPostContent(e.target.value)}
+                              placeholder="What are you thinking about today?"
+                              className="w-full bg-transparent border-none focus:ring-0 text-lg text-foreground placeholder:text-text-muted resize-none min-h-[120px]"
+                              autoFocus
+                            />
+                            
+                            {postMediaPreview && (
+                              <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-background border border-border-custom">
+                                {postMediaFile?.type.startsWith('image') ? (
+                                  <img src={postMediaPreview} className="w-full h-full object-cover" />
+                                ) : (
+                                  <video src={postMediaPreview} controls playsInline className="w-full h-full object-cover" />
+                                )}
+                                <button 
+                                  type="button"
+                                  onClick={() => { setPostMediaFile(null); setPostMediaPreview(null); }}
+                                  className="absolute top-4 right-4 p-2 bg-black/60 rounded-xl text-white hover:bg-red-500 transition-colors z-10"
+                                >
+                                  <Plus className="w-3.5 h-3.5 rotate-45" />
+                                </button>
+                              </div>
+                            )}
+
+                            <div className="flex justify-between items-center pt-4 border-t border-border-custom">
+                              <div className="flex space-x-4">
+                                <label className="p-2 text-text-muted hover:text-primary transition-colors cursor-pointer">
+                                  <input type="file" className="hidden" accept="image/*" onChange={handlePostFileChange} />
+                                  <ImageIcon className="w-5 h-5" />
+                                </label>
+                                <label className="p-2 text-text-muted hover:text-primary transition-colors cursor-pointer">
+                                  <input type="file" className="hidden" accept="video/*" onChange={handlePostFileChange} />
+                                  <Video className="w-5 h-5" />
+                                </label>
+                              </div>
+                              <button
+                                type="submit"
+                                disabled={!newPostContent.trim() || postUploading}
+                                className="px-8 py-3 bg-primary text-white font-bold rounded-xl disabled:opacity-50 hover:bg-primary/90 transition-all font-display uppercase tracking-widest text-xs flex items-center space-x-2"
+                              >
+                                {postUploading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                                <span>{postUploading ? 'Uploading...' : 'Publish'}</span>
+                              </button>
+                            </div>
+                          </motion.form>
+                        )}
+                      </div>
+                    )}
+                    {posts.length > 0 ? (
+                      posts.map((post) => <PostCard key={post.id} post={post} />)
+                    ) : (
+                      <div className="text-center py-20 bg-surface/30 rounded-[3rem] border border-dashed border-border-custom">
+                        <MessageSquare className="w-12 h-12 text-foreground/20 mx-auto mb-6" />
+                        <h3 className="text-xl font-display font-medium text-foreground/40 italic">You haven't posted anything yet.</h3>
+                      </div>
+                    )}
+                  </>
                 ) : activeTab === 'bookings' ? (
                   bookings.length > 0 ? (
                     <div className="space-y-6">

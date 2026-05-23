@@ -60,6 +60,7 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
   const animationFrameRef = useRef<number | null>(null);
   const peerConnectionsRef = useRef<{ [key: string]: RTCPeerConnection }>({});
   const supabaseChannelRef = useRef<any>(null);
+  const lobbyChannelRef = useRef<any>(null);
   
   // Future Expansion States
   const [isVideoEnabled, setIsVideoEnabled] = useState(false);
@@ -101,15 +102,75 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
 
   // --- 2. Track & Manage Pre-existing Active Voice Rooms ---
   useEffect(() => {
-    if (!communityId) return;
+    if (!communityId || !userProfile) return;
 
     // Use a Supabase global community presence lobby to broadcast and discover rooms in real time!
-    const lobbyChannel = supabase.channel(`voice-lobby-${communityId}`) as any;
+    const lobbyChannel = supabase.channel(`voice-lobby-${communityId}`, {
+      config: {
+        presence: {
+          key: userProfile.id
+        }
+      }
+    }) as any;
+
+    lobbyChannelRef.current = lobbyChannel;
+
+    const syncLobbyState = () => {
+      const state = lobbyChannel.presenceState();
+      const allRooms: VoiceRoomData[] = [];
+
+      Object.keys(state).forEach((key) => {
+        const presences = state[key];
+        if (presences && Array.isArray(presences)) {
+          presences.forEach((presenceItem: any) => {
+            if (presenceItem.activeRooms && Array.isArray(presenceItem.activeRooms)) {
+              presenceItem.activeRooms.forEach((r: VoiceRoomData) => {
+                if (!allRooms.some(existing => existing.id === r.id)) {
+                  allRooms.push(r);
+                }
+              });
+            }
+          });
+        }
+      });
+
+      // Combine with local rooms info
+      const localRoomsJson = localStorage.getItem(`active-rooms-${communityId}`);
+      if (localRoomsJson) {
+        try {
+          const localRooms = JSON.parse(localRoomsJson);
+          localRooms.forEach((lr: VoiceRoomData) => {
+            if (!allRooms.some(mr => mr.id === lr.id)) {
+              allRooms.push(lr);
+            }
+          });
+        } catch (e) {}
+      }
+
+      setCreatedRooms(allRooms);
+    };
 
     lobbyChannel
+      .on('presence', { event: 'sync' }, () => {
+        syncLobbyState();
+      })
+      .on('presence', { event: 'join' }, () => {
+        syncLobbyState();
+      })
+      .on('presence', { event: 'leave' }, () => {
+        syncLobbyState();
+      })
       .on('broadcast', { event: 'rooms-sync' }, (payload: { rooms: VoiceRoomData[] }) => {
         if (payload.rooms) {
-          setCreatedRooms(payload.rooms);
+          setCreatedRooms(prev => {
+            const merged = [...prev];
+            payload.rooms.forEach(r => {
+              if (!merged.some(m => m.id === r.id)) {
+                merged.push(r);
+              }
+            });
+            return merged;
+          });
         }
       })
       .on('broadcast', { event: 'request-rooms' }, () => {
@@ -122,6 +183,13 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
               event: 'rooms-sync',
               payload: { rooms: JSON.parse(myActiveRooms) }
             } as any);
+
+            // Also track our active rooms into presence to make it extra persistent
+            lobbyChannel.track({
+              id: userProfile.id,
+              username: userProfile.username,
+              activeRooms: JSON.parse(myActiveRooms)
+            });
           } catch (e) {
             console.error('Error broadcasting rooms', e);
           }
@@ -129,6 +197,20 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
       })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
+          // Track our rooms in our presence state
+          const myRoomsJson = localStorage.getItem(`active-rooms-${communityId}`);
+          let myRooms: VoiceRoomData[] = [];
+          if (myRoomsJson) {
+            try {
+              myRooms = JSON.parse(myRoomsJson);
+            } catch (e) {}
+          }
+          lobbyChannel.track({
+            id: userProfile.id,
+            username: userProfile.username,
+            activeRooms: myRooms
+          });
+
           // Request available rooms from other connected clients
           lobbyChannel.send({
             type: 'broadcast',
@@ -148,8 +230,9 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
 
     return () => {
       supabase.removeChannel(lobbyChannel);
+      lobbyChannelRef.current = null;
     };
-  }, [communityId]);
+  }, [communityId, userProfile]);
 
   // Handle auto-joining room from URL Query parameters (?room=ID)
   useEffect(() => {
@@ -289,17 +372,35 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
     // Persist in local storage
     localStorage.setItem(`active-rooms-${communityId}`, JSON.stringify(updatedRooms));
 
-    // Broadcast globally to other lobby listeners
-    const lobbyChannel = supabase.channel(`voice-lobby-${communityId}`) as any;
-    lobbyChannel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        lobbyChannel.send({
+    // Update presence and broadcast via existing lobby channel if active
+    if (lobbyChannelRef.current) {
+      try {
+        lobbyChannelRef.current.track({
+          id: userProfile.id,
+          username: userProfile.username,
+          activeRooms: updatedRooms
+        });
+        lobbyChannelRef.current.send({
           type: 'broadcast',
           event: 'rooms-sync',
           payload: { rooms: updatedRooms }
         } as any);
+      } catch (err) {
+        console.error('Lobby channel send error on create', err);
       }
-    });
+    } else {
+      // Broadcast fallback
+      const lobbyChannel = supabase.channel(`voice-lobby-${communityId}`) as any;
+      lobbyChannel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          lobbyChannel.send({
+            type: 'broadcast',
+            event: 'rooms-sync',
+            payload: { rooms: updatedRooms }
+          } as any);
+        }
+      });
+    }
 
     setNewRoomTitle('');
     setShowCreateModal(false);
@@ -314,17 +415,35 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
     setCreatedRooms(updated);
     localStorage.setItem(`active-rooms-${communityId}`, JSON.stringify(updated));
 
-    // Broadcast deletion
-    const lobbyChannel = supabase.channel(`voice-lobby-${communityId}`) as any;
-    lobbyChannel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        lobbyChannel.send({
+    // Update presence and broadcast via existing lobby channel if active
+    if (lobbyChannelRef.current && userProfile) {
+      try {
+        lobbyChannelRef.current.track({
+          id: userProfile.id,
+          username: userProfile.username,
+          activeRooms: updated
+        });
+        lobbyChannelRef.current.send({
           type: 'broadcast',
           event: 'rooms-sync',
           payload: { rooms: updated }
         } as any);
+      } catch (err) {
+        console.error('Lobby channel send error on delete', err);
       }
-    });
+    } else {
+      // Broadcast fallback
+      const lobbyChannel = supabase.channel(`voice-lobby-${communityId}`) as any;
+      lobbyChannel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          lobbyChannel.send({
+            type: 'broadcast',
+            event: 'rooms-sync',
+            payload: { rooms: updated }
+          } as any);
+        }
+      });
+    }
 
     if (activeRoom?.id === roomId) {
       leaveVoiceRoom();
