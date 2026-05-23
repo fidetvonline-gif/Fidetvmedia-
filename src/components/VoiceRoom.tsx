@@ -69,6 +69,40 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
   
   // Visual levels state
   const [volumeLevels, setVolumeLevels] = useState<number[]>(Array(12).fill(4));
+  const [deviceList, setDeviceList] = useState<MediaDeviceInfo[]>([]);
+
+  const [selectedOutputId, setSelectedOutputId] = useState<string>('');
+
+  // Enumerate devices
+  useEffect(() => {
+    const getDevices = async () => {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        setDeviceList(devices.filter(d => d.kind === 'audiooutput'));
+      } catch (err) {
+        console.error('Error fetching devices', err);
+      }
+    };
+    navigator.mediaDevices.addEventListener('devicechange', getDevices);
+    getDevices();
+    return () => navigator.mediaDevices.removeEventListener('devicechange', getDevices);
+  }, []);
+
+  // Set sink id for audio elements
+  const setSinkId = async (deviceId: string) => {
+    const audioElements = document.querySelectorAll('audio');
+    audioElements.forEach(async (audio: HTMLAudioElement) => {
+      if ('setSinkId' in HTMLMediaElement.prototype) {
+        try {
+          await (audio as any).setSinkId(deviceId);
+        } catch (err) {
+          console.error('Error setting sink ID', err);
+        }
+      }
+    });
+    setSelectedOutputId(deviceId);
+  };
+
 
   // --- 1. Authentic Session & Profile Fetch ---
   useEffect(() => {
@@ -623,19 +657,34 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
 
       // Receives incoming audio stream from remote user
       pc.ontrack = (event) => {
-        const remoteStream = event.streams[0];
-        // Dynamically create/attach speaker feed in document
+        const remoteStream = event.streams[0] || new MediaStream([event.track]);
+        console.log('VoiceRoom: Received track', event.track.kind, 'with stream', remoteStream);
+        
         let audioEl = document.getElementById(`audio-${remoteUserId}`) as HTMLAudioElement;
         if (!audioEl) {
           audioEl = document.createElement('audio');
           audioEl.id = `audio-${remoteUserId}`;
           audioEl.autoplay = true;
           audioEl.setAttribute('playsinline', 'true');
+          
+          if (selectedOutputId && 'setSinkId' in HTMLMediaElement.prototype) {
+            try {
+              (audioEl as any).setSinkId(selectedOutputId);
+            } catch (err) {
+              console.error('Error setting initial sink ID', err);
+            }
+          }
+          
           document.body.appendChild(audioEl);
         }
         audioEl.srcObject = remoteStream;
-        audioEl.muted = !isSpeakerOn; // respect master volume
+        audioEl.muted = !isSpeakerOn;
+        
+        audioEl.play().catch(e => {
+            console.error('Autoplay failed:', e);
+        });
       };
+
 
       // Create local offer
       const offer = await pc.createOffer();
@@ -971,8 +1020,22 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
             </div>
 
             {/* BOTTOM CALL CONTROL MODULE BAR */}
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/5 relative z-10 pt-4 mt-6">
+            <div id="fidetv-voice-controls" className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/5 relative z-10 pt-4 mt-6">
               
+              {/* Output Audio Selector */}
+              <div className="flex items-center gap-2">
+                <select 
+                  value={selectedOutputId}
+                  onChange={(e) => setSinkId(e.target.value)}
+                  className="bg-white/5 border border-white/5 rounded-xl p-2 text-xs text-foreground cursor-pointer"
+                >
+                  <option value="">System Speaker</option>
+                  {deviceList.map(device => (
+                    <option key={device.deviceId} value={device.deviceId}>{device.label || `Speaker ${device.deviceId.substring(0,5)}`}</option>
+                  ))}
+                </select>
+              </div>
+
               {/* Audio switches */}
               <div className="flex items-center gap-2 w-full md:w-auto justify-center">
                 <button

@@ -15,6 +15,7 @@ import NewsDetail from '@/pages/NewsDetail';
 import Booking from '@/pages/Booking';
 import Auth from '@/pages/Auth';
 import Profile from '@/pages/Profile';
+import Spaces from '@/pages/Spaces';
 import Messages from '@/pages/Messages';
 import Admin from '@/pages/Admin';
 import Partner from '@/pages/Partner';
@@ -82,6 +83,7 @@ export default function App() {
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/profile/:username" element={<Profile />} />
+            <Route path="/spaces" element={<Spaces />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/policies" element={<Policies />} />

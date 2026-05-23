@@ -3,7 +3,6 @@ import { useParams, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Community, Post } from '@/types';
 import PostCard from '@/components/PostCard';
-import VoiceRoom from '@/components/VoiceRoom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   ArrowLeft, Plus, Image as ImageIcon, Video, MessageSquare, Users, Globe, Info, Edit3, 
@@ -793,20 +792,6 @@ export default function CommunityDetail() {
                 <span>Lounge Chat</span>
                 <span className="absolute -top-1 -right-1 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-full text-[7px] font-mono px-1.5 py-0.5 animate-pulse uppercase">Active</span>
               </button>
-
-              <button
-                onClick={() => setActiveTab('voice')}
-                className={cn(
-                  "flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer relative",
-                  activeTab === 'voice'
-                    ? "bg-primary text-white shadow-lg shadow-primary/25 scale-[1.02]"
-                    : "text-text-muted hover:text-foreground hover:bg-foreground/5"
-                )}
-              >
-                <Headphones className="w-4 h-4 text-green-400" />
-                <span>Voice Call</span>
-                <span className="bg-emerald-500/10 text-emerald-400 text-[6px] rounded px-1 border border-emerald-500/20">WEBRTC</span>
-              </button>
             </div>
           )}
 
@@ -1093,17 +1078,26 @@ export default function CommunityDetail() {
                   </form>
                 </div>
               )}
-
-              {/* TAB 3: HIGH-FIDELITY SCALABLE VOICE CALL VoIP */}
-              {activeTab === 'voice' && (
-                <VoiceRoom communityId={id || ''} />
-              )}
             </div>
           )}
         </div>
 
         {/* Info Sidebar */}
         <div className="hidden lg:block w-72 space-y-8 sticky top-32">
+          
+          {/* RECOMMENDATION: QUICK LINK TO SPACES */}
+          <div className="p-6 bg-primary/10 rounded-2xl border border-primary/20 flex flex-col gap-4">
+            <h4 className="font-bold text-foreground">Recommended Spaces</h4>
+            <p className="text-sm text-text-muted">Join live audio conversations happening in our dedicated Spaces hub.</p>
+            <Link 
+              to="/spaces"
+              className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary/90 transition-all flex items-center gap-2 justify-center"
+            >
+              <Headphones className="w-4 h-4" />
+              Visit Spaces
+            </Link>
+          </div>
+
           <div className="glass rounded-[2rem] p-8 space-y-6">
             <h3 className="font-display font-bold text-foreground flex items-center space-x-2">
               <Info className="w-4 h-4 text-primary" />

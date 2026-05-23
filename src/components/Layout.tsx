@@ -254,7 +254,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/40 backdrop-blur-sm md:hidden z-40"
+                className="fixed inset-0 bg-background z-[90] md:hidden"
                 onClick={() => setIsMenuOpen(false)}
               />
               <motion.div
@@ -262,7 +262,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 animate={{ x: 0 }}
                 exit={{ x: '100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="fixed top-0 right-0 h-full w-4/5 max-w-sm bg-surface-bright border-l border-border-custom z-50 md:hidden p-6 shadow-2xl"
+                className="fixed top-0 right-0 h-full w-4/5 max-w-sm bg-background border-l border-border-custom z-[1000] md:hidden p-6 shadow-2xl overflow-y-auto"
               >
                 <div className="flex flex-col h-full">
                   <div className="flex justify-between items-center mb-10">
@@ -290,6 +290,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         <span>{link.name}</span>
                       </Link>
                     ))}
+                    
+                    {!user && (
+                      <Link
+                        to="/auth"
+                        onClick={() => setIsMenuOpen(false)}
+                        className="block w-full py-5 bg-primary text-center text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-primary/20"
+                      >
+                        Sign In / Join
+                      </Link>
+                    )}
                   </div>
 
                   <div className="mt-auto pt-10 border-t border-border-custom space-y-4">
@@ -311,15 +321,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                           <span>Sign Out</span>
                         </button>
                       </>
-                    ) : (
-                      <Link
-                        to="/auth"
-                        onClick={() => setIsMenuOpen(false)}
-                        className="block w-full py-5 bg-primary text-center text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-primary/20"
-                      >
-                        Sign In / Join
-                      </Link>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               </motion.div>

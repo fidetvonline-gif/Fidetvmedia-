@@ -380,23 +380,6 @@ export default function Profile() {
   return (
     <div className="min-h-screen pb-32 bg-background text-foreground">
       {/* Verification Banner */}
-      {!user?.email_confirmed_at && (
-        <div className="bg-amber-500/10 border-b border-amber-500/20 py-3 px-4">
-          <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-            <div className="flex items-center space-x-3 text-amber-500 text-sm font-medium">
-              <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-              <span>Please verify your email address to unlock all features.</span>
-            </div>
-            <button
-              onClick={resendVerification}
-              disabled={resending}
-              className="text-xs font-bold uppercase tracking-widest bg-amber-500 text-black px-4 py-2 rounded-lg hover:bg-amber-400 transition-colors disabled:opacity-50"
-            >
-              {resending ? 'Sending...' : 'Resend Email'}
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Header / Cover */}
       <div className="h-64 sm:h-80 bg-surface relative border-b border-border-custom">
