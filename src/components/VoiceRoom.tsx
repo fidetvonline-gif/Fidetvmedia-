@@ -204,15 +204,7 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
       })
       .on('broadcast', { event: 'rooms-sync' }, (payload: { rooms: VoiceRoomData[] }) => {
         if (payload.rooms) {
-          setCreatedRooms(prev => {
-            const merged = [...prev];
-            payload.rooms.forEach(r => {
-              if (!merged.some(m => m.id === r.id)) {
-                merged.push(r);
-              }
-            });
-            return merged;
-          });
+          setCreatedRooms(payload.rooms);
         }
       })
       .on('broadcast', { event: 'request-rooms' }, () => {
@@ -1031,18 +1023,18 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
 
                       {/* Moderator interaction HUD (only for room Host over other participants) */}
                       {activeRoom.hostId === userProfile?.id && member.id !== userProfile?.id && (
-                        <div className="absolute inset-0 bg-black/90 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col gap-2 items-center justify-center p-3">
+                        <div className="mt-4 flex flex-col gap-2 w-full">
                           <button
                             onClick={() => handleModeratorMute(member.id)}
                             className="w-full py-1 text-[9px] font-bold bg-[#e0650d]/20 hover:bg-[#e0650d]/40 text-[#e0650d] rounded border border-[#e0650d]/20"
                           >
-                            Mute Microphone
+                            {member.isMuted ? 'Unmute' : 'Mute'}
                           </button>
                           <button
                             onClick={() => handleModeratorKick(member.id)}
                             className="w-full py-1 text-[9px] font-bold bg-red-500/20 hover:bg-red-500/40 text-red-400 rounded border border-red-500/20"
                           >
-                            Kick Member
+                            Kick
                           </button>
                         </div>
                       )}
