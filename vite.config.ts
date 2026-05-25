@@ -68,11 +68,7 @@ export default defineConfig(({ mode }) => {
       sourcemap: false,
       minify: true,
     },
-    server: {
-      hmr: false,
-    },
-    optimizeDeps: {
-      include: ['react', 'react-dom'],
-    },
+    server: {},
+
   };
 });

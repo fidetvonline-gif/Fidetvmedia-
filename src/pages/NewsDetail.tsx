@@ -248,7 +248,7 @@ export default function NewsDetail() {
     <motion.article 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 bg-background"
+      className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 bg-background"
     >
       <SEO title={item.title} description={item.excerpt || item.description} />
       <Link to="/news" className="inline-flex items-center space-x-2 text-foreground/40 hover:text-primary transition-colors mb-12 group">
@@ -315,10 +315,34 @@ export default function NewsDetail() {
 
       <div className="flex flex-col lg:flex-row gap-12 lg:gap-20">
         <div className="flex-grow space-y-16">
-          <div className="prose dark:prose-invert prose-p:text-foreground/70 prose-p:leading-relaxed prose-headings:text-foreground prose-headings:font-display prose-a:text-primary max-w-none prose-img:rounded-[2rem] news-content">
+          <div className="news-content">
             <ReactMarkdown
               components={{
-                a: ({ ...props }) => {
+                h1: ({ node, ...props }) => <h1 className="text-3xl md:text-5xl font-display font-medium text-foreground mt-12 mb-6 tracking-tight leading-tight" {...props} />,
+                h2: ({ node, ...props }) => <h2 className="text-2xl md:text-3.5xl font-display font-medium text-foreground mt-10 mb-5 tracking-tight border-b border-border-custom pb-3" {...props} />,
+                h3: ({ node, ...props }) => <h3 className="text-xl md:text-2.5xl font-display font-semibold text-foreground mt-8 mb-4 tracking-tight flex items-center gap-2" {...props} />,
+                h4: ({ node, ...props }) => <h4 className="text-lg md:text-xl font-display font-semibold text-foreground mt-6 mb-3 tracking-tight" {...props} />,
+                img: ({ node, ...props }) => <img className="rounded-3xl w-full h-auto my-12 shadow-2xl border border-white/10" {...props as any} />,
+                p: ({ node, ...props }) => <p className="text-foreground/80 text-base md:text-[17px] leading-relaxed mb-6 font-sans font-normal tracking-wide" {...props} />,
+                ul: ({ node, ...props }) => <ul className="list-disc pl-6 mb-8 space-y-3 text-foreground/80 text-base md:text-[17px] marker:text-primary" {...props} />,
+                ol: ({ node, ...props }) => <ol className="list-decimal pl-6 mb-8 space-y-3 text-foreground/80 text-base md:text-[17px] marker:text-primary" {...props} />,
+                li: ({ node, ...props }) => <li className="pl-2 leading-relaxed" {...props} />,
+                blockquote: ({ node, ...props }) => (
+                  <blockquote className="border-l-4 border-primary bg-primary/5 pl-6 py-5 pr-5 my-8 rounded-r-2xl text-foreground font-serif italic text-lg md:text-xl leading-relaxed shadow-sm border-y border-r border-border-custom/20" {...props} />
+                ),
+                code: ({ node, inline, ...props }: any) => {
+                  return inline ? (
+                    <code className="bg-surface-bright border border-border-custom px-2 py-0.5 rounded-lg text-primary text-sm font-mono font-medium" {...props} />
+                  ) : (
+                    <pre className="bg-surface-bright border border-border-custom p-6 rounded-2xl overflow-x-auto text-foreground text-sm font-mono my-8 leading-relaxed shadow-inner">
+                      <code {...props} />
+                    </pre>
+                  );
+                },
+                hr: () => <hr className="my-12 border-border-custom" />,
+                strong: ({ node, ...props }) => <strong className="font-extrabold text-foreground" {...props} />,
+                em: ({ node, ...props }) => <em className="italic text-foreground/90 font-serif" {...props} />,
+                a: ({ node, ...props }) => {
                   const url = props.href || '';
                   if (Player.canPlay(url)) {
                     return (
@@ -327,7 +351,14 @@ export default function NewsDetail() {
                       </div>
                     );
                   }
-                  return <a {...props} />;
+                  return (
+                    <a 
+                      className="text-primary hover:text-primary/100 hover:underline font-bold transition-all decoration-primary/40 decoration-2 underline-offset-4" 
+                      target={url.startsWith('http') ? '_blank' : undefined} 
+                      rel={url.startsWith('http') ? 'noopener noreferrer' : undefined}
+                      {...props} 
+                    />
+                  );
                 }
               }}
             >

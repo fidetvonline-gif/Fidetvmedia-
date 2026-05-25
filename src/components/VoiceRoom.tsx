@@ -70,8 +70,16 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
   // Visual levels state
   const [volumeLevels, setVolumeLevels] = useState<number[]>(Array(12).fill(4));
   const [deviceList, setDeviceList] = useState<MediaDeviceInfo[]>([]);
+  const [audioContextActive, setAudioContextActive] = useState(false);
 
   const [selectedOutputId, setSelectedOutputId] = useState<string>('');
+
+  const resumeAudioCtx = async () => {
+    if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+      await audioContextRef.current.resume();
+      setAudioContextActive(true);
+    }
+  };
 
   // Enumerate devices
   useEffect(() => {
@@ -540,6 +548,8 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
         // Log joined activity
         const ms = newPresences[0] as any;
         console.log(`User ${ms?.username} joined voice space`);
+        // Force refresh
+        channel.send({ type: 'broadcast', event: 'refresh-participants', payload: {} });
       })
       .on('presence', { event: 'leave' }, ({ key }) => {
         // Clean up connection
@@ -547,6 +557,29 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
           peerConnectionsRef.current[key].close();
           delete peerConnectionsRef.current[key];
         }
+        // Force refresh
+        setParticipants(prev => prev.filter(p => p.id !== key));
+      })
+      .on('broadcast', { event: 'refresh-participants' }, () => {
+          const presenceStates = channel.presenceState();
+          const joinedList: Participant[] = [];
+          
+          Object.keys(presenceStates).forEach((key) => {
+            const state: any = presenceStates[key]?.[0];
+            if (state) {
+              joinedList.push({
+                id: state.id,
+                username: state.username,
+                avatarUrl: state.avatarUrl,
+                isMuted: state.isMuted,
+                isSpeaking: state.isSpeaking,
+                role: state.role || (room.hostId === state.id ? 'host' : 'listener'),
+                joinedAt: state.joinedAt || Date.now(),
+                raisedHand: state.raisedHand || false
+              });
+            }
+          });
+          setParticipants(joinedList.sort((a, b) => b.joinedAt - a.joinedAt));
       })
       .on('broadcast', { event: 'webrtc-signal' }, async ({ payload }) => {
         const { senderId, targetId, signal } = payload;
@@ -1038,6 +1071,16 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
 
               {/* Audio switches */}
               <div className="flex items-center gap-2 w-full md:w-auto justify-center">
+                {activeRoom && !audioContextActive && (
+                  <button
+                    onClick={resumeAudioCtx}
+                    className="p-4 rounded-xl shadow-md border transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-2 text-xs font-bold bg-amber-500/10 border-amber-500/20 text-amber-500"
+                  >
+                    <Volume2 className="w-4 h-4" />
+                    <span>Enable Audio</span>
+                  </button>
+                )}                
+
                 <button
                   onClick={toggleLocalMute}
                   className={cn(

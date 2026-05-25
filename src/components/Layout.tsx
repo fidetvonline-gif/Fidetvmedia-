@@ -90,8 +90,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Separate effect for path-based profile checking
+  // Separate effect for path-based profile checking and mobile menu auto-close
   useEffect(() => {
+    setIsMenuOpen(false);
     if (user) {
       checkProfile(user.id, user.email);
     }
@@ -144,10 +145,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* <TourGuide /> */}
       <nav className={cn(
         "fixed top-0 left-0 right-0 transition-all duration-500",
-        isMenuOpen ? "z-[99999]" : "z-50",
+        isMenuOpen ? "z-[99999]" : "z-[1000]",
         isScrolled 
-          ? "bg-background/80 backdrop-blur-md border-b border-border-custom py-2 shadow-2xl" 
-          : "bg-background border-b border-border-custom py-4"
+          ? "bg-background backdrop-blur-md border-b border-border-custom py-2 shadow-2xl" 
+          : "bg-background backdrop-blur-md border-b border-border-custom py-4"
       )}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20 items-center">
@@ -161,36 +162,27 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </Link>
 
             {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-8">
+            <div className="hidden md:flex items-center space-x-6">
               {navLinks.map((link) => (
                 <Link
                   key={link.path}
                   id={link.id}
                   to={link.path}
                   className={cn(
-                    "text-sm font-medium tracking-wide transition-colors duration-200 hover:text-primary relative py-2",
+                    "text-xs font-bold uppercase tracking-widest transition-colors duration-200 hover:text-primary relative py-2",
                     location.pathname === link.path ? "text-primary" : "text-foreground/70"
                   )}
                 >
                   {link.name}
-                  {location.pathname === link.path && (
-                    <motion.div
-                      layoutId="nav-underline"
-                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
-                    />
-                  )}
                 </Link>
               ))}
-
-              <div className="h-6 w-px bg-border-custom mx-2" />
 
               {!isStandalone && (
                 <Link
                   to="/download"
-                  className="flex items-center space-x-2 text-text-muted hover:text-primary transition-colors text-xs font-bold uppercase tracking-widest"
+                  className="p-2 text-text-muted hover:text-primary transition-colors"
                 >
-                  <DownloadCloud className="w-4 h-4" />
-                  <span className="hidden lg:inline">App</span>
+                  <DownloadCloud className="w-5 h-5" />
                 </Link>
               )}
 
@@ -203,7 +195,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </button>
 
               {user ? (
-                <div className="flex items-center space-x-4 user-tour-profile">
+                <div className="flex items-center space-x-2">
                   <NotificationTray />
                   <Link to="/profile" className="p-2 hover:bg-foreground/5 rounded-full transition-colors">
                     <User className="w-5 h-5 text-foreground/40" />
@@ -218,118 +210,63 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               ) : (
                 <Link
                   to="/auth"
-                  className="px-6 py-2 bg-primary text-white text-sm font-bold rounded-full hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
+                  className="px-5 py-2 bg-primary text-white text-xs font-bold rounded-full hover:bg-primary/90 transition-all shadow-lg"
                 >
-                  Sign In / Join
+                  Sign In
                 </Link>
               )}
             </div>
 
             {/* Mobile Menu Button */}
-            <div className="flex md:hidden items-center space-x-4">
-              {!isStandalone && (
-                <Link to="/download" className="p-2 text-text-muted hover:text-primary">
-                  <DownloadCloud className="w-5 h-5" />
-                </Link>
-              )}
+            <div className="md:hidden flex items-center gap-2">
               <button
                 onClick={toggleTheme}
-                className="p-2 hover:bg-surface-bright rounded-full transition-colors text-foreground"
+                className="p-2 text-foreground"
               >
                 {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
               </button>
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="text-foreground hover:text-primary p-2"
+                className="p-2 text-foreground"
               >
-                {isMenuOpen ? <X /> : <Menu />}
+                {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
             </div>
           </div>
         </div>
-
-                <AnimatePresence>
-          {isMenuOpen && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] md:hidden"
-                onClick={() => setIsMenuOpen(false)}
-              />
-              <motion.div
-                initial={{ x: '100%' }}
-                animate={{ x: 0 }}
-                exit={{ x: '100%' }}
-                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="fixed top-0 right-0 h-full w-4/5 max-w-sm bg-background border-l border-border-custom z-[1000] md:hidden p-6 shadow-2xl overflow-y-auto"
-              >
-                <div className="flex flex-col h-full">
-                  <div className="flex justify-between items-center mb-10">
-                    <span className="font-display font-bold text-2xl text-foreground">Menu</span>
-                    <button onClick={() => setIsMenuOpen(false)} className="text-foreground p-2 hover:bg-surface-bright rounded-full transition-colors"><X /></button>
-                  </div>
-
-                  <div className="flex flex-col space-y-6">
-                    {navLinks.map((link) => (
-                      <Link
-                        key={link.path}
-                        to={link.path}
-                        onClick={() => setIsMenuOpen(false)}
-                        className={cn(
-                          "flex items-center space-x-4 text-lg font-bold transition-colors p-4 rounded-2xl mb-2",
-                          location.pathname === link.path 
-                            ? "bg-primary text-white shadow-lg shadow-primary/20" 
-                            : "text-foreground hover:bg-surface"
-                        )}
-                      >
-                        <link.icon className={cn(
-                          "w-6 h-6",
-                          location.pathname === link.path ? "text-white" : "text-primary"
-                        )} />
-                        <span>{link.name}</span>
-                      </Link>
-                    ))}
-                    
-                    {!user && (
-                      <Link
-                        to="/auth"
-                        onClick={() => setIsMenuOpen(false)}
-                        className="block w-full py-5 bg-primary text-center text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-primary/20"
-                      >
-                        Sign In / Join
-                      </Link>
-                    )}
-                  </div>
-
-                  <div className="mt-auto pt-10 border-t border-border-custom space-y-4">
-                    {user ? (
-                      <>
-                        <Link
-                          to="/profile"
-                          onClick={() => setIsMenuOpen(false)}
-                          className="flex items-center space-x-4 text-foreground/80 p-3 rounded-2xl hover:bg-surface-bright"
-                        >
-                          <User className="w-6 h-6 text-text-muted" />
-                          <span>My Profile</span>
-                        </Link>
-                        <button
-                          onClick={handleSignOut}
-                          className="flex items-center space-x-4 text-foreground/80 w-full text-left p-3 rounded-2xl hover:bg-surface-bright"
-                        >
-                          <LogOut className="w-6 h-6 text-text-muted" />
-                          <span>Sign Out</span>
-                        </button>
-                      </>
-                    ) : null}
-                  </div>
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
       </nav>
+
+      {/* Mobile Menu Overlay */}
+      <AnimatePresence>
+        {isMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[9995] bg-background/95 backdrop-blur-sm md:hidden pt-24 px-6 flex flex-col gap-6"
+          >
+            <button
+               onClick={() => setIsMenuOpen(false)}
+               className="absolute top-6 right-6 p-2 text-foreground"
+            >
+              <X className="w-8 h-8" />
+            </button>
+            
+            <nav className="flex flex-col gap-4">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.path}
+                  to={link.path}
+                  onClick={() => setIsMenuOpen(false)}
+                  className="text-2xl font-bold text-foreground hover:text-primary transition-colors"
+                >
+                  {link.name}
+                </Link>
+              ))}
+            </nav>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <main className="flex-grow pt-20">
         <AnimatePresence mode="wait">
