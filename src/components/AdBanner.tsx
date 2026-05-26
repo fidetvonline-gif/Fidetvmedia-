@@ -2,12 +2,47 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { ExternalLink, Sparkles, Tv, Smartphone, Calendar, Megaphone, ShieldCheck } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 interface AdBannerProps {
   placement: string;
   className?: string;
 }
+
+// Map each placement type to expected sizing and structure to reserve space and eliminate CLS
+const placementSizing: Record<string, { minHeight: string; borderRadius: string; wrapperClass: string }> = {
+  'Community Sidebar': {
+    minHeight: 'min-h-[290px]',
+    borderRadius: 'rounded-[2rem]',
+    wrapperClass: 'w-full max-w-sm mx-auto'
+  },
+  'Home Portfolio Bottom': {
+    minHeight: 'min-h-[240px] md:min-h-[140px]',
+    borderRadius: 'rounded-[2.5rem]',
+    wrapperClass: 'w-full max-w-7xl mx-auto'
+  },
+  'Home News Bottom': {
+    minHeight: 'min-h-[240px] md:min-h-[140px]',
+    borderRadius: 'rounded-[2.5rem]',
+    wrapperClass: 'w-full max-w-7xl mx-auto'
+  },
+  'News Page Top': {
+    minHeight: 'min-h-[180px] md:min-h-[120px]',
+    borderRadius: 'rounded-[2.5rem]',
+    wrapperClass: 'w-full max-w-7xl mx-auto'
+  },
+  'Admin Dashboard Top': {
+    minHeight: 'min-h-[110px] md:min-h-[88px]',
+    borderRadius: 'rounded-3xl',
+    wrapperClass: 'w-full max-w-7xl'
+  }
+};
+
+const defaultSizing = {
+  minHeight: 'min-h-[96px]',
+  borderRadius: 'rounded-2xl',
+  wrapperClass: 'w-full'
+};
 
 export default function AdBanner({ placement, className }: AdBannerProps) {
   const [ad, setAd] = useState<any>(null);
@@ -39,13 +74,42 @@ export default function AdBanner({ placement, className }: AdBannerProps) {
     }
   };
 
-  if (loading) return null;
+  const sizing = placementSizing[placement] || defaultSizing;
+
+  // Render a responsive, low-layout-shift skeleton placeholder when loading
+  if (loading) {
+    return (
+      <div 
+        id="ad-banner-loading-skeleton"
+        className={cn(
+          "bg-surface/50 border border-dashed border-border-custom/40 animate-pulse flex flex-col items-center justify-center p-6 text-center space-y-2 select-none",
+          sizing.minHeight,
+          sizing.borderRadius,
+          sizing.wrapperClass,
+          className
+        )}
+      >
+        <Tv className="w-5 h-5 text-foreground/10 animate-pulse" />
+        <span className="text-[9px] font-mono tracking-widest text-foreground/20 uppercase">
+          Loading Ad Unit...
+        </span>
+      </div>
+    );
+  }
 
   // 1. If we fetched a custom platform-specific ad unit from the Database
   if (ad) {
     if (ad.platform === 'android' || ad.platform === 'ios') {
       return (
-        <div className={cn("bg-surface border border-border-custom rounded-2xl p-6 text-center space-y-3 shadow-inner", className)}>
+        <div 
+          id={`ad-banner-db-mobile-${ad.id}`}
+          className={cn(
+            "bg-surface border border-border-custom rounded-2xl p-6 text-center space-y-3 shadow-inner flex flex-col justify-center items-center", 
+            sizing.minHeight, 
+            sizing.wrapperClass, 
+            className
+          )}
+        >
           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-primary/10 text-primary text-[8px] uppercase tracking-widest font-black">
              <Smartphone className="w-2.5 h-2.5" /> Mobile Ad Placement
           </span>
@@ -57,15 +121,24 @@ export default function AdBanner({ placement, className }: AdBannerProps) {
 
     if (ad.platform === 'web' && ad.ad_type === 'adsense') {
       return (
-        <div className={cn("w-full overflow-hidden bg-surface rounded-[2.5rem] border border-border-custom hover:border-primary/20 transition-all shadow-sm flex items-center justify-between p-8", className)}>
+        <div 
+          id={`ad-banner-db-adsense-${ad.id}`}
+          className={cn(
+            "w-full overflow-hidden bg-surface rounded-[2.5rem] border border-border-custom hover:border-primary/20 transition-all shadow-sm flex items-center justify-between p-8", 
+            sizing.minHeight, 
+            sizing.borderRadius, 
+            sizing.wrapperClass, 
+            className
+          )}
+        >
           <div className="flex items-center gap-6">
             <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center border border-primary/20 text-primary">
               <ExternalLink className="w-6 h-6" />
             </div>
-            <div>
+            <div className="text-left">
               <span className="text-[8px] font-black uppercase tracking-[0.2em] text-primary/80">Google AdSense Partner Unit</span>
               <p className="text-base font-bold text-foreground font-display mt-0.5">{ad.name}</p>
-              <p className="text-[9px] text-foreground/30 font-mono italic">ID: {ad.ad_unit_id}</p>
+              <p className="text-[9px] text-foreground/30 font-mono italic mt-0.5">ID: {ad.ad_unit_id}</p>
             </div>
           </div>
           <a
@@ -81,12 +154,20 @@ export default function AdBanner({ placement, className }: AdBannerProps) {
     }
   }
 
-  // 2. Beautiful FALLBACK Promotional Ads if no active DB database ad exists or table is blank
+  // 2. Beautiful Fallback Promotional Ads if no active DB database ad exists or table is blank
   if (placement === 'Community Sidebar') {
     return (
-      <div className={cn("relative overflow-hidden bg-gradient-to-br from-primary/10 via-surface to-background border border-border-custom p-6 rounded-[2rem] text-center space-y-4 shadow-sm", className)}>
+      <div 
+        id="ad-banner-fallback-community"
+        className={cn(
+          "relative overflow-hidden bg-gradient-to-br from-primary/10 via-surface to-background border border-border-custom p-6 rounded-[2rem] text-center space-y-4 shadow-sm flex flex-col justify-center items-center", 
+          sizing.minHeight, 
+          sizing.wrapperClass, 
+          className
+        )}
+      >
          <div className="absolute -top-10 -right-10 w-24 h-24 bg-primary/20 rounded-full blur-2xl" />
-         <div className="mx-auto w-10 h-10 bg-primary/25 rounded-2xl flex items-center justify-center text-primary border border-primary/30 shadow-inner">
+         <div className="w-10 h-10 bg-primary/25 rounded-2xl flex items-center justify-center text-primary border border-primary/30 shadow-inner">
             <Sparkles className="w-4 h-4 animate-pulse" />
          </div>
          <div className="space-y-1">
@@ -102,12 +183,20 @@ export default function AdBanner({ placement, className }: AdBannerProps) {
 
   if (placement === 'Home Portfolio Bottom') {
     return (
-      <div className={cn("w-full overflow-hidden bg-gradient-to-r from-primary/10 via-surface/60 to-background border border-border-custom rounded-[2.5rem] p-8 sm:p-10 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm", className)}>
-         <div className="flex items-center gap-6">
+      <div 
+        id="ad-banner-fallback-portfolio"
+        className={cn(
+          "w-full overflow-hidden bg-gradient-to-r from-primary/10 via-surface/60 to-background border border-border-custom rounded-[2.5rem] p-8 sm:p-10 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm", 
+          sizing.minHeight, 
+          sizing.wrapperClass, 
+          className
+        )}
+      >
+         <div className="flex flex-col md:flex-row items-center gap-6">
             <div className="w-14 h-14 bg-primary/25 rounded-2xl flex items-center justify-center text-primary border border-primary/30 shadow-inner shrink-0 leading-none">
                <Calendar className="w-6 h-6" />
             </div>
-            <div className="space-y-1 max-w-xl text-left">
+            <div className="space-y-1 max-w-xl text-center md:text-left">
                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-primary/10 text-primary text-[8px] uppercase tracking-widest font-black mb-1">FIDETV MEDIA BROADCASTING SERVICE</span>
                <h4 className="text-xl font-display font-bold text-foreground tracking-tight">Corporate and Event Multi-Cam Live Streaming</h4>
                <p className="text-xs text-foreground/40 italic">Broadcast weddings, sporting tournaments, funerals, and media conferences globally with pristine multi-camera video feed.</p>
@@ -122,12 +211,20 @@ export default function AdBanner({ placement, className }: AdBannerProps) {
 
   if (placement === 'Home News Bottom') {
     return (
-      <div className={cn("w-full overflow-hidden bg-gradient-to-r from-teal-500/10 via-surface/60 to-background border border-border-custom rounded-[2.5rem] p-8 sm:p-10 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm", className)}>
-         <div className="flex items-center gap-6">
+      <div 
+        id="ad-banner-fallback-homenews"
+        className={cn(
+          "w-full overflow-hidden bg-gradient-to-r from-teal-500/10 via-surface/60 to-background border border-border-custom rounded-[2.5rem] p-8 sm:p-10 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm", 
+          sizing.minHeight, 
+          sizing.wrapperClass, 
+          className
+        )}
+      >
+         <div className="flex flex-col md:flex-row items-center gap-6">
             <div className="w-14 h-14 bg-teal-500/20 rounded-2xl flex items-center justify-center text-teal-500 border border-teal-500/30 shadow-inner shrink-0">
                <Smartphone className="w-6 h-6" />
             </div>
-            <div className="space-y-1 max-w-xl text-left">
+            <div className="space-y-1 max-w-xl text-center md:text-left">
                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-teal-500/10 text-teal-400 text-[8px] uppercase tracking-widest font-black mb-1">MOBILE APP NOW LIVE</span>
                <h4 className="text-xl font-display font-bold text-foreground tracking-tight">Download the FideTV Mobile App</h4>
                <p className="text-xs text-foreground/40 italic">Enjoy smooth video streams, breaking community posts, instant chat alerts, and offline reading options directly on your smartphone.</p>
@@ -142,12 +239,20 @@ export default function AdBanner({ placement, className }: AdBannerProps) {
 
   if (placement === 'News Page Top') {
     return (
-      <div className={cn("w-full overflow-hidden bg-gradient-to-r from-amber-500/10 via-surface/60 to-background border border-border-custom rounded-[2.5rem] p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm", className)}>
-         <div className="flex items-center gap-5">
+      <div 
+        id="ad-banner-fallback-newstop"
+        className={cn(
+          "w-full overflow-hidden bg-gradient-to-r from-amber-500/10 via-surface/60 to-background border border-border-custom rounded-[2.5rem] p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm", 
+          sizing.minHeight, 
+          sizing.wrapperClass, 
+          className
+        )}
+      >
+         <div className="flex flex-col md:flex-row items-center gap-5">
             <div className="w-12 h-12 bg-amber-500/20 rounded-2xl flex items-center justify-center text-amber-500 border border-amber-500/30 shadow-inner shrink-0">
                <Megaphone className="w-5 h-5" />
             </div>
-            <div className="space-y-1 text-left">
+            <div className="space-y-1 text-center md:text-left">
                <h4 className="text-base font-display font-bold text-foreground tracking-tight">Advertise with FideTV Global Media Network</h4>
                <p className="text-xs text-foreground/40 italic">Maximize outreach! Showcase your brand to over 18,000+ daily stream viewers and sport lovers across Nigeria and Africa.</p>
             </div>
@@ -161,7 +266,15 @@ export default function AdBanner({ placement, className }: AdBannerProps) {
 
   if (placement === 'Admin Dashboard Top') {
     return (
-      <div className={cn("w-full bg-surface-bright/70 border border-border-custom rounded-3xl p-6 flex items-center justify-between gap-4 shadow-inner", className)}>
+      <div 
+        id="ad-banner-fallback-admintop"
+        className={cn(
+          "w-full bg-surface-bright/70 border border-border-custom rounded-3xl p-6 flex items-center justify-between gap-4 shadow-inner", 
+          sizing.minHeight, 
+          sizing.wrapperClass, 
+          className
+        )}
+      >
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20 text-primary shrink-0">
             <ShieldCheck className="w-5 h-5" />
@@ -178,10 +291,18 @@ export default function AdBanner({ placement, className }: AdBannerProps) {
 
   // General elegant fallback
   return (
-    <div className={cn("w-full h-24 bg-surface-bright/50 border border-dashed border-border-custom rounded-2xl flex items-center justify-between px-8 text-left", className)}>
+    <div 
+      id="ad-banner-generic-fallback"
+      className={cn(
+        "w-full h-24 bg-surface-bright/50 border border-dashed border-border-custom rounded-2xl flex items-center justify-between px-8 text-left", 
+        sizing.minHeight, 
+        sizing.wrapperClass, 
+        className
+      )}
+    >
        <div className="flex items-center gap-3">
           <Tv className="w-5 h-5 text-foreground/20 animate-pulse" />
-          <div>
+          <div className="text-left">
             <span className="text-[8px] font-black uppercase tracking-[0.2em] text-foreground/20">FideTV Media Network</span>
             <p className="text-[11px] font-bold text-foreground/45 tracking-tight font-display">{placement}</p>
           </div>
