@@ -66,6 +66,7 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
   const [isVideoEnabled, setIsVideoEnabled] = useState(false);
   const [isScreenShared, setIsScreenShared] = useState(false);
   const [isAiRecordOn, setIsAiRecordOn] = useState(false);
+  const [showModPanel, setShowModPanel] = useState(false);
   
   // Visual levels state
   const [volumeLevels, setVolumeLevels] = useState<number[]>(Array(12).fill(4));
@@ -925,6 +926,21 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
                   {isCopied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Share2 className="w-3.5 h-3.5 text-primary" />}
                   <span>{isCopied ? 'Copied' : 'Share Link'}</span>
                 </button>
+
+                {activeRoom.hostId === userProfile?.id && (
+                  <button
+                    onClick={() => setShowModPanel(!showModPanel)}
+                    className={cn(
+                      "px-4 py-2 border text-xs font-bold rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-md",
+                      showModPanel 
+                        ? "bg-red-500/20 border-red-500/40 text-red-100" 
+                        : "bg-primary/10 border-primary/20 text-primary hover:bg-primary/20"
+                    )}
+                  >
+                    <Shield className="w-3.5 h-3.5" />
+                    <span>Host Moderation Panel</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -956,92 +972,170 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
               </div>
             </div>
 
-            {/* Connected Participants Face Grid */}
-            <div className="space-y-4 relative z-10">
-              <div className="flex justify-between items-center">
-                <p className="text-sm font-bold text-foreground flex items-center gap-2">
-                  <Users className="w-4 h-4 text-primary" />
-                  <span>Participants Joined ({participants.length})</span>
-                </p>
-                {participants.length === 1 && (
-                  <span className="text-[10px] text-[#e0650d] animate-pulse">Awaiting participants to join... Copy Room Link!</span>
-                )}
-              </div>
+            {/* Split layout: Grid of Participants + Host Moderation Control Panel */}
+            <div className="flex flex-col lg:flex-row gap-6 relative z-10 text-left">
+              {/* Connected Participants Face Grid */}
+              <div className="flex-1 space-y-4">
+                <div className="flex justify-between items-center">
+                  <p className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <Users className="w-4 h-4 text-primary" />
+                    <span>Participants Joined ({participants.length})</span>
+                  </p>
+                  {participants.length === 1 && (
+                    <span className="text-[10px] text-[#e0650d] animate-pulse font-medium">Awaiting participants to join... Copy Room Link!</span>
+                  )}
+                </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-6">
-                {participants.map((member) => {
-                  const isUserHost = member.role === 'host';
-                  return (
-                    <motion.div
-                      key={member.id}
-                      layout
-                      className={cn(
-                        "p-4 bg-white/5 border rounded-2xl flex flex-col items-center justify-center text-center relative overflow-hidden transition-all group",
-                        member.isSpeaking ? "border-green-500/50 shadow-lg shadow-green-500/10 scale-103 bg-[#112415]/30" : "border-white/5"
-                      )}
-                    >
-                      {/* Speaker Active Pulse Halo */}
-                      {member.isSpeaking && (
-                        <div className="absolute inset-x-0 top-0 h-1 bg-green-500 animate-pulse" />
-                      )}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {participants.map((member) => {
+                    const isUserHost = member.role === 'host';
+                    return (
+                      <motion.div
+                        key={member.id}
+                        layout
+                        className={cn(
+                          "p-4 bg-white/5 border rounded-2xl flex flex-col items-center justify-center text-center relative overflow-hidden transition-all group",
+                          member.isSpeaking ? "border-green-500/50 shadow-lg shadow-green-500/10 scale-103 bg-[#112415]/30" : "border-white/5"
+                        )}
+                      >
+                        {/* Speaker Active Pulse Halo */}
+                        {member.isSpeaking && (
+                          <div className="absolute inset-x-0 top-0 h-1 bg-green-500 animate-pulse" />
+                        )}
 
-                      <div className="relative mb-3">
-                        <img 
-                          src={member.avatarUrl} 
-                          alt={member.username} 
-                          className={cn(
-                            "w-16 h-16 rounded-full border-2 bg-surface select-none",
-                            member.isSpeaking ? "border-green-400 scale-105" : "border-white/10"
-                          )} 
-                        />
-                        
-                        {/* Status overlays in bubble */}
-                        <div className="absolute bottom-0 right-0 p-1 rounded-full border border-black bg-background shrink-0">
-                          {member.isMuted ? (
-                            <MicOff className="w-3 h-3 text-red-400" />
-                          ) : (
-                            <Mic className="w-3 h-3 text-green-400" />
+                        <div className="relative mb-3">
+                          <img 
+                            src={member.avatarUrl} 
+                            alt={member.username} 
+                            className={cn(
+                              "w-16 h-16 rounded-full border-2 bg-surface select-none",
+                              member.isSpeaking ? "border-green-400 scale-105" : "border-white/10"
+                            )} 
+                          />
+                          
+                          {/* Status overlays in bubble */}
+                          <div className="absolute bottom-0 right-0 p-1 rounded-full border border-black bg-background shrink-0 font-sans">
+                            {member.isMuted ? (
+                              <MicOff className="w-3 text-red-400" />
+                            ) : (
+                              <Mic className="w-3 text-green-400" />
+                            )}
+                          </div>
+
+                          {member.raisedHand && (
+                            <div className="absolute -top-1.5 -right-1.5 p-1 bg-indigo-500 text-white rounded-full border border-black animate-bounce shrink-0">
+                              <Hand className="w-3 h-3" />
+                            </div>
                           )}
                         </div>
 
-                        {member.raisedHand && (
-                          <div className="absolute -top-1.5 -right-1.5 p-1 bg-indigo-500 text-white rounded-full border border-black animate-bounce">
-                            <Hand className="w-3 h-3" />
+                        {/* Username badges */}
+                        <p className="text-xs font-bold text-foreground truncate w-full flex items-center justify-center gap-1 font-sans">
+                          <span>{member.username}</span>
+                          {isUserHost && <Shield className="w-3.5 h-3.5 text-yellow-500" />}
+                        </p>
+                        
+                        <span className="text-[9px] text-text-muted uppercase font-black tracking-wider block mt-1 font-mono">
+                          {isUserHost ? 'Host' : 'Speaker'}
+                        </span>
+
+                        {/* Moderator interaction HUD (only for room Host over other participants) */}
+                        {activeRoom.hostId === userProfile?.id && member.id !== userProfile?.id && (
+                          <div className="mt-4 flex flex-col gap-2 w-full font-sans">
+                            <button
+                              onClick={() => handleModeratorMute(member.id)}
+                              className="w-full py-1 text-[9px] font-bold bg-[#e0650d]/20 hover:bg-[#e0650d]/40 text-[#e0650d] rounded border border-[#e0650d]/20 cursor-pointer"
+                            >
+                              {member.isMuted ? 'Unmute' : 'Mute'}
+                            </button>
+                            <button
+                              onClick={() => handleModeratorKick(member.id)}
+                              className="w-full py-1 text-[9px] font-bold bg-red-500/20 hover:bg-red-500/40 text-red-100 rounded border border-red-500/20 cursor-pointer"
+                            >
+                              Kick
+                            </button>
                           </div>
                         )}
-                      </div>
-
-                      {/* Username badges */}
-                      <p className="text-xs font-bold text-foreground truncate w-full flex items-center justify-center gap-1">
-                        <span>{member.username}</span>
-                        {isUserHost && <Shield className="w-3.5 h-3.5 text-yellow-400" />}
-                      </p>
-                      
-                      <span className="text-[9px] text-text-muted uppercase font-black uppercase tracking-wider block mt-1">
-                        {isUserHost ? 'Host' : 'Speaker'}
-                      </span>
-
-                      {/* Moderator interaction HUD (only for room Host over other participants) */}
-                      {activeRoom.hostId === userProfile?.id && member.id !== userProfile?.id && (
-                        <div className="mt-4 flex flex-col gap-2 w-full">
-                          <button
-                            onClick={() => handleModeratorMute(member.id)}
-                            className="w-full py-1 text-[9px] font-bold bg-[#e0650d]/20 hover:bg-[#e0650d]/40 text-[#e0650d] rounded border border-[#e0650d]/20"
-                          >
-                            {member.isMuted ? 'Unmute' : 'Mute'}
-                          </button>
-                          <button
-                            onClick={() => handleModeratorKick(member.id)}
-                            className="w-full py-1 text-[9px] font-bold bg-red-500/20 hover:bg-red-500/40 text-red-400 rounded border border-red-500/20"
-                          >
-                            Kick
-                          </button>
-                        </div>
-                      )}
-                    </motion.div>
-                  );
-                })}
+                      </motion.div>
+                    );
+                  })}
+                </div>
               </div>
+
+              {/* Moderation Panel Console Component */}
+              <AnimatePresence>
+                {showModPanel && activeRoom.hostId === userProfile?.id && (
+                  <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="w-full lg:w-[320px] shrink-0 bg-white/[0.02] border border-white/5 rounded-2xl p-5 space-y-5 text-left h-fit self-start font-sans"
+                  >
+                     <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                        <div className="flex items-center gap-2">
+                           <Shield className="w-4 h-4 text-primary" />
+                           <h4 className="text-xs font-bold text-foreground uppercase tracking-widest font-mono">Control Desk</h4>
+                        </div>
+                        <button 
+                          onClick={() => setShowModPanel(false)}
+                          className="text-[9px] uppercase font-black tracking-widest text-text-muted hover:text-foreground cursor-pointer"
+                        >
+                          Hide
+                        </button>
+                     </div>
+
+                     <p className="text-[10px] text-text-muted leading-relaxed italic">
+                        Moderator controls synchronized immediately with community listeners or active speakers in the room.
+                     </p>
+
+                     <div className="space-y-2.5 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
+                        {participants.map((m) => {
+                          const isSelf = m.id === userProfile?.id;
+                          return (
+                             <div key={m.id} className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.01] border border-white/[0.03] hover:border-white/[0.06] transition-colors">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                   <img src={m.avatarUrl} alt={m.username} className="w-7 h-7 rounded-full bg-surface border border-white/10 shrink-0" />
+                                   <div className="text-left min-w-0">
+                                      <p className="text-xs font-bold text-foreground truncate flex items-center gap-1">
+                                         <span className="truncate max-w-[80px]">{m.username}</span>
+                                         {isSelf && <span className="text-[8px] bg-white/10 px-1 py-0.5 rounded text-white/50 shrink-0">You</span>}
+                                      </p>
+                                      <p className="text-[9px] text-text-muted truncate">
+                                         {m.isMuted ? 'Muted' : 'Speaking'} • {m.role === 'host' ? 'Host' : 'Participant'}
+                                      </p>
+                                   </div>
+                                </div>
+
+                                {!isSelf && (
+                                   <div className="flex gap-1 shrink-0">
+                                      <button
+                                        onClick={() => handleModeratorMute(m.id)}
+                                        className={cn(
+                                          "px-2 py-1 text-[9px] font-black rounded uppercase tracking-wider transition-all cursor-pointer",
+                                          m.isMuted 
+                                            ? "bg-green-500/10 text-green-400 border border-green-500/10 hover:bg-green-500/20" 
+                                            : "bg-[#e0650d]/10 text-[#e0650d] border border-[#e0650d]/10 hover:bg-[#e0650d]/20"
+                                        )}
+                                        title={m.isMuted ? "Unmute participant" : "Mute participant"}
+                                      >
+                                        {m.isMuted ? 'Unmute' : 'Mute'}
+                                      </button>
+                                      <button
+                                        onClick={() => handleModeratorKick(m.id)}
+                                        className="px-2 py-1 text-[9px] font-black bg-red-400/10 text-red-400 border border-red-500/10 rounded uppercase tracking-wider hover:bg-red-500/20 transition-all cursor-pointer"
+                                        title="Kick user from session"
+                                      >
+                                        Kick
+                                      </button>
+                                   </div>
+                                )}
+                             </div>
+                          );
+                        })}
+                     </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* BOTTOM CALL CONTROL MODULE BAR */}
