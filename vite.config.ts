@@ -68,7 +68,9 @@ export default defineConfig(({ mode }) => {
       sourcemap: false,
       minify: true,
     },
-    server: {},
+    server: {
+      hmr: false,
+    },
 
   };
 });
