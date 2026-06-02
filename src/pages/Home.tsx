@@ -12,6 +12,7 @@ import OptimizedImage from '@/components/OptimizedImage';
 import AdBanner from '@/components/AdBanner';
 import { DEFAULT_CHANNELS } from '@/constants/channels';
 import HighPerformancePlayer from '@/components/HighPerformancePlayer';
+import LiveEventBanner from '@/components/LiveEventBanner';
 
 const Player = ReactPlayer as any;
 
@@ -576,6 +577,11 @@ export default function Home() {
             </div>
           </div>
         </div>
+      </section>
+
+      {/* Live Event Main Promo Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-24 relative z-20" id="match-promo-section">
+        <LiveEventBanner isCardOnly={true} />
       </section>
 
       {/* Statistics Section */}

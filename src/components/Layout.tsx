@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import FideTvLogo from '@/components/FideTvLogo';
 import NotificationTray from '@/components/NotificationTray';
 import TourGuide from './TourGuide';
+import LiveEventBanner from '@/components/LiveEventBanner';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -151,6 +152,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           ? "bg-background backdrop-blur-md border-b border-border-custom py-2 shadow-2xl" 
           : "bg-background backdrop-blur-md border-b border-border-custom py-4"
       )}>
+        <LiveEventBanner />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20 items-center">
             <Link to="/" className="flex items-center space-x-2 group">

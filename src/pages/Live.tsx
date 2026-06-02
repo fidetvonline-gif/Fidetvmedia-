@@ -10,6 +10,7 @@ import { motion } from 'motion/react';
 import { fetchYouTubeStats, YouTubeStats, fetchRecentUploads } from '@/services/youtubeService';
 import AdBanner from '@/components/AdBanner';
 import { DEFAULT_CHANNELS } from '@/constants/channels';
+import fidetvWorldCup from '@/assets/images/fidetv_world_cup_1780392851684.png';
 
 import HighPerformancePlayer from '@/components/HighPerformancePlayer';
 
@@ -213,19 +214,19 @@ export default function Live() {
     }
   };
 
-  const isFideTvLive = event?.status === 'live';
-  const isFideTvUpcoming = event?.status === 'upcoming';
+  const isFideTvLive = event ? event.status === 'live' : true;
+  const isFideTvUpcoming = event ? event.status === 'upcoming' : false;
   const customBroadcast: any = {
     id: 'fidetv',
-    name: 'Main Broadcast',
-    category: 'Your Channel',
+    name: event?.title || 'ALL WORLD CUP MATCHES LIVE & FOR FREE',
+    category: 'World Cup',
     url: event?.youtube_id 
       ? (event.youtube_id.includes('http') || event.youtube_id.includes('<iframe') 
           ? event.youtube_id 
           : `https://www.youtube.com/watch?v=${event.youtube_id}`)
-      : event?.stream_url,
-    thumbnail: event?.thumbnail_url || 'https://images.unsplash.com/photo-1598899134739-24c46f58b8c0?auto=format&fit=crop&q=80&w=800',
-    description: event?.description || 'Your live streaming channel offline.',
+      : (event?.stream_url || 'https://fifa-fifaplus-5-us.ottera.tv/playlist.m3u8'),
+    thumbnail: event?.thumbnail_url || fidetvWorldCup,
+    description: event?.description || 'Watch all World Cup matches live, for free, and exclusively on FideTV.online.',
     isLive: isFideTvLive,
     icon: Tv,
   };
@@ -281,6 +282,32 @@ export default function Live() {
         
         {/* Main Watch Area */}
         <div className="flex-grow flex flex-col relative z-10 border-r border-white/5 overflow-hidden">
+          {/* FideTV World Cup Campaign Match Banner */}
+          <div className="bg-[#0c0c0c] border-b border-white/5 px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 relative overflow-hidden group/eventticker">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-primary" />
+            <div className="absolute inset-y-0 right-0 w-64 bg-gradient-to-l from-primary/5 to-transparent pointer-events-none" />
+            
+            <div className="flex items-center gap-3 relative z-10">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+              </span>
+              <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/15 shrink-0 self-start md:self-auto">EXCLUSIVE BROADCAST</span>
+                <span className="text-xs font-bold text-white/95 uppercase tracking-wider">ALL WORLD CUP MATCHES — LIVE & FOR FREE</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 ml-auto sm:ml-0 relative z-10">
+              <span className="text-[10px] text-[#e0650d] bg-[#e0650d]/10 border border-[#e0650d]/20 px-2.5 py-1 rounded-lg font-black font-mono">
+                🏆 LIVE MATCH DAY
+              </span>
+              <span className="hidden sm:inline-flex text-[10px] text-primary uppercase font-bold tracking-widest bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-lg">
+                ★ ONLY ON FIDE TV GROUP
+              </span>
+            </div>
+          </div>
+
           {/* Enhanced Signal Indicator Overlay */}
           <div className="absolute top-6 left-6 z-20 flex flex-col gap-2 pointer-events-none drop-shadow-2xl">
             <div className={cn(
