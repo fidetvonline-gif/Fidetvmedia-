@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Download, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { safeLocalStorage } from '@/lib/storage';
 
 export default function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -28,7 +29,7 @@ export default function InstallPrompt() {
       // Stash the event so it can be triggered later.
       setDeferredPrompt(e);
       // Automatically prompt without checking local storage explicitly if we are sure it's valid to prompt
-      if (!localStorage.getItem('installPromptDismissed')) {
+      if (!safeLocalStorage.getItem('installPromptDismissed')) {
         setTimeout(() => setShowPrompt(true), 500);
       }
     };
@@ -36,12 +37,12 @@ export default function InstallPrompt() {
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
     // If iOS, show prompt if not dismissed (iOS doesn't support beforeinstallprompt)
-    if (isIOSDevice && !localStorage.getItem('installPromptDismissed')) {
+    if (isIOSDevice && !safeLocalStorage.getItem('installPromptDismissed')) {
        // Only show after a slight delay to let the app load
        setTimeout(() => {
          setShowPrompt(true);
        }, 500);
-    } else if (!isIOSDevice && !localStorage.getItem('installPromptDismissed')) {
+    } else if (!isIOSDevice && !safeLocalStorage.getItem('installPromptDismissed')) {
        // Always prompt if it's android/web but hasn't dismissed yet
        setTimeout(() => {
          if (!isStandaloneMode) {
@@ -71,7 +72,7 @@ export default function InstallPrompt() {
 
   const handleDismiss = () => {
     setShowPrompt(false);
-    localStorage.setItem('installPromptDismissed', 'true');
+    safeLocalStorage.setItem('installPromptDismissed', 'true');
   };
 
   if (!showPrompt) return null;

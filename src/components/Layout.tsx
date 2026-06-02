@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Menu, X, PlayCircle, Users, Briefcase, Info, Mail, LayoutDashboard, LogOut, User, Headset, Home as HomeIcon, DownloadCloud, Sun, Moon } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { safeLocalStorage } from '@/lib/storage';
 import { cn } from '@/lib/utils';
 import FideTvLogo from '@/components/FideTvLogo';
 import NotificationTray from '@/components/NotificationTray';
@@ -16,7 +17,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [totalVisits, setTotalVisits] = useState<number>(18542);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('fidetv-theme');
+      const saved = safeLocalStorage.getItem('fidetv-theme');
       if (saved === 'light' || saved === 'dark') return saved;
       return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
@@ -43,14 +44,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           .from('site_visits')
           .select('*', { count: 'exact', head: true });
         
-        const localVisits = parseInt(localStorage.getItem('fidetv_local_visits') || '0', 10);
+        const localVisits = parseInt(safeLocalStorage.getItem('fidetv_local_visits') || '0', 10);
         if (!error && count !== null) {
           setTotalVisits(baseVisits + count + localVisits);
         } else {
           setTotalVisits(baseVisits + localVisits);
         }
       } catch (err) {
-        const localVisits = parseInt(localStorage.getItem('fidetv_local_visits') || '1', 10);
+        const localVisits = parseInt(safeLocalStorage.getItem('fidetv_local_visits') || '1', 10);
         setTotalVisits(baseVisits + localVisits);
       }
     };
@@ -62,7 +63,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('fidetv-theme', theme);
+    safeLocalStorage.setItem('fidetv-theme', theme);
   }, [theme]);
 
   useEffect(() => {
@@ -352,7 +353,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <Link to="/policies" className="hover:text-primary transition-colors">Terms</Link>
                 <button 
                   onClick={() => {
-                    localStorage.removeItem('fidetv-tour-seen');
+                    safeLocalStorage.removeItem('fidetv-tour-seen');
                     window.location.reload();
                   }}
                   className="hover:text-primary transition-colors cursor-pointer"

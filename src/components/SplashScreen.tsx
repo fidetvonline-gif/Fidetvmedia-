@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import FideTvLogo from '@/components/FideTvLogo';
+import { safeSessionStorage } from '@/lib/storage';
 
 export default function SplashScreen() {
   const [show, setShow] = useState(true);
 
   useEffect(() => {
-    const hasSeenSplash = sessionStorage.getItem('hasSeenSplash');
+    const hasSeenSplash = safeSessionStorage.getItem('hasSeenSplash');
     if (hasSeenSplash) {
       setShow(false);
       return;
@@ -14,7 +15,7 @@ export default function SplashScreen() {
 
     const timer = setTimeout(() => {
       setShow(false);
-      sessionStorage.setItem('hasSeenSplash', 'true');
+      safeSessionStorage.setItem('hasSeenSplash', 'true');
     }, 2500);
 
     return () => clearTimeout(timer);

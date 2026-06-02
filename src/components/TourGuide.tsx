@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronRight, ChevronLeft, X, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { safeLocalStorage } from '@/lib/storage';
 
 interface Step {
   title: string;
@@ -67,7 +68,7 @@ export default function TourGuide() {
   };
 
   useEffect(() => {
-    const hasSeenTour = localStorage.getItem('fidetv-tour-seen');
+    const hasSeenTour = safeLocalStorage.getItem('fidetv-tour-seen');
     if (!hasSeenTour) {
       const timer = setTimeout(() => setIsVisible(true), 1500);
       return () => clearTimeout(timer);
@@ -100,7 +101,7 @@ export default function TourGuide() {
 
   const handleComplete = () => {
     setIsVisible(false);
-    localStorage.setItem('fidetv-tour-seen', 'true');
+    safeLocalStorage.setItem('fidetv-tour-seen', 'true');
   };
 
   if (!isVisible) return null;

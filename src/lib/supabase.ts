@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import { createClient } from '@supabase/supabase-js';
+import { safeLocalStorage } from './storage';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -21,7 +22,7 @@ export const supabase = createClient(
       persistSession: true,
       detectSessionInUrl: true,
       storageKey: 'fidetv-auth-token',
-      storage: window.localStorage,
+      storage: safeLocalStorage,
       lock: async (name, acquireTimeout, fn) => {
         // Bypass navigator.locks completely in nested iframe development sandboxes 
         // to prevent multi-tab permission limits and lock-stealing error prompts.

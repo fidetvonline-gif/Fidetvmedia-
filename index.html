@@ -4,9 +4,42 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="monetag" content="2d71963211b85402661e72ae5efec30e" />
-    <script src="https://5gvci.com/act/files/tag.min.js?z=11059845" data-cfasync="false" async></script>
-    <script>(function(s){s.dataset.zone='11059847',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-    <script>(function(s){s.dataset.zone='11059908',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+    <script>
+      (function() {
+        const isSandbox = window.location.hostname.includes('run.app') || 
+                          window.location.hostname.includes('localhost') || 
+                          window.location.hostname.includes('127.0.0.1');
+        if (isSandbox) {
+          console.log('Sandbox/Dev environment detected. Bypassing monetization tag scripts to prevent layout/sandbox blocking.');
+          return;
+        }
+
+        // 1. Load the first static script
+        try {
+          var s1 = document.createElement('script');
+          s1.src = "https://5gvci.com/act/files/tag.min.js?z=11059845";
+          s1.async = true;
+          s1.setAttribute('data-cfasync', 'false');
+          document.head.appendChild(s1);
+        } catch (e) {
+          console.warn('Monetag static script loading bypassed:', e);
+        }
+
+        // 2. Load the dynamic zone scripts on DOM completion
+        document.addEventListener('DOMContentLoaded', function() {
+          try {
+            (function(s){s.dataset.zone='11059847',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')));
+          } catch (e) {
+            console.warn('Monetag 11059847 script loading bypassed:', e);
+          }
+          try {
+            (function(s){s.dataset.zone='11059908',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')));
+          } catch (e) {
+            console.warn('Monetag 11059908 script loading bypassed:', e);
+          }
+        });
+      })();
+    </script>
     <meta name="theme-color" content="#000000" />
     <meta name="description" content="A full digital media platform featuring live streaming, media agency services, and an interactive community hub." />
     <meta name="apple-mobile-web-app-capable" content="yes" />

@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { safeLocalStorage, safeSessionStorage } from '@/lib/storage';
 import Layout from '@/components/Layout';
 import Home from '@/pages/Home';
 import About from '@/pages/About';
@@ -34,19 +35,22 @@ function AnalyticsTracker() {
   useEffect(() => {
     const trackVisit = async () => {
       // Use a session storage flag to avoid double counting page refreshes during the same session
-      const sessionTracked = sessionStorage.getItem('fidetv_tracked');
+      const sessionTracked = safeSessionStorage.getItem('fidetv_tracked');
       if (!sessionTracked) {
         // Track locally
         try {
-          const localVisits = parseInt(localStorage.getItem('fidetv_local_visits') || '0', 10);
-          localStorage.setItem('fidetv_local_visits', (localVisits + 1).toString());
+          const localVisits = parseInt(safeLocalStorage.getItem('fidetv_local_visits') || '0', 10);
+          safeLocalStorage.setItem('fidetv_local_visits', (localVisits + 1).toString());
         } catch (e) {
           // ignore localStorage failure in private modes
         }
 
         try {
-          await supabase.from('site_visits').insert({ session_id: crypto.randomUUID() });
-          sessionStorage.setItem('fidetv_tracked', 'true');
+          const sessionId = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') 
+            ? crypto.randomUUID() 
+            : Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+          await supabase.from('site_visits').insert({ session_id: sessionId });
+          safeSessionStorage.setItem('fidetv_tracked', 'true');
         } catch (e) {
           // Silently fail if table doesn't exist yet
         }
