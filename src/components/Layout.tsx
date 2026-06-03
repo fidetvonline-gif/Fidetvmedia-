@@ -136,6 +136,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { name: 'Content', path: '/content', icon: LayoutDashboard, id: 'nav-content' },
     { name: 'Blog', path: '/news', icon: LayoutDashboard },
     { name: 'Community', path: '/community', icon: Users, id: 'nav-community' },
+    { name: 'Spaces', path: '/spaces', icon: Headset },
     { name: 'Services', path: '/services', icon: Briefcase },
     { name: 'About', path: '/about', icon: Info },
     { name: 'Contact', path: '/contact', icon: Mail },
@@ -152,7 +153,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           ? "bg-background backdrop-blur-md border-b border-border-custom py-2 shadow-2xl" 
           : "bg-background backdrop-blur-md border-b border-border-custom py-4"
       )}>
-        <LiveEventBanner />
+        {location.pathname !== '/live' && <LiveEventBanner />}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20 items-center">
             <Link to="/" className="flex items-center space-x-2 group">
@@ -243,35 +244,85 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9995] bg-background/95 backdrop-blur-sm md:hidden pt-24 px-6 flex flex-col gap-6"
+            initial={{ opacity: 0, x: '10%' }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: '10%' }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[9990] bg-background md:hidden pt-40 px-8 flex flex-col gap-8 overflow-y-auto"
           >
-            <button
-               onClick={() => setIsMenuOpen(false)}
-               className="absolute top-6 right-6 p-2 text-foreground"
-            >
-              <X className="w-8 h-8" />
-            </button>
-            
-            <nav className="flex flex-col gap-4">
-              {navLinks.map((link) => (
-                <Link
+            <nav className="flex flex-col gap-6">
+              {navLinks.map((link, idx) => (
+                <motion.div
                   key={link.path}
-                  to={link.path}
-                  onClick={() => setIsMenuOpen(false)}
-                  className="text-2xl font-bold text-foreground hover:text-primary transition-colors"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.03 }}
                 >
-                  {link.name}
-                </Link>
+                  <Link
+                    to={link.path}
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex items-center gap-4 text-3xl font-display font-black text-foreground hover:text-primary transition-all active:scale-95 origin-left"
+                  >
+                    {link.icon && <link.icon className="w-6 h-6 text-primary" />}
+                    {link.name}
+                  </Link>
+                </motion.div>
               ))}
+              
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: navLinks.length * 0.03 }}
+                className="pt-8 mt-8 border-t border-border-custom space-y-6"
+              >
+                {!isStandalone && (
+                  <Link
+                    to="/download"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex items-center gap-4 text-xl font-bold text-foreground/70"
+                  >
+                    <DownloadCloud className="w-6 h-6 text-primary" />
+                    Download App
+                  </Link>
+                )}
+                
+                {user ? (
+                  <>
+                    <Link
+                      to="/profile"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center gap-4 text-xl font-bold text-foreground/70"
+                    >
+                      <User className="w-6 h-6 text-primary" />
+                      My Profile
+                    </Link>
+                    <button
+                      onClick={() => {
+                        handleSignOut();
+                        setIsMenuOpen(false);
+                      }}
+                      className="flex items-center gap-4 text-xl font-bold text-red-500"
+                    >
+                      <LogOut className="w-6 h-6" />
+                      Sign Out
+                    </button>
+                  </>
+                ) : (
+                  <Link
+                    to="/auth"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="w-full py-4 bg-primary text-white font-bold rounded-2xl text-center shadow-lg shadow-primary/20"
+                  >
+                    Sign In to FideTV
+                  </Link>
+                )}
+              </motion.div>
             </nav>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <main className="flex-grow pt-20">
+      <main className={cn("flex-grow pt-36 sm:pt-40 lg:pt-36", location.pathname === '/live' && "pt-36 lg:pt-36")}>
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}

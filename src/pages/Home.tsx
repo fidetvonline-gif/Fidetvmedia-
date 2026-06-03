@@ -47,9 +47,11 @@ export default function Home() {
 
   const [heroImageUrl, setHeroImageUrl] = useState<string>('');
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
-  const [channels, setChannels] = useState<any[]>(DEFAULT_CHANNELS);
+  const [channels, setChannels] = useState<any[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [loadingChannels, setLoadingChannels] = useState(true);
+  const [loadingPortfolio, setLoadingPortfolio] = useState(true);
 
   // Dynamic automatic rotation of channels every 2 minutes (120000ms)
   useEffect(() => {
@@ -100,6 +102,7 @@ export default function Home() {
 
   const fetchTvChannels = async () => {
     try {
+      setLoadingChannels(true);
       const { data, error } = await supabase
         .from('tv_channels')
         .select('*')
@@ -111,7 +114,7 @@ export default function Home() {
           id: ch.id,
           name: ch.name,
           category: ch.category || 'General',
-          thumbnail: ch.thumbnail || 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e',
+          thumbnail: ch.thumbnail,
           url: ch.url,
           icon: Tv,
           description: ch.description || 'Watch live broadcast stream.',
@@ -132,6 +135,8 @@ export default function Home() {
     } catch (err) {
       console.error('Error fetching tv channels:', err);
       setChannels(DEFAULT_CHANNELS);
+    } finally {
+      setLoadingChannels(false);
     }
   };
 
@@ -188,6 +193,7 @@ export default function Home() {
 
   const fetchFeaturedPortfolio = async () => {
     try {
+      setLoadingPortfolio(true);
       const { data, error } = await supabase
         .from('portfolio_items')
         .select('*')
@@ -197,7 +203,7 @@ export default function Home() {
       if (!error && data && data.length > 0) {
         setFeaturedPortfolio(data);
       } else {
-        const defaultShows: unknown = [
+        const defaultShows: any = [
           { id: '1', title: 'Emeritus director of information has a message for us all', category: 'Campus Matters', image_url: `https://img.youtube.com/vi/0D-zn6YAqCY/maxresdefault.jpg`, youtube_id: '0D-zn6YAqCY', description: 'Emeritus director of information has a message for us all - Campus matters', is_featured: true, created_at: '' },
           { id: '2', title: 'If Shallipopi & Davido Catch This Girl...', category: 'Interviews', image_url: `https://img.youtube.com/vi/VyxGvAzBQGY/maxresdefault.jpg`, youtube_id: 'VyxGvAzBQGY', description: 'If Shallipopi & Davido Catch This Girl, You Won\'t Believe What Happens..', is_featured: true, created_at: '' },
           { id: '3', title: 'How can a girl who says she loves me be opening her eyes...', category: 'Love Affairs', image_url: `https://img.youtube.com/vi/w24bsyvgMjs/maxresdefault.jpg`, youtube_id: 'w24bsyvgMjs', description: 'How can a girl who says she loves me be opening her eyes every time we are kissing? - Love affair', is_featured: true, created_at: '' }
@@ -206,6 +212,8 @@ export default function Home() {
       }
     } catch {
       // ignore
+    } finally {
+      setLoadingPortfolio(false);
     }
   };
 
@@ -225,6 +233,11 @@ export default function Home() {
   };
 
   const fetchCertificates = async () => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
+      return;
+    }
+
     const cac = supabase.storage.from('event-thumbnails').getPublicUrl('cac_certificate').data.publicUrl;
     const smedan = supabase.storage.from('event-thumbnails').getPublicUrl('smedan_certificate').data.publicUrl;
       
@@ -482,7 +495,6 @@ export default function Home() {
                 <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent z-10 pointer-events-none opacity-80" />
                 <OptimizedImage 
                   src={heroImageUrl}
-                  fallbackSrc="https://images.unsplash.com/photo-1540747913346-19e32dc3e97e"
                   alt="FideTV Media Agency Creative Hub" 
                   className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-1000"
                 />
@@ -665,9 +677,9 @@ export default function Home() {
         {/* Live Stations Responsive Grid */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {(displayedChannels.length > 0 ? displayedChannels : channels.slice(0, 3)).map((ch, i) => (
+            {(loadingChannels ? Array(3).fill({}) : (displayedChannels.length > 0 ? displayedChannels : channels.slice(0, 3))).map((ch, i) => (
               <motion.div
-                key={ch.id}
+                key={ch.id || i}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1, duration: 0.6 }}
@@ -676,8 +688,8 @@ export default function Home() {
               >
                 {/* Visual Thumbnail with Overlay */}
                 <div className="aspect-video w-full overflow-hidden relative bg-black">
-                  <img 
-                    src={ch.thumbnail || `https://images.unsplash.com/photo-1540747913346-19e32dc3e97e`} 
+                  <OptimizedImage 
+                    src={ch.thumbnail} 
                     alt={ch.name} 
                     className="w-full h-full object-cover opacity-60 group-hover:opacity-85 group-hover:scale-105 transition-transform duration-700 pointer-events-none" 
                   />
@@ -809,7 +821,7 @@ export default function Home() {
         {/* Videos Grid */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {(displayedVideos.length > 0 ? displayedVideos : featuredPortfolio.slice(0, 3)).map((show, i) => (
+            {(loadingPortfolio ? Array(3).fill({}) : (displayedVideos.length > 0 ? displayedVideos : featuredPortfolio.slice(0, 3))).map((show, i) => (
               <motion.div
                 key={show.id || i}
                 initial={{ opacity: 0, y: 30 }}
@@ -820,8 +832,8 @@ export default function Home() {
               >
                 {/* Visual Thumbnail with Overlay */}
                 <div className="aspect-video w-full overflow-hidden relative bg-black">
-                  <img 
-                    src={show.image_url || `https://images.unsplash.com/photo-1523050335392-9beffa5d2205?auto=format&fit=crop&q=80&w=600`} 
+                  <OptimizedImage 
+                    src={show.image_url} 
                     alt={show.title} 
                     className="w-full h-full object-cover opacity-70 group-hover:opacity-90 group-hover:scale-105 transition-transform duration-700 pointer-events-none" 
                   />

@@ -29,6 +29,10 @@ export default function HighPerformancePlayer({
   const hlsRef = useRef<Hls | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [retryMessage, setRetryMessage] = useState<string | null>(null);
+
+  const networkRetryCountRef = useRef(0);
+  const mediaRetryCountRef = useRef(0);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -36,6 +40,9 @@ export default function HighPerformancePlayer({
 
     setLoading(true);
     setError(null);
+    setRetryMessage(null);
+    networkRetryCountRef.current = 0;
+    mediaRetryCountRef.current = 0;
 
     // Clean up previous HLS instance
     if (hlsRef.current) {
@@ -70,6 +77,10 @@ export default function HighPerformancePlayer({
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         setLoading(false);
+        setError(null);
+        setRetryMessage(null);
+        networkRetryCountRef.current = 0;
+        mediaRetryCountRef.current = 0;
         if (playing) {
           video.play().catch(e => {
             console.warn('Auto-play blocked:', e);
@@ -83,12 +94,32 @@ export default function HighPerformancePlayer({
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              console.error('Fatal network error encountered, try to recover');
-              hls.startLoad();
+              if (networkRetryCountRef.current < 5) {
+                networkRetryCountRef.current += 1;
+                const msg = `Reconnecting stream... (Attempt ${networkRetryCountRef.current}/5)`;
+                console.warn(msg);
+                setRetryMessage(msg);
+                hls.startLoad();
+              } else {
+                console.error('Fatal network error: reached maximum retries');
+                setError('The live stream is currently offline or unreachable. Please try another channel.');
+                setRetryMessage(null);
+                onError?.(data);
+                hls.destroy();
+              }
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
-              console.error('Fatal media error encountered, try to recover');
-              hls.recoverMediaError();
+              if (mediaRetryCountRef.current < 3) {
+                mediaRetryCountRef.current += 1;
+                console.warn('Fatal media error encountered, recovering...');
+                hls.recoverMediaError();
+              } else {
+                console.error('Fatal media error: reached maximum retries');
+                setError('Media playback failed. Please try reloading or choose another channel.');
+                setRetryMessage(null);
+                onError?.(data);
+                hls.destroy();
+              }
               break;
             default:
               console.error('Fatal HLS error:', data);
@@ -114,10 +145,12 @@ export default function HighPerformancePlayer({
     } else {
       // Fallback for non-HLS or no support
       video.src = url;
-      video.addEventListener('playing', () => {
+      const handleLoaded = () => {
         setLoading(false);
         onReady?.();
-      });
+      };
+      video.addEventListener('loadedmetadata', handleLoaded);
+      video.addEventListener('playing', handleLoaded);
       video.addEventListener('error', (e) => {
         setError('Playback error');
         onError?.(e);
@@ -156,8 +189,11 @@ export default function HighPerformancePlayer({
       />
       
       {loading && !error && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-10">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm z-10 gap-2">
           <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          {retryMessage && (
+            <p className="text-white/80 text-xs font-mono bg-black/50 px-3 py-1 rounded-full border border-white/5 animate-pulse">{retryMessage}</p>
+          )}
         </div>
       )}
 

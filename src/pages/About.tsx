@@ -12,6 +12,11 @@ export default function About() {
   }, []);
 
   const fetchCertificates = async () => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
+      return;
+    }
+
     // Fetch CAC
     const { data: { publicUrl: cacUrl } } = supabase.storage
       .from('event-thumbnails')

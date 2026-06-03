@@ -14,17 +14,19 @@ export default function OptimizedImage({ src, fallbackSrc, className, alt, ...pr
       {!isLoaded && !error && (
         <div className="absolute inset-0 animate-pulse bg-surface-bright" />
       )}
-      <img
-        src={(error || !src) ? fallbackSrc : src}
-        alt={alt}
-        className={cn(
-          "w-full h-full object-cover transition-opacity duration-500",
-          isLoaded ? "opacity-100" : "opacity-0"
-        )}
-        onLoad={() => setIsLoaded(true)}
-        onError={() => setError(true)}
-        {...props}
-      />
+      {(src || (error && fallbackSrc)) && (
+        <img
+          src={error ? fallbackSrc : (src || fallbackSrc)}
+          alt={alt}
+          className={cn(
+            "w-full h-full object-cover transition-opacity duration-500",
+            isLoaded ? "opacity-100" : "opacity-0"
+          )}
+          onLoad={() => setIsLoaded(true)}
+          onError={() => setError(true)}
+          {...props}
+        />
+      )}
     </div>
   );
 }

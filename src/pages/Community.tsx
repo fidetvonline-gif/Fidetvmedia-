@@ -409,91 +409,101 @@ export default function Community() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 space-y-16">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-16">
       
       {/* Dynamic Masterclass Spotlight Carousel */}
-      <div className="w-full relative rounded-[3rem] overflow-hidden bg-gradient-to-br from-surface to-background border border-border-custom p-8 sm:p-12 shadow-[0_30px_100px_rgba(0,0,0,0.4)]">
-        {/* Glowing Background Orbs */}
-        <div className="absolute top-1/2 -left-16 w-96 h-96 bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
-        <div className="absolute right-0 bottom-0 w-[500px] h-[500px] bg-indigo-500/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="w-full relative rounded-3xl overflow-hidden bg-[#0c0c0c] border border-white/5 p-8 sm:p-12 shadow-[0_24px_60px_rgba(0,0,0,0.8)]">
+        {/* Decorative Grid Mesh & Sporty Lights */}
+        <div className="absolute inset-0 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:16px_16px] opacity-10 pointer-events-none" />
+        <div className="absolute top-1/2 -left-16 w-92 h-92 bg-primary/15 rounded-full blur-[120px] pointer-events-none animate-pulse" />
+        <div className="absolute right-0 bottom-0 w-[450px] h-[450px] bg-[#e0650d]/5 rounded-full blur-[100px] pointer-events-none" />
+        
+        {/* Slanted Sport Ticker Bar accent at bottom */}
+        <div className="absolute bottom-0 inset-x-0 h-1 bg-gradient-to-r from-primary via-[#e0650d] to-primary pointer-events-none" />
 
         <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-12">
           {/* Spotlight Meta Details */}
           <div className="flex-1 space-y-6">
-            <div className="inline-flex items-center gap-2.5 px-4.5 py-2 bg-primary/10 border border-primary/25 rounded-full text-[9px] font-black uppercase text-primary tracking-[0.25em]">
-              <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-              <span>FideTV Creator Spotlight</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-[10px] font-black uppercase text-primary tracking-widest">
+              <Sparkles className="w-3.5 h-3.5 text-primary" />
+              <span>OFFICIAL BROADCAST PARTNER</span>
             </div>
 
             <AnimatePresence mode="wait">
               <motion.div
                 key={spotlight.id}
-                initial={{ opacity: 0, x: -30 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 30 }}
-                transition={{ duration: 0.6 }}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.4 }}
                 className="space-y-4"
               >
-                <div className="flex items-center gap-3">
-                  <h2 className="text-4xl sm:text-5xl font-display font-medium text-foreground tracking-tight">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h2 className="text-3xl sm:text-5xl font-display font-black text-white tracking-tight leading-none uppercase">
                     {spotlight.full_name}
                   </h2>
-                  <CheckCircle2 className="w-6 h-6 text-primary fill-primary/10" />
+                  <div className="flex items-center gap-1 bg-primary/20 text-primary border border-primary/30 px-2 py-0.5 rounded text-[10px] uppercase font-mono font-bold tracking-wider shrink-0">
+                    <ShieldCheck className="w-3 h-3 text-primary" />
+                    <span>VERIFIED PRO</span>
+                  </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-widest text-[#f5f5f5]/65">
-                  <span className="px-3 py-1 bg-white/5 rounded-md border border-white/10">{spotlight.role}</span>
-                  <span className="px-3 py-1 bg-white/5 rounded-md border border-white/10 text-primary">★ {spotlight.specialty}</span>
+                <div className="flex flex-wrap gap-2 text-[10px] font-mono font-bold uppercase tracking-wider text-white/50">
+                  <span className="px-2.5 py-1 bg-white/5 rounded-md border border-white/5">{spotlight.role}</span>
+                  <span className="px-2.5 py-1 bg-[#e0650d]/10 text-[#e0650d] rounded-md border border-[#e0650d]/10">⚽ {spotlight.specialty} Spec</span>
                 </div>
 
-                <p className="text-sm sm:text-base text-text-muted leading-relaxed font-light max-w-2xl">
+                <p className="text-sm sm:text-base text-white/70 leading-relaxed font-normal max-w-2xl bg-white/[0.02] border-l-2 border-primary p-4 rounded-r-xl">
                   "{spotlight.bio}"
                 </p>
 
                 {/* Micro Stats inside Spotlight */}
-                <div className="pt-4 flex items-center gap-8">
+                <div className="pt-2 flex items-center gap-6 sm:gap-10">
                   <div>
-                    <span className="block text-2xl font-bold text-foreground font-mono">{spotlight.followers.toLocaleString()}</span>
-                    <span className="text-[10px] uppercase font-black tracking-wider text-text-muted">Global Connections</span>
+                    <span className="block text-2xl font-black text-white font-mono tracking-tight">{spotlight.followers.toLocaleString()}</span>
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-white/40">Loyal Listeners</span>
                   </div>
-                  <div className="h-8 w-px bg-border-custom" />
+                  <div className="h-8 w-px bg-white/10" />
                   <div>
-                    <span className="block text-2xl font-bold text-foreground font-mono">Verified Partner</span>
-                    <span className="text-[10px] uppercase font-black tracking-wider text-text-muted">Broadcast Tier</span>
+                    <span className="block text-2xl font-black text-white font-mono tracking-tight">STADIUM TIER</span>
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-white/40">Status Class</span>
                   </div>
                 </div>
               </motion.div>
             </AnimatePresence>
 
             {/* Quick Action Navigation Buttons */}
-            <div className="pt-4 flex flex-wrap gap-4">
+            <div className="pt-2 flex flex-wrap gap-3">
               <Link 
                 to={`/profile/${spotlight.username}`}
-                className="inline-flex items-center gap-2.5 px-7 py-3.5 bg-white hover:bg-white/95 text-black font-black uppercase text-[10px] tracking-widest rounded-xl transition-all shadow-xl hover:scale-103 active:scale-97"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-white font-black uppercase text-[10px] tracking-widest rounded-xl transition-all shadow-lg hover:translate-y-[-2px]"
               >
-                <span>Explore Channel</span>
+                <span>View Broadcaster</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
               
-              <FollowButton targetUserId={spotlight.id} className="px-7 py-3.5" />
+              <FollowButton targetUserId={spotlight.id} className="px-6 py-3 border border-white/10 hover:bg-white/5 rounded-xl font-bold uppercase tracking-widest text-[10px] text-white" />
             </div>
           </div>
 
           {/* Visual Showcase Avatar Element with abstract orbital layout */}
-          <div className="relative w-64 h-64 sm:w-80 sm:h-80 shrink-0 flex items-center justify-center">
+          <div className="relative w-64 h-64 sm:w-72 sm:h-72 shrink-0 flex items-center justify-center">
             {/* Ambient Rotational Background Rings */}
-            <div className="absolute inset-0 border border-white/5 rounded-full animate-[spin_40s_linear_infinite]" />
-            <div className="absolute inset-8 border border-dashed border-primary/20 rounded-full animate-[spin_20s_linear_infinite]" />
-            <div className="absolute inset-16 border border-white/5 rounded-full" />
+            <div className="absolute inset-0 border border-white/5 rounded-full animate-[spin_50s_linear_infinite]" />
+            <div className="absolute inset-6 border border-dashed border-primary/20 rounded-full animate-[spin_35s_linear_infinite]" />
+            <div className="absolute inset-12 border border-white/5 rounded-full" />
             
+            {/* Glowing Accent Ring */}
+            <div className="absolute inset-2 bg-gradient-to-tr from-primary/10 to-[#e0650d]/10 rounded-full blur-xl pointer-events-none" />
+
             <AnimatePresence mode="wait">
               <motion.div
                 key={spotlight.id}
-                initial={{ opacity: 0, scale: 0.8, rotate: -10 }}
+                initial={{ opacity: 0, scale: 0.9, rotate: -3 }}
                 animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                exit={{ opacity: 0, scale: 0.8, rotate: 10 }}
-                transition={{ duration: 0.6 }}
-                className="relative z-10 w-44 h-44 sm:w-56 sm:h-56 rounded-full overflow-hidden border-2 border-primary/40 shadow-2xl p-1 bg-surface-bright"
+                exit={{ opacity: 0, scale: 0.9, rotate: 3 }}
+                transition={{ duration: 0.4 }}
+                className="relative z-10 w-44 h-44 sm:w-48 sm:h-48 rounded-full overflow-hidden border-4 border-primary/30 shadow-[0_0_50px_rgba(224,101,13,0.15)] bg-black/60 p-1"
               >
                 <img 
                   src={spotlight.avatar_url} 
@@ -504,14 +514,14 @@ export default function Community() {
             </AnimatePresence>
             
             {/* Auto-rotation Indicators */}
-            <div className="absolute bottom-0 inset-x-0 flex justify-center gap-2 z-20">
+            <div className="absolute bottom-[-10px] inset-x-0 flex justify-center gap-1.5 z-20">
               {spotlitCreators.map((_, i) => (
                 <button
                   key={i}
                   onClick={() => setSpotlightIndex(i)}
                   className={cn(
                     "w-2 h-2 rounded-full transition-all duration-300",
-                    spotlightIndex === i ? "bg-primary w-6" : "bg-white/20"
+                    spotlightIndex === i ? "bg-primary w-5" : "bg-white/10 hover:bg-white/20"
                   )}
                 />
               ))}
@@ -521,97 +531,92 @@ export default function Community() {
       </div>
 
       {/* Main Grid Section */}
-      <div className="flex flex-col lg:flex-row gap-12">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
         
         {/* Left Column: Sub-Communities & Connection Shoutbox */}
-        <div className="flex-grow space-y-12">
+        <div className="lg:col-span-8 space-y-12">
           
           {/* Header Action Section */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-            <div>
-              <h2 className="text-3xl font-display font-bold text-foreground">Explore Sub-Communities</h2>
-              <p className="text-sm text-text-muted mt-1">Discover, create, and share specialized technical workflows</p>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-white/5 pb-6">
+            <div className="space-y-1">
+              <span className="text-[10px] font-mono font-black uppercase text-primary tracking-widest block">MATCHDAY CENTERS</span>
+              <h2 className="text-2xl sm:text-3xl font-display font-black text-white uppercase tracking-tight">Active Fan Hubs</h2>
+              <p className="text-xs text-white/50 mt-1">Join passionate fan lounges, live commentary streams, and expert talk circles</p>
             </div>
 
             {currentUser && (
               <button 
                 onClick={() => setShowCreateModal(true)}
-                className="px-6 py-3 bg-[#111111] hover:bg-neutral-900 border border-white/10 text-white font-black uppercase tracking-wider text-[9px] rounded-xl flex items-center gap-2 transition-all hover:scale-103"
+                className="px-5 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold uppercase tracking-wider text-[10px] rounded-xl flex items-center gap-2 transition-all hover:scale-[1.02]"
               >
                 <Plus className="w-4 h-4 text-primary" />
-                <span>Create New Community Hub</span>
+                <span>Lobby Creative Group</span>
               </button>
             )}
           </div>
 
-          {/* Search bar inside Explore */}
+          {/* Search bar inside Explore with Sporty Border */}
           <div className="relative group">
-            <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted group-focus-within:text-primary transition-colors" />
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 group-focus-within:text-primary transition-colors" />
             <input 
               type="text" 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Filter specialized groups (e.g. Cinema Enthusiasts, Live Broadcasters)..."
-              className="w-full bg-surface-bright border border-border-custom rounded-2xl pl-14 pr-6 py-4.5 text-sm placeholder-text-muted focus:outline-none focus:border-primary/20 transition-all shadow-inner"
+              placeholder="Search tournaments, leagues, teams or broadcasters (e.g. England vs Germany)..."
+              className="w-full bg-[#0c0c0c] border border-white/5 focus:border-primary/20 rounded-2xl pl-12 pr-6 py-4 text-sm text-white placeholder-white/30 focus:outline-none transition-all shadow-2xl"
             />
           </div>
 
           {/* Communities Content */}
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="h-64 bg-surface rounded-3xl animate-pulse border border-border-custom" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="h-44 bg-[#0a0a0a] rounded-2xl animate-pulse border border-white/5" />
               ))}
             </div>
           ) : filteredCommunities.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               {filteredCommunities.map((c, idx) => (
                 <motion.div
                   key={c.id}
-                  initial={{ opacity: 0, y: 30 }}
+                  initial={{ opacity: 0, y: 15 }}
                   whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: Math.min(idx, 4) * 0.05 }}
+                  transition={{ duration: 0.3, delay: Math.min(idx, 4) * 0.05 }}
                   viewport={{ once: true }}
                 >
                   <Link to={`/community/${c.id}`} className="block h-full">
-                    <div className="group h-full bg-surface-bright/40 rounded-3xl p-6 border border-border-custom hover:border-primary/20 transition-all duration-300 flex flex-col justify-between hover:shadow-xl hover:shadow-black/20">
+                    <div className="group h-full bg-[#0d0d0d] rounded-2xl p-5 border border-white/5 hover:border-primary/20 transition-all duration-300 flex flex-col justify-between hover:shadow-[0_12px_24px_rgba(0,0,0,0.6)]">
                       <div className="space-y-4">
                         <div className="flex items-start justify-between">
-                          <div className="w-14 h-14 rounded-2xl border border-border-custom bg-surface overflow-hidden flex items-center justify-center shrink-0">
+                          <div className="w-12 h-12 rounded-xl border border-white/5 bg-[#121212] overflow-hidden flex items-center justify-center shrink-0">
                             {c.image_url ? (
                               <img src={c.image_url} alt={c.name} className="w-full h-full object-cover" />
                             ) : (
-                              <Users className="w-6 h-6 text-primary" />
+                              <Users className="w-5 h-5 text-primary" />
                             )}
                           </div>
                           
-                          <div className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-full text-[8px] font-black uppercase text-white/50 tracking-wider border border-white/5">
-                            <Globe className="w-2.5 h-2.5 text-primary" />
-                            <span>Public Hub</span>
+                          <div className="flex items-center gap-1.5 px-2 py-0.5 bg-primary/15 text-primary border border-primary/20 rounded text-[9px] font-bold uppercase tracking-wider">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />
+                            <span>LIVE DISCUSSIONS</span>
                           </div>
                         </div>
 
-                        <div className="space-y-1.5">
-                          <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors">{c.name}</h3>
-                          <p className="text-xs text-text-muted leading-relaxed line-clamp-2 font-light">{c.description}</p>
+                        <div className="space-y-1">
+                          <h3 className="text-base font-bold text-white group-hover:text-primary transition-colors">{c.name}</h3>
+                          <p className="text-xs text-white/50 leading-relaxed line-clamp-2 font-normal">{c.description || 'Global sport commentary space open for fan feedback & stats sharing.'}</p>
                         </div>
                       </div>
 
-                      <div className="pt-5 border-t border-border-custom/50 mt-6 flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <div className="flex -space-x-2">
-                            {[1, 2].map(i => (
-                              <div key={i} className="w-6 h-6 rounded-full border border-surface bg-surface-bright flex items-center justify-center text-[8px]">
-                                <User className="w-3.5 h-3.5 text-white/40" />
-                              </div>
-                            ))}
-                          </div>
-                          <span className="text-[9px] font-black uppercase text-text-muted tracking-wider">Active Collective</span>
-                        </div>
+                      <div className="pt-4 border-t border-white/5 mt-4 flex items-center justify-between">
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-white/40">
+                          🔥 {Math.floor(Math.random() * 120 + 15)} Fans Active
+                        </span>
 
-                        <div className="w-9 h-9 rounded-full bg-foreground/5 group-hover:bg-primary group-hover:text-white flex items-center justify-center text-foreground transition-all">
-                          <ArrowRight className="w-4 h-4 group-hover:-rotate-45 transition-transform" />
-                        </div>
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-primary flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                          <span>Enter Hub</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </span>
                       </div>
                     </div>
                   </Link>
@@ -619,29 +624,32 @@ export default function Community() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-20 bg-surface rounded-3xl border border-border-custom">
-              <MessageSquare className="w-12 h-12 text-text-muted mx-auto mb-4" />
-              <h3 className="text-lg font-bold text-foreground">No matches found</h3>
-              <p className="text-xs text-text-muted mt-1">Try resetting your search input or create a custom collective.</p>
+            <div className="text-center py-16 bg-[#0a0a0a] rounded-2xl border border-white/5">
+              <MessageSquare className="w-10 h-10 text-white/20 mx-auto mb-3" />
+              <h3 className="text-base font-bold text-white uppercase tracking-tight">No match lounges found</h3>
+              <p className="text-xs text-white/50 mt-1">Try searching a different league name or set up a custom lobby now.</p>
             </div>
           )}
 
           {/* Social Connectivity Board: "Shoutbox" / "Creator Pulse" */}
-          <div className="bg-surface rounded-[2.5rem] border border-border-custom p-8 space-y-8">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="bg-[#0b0b0b] rounded-2xl border border-white/5 p-6 sm:p-8 space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-white/5 pb-5">
               <div className="space-y-1">
-                <span className="text-[9px] font-black uppercase text-primary tracking-widest block">Broadcast Shouts</span>
-                <h3 className="text-2xl font-display font-medium text-foreground">Creator Pulse Notice Wall</h3>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-primary animate-ping" />
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-primary">REAL-TIME MEMBER NEWSFEED</span>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-display font-black text-white uppercase tracking-tight">Soccer Fan Noticeboard</h3>
               </div>
-              <p className="text-xs text-text-muted max-w-sm">
-                Share status milestones, request creative feedback, or tag partners live.
+              <p className="text-xs text-white/40 max-w-sm sm:text-right">
+                Post ticket info, soccer debates, play-by-plays or tag matches live.
               </p>
             </div>
 
             {/* Post Shout Input Form */}
             {currentUser ? (
-              <form onSubmit={handlePostShout} className="flex gap-4">
-                <div className="w-10 h-10 rounded-full border border-border-custom bg-surface overflow-hidden shrink-0">
+              <form onSubmit={handlePostShout} className="flex gap-4 bg-[#0e0e0e] border border-white/5 p-4 rounded-xl">
+                <div className="w-10 h-10 rounded-xl border border-white/5 bg-[#141414] overflow-hidden shrink-0">
                   {currentUserProfile?.avatar_url ? (
                     <img src={currentUserProfile.avatar_url} alt="You" className="w-full h-full object-cover" />
                   ) : (
@@ -658,37 +666,37 @@ export default function Community() {
                       maxLength={160}
                       value={newShoutContent}
                       onChange={(e) => setNewShoutContent(e.target.value)}
-                      placeholder="Write a social shoutout tag... (max 160 chars)"
-                      className="w-full bg-[#111111] pr-12 pl-5 py-3.5 rounded-xl border border-white/10 text-sm text-white focus:outline-none focus:border-primary/40 focus:bg-[#151515] transition-all"
+                      placeholder="Comment on live matches, schedules, or share thoughts... (max 160)"
+                      className="w-full bg-[#050505] pr-12 pl-4 py-3 rounded-xl border border-white/5 text-xs text-white focus:outline-none focus:border-primary/20 transition-all placeholder-white/20"
                     />
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] text-[#ffffff]/35 font-mono">
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] text-white/40 font-mono">
                       {newShoutContent.length}/160
                     </div>
                   </div>
 
                   <div className="flex justify-between items-center">
-                    <span className="text-[9px] text-text-muted">Posting on global bulletin</span>
+                    <span className="text-[9px] font-mono text-white/30 tracking-tight">Broadcasting on FideTV News ticker</span>
                     <button
                       type="submit"
                       disabled={!newShoutContent.trim()}
-                      className="px-5 py-2 bg-primary hover:scale-[1.03] active:scale-[0.97] transition-all rounded-lg text-white font-black text-[9px] uppercase tracking-widest flex items-center gap-2"
+                      className="px-4 py-2 bg-primary hover:bg-primary/95 transition-all rounded-lg text-white font-black text-[9px] uppercase tracking-widest flex items-center gap-1.5"
                     >
-                      <span>Share Shout</span>
+                      <span>SEND BROADCAST</span>
                       <Send className="w-3 h-3" />
                     </button>
                   </div>
                 </div>
               </form>
             ) : (
-              <div className="p-6 bg-white/5 rounded-2xl border border-white/5 text-center flex flex-col items-center justify-center gap-4">
-                <p className="text-xs text-text-muted leading-relaxed font-light max-w-md">
-                   You are currently viewing as guest. Connect your verified profile to pitch concepts, leaves notes, and engage with collaborators on the notice wall.
+              <div className="p-6 bg-white/[0.02] rounded-xl border border-white/5 text-center flex flex-col items-center justify-center gap-3">
+                <p className="text-xs text-white/50 leading-relaxed max-w-md font-light">
+                  Join the football community! Log in to post streaming updates, debate teams, and heart other fans posts on the live noticeboard.
                 </p>
                 <Link
                   to="/auth"
-                  className="px-6 py-2.5 bg-primary rounded-lg text-white font-black uppercase text-[9px] tracking-widest hover:scale-105 active:scale-95 transition-all shadow-md shadow-primary/10"
+                  className="px-5 py-2.5 bg-primary hover:bg-primary/95 rounded-lg text-white font-black uppercase text-[10px] tracking-widest transition-all shadow-md"
                 >
-                  Join Connection Wall
+                  Log In & Publish Shout
                 </Link>
               </div>
             )}
@@ -705,28 +713,28 @@ export default function Community() {
                   return (
                     <motion.div
                       key={shout.id}
-                      initial={{ opacity: 0, scale: 0.95 }}
+                      initial={{ opacity: 0, scale: 0.98 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      className="p-5 rounded-2xl bg-surface-bright border border-border-custom relative hover:border-white/10 transition-colors flex flex-col justify-between group/shout"
+                      exit={{ opacity: 0, scale: 0.98 }}
+                      className="p-5 rounded-xl bg-[#0d0d0d] border border-white/5 relative hover:border-white/10 transition-all flex flex-col justify-between group/shout"
                     >
                       <div className="space-y-3">
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-8 h-8 rounded-full border border-border-custom overflow-hidden bg-surface shrink-0">
+                            <div className="w-8 h-8 rounded-lg border border-white/5 overflow-hidden bg-[#161616] shrink-0">
                               {shout.avatar_url ? (
                                 <img src={shout.avatar_url} alt={shout.username} className="w-full h-full object-cover" />
                               ) : (
-                                <User className="w-4 h-4 text-text-muted mx-auto my-auto" />
+                                <User className="w-4 h-4 text-white/30 mx-auto my-auto" />
                               )}
                             </div>
                             
                             <div className="flex flex-col min-w-0">
-                              <div className="flex items-center gap-1">
-                                <span className="text-xs font-bold text-foreground truncate">{shout.full_name}</span>
-                                {shout.is_verified && <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />}
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-bold text-white truncate">{shout.full_name}</span>
+                                {shout.is_verified && <CheckCircle2 className="w-3 h-3 text-primary shrink-0" />}
                               </div>
-                              <span className="text-[9px] text-[#ffffff]/35 uppercase tracking-widest truncate">@{shout.username}</span>
+                              <span className="text-[9px] text-white/30 font-mono tracking-wider truncate">@{shout.username}</span>
                             </div>
                           </div>
 
@@ -734,14 +742,14 @@ export default function Community() {
                             <div className="flex items-center gap-1 opacity-0 group-hover/shout:opacity-100 transition-opacity shrink-0">
                               <button 
                                 onClick={() => handleStartEditShout(shout.id, shout.content)}
-                                className="p-1 text-foreground/40 hover:text-primary transition-colors cursor-pointer"
+                                className="p-1 text-white/40 hover:text-primary transition-colors cursor-pointer"
                                 title="Edit Shout"
                               >
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
                               <button 
                                 onClick={() => handleDeleteShout(shout.id)}
-                                className="p-1 text-foreground/40 hover:text-red-500 transition-colors cursor-pointer"
+                                className="p-1 text-white/40 hover:text-red-500 transition-colors cursor-pointer"
                                 title="Delete Shout"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -757,18 +765,18 @@ export default function Community() {
                               onChange={(e) => setEditingShoutContent(e.target.value)}
                               maxLength={160}
                               rows={2}
-                              className="w-full bg-[#111111] p-3.5 rounded-xl border border-white/10 text-xs text-white focus:outline-none focus:border-primary/40 focus:bg-[#151515] transition-all"
+                              className="w-full bg-[#111111] p-3 text-xs text-white focus:outline-none focus:border-primary/20 rounded-xl transition-all"
                             />
                             <div className="flex justify-end gap-1.5">
                               <button 
                                 onClick={() => setEditingShoutId(null)}
-                                className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider text-foreground/40 hover:text-foreground cursor-pointer"
+                                className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider text-white/40 hover:text-white cursor-pointer"
                               >
                                 Cancel
                               </button>
                               <button 
                                 onClick={() => handleSaveEditShout(shout.id)}
-                                className="px-3 py-1 bg-primary hover:bg-primary/90 text-white rounded text-[8px] font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer"
+                                className="px-3 py-1 bg-primary hover:bg-primary/95 text-white rounded text-[8px] font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer"
                               >
                                 <Check className="w-2.5 h-2.5" />
                                 <span>Save</span>
@@ -776,25 +784,25 @@ export default function Community() {
                             </div>
                           </div>
                         ) : (
-                          <p className="text-xs text-foreground/80 leading-relaxed font-light italic">
+                          <p className="text-xs text-white/80 leading-relaxed font-normal italic">
                             "{shout.content}"
                           </p>
                         )}
                       </div>
 
-                      <div className="pt-4 mt-4 border-t border-border-custom flex justify-between items-center">
-                        <span className="text-[8px] text-text-muted font-mono uppercase">
-                          {shout.role_badge || "⚡ Producer"}
+                      <div className="pt-3 mt-3 border-t border-white/5 flex justify-between items-center">
+                        <span className="text-[9px] text-[#e0650d] bg-[#e0650d]/5 border border-[#e0650d]/10 px-2 py-0.5 rounded font-mono font-bold">
+                          {shout.role_badge || "⚡ FAN OPINION"}
                         </span>
 
                         <button
                           onClick={() => handleLikeShout(shout.id)}
                           className={cn(
-                            "flex items-center gap-1 px-3 py-1 bg-white/5 hover:bg-white/10 rounded-full text-[9px] font-bold tracking-widest transition-colors",
-                            shout.has_liked ? "text-primary bg-primary/10 border border-primary/20" : "text-white/40 border border-transparent"
+                            "flex items-center gap-1 px-2.5 py-1 bg-white/5 hover:bg-white/10 rounded-full text-[9px] font-bold tracking-wider transition-all",
+                            shout.has_liked ? "text-primary bg-primary/10 border border-primary/25" : "text-white/40 border border-transparent"
                           )}
                         >
-                          <Heart className={cn("w-3 h-3 transition-transform", shout.has_liked ? "fill-primary scale-120 animate-pulse text-primary" : "")} />
+                          <Heart className={cn("w-3 h-3 transition-transform", shout.has_liked ? "fill-primary text-primary" : "")} />
                           <span>{shout.likes}</span>
                         </button>
                       </div>
@@ -807,99 +815,102 @@ export default function Community() {
         </div>
 
         {/* Right Sticky Sidebar Column */}
-        <div className="w-full lg:w-80 space-y-8 shrink-0">
+        <div className="lg:col-span-4 space-y-8 lg:sticky lg:top-24">
           
-          {/* Trends panel */}
-          <div className="glass rounded-[2rem] p-8 space-y-6">
-            <h3 className="font-display font-bold text-foreground text-base flex items-center space-x-2">
+          {/* Trends panel with Sporty elements */}
+          <div className="bg-[#0b0b0b] rounded-2xl p-6 border border-white/5 space-y-5 shadow-xl">
+            <h3 className="font-display font-black text-white text-sm uppercase tracking-wide flex items-center space-x-2 border-b border-white/5 pb-3">
               <TrendingUp className="w-4 h-4 text-primary" />
-              <span>Collective Analytics</span>
+              <span>STADIUM HOT TOPICS</span>
             </h3>
             
             <div className="space-y-4">
               {[
-                { tag: '#AfricaLiveBroadcasting', posts: '2.4K discussions' },
-                { tag: '#EditMastersWeekly', posts: '1.2K logs' },
-                { tag: '#MediaInfrastructure', posts: '840 topics' }
+                { tag: '#WorldCupLiveFree', posts: '12.8K fans shouting' },
+                { tag: '#GoldenBootRace2026', posts: '9.4K votes' },
+                { tag: '#FideTvTacticsRoom', posts: '4.2K matches' },
+                { tag: '#NoSubscriptionStreaming', posts: '3.1K streams' }
               ].map(item => (
-                <div key={item.tag} className="group cursor-pointer">
-                  <p className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">{item.tag}</p>
-                  <p className="text-[10px] text-text-muted uppercase font-black tracking-widest mt-0.5">{item.posts}</p>
+                <div key={item.tag} className="group cursor-pointer p-2 rounded-lg hover:bg-white/[0.02] border border-transparent hover:border-white/5 transition-all">
+                  <p className="text-xs font-bold text-white group-hover:text-primary transition-colors">{item.tag}</p>
+                  <p className="text-[9px] font-mono text-white/30 uppercase mt-0.5">{item.posts}</p>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Ad banner Slot */}
-          <div className="py-2">
+          <div className="py-1">
              <AdBanner placement="Community Sidebar" />
           </div>
 
           {/* Social Explorer Spotlights (Who To Follow) with professional filtration tabs */}
-          <div className="glass rounded-[2rem] p-8 space-y-6">
+          <div className="bg-[#0b0b0b] rounded-2xl p-6 border border-white/5 space-y-5 shadow-xl">
             <div className="space-y-1">
-              <h3 className="font-display font-bold text-foreground text-base flex items-center space-x-2">
+              <h3 className="font-display font-black text-white text-sm uppercase tracking-wide flex items-center space-x-2">
                 <Users className="w-4 h-4 text-primary" />
-                <span>Connect with Pioneers</span>
+                <span>Pioneer Pitch Users</span>
               </h3>
-              <p className="text-[9px] uppercase font-black tracking-wider text-text-muted">Filtered Spotlight Directory</p>
+              <p className="text-[9px] uppercase font-bold tracking-widest text-[#e0650d]">Verified Broadcasters</p>
             </div>
 
             {/* Categorization controls */}
-            <div className="flex flex-wrap gap-1 p-0.5 bg-black/40 rounded-xl border border-white/5 shrink-0 select-none">
+            <div className="grid grid-cols-4 gap-1 p-1 bg-black rounded-lg border border-white/5 shrink-0 select-none">
               {(['all', 'broadcasters', 'visual', 'strategists'] as const).map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
                   className={cn(
-                    "flex-1 py-1 px-1.5 text-[8px] font-black uppercase tracking-wider rounded-lg transition-all",
-                    activeCategory === cat ? "bg-primary text-white shadow" : "text-white/40 hover:text-white"
+                    "py-1 text-[8px] font-bold uppercase tracking-wider rounded transition-all truncate text-center",
+                    activeCategory === cat ? "bg-primary text-white shadow-md font-black" : "text-white/40 hover:text-white"
                   )}
                 >
-                  {cat === 'all' ? 'All' : cat === 'broadcasters' ? 'Anchor' : cat === 'visual' ? 'Media' : 'Director'}
+                  {cat === 'all' ? 'All' : cat === 'broadcasters' ? 'Anchor' : cat === 'visual' ? 'Media' : 'Advisor'}
                 </button>
               ))}
             </div>
 
-            <div className="space-y-4 pt-2">
+            <div className="space-y-3.5 pt-1.5">
               {filteredSuggestedUsers.length > 0 ? (
                 filteredSuggestedUsers.slice(0, 5).map(u => (
-                  <div key={u.id} className="flex items-center justify-between group gap-3">
-                    <Link to={`/profile/${u.username}`} className="flex items-center space-x-3 overflow-hidden min-w-0">
-                      <div className="w-9 h-9 rounded-full bg-surface-bright flex items-center justify-center shrink-0 border border-border-custom overflow-hidden">
+                  <div key={u.id} className="flex items-center justify-between group gap-3 border-b border-white/[0.02] pb-3 last:border-0 last:pb-0">
+                    <Link to={`/profile/${u.username}`} className="flex items-center space-x-2.5 overflow-hidden min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-[#141414] flex items-center justify-center shrink-0 border border-white/5 overflow-hidden">
                         {u.avatar_url ? (
                            <img src={u.avatar_url} alt={u.username} className="w-full h-full object-cover" />
                         ) : (
-                           <User className="w-4 h-4 text-text-muted" />
+                           <User className="w-4 h-4 text-white/30" />
                         )}
                       </div>
                       <div className="flex flex-col min-w-0">
                         <div className="flex items-center gap-1">
-                          <span className="text-xs font-bold text-foreground truncate group-hover:text-primary transition-colors">{u.full_name || u.username}</span>
-                          {u.is_verified && <CheckCircle2 className="w-3 text-primary shrink-0" />}
+                          <span className="text-xs font-bold text-white truncate group-hover:text-primary transition-colors">{u.full_name || u.username}</span>
+                          {u.is_verified && <CheckCircle2 className="w-3 h-3 text-primary shrink-0" />}
                         </div>
-                        <span className="text-[9px] text-text-muted uppercase tracking-widest truncate">@{u.username}</span>
+                        <span className="text-[9px] text-white/40 font-mono tracking-wider truncate">@{u.username}</span>
                       </div>
                     </Link>
                     
-                    <FollowButton targetUserId={u.id} className="scale-75 origin-right shrink-0" />
+                    <FollowButton targetUserId={u.id} className="scale-75 origin-right shrink-0 py-1.5 px-3 uppercase text-[9px] tracking-widest bg-primary font-black text-white rounded-md" />
                   </div>
                 ))
               ) : (
-                <p className="text-[10px] text-text-muted italic text-center">No pioneers matching category found.</p>
+                <p className="text-[10px] text-white/30 italic text-center">No pioneers matching category found.</p>
               )}
             </div>
           </div>
 
           {/* Invitation banner card */}
-          <div className="p-8 bg-primary/10 border border-primary/20 rounded-[2rem] space-y-4">
-             <div className="w-10 h-10 bg-primary/20 border border-primary/30 rounded-xl flex items-center justify-center text-primary mb-6">
-               <Award className="w-5 h-5" />
+          <div className="p-6 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-2xl space-y-4">
+             <div className="w-9 h-9 bg-primary/20 border border-primary/30 rounded-xl flex items-center justify-center text-primary">
+               <Award className="w-5 h-5 text-primary" />
              </div>
-             <h4 className="text-primary font-bold text-xs uppercase tracking-widest leading-none">Become a Partner</h4>
-             <p className="text-[11px] text-text-muted leading-relaxed font-light">
-               Approved Broadcasters get special verified badges, dedicated custom streaming links, and custom analytics widgets.
-             </p>
+             <div className="space-y-1">
+               <h4 className="text-primary font-black text-xs uppercase tracking-wider">Become a Sport Partner</h4>
+               <p className="text-[11px] text-white/60 leading-relaxed font-light">
+                 Approved premium sports broadcast entities receive priority channels, full analytics grids, and verification locks.
+               </p>
+             </div>
              <button 
                onClick={() => {
                  if (!currentUser) {
@@ -910,9 +921,10 @@ export default function Community() {
                    setShowPartnerModal(true);
                  }
                }} 
-               className="inline-block pt-3 text-[9px] font-black text-white hover:text-primary uppercase tracking-[0.2em] transition-colors cursor-pointer text-left"
+               className="inline-flex items-center gap-1.5 text-[9px] font-black text-white hover:text-primary uppercase tracking-widest transition-colors cursor-pointer text-left"
              >
-               Submit Proposal &rarr;
+               <span>Launch Proposal</span>
+               <ArrowRight className="w-3.5 h-3.5" />
              </button>
           </div>
         </div>

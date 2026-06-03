@@ -639,16 +639,25 @@ export default function Admin() {
   };
 
   const fetchCertificates = async () => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
+      return;
+    }
+
     const cac = supabase.storage.from('event-thumbnails').getPublicUrl('cac_certificate').data.publicUrl;
     const smedan = supabase.storage.from('event-thumbnails').getPublicUrl('smedan_certificate').data.publicUrl;
     
-    const [cacRes, smedanRes] = await Promise.all([
-      fetch(cac, { method: 'HEAD' }),
-      fetch(smedan, { method: 'HEAD' })
-    ]);
+    try {
+      const [cacRes, smedanRes] = await Promise.all([
+        fetch(cac, { method: 'HEAD' }).catch(() => null),
+        fetch(smedan, { method: 'HEAD' }).catch(() => null)
+      ]);
 
-    if (cacRes.ok) setCertUrl(cac + '?t=' + Date.now());
-    if (smedanRes.ok) setSmedanUrl(smedan + '?t=' + Date.now());
+      if (cacRes && cacRes.ok) setCertUrl(cac + '?t=' + Date.now());
+      if (smedanRes && smedanRes.ok) setSmedanUrl(smedan + '?t=' + Date.now());
+    } catch (e) {
+      console.warn('Failed to verify certificates', e);
+    }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, bucket: string, path: string, callback: (url: string) => void) => {

@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import ReactPlayer from 'react-player';
+import OptimizedImage from '@/components/OptimizedImage';
 
 import HighPerformancePlayer from '@/components/HighPerformancePlayer';
 
@@ -47,7 +48,7 @@ export default function Content() {
         id: ev.id,
         title: ev.title,
         category: 'Live Events',
-        image: ev.thumbnail_url || (ytId ? `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg` : 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&q=80&w=2070'),
+        image: ev.thumbnail_url,
         type: 'video',
         youtube_id: ytId || ev.youtube_id, // keep original as fallback for URL
         stream_url: ev.stream_url,
@@ -61,7 +62,7 @@ export default function Content() {
         id: item.id,
         title: item.title,
         category: item.category || 'General Content',
-        image: item.image_url || (ytId ? `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg` : 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&q=80&w=2070'),
+        image: item.image_url,
         type: 'video',
         youtube_id: ytId || item.youtube_id,
         stream_url: item.video_url,
@@ -153,7 +154,7 @@ export default function Content() {
                   className="group"
                 >
                   <div className="relative aspect-[4/5] rounded-[3rem] overflow-hidden bg-surface mb-8 border border-border-custom shadow-lg">
-                    <img 
+                    <OptimizedImage 
                       src={item.image} 
                       alt={item.title} 
                       className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 opacity-70 group-hover:opacity-40"
