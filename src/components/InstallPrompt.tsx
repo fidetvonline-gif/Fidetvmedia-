@@ -7,21 +7,27 @@ import { safeLocalStorage } from '@/lib/storage';
 export default function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showPrompt, setShowPrompt] = useState(false);
+  const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+  const [isSafari, setIsSafari] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Detect Safari
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    const isSafariBrowser = /safari/.test(userAgent) && !/chrome|crios|crmo|edge|opr|opios|fb_iab|instagram/.test(userAgent);
+    setIsSafari(isSafariBrowser);
+    
+    // Detect iOS
+    const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
+    setIsIOS(isIOSDevice);
+
     // Check if already installed or in standalone mode
     const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches 
       || (window.navigator as any).standalone 
       || document.referrer.includes('android-app://');
 
     if (isStandaloneMode) return;
-
-    // Detect iOS
-    const userAgent = window.navigator.userAgent.toLowerCase();
-    const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
-    setIsIOS(isIOSDevice);
 
     const handleBeforeInstallPrompt = (e: Event) => {
       // Prevent the mini-infobar from appearing on mobile
@@ -65,8 +71,7 @@ export default function InstallPrompt() {
       }
       setDeferredPrompt(null);
     } else {
-      navigate('/download');
-      setShowPrompt(false);
+      setIsTutorialOpen(true);
     }
   };
 
@@ -75,41 +80,128 @@ export default function InstallPrompt() {
     safeLocalStorage.setItem('installPromptDismissed', 'true');
   };
 
-  if (!showPrompt) return null;
-
   return (
-    <AnimatePresence>
-      {showPrompt && (
-        <motion.div
-          initial={{ opacity: 0, y: 50, scale: 0.9 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 50, scale: 0.9 }}
-          className="fixed bottom-6 left-6 right-6 md:left-auto md:w-80 shadow-xl z-[9999]"
-        >
-          <div className="bg-[#0f0f0f] p-4 rounded-3xl border border-white/10 shadow-2xl flex flex-col gap-3 relative cursor-pointer hover:bg-[#151515] transition-colors" onClick={handleInstall}>
-            <button 
-              onClick={(e) => { e.stopPropagation(); handleDismiss(); }}
-              className="absolute -top-2 -right-2 bg-gray-800 text-gray-400 hover:text-white rounded-full p-1.5 transition-colors shadow-lg border border-white/10"
-            >
-              <X className="w-3 h-3" />
-            </button>
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-primary/20 flex flex-col items-center justify-center flex-shrink-0 text-primary">
-                <Download className="w-5 h-5 mb-0.5" />
-                <span className="text-[8px] font-black uppercase tracking-widest leading-none">App</span>
-              </div>
-              <div className="flex-1 pr-2">
-                <h4 className="text-white font-bold text-sm leading-tight mb-0.5">
-                  Get the App
-                </h4>
-                <p className="text-gray-400 text-xs leading-tight line-clamp-2">
-                  Fast, secure, & live streaming directly from your home screen.
-                </p>
+    <>
+      <AnimatePresence>
+        {showPrompt && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 50, scale: 0.9 }}
+            className="fixed bottom-6 left-6 right-6 md:left-auto md:w-80 shadow-xl z-[9999]"
+          >
+            <div className="bg-[#0f0f0f] p-4 rounded-3xl border border-white/10 shadow-2xl flex flex-col gap-3 relative cursor-pointer hover:bg-[#151515] transition-colors" onClick={handleInstall}>
+              <button 
+                onClick={(e) => { e.stopPropagation(); handleDismiss(); }}
+                className="absolute -top-2 -right-2 bg-gray-800 text-gray-400 hover:text-white rounded-full p-1.5 transition-colors shadow-lg border border-white/10"
+              >
+                <X className="w-3 h-3" />
+              </button>
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-primary/20 flex flex-col items-center justify-center flex-shrink-0 text-primary">
+                  <Download className="w-5 h-5 mb-0.5" />
+                  <span className="text-[8px] font-black uppercase tracking-widest leading-none">App</span>
+                </div>
+                <div className="flex-1 pr-2">
+                  <h4 className="text-white font-bold text-sm leading-tight mb-0.5">
+                    Get the App
+                  </h4>
+                  <p className="text-gray-400 text-xs leading-tight line-clamp-2">
+                    Fast, secure, & live streaming directly from your home screen.
+                  </p>
+                </div>
               </div>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+      {/* Guided Tutorial Modal */}
+      <AnimatePresence>
+        {isTutorialOpen && (
+          <div className="fixed inset-0 z-[10001] flex items-center justify-center px-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsTutorialOpen(false)}
+              className="absolute inset-0 bg-black/90 backdrop-blur-xl" 
+            />
+            
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 30 }}
+              className="relative w-full max-w-xl bg-surface border border-white/10 rounded-[3rem] p-10 shadow-3xl overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary/50 via-primary to-primary/50" />
+              
+              <div className="flex justify-between items-start mb-10">
+                 <div className="space-y-2">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 text-primary rounded-full text-[10px] font-black uppercase tracking-widest">
+                       Guided Setup
+                    </div>
+                    <h3 className="text-3xl font-display font-bold text-white tracking-tight">How to Install FideTV</h3>
+                    <p className="text-gray-500 text-sm">Follow these simple steps to add FideTV to your home screen.</p>
+                 </div>
+                 <button 
+                   onClick={() => setIsTutorialOpen(false)}
+                   className="p-3 hover:bg-white/5 rounded-full transition-colors"
+                 >
+                    <X className="w-8 h-8 text-gray-400" />
+                 </button>
+              </div>
+
+              <div className="grid gap-8">
+                 {isSafari || isIOS ? (
+                   // Safari/iOS Instructions
+                   <div className="space-y-8">
+                      <div className="flex items-start gap-6 group">
+                         <div className="w-14 h-14 shrink-0 bg-white/5 rounded-2xl flex items-center justify-center text-2xl font-black text-primary border border-white/10 group-hover:bg-primary/20 transition-colors">1</div>
+                         <div className="space-y-2">
+                            <p className="text-white font-bold text-lg">Tap the Share Button</p>
+                            <p className="text-gray-500 text-sm leading-relaxed">Look for the icon at the bottom of your Safari browser.</p>
+                         </div>
+                      </div>
+                      <div className="flex items-start gap-6 group">
+                         <div className="w-14 h-14 shrink-0 bg-white/5 rounded-2xl flex items-center justify-center text-2xl font-black text-primary border border-white/10 group-hover:bg-primary/20 transition-colors">2</div>
+                         <div className="space-y-2">
+                            <p className="text-white font-bold text-lg">Select "Add to Home Screen"</p>
+                            <p className="text-gray-500 text-sm leading-relaxed">Scroll down in the options and tap the plus icon labeled "Add to Home Screen".</p>
+                         </div>
+                      </div>
+                   </div>
+                 ) : (
+                   // Chrome/Android Instructions
+                   <div className="space-y-8">
+                      <div className="flex items-start gap-6 group">
+                         <div className="w-14 h-14 shrink-0 bg-white/5 rounded-2xl flex items-center justify-center text-2xl font-black text-primary border border-white/10 group-hover:bg-primary/20 transition-colors">1</div>
+                         <div className="space-y-2">
+                            <p className="text-white font-bold text-lg">Open Browser Menu</p>
+                            <p className="text-gray-500 text-sm leading-relaxed">Tap the three dots in the top right corner of your Chrome browser.</p>
+                         </div>
+                      </div>
+                      <div className="flex items-start gap-6 group">
+                         <div className="w-14 h-14 shrink-0 bg-white/5 rounded-2xl flex items-center justify-center text-2xl font-black text-primary border border-white/10 group-hover:bg-primary/20 transition-colors">2</div>
+                         <div className="space-y-2">
+                            <p className="text-white font-bold text-lg">Tap "Install App"</p>
+                            <p className="text-gray-500 text-sm leading-relaxed">Select "Install App" or "Add to Home Screen" from the menu list.</p>
+                         </div>
+                      </div>
+                   </div>
+                 )}
+              </div>
+
+              <button
+                onClick={() => setIsTutorialOpen(false)}
+                className="w-full mt-12 py-5 bg-white text-black font-black uppercase tracking-widest rounded-2xl hover:bg-gray-200 transition-all shadow-xl"
+              >
+                 Got it, Let's go!
+              </button>
+            </motion.div>
           </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

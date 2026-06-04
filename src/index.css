@@ -11,6 +11,7 @@
   --border-color: rgba(9, 9, 11, 0.1);
   --glass-bg: rgba(255, 255, 255, 0.95);
   --primary: #f27d26;
+  --primary-rgb: 242, 125, 38;
 }
 
 [data-theme='dark'] {
@@ -21,6 +22,7 @@
   --surface-bright: #1c1c1c;
   --border-color: rgba(255, 255, 255, 0.08);
   --glass-bg: rgba(9, 9, 11, 0.9);
+  --primary-rgb: 242, 125, 38;
 }
 
 @theme {

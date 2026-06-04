@@ -23,6 +23,7 @@ import Partner from '@/pages/Partner';
 import Onboarding from '@/pages/Onboarding';
 import Policies from '@/pages/Policies';
 import DownloadApp from '@/pages/DownloadApp';
+import Advertise from '@/pages/Advertise';
 import ReloadPrompt from '@/components/ReloadPrompt';
 import InstallPrompt from '@/components/InstallPrompt';
 import MessageNotifier from '@/components/MessageNotifier';
@@ -92,6 +93,7 @@ export default function App() {
             <Route path="/admin" element={<Admin />} />
             <Route path="/policies" element={<Policies />} />
             <Route path="/download" element={<DownloadApp />} />
+            <Route path="/advertise" element={<Advertise />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Layout>

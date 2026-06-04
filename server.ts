@@ -85,7 +85,7 @@ The user said: "${text}".
 Compose a short, direct, vocal response (max 2 sentences, 150 characters) that is perfect to be read aloud via Text-to-Speech to the user in the call. Keep the tone creative, smart, welcoming, and media-focused. Do not include markdown, asterisks, or any special styling. Keep it plain text.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-1.5-flash",
         contents: prompt,
       });
 

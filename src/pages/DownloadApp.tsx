@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Download, Smartphone, Apple, Play, CheckCircle2, ChevronRight, HelpCircle, Copy, Check, History, Loader2, Star, MessageSquare, AlertTriangle, X } from 'lucide-react';
+import { Download, Smartphone, Apple, Play, CheckCircle2, ChevronRight, HelpCircle, Copy, Check, History, Loader2, Star, AlertTriangle, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 
@@ -18,8 +18,26 @@ export default function DownloadApp() {
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
   const [reportData, setReportData] = useState({ type: 'installation', description: '', email: '' });
   const [submittingReport, setSubmittingReport] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [swStatus, setSwStatus] = useState<'not-ready' | 'loading' | 'ready'>('not-ready');
 
   useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Check Service Worker status
+    if ('serviceWorker' in navigator) {
+      setSwStatus('loading');
+      navigator.serviceWorker.ready.then(() => {
+        setSwStatus('ready');
+      }).catch(() => {
+        setSwStatus('not-ready');
+      });
+    }
+
     // Fetch total downloads from site_settings or mock if missing
     const fetchDownloads = async () => {
       try {
@@ -68,6 +86,8 @@ export default function DownloadApp() {
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
     return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
   }, []);
@@ -133,9 +153,44 @@ export default function DownloadApp() {
            <Download className="w-10 h-10 text-primary" />
         </motion.div>
         
-        <h1 className="text-5xl md:text-7xl font-display font-black text-white tracking-tighter">
+          <h1 className="text-5xl md:text-7xl font-display font-black text-white tracking-tighter">
           Get the <span className="text-primary">FideTV</span> App
         </h1>
+
+        {/* Offline & PWA Status Indicator */}
+        <div className="flex flex-wrap items-center justify-center gap-4 py-4">
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-full border text-[10px] font-black uppercase tracking-widest transition-all",
+              isOnline 
+                ? "bg-green-500/10 border-green-500/30 text-green-500" 
+                : "bg-red-500/10 border-red-500/30 text-red-500 animate-pulse"
+            )}
+          >
+            <div className={cn("w-1.5 h-1.5 rounded-full", isOnline ? "bg-green-500" : "bg-red-500")} />
+            {isOnline ? "System Online" : "Currently Offline"}
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-full border text-[10px] font-black uppercase tracking-widest transition-all",
+              swStatus === 'ready' 
+                ? "bg-primary/10 border-primary/30 text-primary" 
+                : "bg-white/5 border-white/10 text-gray-500"
+            )}
+          >
+            <div className={cn(
+              "w-1.5 h-1.5 rounded-full", 
+              swStatus === 'ready' ? "bg-primary shadow-[0_0_8px_rgba(var(--primary-rgb),0.5)]" : "bg-gray-500"
+            )} />
+            {swStatus === 'ready' ? "Offline Content Ready" : swStatus === 'loading' ? "Syncing Resources..." : "Standard Mode"}
+          </motion.div>
+        </div>
         
         <div className="flex items-center justify-center gap-6">
           <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-xl border border-white/10">

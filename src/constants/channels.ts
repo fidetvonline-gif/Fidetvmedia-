@@ -112,5 +112,6 @@ export const DEFAULT_CHANNELS = [
     icon: Film,
     description: 'A stable MP4 stream for testing playback compatibility.',
     isLive: true
-  }
+  },
 ];
+

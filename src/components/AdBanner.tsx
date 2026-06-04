@@ -103,7 +103,7 @@ export default function AdBanner({ placement, className }: AdBannerProps) {
         </div>
       ) : ad ? (
         // 1. Database registered active Ads
-        ad.platform === 'android' || ad.platform === 'ios' ? (
+        (ad.platform === 'android' || ad.platform === 'ios') && ad.ad_type !== 'native' ? (
           <div 
             id={`ad-banner-db-mobile-${ad.id}`}
             className={cn(
@@ -115,11 +115,36 @@ export default function AdBanner({ placement, className }: AdBannerProps) {
                <Smartphone className="w-2.5 h-2.5" /> Mobile Ad Placement
             </span>
             <h4 className="text-sm font-semibold text-foreground/85 font-display">{ad.name}</h4>
-            <p className="text-[10px] text-foreground/45 italic leading-relaxed">This {ad.ad_type} unit ({ad.ad_unit_id}) is active on live {ad.platform} channels.</p>
+            <p className="text-[10px] text-foreground/45 italic leading-relaxed">This {ad.ad_type} unit is active on live {ad.platform} channels.</p>
           </div>
+        ) : ad.image_url ? (
+          <a
+            href={ad.target_url || '#'}
+            target={ad.target_url ? "_blank" : "_self"}
+            rel="noopener noreferrer"
+            className={cn(
+              "w-full h-full overflow-hidden relative group block", 
+              sizing.borderRadius
+            )}
+          >
+            <img 
+              src={ad.image_url} 
+              alt={ad.name} 
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6">
+               <div className="flex items-center gap-3 text-white">
+                  <span className="text-[10px] font-black uppercase tracking-widest bg-primary px-3 py-1 rounded-full shadow-lg">Visit Link</span>
+                  <ExternalLink className="w-4 h-4" />
+               </div>
+            </div>
+            <div className="absolute top-4 right-4 bg-black/40 backdrop-blur-md px-2 py-1 rounded text-[7px] font-black text-white/60 uppercase tracking-[0.2em] border border-white/10">
+               Sponsored
+            </div>
+          </a>
         ) : (
           <div 
-            id={`ad-banner-db-adsense-${ad.id}`}
+            id={`ad-banner-db-fallback-${ad.id}`}
             className={cn(
               "w-full overflow-hidden bg-surface border border-border-custom hover:border-primary/20 transition-all shadow-sm flex flex-col sm:flex-row items-center justify-between p-6 sm:p-8 gap-4 h-full", 
               sizing.borderRadius
@@ -127,22 +152,24 @@ export default function AdBanner({ placement, className }: AdBannerProps) {
           >
             <div className="flex items-center gap-4 sm:gap-6 text-left w-full sm:w-auto">
               <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center border border-primary/20 text-primary shrink-0">
-                <ExternalLink className="w-6 h-6" />
+                <Megaphone className="w-6 h-6" />
               </div>
               <div className="min-w-0">
-                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-primary/80 block">Google AdSense Partner Unit</span>
+                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-primary/80 block">Active Sponsored Campaign</span>
                 <p className="text-sm sm:text-base font-bold text-foreground font-display mt-0.5 truncate">{ad.name}</p>
-                <p className="text-[9px] text-foreground/30 font-mono italic mt-0.5 truncate">ID: {ad.ad_unit_id}</p>
+                <p className="text-[9px] text-foreground/30 font-mono italic mt-0.5 truncate">Digital Direct Ad</p>
               </div>
             </div>
-            <a
-              href="https://google.com/adsense"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-5 py-2.5 sm:px-6 sm:py-3 bg-background border border-border-custom rounded-xl text-[9px] font-black uppercase text-foreground/55 tracking-widest hover:text-foreground hover:bg-surface-bright transition-all w-full sm:w-auto text-center"
-            >
-              Live Link
-            </a>
+            {ad.target_url && (
+              <a
+                href={ad.target_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-5 py-2.5 sm:px-6 sm:py-3 bg-background border border-border-custom rounded-xl text-[9px] font-black uppercase text-foreground/55 tracking-widest hover:text-foreground hover:bg-surface-bright transition-all w-full sm:w-auto text-center"
+              >
+                Learn More
+              </a>
+            )}
           </div>
         )
       ) : (

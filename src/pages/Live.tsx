@@ -39,7 +39,7 @@ export default function Live() {
   const [playerError, setPlayerError] = useState(false);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
 
   const [isPiP, setIsPiP] = useState(false);
   const [isPiPDismissed, setIsPiPDismissed] = useState(false);
@@ -80,7 +80,7 @@ export default function Live() {
     setPlayerError(false);
     setIsPlayerReady(false);
     setIsPlaying(true);
-    setIsMuted(true);
+    setIsMuted(false);
 
     const isEmbed = activeChannelId === 'fidetv' 
       ? customBroadcast.url?.includes('<iframe') 
@@ -215,6 +215,18 @@ export default function Live() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    // Safety timeout to ensure the UI doesn't get stuck on the loader
+    const timer = setTimeout(() => {
+      if (!isPlayerReady) {
+        console.log('Safety timeout: forcing player ready state');
+        setIsPlayerReady(true);
+        setIsZapping(false);
+      }
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [activeChannelId]);
 
   const handleShare = async () => {
     if (isSharingRef.current) return;
@@ -464,7 +476,7 @@ export default function Live() {
                    {/* Iframe content with possible YT branding - apply aggressive masking if it's a known player */}
                    <div className={cn(
                      "w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:border-none relative z-0",
-                     (activeChannel.url.includes('youtube.com') || activeChannel.url.includes('youtu.be')) && "w-[104%] h-[116%] -top-[8%] -left-[2%] absolute"
+                     (activeChannel.url.includes('youtube.com') || activeChannel.url.includes('youtu.be')) && "w-full h-full absolute"
                    )}
                      dangerouslySetInnerHTML={{ 
                        __html: activeChannel.url
@@ -472,11 +484,11 @@ export default function Live() {
                            const separator = p1.includes('?') ? '&' : '?';
                            // Add modestbranding and hide controls parameters to YT iframes
                            const params = p1.includes('youtube.com') || p1.includes('youtu.be') 
-                            ? 'modestbranding=1&showinfo=0&rel=0&controls=0&iv_load_policy=3' 
+                            ? 'rel=0&controls=0&iv_load_policy=3' 
                             : '';
                            return `src="${p1}${separator}autoplay=1${params ? '&' + params : ''}"`;
                          })
-                         .replace('<iframe', '<iframe allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"') 
+                         .replace('<iframe', '<iframe allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" loading="lazy" ') 
                      }} 
                    />
                    {(activeChannel.url.includes('youtube.com') || activeChannel.url.includes('youtu.be')) && (
@@ -486,7 +498,7 @@ export default function Live() {
               ) : activeChannel.url?.toLowerCase().includes('youtube.com') || activeChannel.url?.toLowerCase().includes('youtu.be') ? (
                 <div className="w-full h-full absolute inset-0 overflow-hidden select-none">
                   {/* YouTube Player with aggressive hide-branding via overflow and masks */}
-                  <div className="w-[104%] h-[116%] -top-[8%] -left-[2%] absolute pointer-events-none z-0">
+                  <div className="w-full h-full absolute z-0">
                     <Player
                       url={activeChannel.url}
                       width="100%"
@@ -501,17 +513,11 @@ export default function Live() {
                       config={{
                         youtube: {
                           playerVars: { 
-                            showinfo: 0, 
-                            modestbranding: 1, 
                             rel: 0, 
-                            origin: typeof window !== 'undefined' ? window.location.origin : '',
                             autoplay: 1,
                             enablejsapi: 1,
                             controls: 0,
-                            disablekb: 1,
-                            fs: 0,
                             iv_load_policy: 3,
-                            autohide: 1
                           }
                         }
                       }}
