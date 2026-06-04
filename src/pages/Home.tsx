@@ -1183,6 +1183,98 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Advertise With Us Section */}
+      <section className="py-24 bg-surface-bright/40 border-y border-border-custom relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-orange-500/5 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <div className="space-y-8">
+              <div className="space-y-4">
+                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-bold uppercase tracking-widest">
+                  <Flame className="w-3.5 h-3.5" />
+                  Growth Opportunities
+                </span>
+                <h2 className="text-4xl sm:text-6xl font-display font-black text-foreground tracking-tight leading-snug">
+                  Advertise on <span className="text-primary italic">FideTV.</span>
+                </h2>
+                <p className="text-text-muted text-lg leading-relaxed max-w-xl">
+                  Connect your brand with a rapidly growing community of viewers, content creators, and local businesses. We offer premium ad placements that guarantee visibility and impact.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="p-6 bg-surface border border-border-custom rounded-[2rem] space-y-3 hover:border-primary/30 transition-all group">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-105 transition-transform">
+                    <Monitor className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-bold text-foreground">Premium Banners</h4>
+                  <p className="text-text-muted text-xs leading-relaxed">High-visibility banner slots on our homepage, news articles, and sidebar locations.</p>
+                </div>
+                <div className="p-6 bg-surface border border-border-custom rounded-[2rem] space-y-3 hover:border-primary/30 transition-all group">
+                  <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-500 group-hover:scale-105 transition-transform">
+                    <Video className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-bold text-foreground">Video Spotlights</h4>
+                  <p className="text-text-muted text-xs leading-relaxed">Promote your commercials directly within our live streams and featured video galleries.</p>
+                </div>
+                <div className="p-6 bg-surface border border-border-custom rounded-[2rem] space-y-3 hover:border-primary/30 transition-all group">
+                  <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 group-hover:scale-105 transition-transform">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-bold text-foreground">Sponsored Content</h4>
+                  <p className="text-text-muted text-xs leading-relaxed">Let us tell your story. Custom articles and spotlight interviews shared across our network.</p>
+                </div>
+                <div className="p-6 bg-surface border border-border-custom rounded-[2rem] space-y-3 hover:border-primary/30 transition-all group">
+                  <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center text-green-500 group-hover:scale-105 transition-transform">
+                    <BarChart3 className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-bold text-foreground">Smart Analytics</h4>
+                  <p className="text-text-muted text-xs leading-relaxed">Receive detailed reports on how many people saw and interacted with your advertisements.</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4 pt-4">
+                <Link
+                  to="/advertise"
+                  className="px-8 py-4 bg-primary text-white rounded-2xl font-bold uppercase tracking-wider text-xs hover:bg-primary/95 transition-all shadow-lg shadow-primary/20"
+                >
+                  Request Rate Card
+                </Link>
+                <a
+                  href="tel:08124323608"
+                  className="px-8 py-4 bg-surface border border-border-custom text-foreground rounded-2xl font-bold uppercase tracking-wider text-xs hover:bg-surface-bright transition-all"
+                >
+                  Talk to Sales
+                </a>
+              </div>
+            </div>
+
+            <div className="relative">
+              <div className="absolute -inset-4 bg-gradient-to-r from-primary/10 to-orange-500/10 blur-2xl rounded-[3rem] animate-pulse" />
+              <div className="relative bg-surface border border-border-custom rounded-[3rem] p-4 shadow-2xl overflow-hidden group">
+                <img 
+                  src="https://images.unsplash.com/photo-1551434678-e076c223a692?q=80&w=1200" 
+                  alt="Advertising on FideTV" 
+                  className="w-full h-auto rounded-[2.5rem] opacity-90 group-hover:scale-105 transition-transform duration-1000"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent flex flex-col justify-end p-10">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-green-500 animate-ping" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-white">Live System Stats</span>
+                    </div>
+                    <p className="text-2xl font-display font-black text-white">50k+ Monthly Active Viewers</p>
+                    <p className="text-xs text-white/60 font-medium italic">Join the network that defines Nigerian media creativity.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Blog & News Segment */}
       {latestNews.length > 0 && (
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-24">
