@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { GoogleGenAI } from "@google/genai";
-import { fetchYouTubeStats, YouTubeStats } from '@/services/youtubeService';
+import { fetchYouTubeStats, YouTubeStats, fetchPlaylistItems } from '@/services/youtubeService';
 import { DEFAULT_CHANNELS } from '@/constants/channels';
 import AdBanner from '@/components/AdBanner';
 import AdminAdManagement from '@/components/AdminAdManagement';
@@ -48,6 +48,7 @@ export default function Admin() {
     socialLinkedin: '',
   });
   const [creatorSpotlights, setCreatorSpotlights] = useState<any[]>([]);
+  const [importingPlaylist, setImportingPlaylist] = useState(false);
   const [editingSpotlightIndex, setEditingSpotlightIndex] = useState<number | null>(null);
   const [spotlightForm, setSpotlightForm] = useState({
     id: '',
@@ -732,6 +733,81 @@ export default function Admin() {
     }
   };
 
+  const handlePlaylistImport = async () => {
+    const playlistId = 'PL-6S90yUuZeKxMmO4C63nxIHWSjQtIi2d';
+    console.log("Starting playlist import for ID:", playlistId);
+    setImportingPlaylist(true);
+    try {
+      const items = await fetchPlaylistItems(playlistId);
+      console.log("Fetched playlist items:", items);
+      if (!items || items.length === 0) {
+        alert("No items found in playlist. Make sure your playlist is public.");
+        return;
+      }
+
+      // Filter out items that already exist in our events by youtube_id
+      const { data: existingEvents } = await supabase.from('events').select('youtube_id');
+      const existingIds = new Set(existingEvents?.map(e => e.youtube_id) || []);
+      
+      const newItems = items.filter((item: any) => 
+        item.snippet?.resourceId?.videoId && !existingIds.has(item.snippet.resourceId.videoId)
+      );
+
+      if (newItems.length === 0) {
+        alert("All items from this playlist are already added to your schedule!");
+        return;
+      }
+
+      // Prepare events
+      const newEvents = newItems.map((item: any, index: number) => {
+        const startTime = new Date();
+        
+        if (index === 0) {
+          // Make the very first one live right now
+          startTime.setSeconds(startTime.getSeconds() - 10);
+        } else {
+          // Space others out by 12 hours starting from tomorrow
+          startTime.setDate(startTime.getDate() + 1);
+          startTime.setHours(8 + ((index - 1) * 12), 0, 0, 0);
+        }
+        
+        return {
+          title: item.snippet.title,
+          description: (item.snippet.description || 'Watch regular broadcast on FideTV.').slice(0, 500),
+          youtube_id: item.snippet.resourceId.videoId,
+          thumbnail_url: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default?.url,
+          start_time: startTime.toISOString(),
+          status: index === 0 ? 'live' : 'upcoming'
+        };
+      });
+
+      // If we are adding a 'live' event, we should set other existing 'live' events to 'offline'
+      const { data: currentlyLive } = await supabase.from('events').select('id').eq('status', 'live');
+      if (currentlyLive && currentlyLive.length > 0) {
+        await supabase.from('events').update({ status: 'offline' }).in('id', currentlyLive.map(ev => ev.id));
+      }
+
+      // Insert into Supabase
+      const { error } = await supabase.from('events').insert(newEvents);
+      if (error) throw error;
+
+      alert(`Successfully imported ${newEvents.length} new events! The first one is now LIVE.`);
+      await fetchEvents();
+    } catch (err: any) {
+      console.error("Playlist import error:", err);
+      const errorMsg = err.message || "";
+      if (errorMsg.includes('configured')) {
+        alert("Sync failed: YouTube API key not found in server settings. Please add YOUTUBE_API_KEY in the Secrets menu.");
+      } else if (errorMsg.includes('403') || errorMsg.includes('quota')) {
+        alert("Sync failed: YouTube API quota exceeded or unauthorized access. Verify your API key permissions.");
+      } else {
+        alert(`Sync failed: ${errorMsg}`);
+      }
+    } finally {
+      setImportingPlaylist(false);
+    }
+  };
+
   const fetchNews = async () => {
     const { data } = await supabase.from('news').select('*, profiles(username)').order('created_at', { ascending: false });
     if (data) setNews(data as any);
@@ -973,17 +1049,32 @@ export default function Admin() {
                <h1 className="text-4xl font-display font-bold text-foreground tracking-tighter">Admin <span className="text-foreground/40 italic">Studio.</span></h1>
                <p className="text-foreground/40 font-medium tracking-wide">Command center for FideTV Media content and community.</p>
             </div>
-            {activeTab !== 'site' && activeTab !== 'bookings' && activeTab !== 'support' && activeTab !== 'partnerships' && activeTab !== 'overview' && (
-              <button 
-                onClick={() => { resetForm(); setIsEditing(true); }}
-                className="px-8 py-4 bg-primary text-white font-bold rounded-2xl flex items-center space-x-3 shadow-lg shadow-primary/20 hover:scale-105 transition-all active:scale-95"
-              >
-                <Plus className="w-5 h-5" />
-                <span className="uppercase tracking-widest text-xs">
-                  Create {activeTab === 'events' ? 'Event' : activeTab === 'communities' ? 'Community' : activeTab === 'news' ? 'Article' : activeTab === 'portfolio' ? 'Portfolio Item' : activeTab === 'channels' ? 'TV Channel' : activeTab === 'services' ? 'Service' : activeTab}
-                </span>
-              </button>
-            )}
+            <div className="flex flex-wrap gap-4">
+              {activeTab === 'events' && (
+                <button 
+                  onClick={handlePlaylistImport}
+                  disabled={importingPlaylist}
+                  className="px-8 py-4 bg-red-600 text-white font-bold rounded-2xl flex items-center space-x-3 shadow-lg shadow-red-600/20 hover:scale-105 transition-all active:scale-95 disabled:opacity-50"
+                  title="Sync with World Cup Playlist"
+                >
+                  <Youtube className="w-5 h-5" />
+                  <span className="uppercase tracking-widest text-xs">
+                    {importingPlaylist ? 'Syncing...' : 'Sync Playlist'}
+                  </span>
+                </button>
+              )}
+              {activeTab !== 'site' && activeTab !== 'bookings' && activeTab !== 'support' && activeTab !== 'partnerships' && activeTab !== 'overview' && (
+                <button 
+                  onClick={() => { resetForm(); setIsEditing(true); }}
+                  className="px-8 py-4 bg-primary text-white font-bold rounded-2xl flex items-center space-x-3 shadow-lg shadow-primary/20 hover:scale-105 transition-all active:scale-95"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span className="uppercase tracking-widest text-xs">
+                    Create {activeTab === 'events' ? 'Event' : activeTab === 'communities' ? 'Community' : activeTab === 'news' ? 'Article' : activeTab === 'portfolio' ? 'Portfolio Item' : activeTab === 'channels' ? 'TV Channel' : activeTab === 'services' ? 'Service' : activeTab}
+                  </span>
+                </button>
+              )}
+            </div>
          </div>
 
          {/* Tabs Navigation */}

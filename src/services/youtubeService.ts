@@ -60,3 +60,22 @@ export const fetchRecentUploads = async (channelId: string) => {
     return [];
   }
 };
+
+export const fetchPlaylistItems = async (playlistId: string) => {
+  try {
+    const response = await fetch(
+      `${BASE_URL}/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=50`
+    );
+    
+    const data = await response.json().catch(() => ({}));
+    
+    if (!response.ok) {
+      throw new Error(data.error?.message || `YouTube API error: ${response.status}`);
+    }
+    
+    return data.items || [];
+  } catch (error: any) {
+    console.error('Error fetching playlist items:', error);
+    throw error;
+  }
+};

@@ -100,21 +100,33 @@ Compose a short, direct, vocal response (max 2 sentences, 150 characters) that i
   app.get("/api/youtube/:endpoint", async (req, res) => {
     try {
       const apiKey = process.env.YOUTUBE_API_KEY;
-      if (!apiKey) {
-        return res.status(500).json({ error: "YouTube API key not configured" });
+      if (!apiKey || apiKey.trim() === '') {
+        console.error('YouTube API key is missing or empty');
+        return res.status(500).json({ 
+          error: { message: "YouTube API key not configured in server environment." } 
+        });
       }
       const { endpoint } = req.params;
       const queryParams = new URLSearchParams(req.query as Record<string, string>);
       queryParams.set('key', apiKey);
 
       const url = `https://www.googleapis.com/youtube/v3/${endpoint}?${queryParams.toString()}`;
-      console.log('Fetching from YouTube API:', url);
+      console.log('Fetching from YouTube API:', url.replace(apiKey, 'REDACTED'));
+      
       const response = await fetch(url);
       const data = await response.json();
+      
+      if (!response.ok) {
+        console.error(`YouTube API returned ${response.status}:`, JSON.stringify(data));
+        return res.status(response.status).json(data);
+      }
+      
       res.json(data);
-    } catch (error) {
-      console.error('Error fetching from YouTube API', error);
-      res.status(500).json({ error: 'Failed to fetch' });
+    } catch (error: any) {
+      console.error('Error fetching from YouTube API:', error);
+      res.status(500).json({ 
+        error: { message: error.message || 'Internal server error while fetching from YouTube' } 
+      });
     }
   });
 
