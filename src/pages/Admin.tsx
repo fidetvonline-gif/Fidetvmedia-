@@ -739,14 +739,17 @@ export default function Admin() {
     setImportingPlaylist(true);
     try {
       const items = await fetchPlaylistItems(playlistId);
-      console.log("Fetched playlist items:", items);
+      console.log("Playlist Sync Result:", items);
+      
       if (!items || items.length === 0) {
-        alert("No items found in playlist. Make sure your playlist is public.");
+        alert("No videos found in this playlist. Please double check if the playlist is Public on YouTube.");
         return;
       }
 
       // Filter out items that already exist in our events by youtube_id
-      const { data: existingEvents } = await supabase.from('events').select('youtube_id');
+      const { data: existingEvents, error: fetchErr } = await supabase.from('events').select('youtube_id');
+      if (fetchErr) throw new Error(`Database error: ${fetchErr.message}`);
+      
       const existingIds = new Set(existingEvents?.map(e => e.youtube_id) || []);
       
       const newItems = items.filter((item: any) => 
@@ -754,7 +757,7 @@ export default function Admin() {
       );
 
       if (newItems.length === 0) {
-        alert("All items from this playlist are already added to your schedule!");
+        alert("All videos from this playlist are already in your schedule!");
         return;
       }
 
@@ -762,44 +765,41 @@ export default function Admin() {
       const newEvents = newItems.map((item: any, index: number) => {
         const startTime = new Date();
         
-        if (index === 0) {
-          // Make the very first one live right now
+        if (index === 0 && existingIds.size === 0) {
+          // If the list was empty, make the first one live
           startTime.setSeconds(startTime.getSeconds() - 10);
         } else {
-          // Space others out by 12 hours starting from tomorrow
-          startTime.setDate(startTime.getDate() + 1);
-          startTime.setHours(8 + ((index - 1) * 12), 0, 0, 0);
+          // Otherwise space them out starting from tomorrow
+          startTime.setDate(startTime.getDate() + 2 + Math.floor(index / 2));
+          startTime.setHours(index % 2 === 0 ? 9 : 21, 0, 0, 0);
         }
         
         return {
-          title: item.snippet.title,
-          description: (item.snippet.description || 'Watch regular broadcast on FideTV.').slice(0, 500),
+          title: item.snippet.title || 'Untitled Event',
+          description: (item.snippet.description || 'Live broadcast from FideTV.').slice(0, 500),
           youtube_id: item.snippet.resourceId.videoId,
-          thumbnail_url: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default?.url,
+          thumbnail_url: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.default?.url || `https://img.youtube.com/vi/${item.snippet.resourceId.videoId}/maxresdefault.jpg`,
           start_time: startTime.toISOString(),
-          status: index === 0 ? 'live' : 'upcoming'
+          status: (index === 0 && existingIds.size === 0) ? 'live' : 'upcoming'
         };
       });
 
-      // If we are adding a 'live' event, we should set other existing 'live' events to 'offline'
-      const { data: currentlyLive } = await supabase.from('events').select('id').eq('status', 'live');
-      if (currentlyLive && currentlyLive.length > 0) {
-        await supabase.from('events').update({ status: 'offline' }).in('id', currentlyLive.map(ev => ev.id));
-      }
-
       // Insert into Supabase
-      const { error } = await supabase.from('events').insert(newEvents);
-      if (error) throw error;
+      const { error: insertErr } = await supabase.from('events').insert(newEvents);
+      if (insertErr) throw insertErr;
 
-      alert(`Successfully imported ${newEvents.length} new events! The first one is now LIVE.`);
+      alert(`Success! Imported ${newEvents.length} new events from the World Cup playlist.`);
       await fetchEvents();
     } catch (err: any) {
-      console.error("Playlist import error:", err);
-      const errorMsg = err.message || "";
+      console.error("Critical Playlist Sync Error:", err);
+      const errorMsg = err.message || "Unknown error";
+      
       if (errorMsg.includes('configured')) {
-        alert("Sync failed: YouTube API key not found in server settings. Please add YOUTUBE_API_KEY in the Secrets menu.");
-      } else if (errorMsg.includes('403') || errorMsg.includes('quota')) {
-        alert("Sync failed: YouTube API quota exceeded or unauthorized access. Verify your API key permissions.");
+        alert("Configuration Error: YOUTUBE_API_KEY is missing in your environment variables.");
+      } else if (errorMsg.includes('403') || errorMsg.includes('quota') || errorMsg.includes('permission')) {
+        alert("YouTube API Error: Your API key might be invalid, or the quota has been exceeded.");
+      } else if (errorMsg.includes('404')) {
+        alert("Playlist Error: The specified YouTube playlist was not found.");
       } else {
         alert(`Sync failed: ${errorMsg}`);
       }
