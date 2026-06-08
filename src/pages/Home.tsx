@@ -13,6 +13,8 @@ import AdBanner from '@/components/AdBanner';
 import { DEFAULT_CHANNELS } from '@/constants/channels';
 import HighPerformancePlayer from '@/components/HighPerformancePlayer';
 import LiveEventBanner from '@/components/LiveEventBanner';
+import PromotionPopup from '@/components/PromotionPopup';
+import DisplayInlineAds from '@/components/DisplayInlineAds';
 
 const Player = ReactPlayer as any;
 
@@ -46,6 +48,7 @@ export default function Home() {
   const opacityHero = useTransform(scrollYProgress, [0, 0.3], [1, 0]);
 
   const [heroImageUrl, setHeroImageUrl] = useState<string>('');
+  const [advertisePromoImageUrl, setAdvertisePromoImageUrl] = useState<string>('');
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [channels, setChannels] = useState<any[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -161,6 +164,9 @@ export default function Home() {
         }, {});
         if (settings.hero_image_url) {
           setHeroImageUrl(settings.hero_image_url);
+        }
+        if (settings.advertise_promo_image_url) {
+          setAdvertisePromoImageUrl(settings.advertise_promo_image_url);
         }
         if (settings.team_members) {
           try {
@@ -312,6 +318,7 @@ export default function Home() {
 
   return (
     <div className="relative pb-32 overflow-hidden bg-background">
+      <PromotionPopup />
       <SEO title="Home - Professional Video, Live Streaming & Web Design" description="We bring your visions to life. FideTV Media provides high-quality video production, live event streaming, and beautiful, simple website creation." />
 
       {/* Video Modal */}
@@ -1017,6 +1024,10 @@ export default function Home() {
         </section>
       )}
 
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 mb-12">
+        <DisplayInlineAds />
+      </div>
+
       {/* Meet Our Team Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-24">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-16 gap-6">
@@ -1255,7 +1266,7 @@ export default function Home() {
               <div className="absolute -inset-4 bg-gradient-to-r from-primary/10 to-orange-500/10 blur-2xl rounded-[3rem] animate-pulse" />
               <div className="relative bg-surface border border-border-custom rounded-[3rem] p-4 shadow-2xl overflow-hidden group">
                 <img 
-                  src="https://images.unsplash.com/photo-1551434678-e076c223a692?q=80&w=1200" 
+                  src={advertisePromoImageUrl || "https://images.unsplash.com/photo-1551434678-e076c223a692?q=80&w=1200"} 
                   alt="Advertising on FideTV" 
                   className="w-full h-auto rounded-[2.5rem] opacity-90 group-hover:scale-105 transition-transform duration-1000"
                 />

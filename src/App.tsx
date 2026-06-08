@@ -27,6 +27,7 @@ import Advertise from '@/pages/Advertise';
 import ReloadPrompt from '@/components/ReloadPrompt';
 import InstallPrompt from '@/components/InstallPrompt';
 import MessageNotifier from '@/components/MessageNotifier';
+import MonetagScript from '@/components/MonetagScript';
 import SplashScreen from '@/components/SplashScreen';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 
@@ -34,6 +35,60 @@ function AnalyticsTracker() {
   const location = useLocation();
   
   useEffect(() => {
+    // 1. Breadcrumbs telemetry setup for crash analytics
+    const originalConsole = {
+      log: console.log,
+      warn: console.warn,
+      error: console.error,
+      info: console.info
+    };
+    
+    // Store last 20 breadcrumbs
+    const breadcrumbs: { type: string, message: string, time: string }[] = [];
+    const MAX_BREADCRUMBS = 20;
+    
+    const pushBreadcrumb = (type: string, args: any[]) => {
+      try {
+        const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+        breadcrumbs.push({ type, message: msg.substring(0, 500), time: new Date().toISOString() });
+        if (breadcrumbs.length > MAX_BREADCRUMBS) {
+          breadcrumbs.shift();
+        }
+      } catch (e) {}
+    };
+
+    console.log = (...args) => { originalConsole.log(...args); pushBreadcrumb('log', args); };
+    console.warn = (...args) => { originalConsole.warn(...args); pushBreadcrumb('warn', args); };
+    console.info = (...args) => { originalConsole.info(...args); pushBreadcrumb('info', args); };
+    console.error = (...args) => { originalConsole.error(...args); pushBreadcrumb('error', args); };
+
+    // Send telemetry before crash
+    const sendTelemetry = async (message: string, stack?: string) => {
+      try {
+        await supabase.from('error_logs').insert({
+          message: String(message).substring(0, 1000),
+          stack: stack ? String(stack).substring(0, 2000) : null,
+          breadcrumbs: breadcrumbs,
+          user_agent: navigator.userAgent,
+          url: window.location.href
+        });
+      } catch (e) {
+        // Silently fail if table doesn't exist
+      }
+    };
+
+    const handleWindowError = (event: ErrorEvent) => {
+      sendTelemetry(event.message, event.error?.stack);
+    };
+
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason;
+      sendTelemetry(reason?.message || String(reason), reason?.stack);
+    };
+
+    window.addEventListener('error', handleWindowError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
     const trackVisit = async () => {
       // Use a session storage flag to avoid double counting page refreshes during the same session
       const sessionTracked = safeSessionStorage.getItem('fidetv_tracked');
@@ -58,6 +113,15 @@ function AnalyticsTracker() {
       }
     };
     trackVisit();
+
+    return () => {
+      window.removeEventListener('error', handleWindowError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+      console.log = originalConsole.log;
+      console.warn = originalConsole.warn;
+      console.error = originalConsole.error;
+      console.info = originalConsole.info;
+    };
   }, []); // Only track once per app load/session
 
   return null;
@@ -101,6 +165,7 @@ export default function App() {
       <ReloadPrompt />
       <InstallPrompt />
       <MessageNotifier />
+      <MonetagScript />
     </Router>
   );
 }

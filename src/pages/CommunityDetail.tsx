@@ -12,6 +12,7 @@ import {
 import { cn } from '@/lib/utils';
 import ReactPlayer from 'react-player';
 import { format } from 'date-fns';
+import { safeLocalStorage } from '@/lib/storage';
 
 const Player = ReactPlayer as any;
 
@@ -201,14 +202,14 @@ export default function CommunityDetail() {
        console.warn("DB checkMembership error, using local storage");
      }
      
-     const localJoined = localStorage.getItem(`joined_community_${communityId}_${userId}`);
+     const localJoined = safeLocalStorage.getItem(`joined_community_${communityId}_${userId}`);
      
      if (data) {
        const status = data.status || 'approved';
        setJoinStatus(status as any);
        setIsMember(status === 'approved');
        setMemberRole(data.role || null);
-       localStorage.setItem(`joined_community_${communityId}_${userId}`, status);
+       safeLocalStorage.setItem(`joined_community_${communityId}_${userId}`, status);
      } else if (localJoined) {
        setJoinStatus(localJoined as any);
        setIsMember(localJoined === 'approved');
@@ -239,7 +240,7 @@ export default function CommunityDetail() {
       setJoinStatus('none');
       setMemberCount(prev => Math.max(0, prev - 1));
       
-      localStorage.removeItem(`joined_community_${id}_${userId}`);
+      safeLocalStorage.removeItem(`joined_community_${id}_${userId}`);
       
       if (user) {
         try {
@@ -263,7 +264,7 @@ export default function CommunityDetail() {
         setMemberCount(prev => prev + 1);
       }
       
-      localStorage.setItem(`joined_community_${id}_${userId}`, status);
+      safeLocalStorage.setItem(`joined_community_${id}_${userId}`, status);
       
       if (user) {
         try {

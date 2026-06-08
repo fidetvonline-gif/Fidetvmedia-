@@ -1,5 +1,20 @@
 -- FideTV Supabase Schema
 
+-- 0. Error Logs Table
+CREATE TABLE public.error_logs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  message TEXT,
+  stack TEXT,
+  breadcrumbs JSONB,
+  user_agent TEXT,
+  url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.error_logs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Anyone can insert error logs" ON public.error_logs FOR INSERT WITH CHECK (true);
+CREATE POLICY "Only admin can view error logs" ON public.error_logs FOR SELECT USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
+
 -- 1. Profiles Table
 CREATE TABLE public.profiles (
   id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL PRIMARY KEY,
@@ -13,6 +28,7 @@ CREATE TABLE public.profiles (
   is_verified BOOLEAN DEFAULT false,
   verification_requested BOOLEAN DEFAULT false,
   verification_details TEXT,
+  role TEXT DEFAULT 'user',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -226,7 +242,10 @@ CREATE POLICY "Users can unlike posts" ON public.post_likes FOR DELETE USING (au
 
 -- News: Everyone can read published, admin can manage
 CREATE POLICY "Published news viewable by everyone" ON public.news FOR SELECT USING (is_published = true OR auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
-CREATE POLICY "Only admin can manage news" ON public.news FOR ALL USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
+CREATE POLICY "Admin and Bloggers can manage news" ON public.news FOR ALL USING (
+  (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com') OR 
+  (auth.uid() IN (SELECT id FROM public.profiles WHERE role = 'blogger'))
+);
 
 -- Comments: Everyone can read, signed in can write, owner or admin can delete
 CREATE POLICY "Comments viewable by everyone" ON public.comments FOR SELECT USING (true);

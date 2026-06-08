@@ -11,6 +11,7 @@ import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import FollowButton from '@/components/FollowButton';
 import AdBanner from '@/components/AdBanner';
+import { safeLocalStorage } from '@/lib/storage';
 
 interface Shout {
   id: string;
@@ -184,7 +185,7 @@ export default function Community() {
     fetchSuggestedUsers();
     
     // Load local shouts or presets
-    const savedShouts = localStorage.getItem('fidetv_live_shouts');
+    const savedShouts = safeLocalStorage.getItem('fidetv_live_shouts');
     if (savedShouts) {
       try {
         setShouts(JSON.parse(savedShouts));
@@ -261,7 +262,7 @@ export default function Community() {
 
     const updated = [newShout, ...shouts];
     setShouts(updated);
-    localStorage.setItem('fidetv_live_shouts', JSON.stringify(updated));
+    safeLocalStorage.setItem('fidetv_live_shouts', JSON.stringify(updated));
     setNewShoutContent('');
   };
 
@@ -279,14 +280,14 @@ export default function Community() {
       return s;
     });
     setShouts(updated);
-    localStorage.setItem('fidetv_live_shouts', JSON.stringify(updated));
+    safeLocalStorage.setItem('fidetv_live_shouts', JSON.stringify(updated));
   };
 
   const handleDeleteShout = (shoutId: string) => {
     if (!window.confirm("Are you sure you want to delete this notice wall post?")) return;
     const updated = shouts.filter(s => s.id !== shoutId);
     setShouts(updated);
-    localStorage.setItem('fidetv_live_shouts', JSON.stringify(updated));
+    safeLocalStorage.setItem('fidetv_live_shouts', JSON.stringify(updated));
   };
 
   const handleStartEditShout = (shoutId: string, content: string) => {
@@ -303,7 +304,7 @@ export default function Community() {
       return s;
     });
     setShouts(updated);
-    localStorage.setItem('fidetv_live_shouts', JSON.stringify(updated));
+    safeLocalStorage.setItem('fidetv_live_shouts', JSON.stringify(updated));
     setEditingShoutId(null);
     setEditingShoutContent('');
   };

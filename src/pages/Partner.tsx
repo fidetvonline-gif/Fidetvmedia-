@@ -6,6 +6,7 @@ import {
   Video, DollarSign, ArrowLeft, Globe, Milestone
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { safeLocalStorage } from '@/lib/storage';
 
 export default function Partner() {
   const [user, setUser] = useState<any>(null);
@@ -83,12 +84,12 @@ ${formData.pitch}
       console.error('Submission error:', err);
       // Fallback: save to localStorage if DB table issues
       try {
-        const localProposals = JSON.parse(localStorage.getItem('fidetv_local_proposals') || '[]');
+        const localProposals = JSON.parse(safeLocalStorage.getItem('fidetv_local_proposals') || '[]');
         localProposals.push({
           ...formData,
           submittedAt: new Date().toISOString()
         });
-        localStorage.setItem('fidetv_local_proposals', JSON.stringify(localProposals));
+        safeLocalStorage.setItem('fidetv_local_proposals', JSON.stringify(localProposals));
         setIsSubmitted(true);
       } catch (lsErr) {
         setErrorMsg(err.message || 'Something went wrong. Please check your network and try again.');

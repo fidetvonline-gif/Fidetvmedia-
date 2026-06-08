@@ -14,8 +14,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [totalVisits, setTotalVisits] = useState<number>(18542);
+  const [showEventBanner, setShowEventBanner] = useState(true);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window !== 'undefined') {
       const saved = safeLocalStorage.getItem('fidetv-theme');
@@ -58,6 +60,22 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     };
 
     fetchVisitorCount();
+    const fetchEventBannerStatus = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('site_settings')
+          .select('*')
+          .eq('key', 'enable_event_banner')
+          .single();
+        
+        if (!error && data) {
+          setShowEventBanner(data.value !== 'false');
+        }
+      } catch (err) {
+        console.error('Error fetching banner status:', err);
+      }
+    };
+    fetchEventBannerStatus();
     const interval = setInterval(fetchVisitorCount, 15000);
     return () => clearInterval(interval);
   }, []);
@@ -103,17 +121,24 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const checkProfile = async (userId: string, email?: string) => {
     // Only check if not on auth or onboarding or policies pages
     const publicPaths = ['/auth', '/onboarding', '/policies', '/about', '/contact', '/services', '/admin', '/profile', '/download', '/advertise'];
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('username, role')
+      .eq('id', userId)
+      .single();
+      
+    if (email === 'fidetvonline@gmail.com' || data?.role === 'blogger' || data?.role === 'admin') {
+      setIsAdmin(true);
+    } else {
+      setIsAdmin(false);
+    }
+
     if (publicPaths.some(path => location.pathname.startsWith(path))) return;
 
     // Exempt admin from being forced to onboarding
     if (email === 'fidetvonline@gmail.com') return;
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('username')
-      .eq('id', userId)
-      .single();
-    
     // If no profile or no username, go to onboarding
     // Error code PGRST116 means no rows found
     if (error || !data?.username) {
@@ -144,8 +169,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { name: 'Messages', path: '/messages', icon: Mail },
   ];
 
+  if (isAdmin) {
+    navLinks.push({ name: 'Admin', path: '/admin', icon: LayoutDashboard, id: 'nav-admin' });
+  }
+
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground overflow-x-hidden">
+    <div className="min-h-screen flex flex-col bg-background text-foreground overflow-x-clip selection:bg-primary/30">
       {/* <TourGuide /> */}
       <nav className={cn(
         "fixed top-0 left-0 right-0 transition-all duration-500",
@@ -154,7 +183,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           ? "bg-background backdrop-blur-md border-b border-border-custom py-2 shadow-2xl" 
           : "bg-background backdrop-blur-md border-b border-border-custom py-4"
       )}>
-        {location.pathname !== '/live' && <LiveEventBanner />}
+        {location.pathname !== '/live' && showEventBanner && <LiveEventBanner />}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20 items-center">
             <Link to="/" className="flex items-center space-x-2 group">

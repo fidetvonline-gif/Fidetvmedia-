@@ -6,6 +6,7 @@ import { Calendar, User, ArrowRight, Newspaper } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import AdBanner from '@/components/AdBanner';
+import DisplayInlineAds from '@/components/DisplayInlineAds';
 import fidetvWorldCup from '@/assets/images/fidetv_world_cup_1780392851684.png';
 
 const STATIC_WC_POST: NewsType = {
@@ -138,7 +139,8 @@ export default function News() {
         </p>
       </div>
 
-      <div className="mb-16">
+      <div className="mb-16 space-y-10">
+        <DisplayInlineAds />
         <AdBanner placement="News Page Top" />
       </div>
 

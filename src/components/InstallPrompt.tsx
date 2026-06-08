@@ -10,6 +10,7 @@ export default function InstallPrompt() {
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
   const [isSafari, setIsSafari] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -21,6 +22,10 @@ export default function InstallPrompt() {
     // Detect iOS
     const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
     setIsIOS(isIOSDevice);
+    
+    // Detect Desktop
+    const isDesktopDevice = !/android|iphone|ipad|ipod/.test(userAgent);
+    setIsDesktop(isDesktopDevice);
 
     // Check if already installed or in standalone mode
     const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches 
@@ -168,6 +173,24 @@ export default function InstallPrompt() {
                          <div className="space-y-2">
                             <p className="text-white font-bold text-lg">Select "Add to Home Screen"</p>
                             <p className="text-gray-500 text-sm leading-relaxed">Scroll down in the options and tap the plus icon labeled "Add to Home Screen".</p>
+                         </div>
+                      </div>
+                   </div>
+                 ) : isDesktop ? (
+                   // Desktop Chrome/Edge Instructions
+                   <div className="space-y-8">
+                      <div className="flex items-start gap-6 group">
+                         <div className="w-14 h-14 shrink-0 bg-white/5 rounded-2xl flex items-center justify-center text-2xl font-black text-primary border border-white/10 group-hover:bg-primary/20 transition-colors">1</div>
+                         <div className="space-y-2">
+                            <p className="text-white font-bold text-lg">Locate the Install Icon</p>
+                            <p className="text-gray-500 text-sm leading-relaxed">Look for the install icon <Download className="inline w-4 h-4 mb-1" /> in the right side of your address bar.</p>
+                         </div>
+                      </div>
+                      <div className="flex items-start gap-6 group">
+                         <div className="w-14 h-14 shrink-0 bg-white/5 rounded-2xl flex items-center justify-center text-2xl font-black text-primary border border-white/10 group-hover:bg-primary/20 transition-colors">2</div>
+                         <div className="space-y-2">
+                            <p className="text-white font-bold text-lg">Click "Install"</p>
+                            <p className="text-gray-500 text-sm leading-relaxed">Click the icon and select "Install" from the popup to add FideTV to your computer.</p>
                          </div>
                       </div>
                    </div>

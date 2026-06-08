@@ -7,7 +7,7 @@ import {
   Edit2, Trash2, Globe, Youtube, ToggleLeft, ToggleRight, 
   Sparkles, Camera, Eye, Newspaper, BookOpen, Clock, CheckCircle2, XCircle,
   ShieldCheck, ShieldAlert, Award, Headset, Briefcase, Tv, Zap, DollarSign,
-  ExternalLink, TrendingUp, BarChart3, Wallet, ArrowUpRight
+  ExternalLink, TrendingUp, BarChart3, Wallet, ArrowUpRight, PenTool
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -17,6 +17,9 @@ import { fetchYouTubeStats, YouTubeStats } from '@/services/youtubeService';
 import { DEFAULT_CHANNELS } from '@/constants/channels';
 import AdBanner from '@/components/AdBanner';
 import AdminAdManagement from '@/components/AdminAdManagement';
+import InlineAdsManager from '@/components/InlineAdsManager';
+import MDEditor from '@uiw/react-md-editor';
+import { safeLocalStorage } from '@/lib/storage';
 
 type AdminTab = 'overview' | 'events' | 'news' | 'communities' | 'bookings' | 'partnerships' | 'users' | 'support' | 'portfolio' | 'channels' | 'services' | 'site' | 'ads';
 
@@ -58,6 +61,7 @@ export default function Admin() {
     specialty: ''
   });
   const [uploadingHero, setUploadingHero] = useState(false);
+  const [uploadingAdvertisePromo, setUploadingAdvertisePromo] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [adUnits, setAdUnits] = useState<any[]>([]);
   const [supportChats, setSupportChats] = useState<any[]>([]);
@@ -68,9 +72,16 @@ export default function Admin() {
   const [visitCount, setVisitCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isBloggerOnly, setIsBloggerOnly] = useState(false);
+  const [bloggersList, setBloggersList] = useState<string[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [ytStats, setYtStats] = useState<Record<string, YouTubeStats>>({});
+  
+  // Settings Toggles
+  const [enablePopupAd, setEnablePopupAd] = useState(false);
+  const [enableEventBanner, setEnableEventBanner] = useState(true);
+  const [enableMonetagAds, setEnableMonetagAds] = useState(false);
   
   // SHARED Form State
   const [title, setTitle] = useState('');
@@ -85,7 +96,7 @@ export default function Admin() {
   const [isActive, setIsActive] = useState(true);
 
   // New Ad dashboard states
-  const [activeAdSubTab, setActiveAdSubTab] = useState<'analytics' | 'zones'>('analytics');
+  const [activeAdSubTab, setActiveAdSubTab] = useState<'analytics' | 'zones' | 'inline'>('analytics');
   const [webCpm, setWebCpm] = useState<number>(1.85);
   const [mobileCpm, setMobileCpm] = useState<number>(3.50);
   const [sponsorCpm, setSponsorCpm] = useState<number>(5.20);
@@ -286,6 +297,20 @@ export default function Admin() {
         return acc;
       }, {});
       setSiteSettings(settings);
+      if (settings.enable_popup_ad) {
+        setEnablePopupAd(settings.enable_popup_ad === 'true');
+      }
+      if (settings.enable_event_banner) {
+        setEnableEventBanner(settings.enable_event_banner !== 'false');
+      }
+      if (settings.enable_monetag_ads) {
+        setEnableMonetagAds(settings.enable_monetag_ads === 'true');
+      }
+      if (settings.bloggers) {
+        try {
+          setBloggersList(JSON.parse(settings.bloggers));
+        } catch (e) {}
+      }
       if (settings.team_members) {
         try {
           setTeamMembers(JSON.parse(settings.team_members));
@@ -363,6 +388,21 @@ export default function Admin() {
       alert("Error handling file: " + error.message);
     } finally {
       setUploadingHero(false);
+    }
+  };
+
+  const handleAdvertisePromoImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAdvertisePromo(true);
+    try {
+      const url = await uploadFileToStorage(file);
+      setSiteSettings(prev => ({ ...prev, advertise_promo_image_url: url }));
+      await saveSiteSetting('advertise_promo_image_url', url);
+    } catch (error: any) {
+      alert("Error handling file: " + error.message);
+    } finally {
+      setUploadingAdvertisePromo(false);
     }
   };
 
@@ -619,7 +659,7 @@ export default function Admin() {
       
       if (error) throw error;
       
-      const localVisits = parseInt(localStorage.getItem('fidetv_local_visits') || '0', 10);
+      const localVisits = parseInt(safeLocalStorage.getItem('fidetv_local_visits') || '0', 10);
       setVisitCount(baseVisits + (count || 0) + localVisits);
       setDbErrors(prev => {
         const next = { ...prev };
@@ -628,15 +668,25 @@ export default function Admin() {
       });
     } catch (e) {
       setDbErrors(prev => ({ ...prev, site_visits: 'Visit tracking table missing' }));
-      const localVisits = parseInt(localStorage.getItem('fidetv_local_visits') || '1', 10);
+      const localVisits = parseInt(safeLocalStorage.getItem('fidetv_local_visits') || '1', 10);
       setVisitCount(baseVisits + localVisits);
     }
   };
 
   const checkAdmin = async () => {
     const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user?.email === 'fidetvonline@gmail.com') {
+    if (!session?.user) return;
+    if (session.user.email === 'fidetvonline@gmail.com') {
       setIsAdmin(true);
+      return;
+    }
+    
+    // Check if user is a blogger via profiles.role
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+    if (profile?.role === 'blogger') {
+      setIsAdmin(true);
+      setIsBloggerOnly(true);
+      setActiveTab('news');
     }
   };
 
@@ -937,7 +987,7 @@ export default function Admin() {
          </div>
 
          {/* Tabs Navigation */}
-         <div className="flex flex-wrap gap-4 mb-12">
+         <div className="flex overflow-x-auto pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap gap-4 mb-2 md:mb-12 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {[
               { id: 'overview', name: 'Overview', icon: LayoutDashboard },
               { id: 'channels', name: 'TV Channels', icon: Tv },
@@ -952,12 +1002,12 @@ export default function Admin() {
               { id: 'support', name: 'Support', icon: MessageSquare },
               { id: 'site', name: 'Site Setup', icon: Settings },
               { id: 'ads', name: 'Google Ads', icon: DollarSign }
-            ].map(tab => (
+            ].filter(tab => !isBloggerOnly || tab.id === 'news').map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as AdminTab)}
                 className={cn(
-                  "px-8 py-4 rounded-2xl flex items-center space-x-3 font-bold text-xs uppercase tracking-widest transition-all border shadow-sm",
+                  "shrink-0 whitespace-nowrap px-8 py-4 rounded-2xl flex items-center space-x-3 font-bold text-xs uppercase tracking-widest transition-all border shadow-sm",
                   activeTab === tab.id 
                     ? "bg-surface border-primary text-foreground" 
                     : "bg-surface border-border-custom text-foreground/40 hover:text-foreground hover:border-foreground/20"
@@ -997,6 +1047,22 @@ ALTER TABLE public.community_members ADD COLUMN IF NOT EXISTS status TEXT DEFAUL
 ALTER TABLE public.site_visits ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public can insert visits" ON public.site_visits FOR INSERT WITH CHECK (true);
 CREATE POLICY "Admin view visits" ON public.site_visits FOR SELECT USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
+
+-- Blogger Policy Updates: Enable these if you are promoting bloggers via the FideTV Dashboard!
+-- Drop old policy if exists
+DROP POLICY IF EXISTS "Only admin can manage news" ON public.news;
+DROP POLICY IF EXISTS "Admin and Bloggers can manage news" ON public.news;
+
+-- Add role column to profiles if it doesn't exist
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user';
+
+-- Create dynamic access policy allowing bloggers to manage news
+CREATE POLICY "Admin and Bloggers can manage news" ON public.news FOR ALL USING (
+  (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com') OR 
+  (auth.uid() IN (
+    SELECT id FROM public.profiles WHERE role = 'blogger'
+  ))
+);
 
 CREATE TABLE IF NOT EXISTS public.ad_units (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -1171,6 +1237,145 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                         </button>
                       </div>
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Advertise Promo Image Config */}
+              <div className="bg-surface rounded-[2.5rem] p-10 border border-border-custom space-y-8 shadow-sm">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-orange-500/10 rounded-2xl flex items-center justify-center border border-orange-500/20">
+                    <Sparkles className="w-6 h-6 text-orange-500" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-display font-bold text-foreground uppercase tracking-tight">Advertise Section Promo Image</h2>
+                    <p className="text-[10px] text-foreground/40 font-bold uppercase tracking-widest mt-1 italic">This image appears in the "Advertise on FideTV" section on the Home page.</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                  <div className="lg:col-span-5 flex flex-col items-center justify-center bg-background/50 border border-border-custom rounded-3xl p-6 relative overflow-hidden group min-h-[220px]">
+                    {siteSettings.advertise_promo_image_url ? (
+                      <img 
+                        referrerPolicy="no-referrer"
+                        src={siteSettings.advertise_promo_image_url} 
+                        alt="Advertise Promo" 
+                        className="w-full h-full max-h-[180px] object-cover rounded-2xl border border-border-custom/50"
+                      />
+                    ) : (
+                      <div className="text-center p-4">
+                        <Sparkles className="w-10 h-10 text-foreground/25 mx-auto mb-2" />
+                        <span className="text-[10px] font-bold text-foreground/40 uppercase block">No custom image</span>
+                        <span className="text-[9px] text-foreground/20 italic block">Default promo image will load</span>
+                      </div>
+                    )}
+                    {uploadingAdvertisePromo && (
+                      <div className="absolute inset-0 bg-background/85 backdrop-blur-xs flex flex-col items-center justify-center">
+                        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin mb-2" />
+                        <span className="text-[9px] font-bold text-primary uppercase tracking-wider">Uploading asset...</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="lg:col-span-7 space-y-5">
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase font-black tracking-[0.2em] text-foreground/40 block ml-2">Upload Promo Image File</label>
+                      <div className="relative border-2 border-dashed border-border-custom hover:border-primary/20 rounded-2xl transition-all p-6 text-center cursor-pointer bg-background/25">
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          onChange={handleAdvertisePromoImageFileChange}
+                          className="absolute inset-0 opacity-0 cursor-pointer" 
+                          disabled={uploadingAdvertisePromo}
+                        />
+                        <Camera className="w-6 h-6 text-primary/50 mx-auto mb-2" />
+                        <h4 className="text-[11px] font-bold text-foreground">Click to select file...</h4>
+                        <p className="text-[9px] text-foreground/40 mt-1 italic">Recommended size: 1200x800px</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase font-black tracking-[0.2em] text-foreground/40 block ml-2">Direct Image URL Link</label>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text"
+                          value={siteSettings.advertise_promo_image_url || ''}
+                          onChange={(e) => setSiteSettings(prev => ({ ...prev, advertise_promo_image_url: e.target.value }))}
+                          placeholder="Or paste direct image URL link..."
+                          className="flex-grow bg-background border border-border-custom rounded-2xl px-4 py-3 text-xs text-foreground focus:border-primary/50 shadow-inner"
+                        />
+                        <button
+                          onClick={() => saveSiteSetting('advertise_promo_image_url', siteSettings.advertise_promo_image_url || '')}
+                          disabled={uploadingAdvertisePromo}
+                          className="px-5 bg-primary/10 border border-primary/20 hover:bg-primary hover:text-white transition-all text-[9px] font-bold uppercase tracking-wider rounded-2xl text-primary"
+                        >
+                          Save URL
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pop-up Ad and Banner Toggles */}
+                <div className="pt-8 border-t border-border-custom grid grid-cols-1 md:grid-cols-3 gap-8">
+                  <div className="bg-background/25 p-6 rounded-3xl border border-border-custom flex items-center justify-between">
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-bold text-foreground">Promotional Pop-up Ad</h4>
+                      <p className="text-[10px] text-foreground/40 italic">When enabled, a promotional popup overlay appears for visitors on the home page.</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const newVal = !enablePopupAd;
+                        setEnablePopupAd(newVal);
+                        saveSiteSetting('enable_popup_ad', newVal.toString());
+                      }}
+                      className={cn(
+                        "transition-all duration-300",
+                        enablePopupAd ? "text-primary" : "text-foreground/20"
+                      )}
+                    >
+                      {enablePopupAd ? <ToggleRight className="w-10 h-10" /> : <ToggleLeft className="w-10 h-10" />}
+                    </button>
+                  </div>
+
+                  <div className="bg-background/25 p-6 rounded-3xl border border-border-custom flex items-center justify-between">
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-bold text-foreground">External Monetag Ads</h4>
+                      <p className="text-[10px] text-foreground/40 italic">Pop-under and external monetag ad injections. Warning: High annoyance logic.</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const newVal = !enableMonetagAds;
+                        setEnableMonetagAds(newVal);
+                        saveSiteSetting('enable_monetag_ads', newVal.toString());
+                      }}
+                      className={cn(
+                        "transition-all duration-300",
+                        enableMonetagAds ? "text-primary" : "text-foreground/20"
+                      )}
+                    >
+                      {enableMonetagAds ? <ToggleRight className="w-10 h-10" /> : <ToggleLeft className="w-10 h-10" />}
+                    </button>
+                  </div>
+
+                  <div className="bg-background/25 p-6 rounded-3xl border border-border-custom flex items-center justify-between">
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-bold text-foreground">Site-wide Event Banner</h4>
+                      <p className="text-[10px] text-foreground/40 italic">Global banner displayed at the top of the screen (used for events).</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const newVal = !enableEventBanner;
+                        setEnableEventBanner(newVal);
+                        saveSiteSetting('enable_event_banner', newVal.toString());
+                      }}
+                      className={cn(
+                        "transition-all duration-300",
+                        enableEventBanner ? "text-primary" : "text-foreground/20"
+                      )}
+                    >
+                      {enableEventBanner ? <ToggleRight className="w-10 h-10" /> : <ToggleLeft className="w-10 h-10" />}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -2412,6 +2617,20 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                                  <ShieldAlert className="w-4 h-4" />
                                </button>
                             )}
+                            <button 
+                              onClick={async () => {
+                                const newRole = user.role === 'blogger' ? 'user' : 'blogger';
+                                await supabase.from('profiles').update({ role: newRole }).eq('id', user.id);
+                                fetchProfiles();
+                              }}
+                              className={cn(
+                                "p-2 bg-background border border-border-custom transition-all rounded-lg shadow-sm",
+                                user.role === 'blogger' ? "text-green-500 hover:bg-green-500 hover:text-white" : "text-foreground/40 hover:text-green-500"
+                              )}
+                              title={user.role === 'blogger' ? "Revoke Blogger" : "Promote to Blogger"}
+                            >
+                              <PenTool className="w-4 h-4" />
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -2570,6 +2789,18 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                     <Settings className="w-4 h-4" />
                     <span>Management</span>
                   </button>
+                  <button 
+                    onClick={() => setActiveAdSubTab('inline')}
+                    className={cn(
+                      "px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer",
+                      activeAdSubTab === 'inline' 
+                        ? "bg-primary text-white shadow-lg shadow-primary/20" 
+                        : "text-foreground/50 hover:text-foreground hover:bg-foreground/5"
+                    )}
+                  >
+                    <PenTool className="w-4 h-4" />
+                    <span>Inline Embeds</span>
+                  </button>
                 </div>
               </div>
 
@@ -2589,6 +2820,10 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                         <p className="text-4xl font-display font-black text-foreground">100%</p>
                      </div>
                   </div>
+                </div>
+              ) : activeAdSubTab === 'inline' ? (
+                <div className="animate-fade-in">
+                  <InlineAdsManager />
                 </div>
               ) : (
                 <div className="animate-fade-in">
@@ -2931,9 +3166,21 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                            <textarea value={excerpt} onChange={e => setExcerpt(e.target.value)} placeholder="Catchy summary for cards..." className="w-full bg-background border border-border-custom rounded-2xl p-5 text-foreground text-sm min-h-[80px] resize-none focus:border-primary transition-colors shadow-inner" />
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="space-y-4">
                            <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">Full Content (Markdown Supported)</label>
-                           <textarea value={content} onChange={e => setContent(e.target.value)} required placeholder="Once upon a time in FideTV..." className="w-full bg-background border border-border-custom rounded-3xl p-8 text-foreground min-h-[400px] resize-none focus:border-primary transition-colors font-mono text-sm leading-relaxed shadow-inner" />
+                           <div data-color-mode="dark" className="overflow-hidden rounded-3xl border border-border-custom shadow-inner">
+                              <MDEditor
+                                value={content}
+                                onChange={(val) => setContent(val || '')}
+                                height={500}
+                                className="bg-background text-foreground font-sans"
+                                previewOptions={{
+                                  components: {
+                                    img: ({ node, ...props }) => <img className="rounded-3xl w-full h-auto my-6 shadow-2xl border border-white/10" {...props as any} />
+                                  }
+                                }}
+                              />
+                           </div>
                         </div>
                       </div>
 

@@ -10,6 +10,7 @@ export default function DownloadApp() {
   const [isAndroid, setIsAndroid] = useState(false);
   const [isChrome, setIsChrome] = useState(false);
   const [isSafari, setIsSafari] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [copied, setCopied] = useState(false);
   const [totalDownloads, setTotalDownloads] = useState<number>(0);
@@ -60,6 +61,39 @@ export default function DownloadApp() {
     };
     fetchDownloads();
 
+    // Subscribe to realtime updates for installation count
+    const channel = supabase
+      .channel('public:site_settings')
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'site_settings', 
+        filter: "key=eq.apk_download_count" 
+      }, (payload) => {
+        if (payload.new && payload.new.value) {
+          setTotalDownloads(parseInt(payload.new.value));
+          // Trigger a pulse animation
+          const tickerElement = document.getElementById('live-install-ticker');
+          if (tickerElement) {
+            tickerElement.classList.add('animate-pulse-fast');
+            setTimeout(() => {
+              tickerElement.classList.remove('animate-pulse-fast');
+            }, 600);
+          }
+        }
+      })
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'site_settings', 
+        filter: "key=eq.apk_download_count" 
+      }, (payload) => {
+        if (payload.new && payload.new.value) {
+          setTotalDownloads(parseInt(payload.new.value));
+        }
+      })
+      .subscribe();
+
     // Check if already installed
     const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches 
       || (window.navigator as any).standalone 
@@ -72,11 +106,13 @@ export default function DownloadApp() {
     const isAndroidDevice = /android/.test(userAgent);
     const isChromeBrowser = /chrome|crios|crmo/.test(userAgent) && !/edge|opr|opios|fb_iab|instagram/.test(userAgent);
     const isSafariBrowser = /safari/.test(userAgent) && !/chrome|crios|crmo|edge|opr|opios|fb_iab|instagram/.test(userAgent);
+    const isDesktopDevice = !/android|iphone|ipad|ipod/.test(userAgent);
 
     setIsIOS(isIOSDevice);
     setIsAndroid(isAndroidDevice);
     setIsChrome(isChromeBrowser);
     setIsSafari(isSafariBrowser);
+    setIsDesktop(isDesktopDevice);
 
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
@@ -89,6 +125,7 @@ export default function DownloadApp() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      supabase.removeChannel(channel);
     };
   }, []);
 
@@ -193,10 +230,26 @@ export default function DownloadApp() {
         </div>
         
         <div className="flex items-center justify-center gap-6">
-          <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-xl border border-white/10">
-            <Download className="w-4 h-4 text-primary" />
-            <span className="text-white font-bold">{totalDownloads.toLocaleString()}</span>
-            <span className="text-gray-500 text-xs uppercase font-black tracking-widest">Downloads</span>
+          <div 
+            id="live-install-ticker"
+            className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-xl border border-white/10 relative overflow-hidden transition-all duration-300 [&.animate-pulse-fast]:scale-110 [&.animate-pulse-fast]:bg-green-500/20 [&.animate-pulse-fast]:border-green-500"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+            <Download className="w-4 h-4 text-primary relative z-10" />
+            <span className="text-white font-bold relative z-10 flex tabular-nums">
+              <AnimatePresence mode="popLayout">
+                <motion.span
+                  key={totalDownloads}
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: -20, opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {totalDownloads.toLocaleString()}
+                </motion.span>
+              </AnimatePresence>
+            </span>
+            <span className="text-gray-500 text-xs uppercase font-black tracking-widest relative z-10 ml-1">Live Installs</span>
           </div>
           <div className="flex items-center gap-1">
             {[1, 2, 3, 4, 5].map((star) => (
@@ -675,6 +728,29 @@ export default function DownloadApp() {
                                </div>
                                <div className="h-4 w-32 bg-white/10 rounded-full" />
                             </div>
+                         </div>
+                      </div>
+                   </div>
+                 ) : isDesktop ? (
+                   // Desktop Chrome/Edge Instructions
+                   <div className="space-y-8">
+                      <div className="flex items-start gap-6 group">
+                         <div className="w-14 h-14 shrink-0 bg-white/5 rounded-2xl flex items-center justify-center text-2xl font-black text-primary border border-white/10 group-hover:bg-primary/20 transition-colors">1</div>
+                         <div className="space-y-2">
+                            <p className="text-white font-bold text-lg">Locate the Install Icon</p>
+                            <p className="text-gray-500 text-sm leading-relaxed">Look for the install icon <Download className="inline w-4 h-4 mb-1" /> in the right side of your address bar.</p>
+                            <div className="mt-4 p-4 bg-black/40 rounded-2xl border border-white/5 flex items-center justify-center">
+                               <div className="w-full max-w-[200px] h-10 border border-white/20 rounded-lg flex items-center justify-end px-3">
+                                  <Download className="w-5 h-5 text-primary" />
+                               </div>
+                            </div>
+                         </div>
+                      </div>
+                      <div className="flex items-start gap-6 group">
+                         <div className="w-14 h-14 shrink-0 bg-white/5 rounded-2xl flex items-center justify-center text-2xl font-black text-primary border border-white/10 group-hover:bg-primary/20 transition-colors">2</div>
+                         <div className="space-y-2">
+                            <p className="text-white font-bold text-lg">Click "Install"</p>
+                            <p className="text-gray-500 text-sm leading-relaxed">Click the icon and select "Install" from the popup to add FideTV to your computer.</p>
                          </div>
                       </div>
                    </div>

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
+import { safeLocalStorage } from '@/lib/storage';
 
 interface VoiceRoomProps {
   communityId: string;
@@ -267,7 +268,7 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
       });
 
       // Combine with local rooms info
-      const localRoomsJson = localStorage.getItem(`active-rooms-${communityId}`);
+      const localRoomsJson = safeLocalStorage.getItem(`active-rooms-${communityId}`);
       if (localRoomsJson) {
         try {
           const localRooms = JSON.parse(localRoomsJson);
@@ -299,7 +300,7 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
       })
       .on('broadcast', { event: 'request-rooms' }, () => {
         // If we are host of some rooms, answer with existing list
-        const myActiveRooms = localStorage.getItem(`active-rooms-${communityId}`);
+        const myActiveRooms = safeLocalStorage.getItem(`active-rooms-${communityId}`);
         if (myActiveRooms) {
           try {
             lobbyChannel.send({
@@ -322,7 +323,7 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           // Track our rooms in our presence state
-          const myRoomsJson = localStorage.getItem(`active-rooms-${communityId}`);
+          const myRoomsJson = safeLocalStorage.getItem(`active-rooms-${communityId}`);
           let myRooms: VoiceRoomData[] = [];
           if (myRoomsJson) {
             try {
@@ -345,7 +346,7 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
       });
 
     // Load initial ones hosted by us locally
-    const myRoomsJson = localStorage.getItem(`active-rooms-${communityId}`);
+    const myRoomsJson = safeLocalStorage.getItem(`active-rooms-${communityId}`);
     if (myRoomsJson) {
       try {
         setCreatedRooms(JSON.parse(myRoomsJson));
@@ -501,7 +502,7 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
     setCreatedRooms(updatedRooms);
     
     // Persist in local storage
-    localStorage.setItem(`active-rooms-${communityId}`, JSON.stringify(updatedRooms));
+    safeLocalStorage.setItem(`active-rooms-${communityId}`, JSON.stringify(updatedRooms));
 
     // Update presence and broadcast via existing lobby channel if active
     if (lobbyChannelRef.current) {
@@ -544,7 +545,7 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
     e.stopPropagation();
     const updated = createdRooms.filter(r => r.id !== roomId);
     setCreatedRooms(updated);
-    localStorage.setItem(`active-rooms-${communityId}`, JSON.stringify(updated));
+    safeLocalStorage.setItem(`active-rooms-${communityId}`, JSON.stringify(updated));
 
     // Update presence and broadcast via existing lobby channel if active
     if (lobbyChannelRef.current && userProfile) {
@@ -829,7 +830,7 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
     // 2. Erase from active rooms list
     const updated = createdRooms.filter(r => r.id !== activeRoom.id);
     setCreatedRooms(updated);
-    localStorage.setItem(`active-rooms-${communityId}`, JSON.stringify(updated));
+    safeLocalStorage.setItem(`active-rooms-${communityId}`, JSON.stringify(updated));
 
     // 3. Clear from Presence / Lobby
     const myId = userProfileRef.current?.id || userProfile?.id;
