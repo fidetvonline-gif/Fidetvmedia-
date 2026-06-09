@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ExternalLink, Sparkles, Megaphone } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { safeSessionStorage } from '@/lib/storage';
+import { safeLocalStorage } from '@/lib/storage';
 import { Link } from 'react-router-dom';
 
 export default function PromotionPopup() {
@@ -27,9 +27,12 @@ export default function PromotionPopup() {
           setIsEnabled(true);
           setPromoImageUrl(settings.advertise_promo_image_url);
           
-          // Show popup after 3 seconds if not dismissed this session
-          const dismissed = safeSessionStorage.getItem('fidetv_promo_dismissed');
-          if (!dismissed) {
+          // Check if dismissed in the last 24 hours
+          const lastDismissed = safeLocalStorage.getItem('fidetv_promo_last_dismissed');
+          const now = Date.now();
+          const oneDay = 24 * 60 * 60 * 1000;
+
+          if (!lastDismissed || (now - parseInt(lastDismissed)) > oneDay) {
              const timer = setTimeout(() => setIsOpen(true), 3000);
              return () => clearTimeout(timer);
           }
@@ -42,7 +45,7 @@ export default function PromotionPopup() {
 
   const handleClose = () => {
     setIsOpen(false);
-    safeSessionStorage.setItem('fidetv_promo_dismissed', 'true');
+    safeLocalStorage.setItem('fidetv_promo_last_dismissed', Date.now().toString());
   };
 
   if (!isEnabled) return null;
@@ -87,17 +90,12 @@ export default function PromotionPopup() {
                   <img 
                     src={promoImageUrl} 
                     alt="Promotional Offer" 
-                    className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+                    className="w-full h-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
                </div>
 
                <div className="p-8 space-y-6 bg-surface relative">
-                  <div className="space-y-2">
-                     <h3 className="text-2xl font-display font-black text-white leading-tight">Maximize Your Brand <span className="text-primary italic">Global Reach.</span></h3>
-                     <p className="text-gray-400 text-sm leading-relaxed">Advertise with FideTV and connect with thousands of daily viewers across Africa and Nigeria.</p>
-                  </div>
-
                   <div className="flex gap-3">
                      <Link
                        to="/advertise"
@@ -105,11 +103,11 @@ export default function PromotionPopup() {
                        className="flex-1 py-4 bg-primary text-white text-xs font-black uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 hover:bg-primary/90 transition-all shadow-xl shadow-primary/10 active:scale-95"
                      >
                        <Megaphone className="w-4 h-4" />
-                       Partner With Us
+                       Learn More
                      </Link>
                      <button
                        onClick={handleClose}
-                       className="px-6 py-4 bg-white/5 text-gray-400 hover:bg-white/10 rounded-2xl border border-white/5 transition-all active:scale-95"
+                       className="px-6 py-4 bg-white/5 text-gray-400 hover:bg-white/10 rounded-2xl border border-white/5 transition-all active:scale-95 flex items-center justify-center"
                      >
                        <X className="w-4 h-4" />
                      </button>

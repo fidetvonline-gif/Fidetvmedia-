@@ -13,7 +13,6 @@ import AdBanner from '@/components/AdBanner';
 import { DEFAULT_CHANNELS } from '@/constants/channels';
 import HighPerformancePlayer from '@/components/HighPerformancePlayer';
 import LiveEventBanner from '@/components/LiveEventBanner';
-import PromotionPopup from '@/components/PromotionPopup';
 import DisplayInlineAds from '@/components/DisplayInlineAds';
 
 import { ReferralLeaderboard } from '@/components/ReferralLeaderboard';
@@ -320,7 +319,6 @@ export default function Home() {
 
   return (
     <div className="relative pb-32 overflow-hidden bg-background">
-      <PromotionPopup />
       <SEO title="Home - Professional Video, Live Streaming & Web Design" description="We bring your visions to life. FideTV Media provides high-quality video production, live event streaming, and beautiful, simple website creation." />
 
       {/* Video Modal */}
