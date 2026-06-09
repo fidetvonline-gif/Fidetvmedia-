@@ -23,9 +23,9 @@ export default function PromotionPopup() {
           return acc;
         }, {});
 
-        if (settings.enable_popup_ad === 'true' && settings.advertise_promo_image_url) {
-          setIsEnabled(true);
-          setPromoImageUrl(settings.advertise_promo_image_url);
+        if (settings.enable_popup_ad === 'true' && settings.popup_promo_image_url) {
+          setIsEnabled(settings.enable_popup_ad === 'true');
+          setPromoImageUrl(settings.popup_promo_image_url);
           
           // Check if dismissed in the last 24 hours
           const lastDismissed = safeLocalStorage.getItem('fidetv_promo_last_dismissed');

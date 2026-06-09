@@ -10,7 +10,8 @@ import {
   Edit2, Trash2, Globe, Youtube, ToggleLeft, ToggleRight, 
   Sparkles, Camera, Eye, Newspaper, BookOpen, Clock, CheckCircle2, XCircle,
   ShieldCheck, ShieldAlert, Award, Headset, Briefcase, Tv, Zap, DollarSign,
-  ExternalLink, TrendingUp, BarChart3, Wallet, ArrowUpRight, PenTool
+  ExternalLink, TrendingUp, BarChart3, Wallet, ArrowUpRight, PenTool,
+  Megaphone, Video, PlayCircle, Image
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -67,6 +68,8 @@ export default function Admin() {
   });
   const [uploadingHero, setUploadingHero] = useState(false);
   const [uploadingAdvertisePromo, setUploadingAdvertisePromo] = useState(false);
+  const [uploadingPopupPromo, setUploadingPopupPromo] = useState(false);
+  const [uploadingPromoVideo, setUploadingPromoVideo] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [adUnits, setAdUnits] = useState<any[]>([]);
   const [supportChats, setSupportChats] = useState<any[]>([]);
@@ -444,6 +447,36 @@ export default function Admin() {
       alert("Error handling file: " + error.message);
     } finally {
       setUploadingAdvertisePromo(false);
+    }
+  };
+
+  const handlePopupPromoImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPopupPromo(true);
+    try {
+      const url = await uploadFileToStorage(file);
+      setSiteSettings(prev => ({ ...prev, popup_promo_image_url: url }));
+      await saveSiteSetting('popup_promo_image_url', url);
+    } catch (error: any) {
+      alert("Error handling file: " + error.message);
+    } finally {
+      setUploadingPopupPromo(false);
+    }
+  };
+
+  const handlePromoVideoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPromoVideo(true);
+    try {
+      const url = await uploadFileToStorage(file);
+      setSiteSettings(prev => ({ ...prev, promo_video_url: url }));
+      await saveSiteSetting('promo_video_url', url);
+    } catch (error: any) {
+      alert("Error handling file: " + error.message);
+    } finally {
+      setUploadingPromoVideo(false);
     }
   };
 
@@ -1429,144 +1462,297 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                 </div>
               </div>
 
-              {/* Advertise Promo Image Config */}
-              <div className="bg-surface rounded-[2.5rem] p-10 border border-border-custom space-y-8 shadow-sm">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-orange-500/10 rounded-2xl flex items-center justify-center border border-orange-500/20">
-                    <Sparkles className="w-6 h-6 text-orange-500" />
+              {/* Advertising & Promotions Section */}
+              <div className="space-y-12">
+                {/* 1. General Advertising Section */}
+                <div className="bg-surface rounded-[2.5rem] p-10 border border-border-custom space-y-8 shadow-sm">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center border border-blue-500/20">
+                      <Megaphone className="w-6 h-6 text-blue-500" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-display font-bold text-foreground uppercase tracking-tight">General Advertising Content</h2>
+                      <p className="text-[10px] text-foreground/40 font-bold uppercase tracking-widest mt-1 italic">This image appears in the main "Advertise" section on the Home page.</p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-xl font-display font-bold text-foreground uppercase tracking-tight">Advertise Section Promo Image</h2>
-                    <p className="text-[10px] text-foreground/40 font-bold uppercase tracking-widest mt-1 italic">This image appears in the "Advertise on FideTV" section on the Home page.</p>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <div className="lg:col-span-4 flex flex-col items-center justify-center bg-background/50 border border-border-custom rounded-3xl p-6 relative overflow-hidden group min-h-[200px]">
+                      {siteSettings.advertise_promo_image_url ? (
+                        <img 
+                          referrerPolicy="no-referrer"
+                          src={siteSettings.advertise_promo_image_url} 
+                          alt="Advertise" 
+                          className="w-full h-full object-cover rounded-xl border border-border-custom/50"
+                        />
+                      ) : (
+                        <div className="text-center p-4">
+                          <Image className="w-8 h-8 text-foreground/20 mx-auto mb-2" />
+                          <span className="text-[9px] font-bold text-foreground/40 uppercase block">No Image</span>
+                        </div>
+                      )}
+                      {uploadingAdvertisePromo && (
+                        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center">
+                          <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="lg:col-span-8 space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 block ml-2">Upload Ad Picture</label>
+                          <div className="relative border border-dashed border-border-custom hover:border-primary/40 rounded-2xl transition-all p-4 text-center cursor-pointer bg-background/10">
+                            <input 
+                              type="file" 
+                              accept="image/*"
+                              onChange={handleAdvertisePromoImageFileChange}
+                              className="absolute inset-0 opacity-0 cursor-pointer" 
+                              disabled={uploadingAdvertisePromo}
+                            />
+                            <h4 className="text-[10px] font-bold text-foreground">Click to upload...</h4>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 block ml-2">Copy Image Link</label>
+                          <div className="flex gap-2">
+                            <input 
+                              type="text"
+                              value={siteSettings.advertise_promo_image_url || ''}
+                              onChange={(e) => setSiteSettings(prev => ({ ...prev, advertise_promo_image_url: e.target.value }))}
+                              placeholder="Direct image link..."
+                              className="flex-grow bg-background border border-border-custom rounded-xl px-4 py-2 text-[11px] text-foreground focus:border-primary/50 shadow-inner"
+                            />
+                            <button
+                              onClick={() => saveSiteSetting('advertise_promo_image_url', siteSettings.advertise_promo_image_url || '')}
+                              className="px-4 bg-primary/20 text-primary border border-primary/20 hover:bg-primary hover:text-white transition-all text-[9px] font-bold uppercase tracking-wider rounded-xl"
+                            >
+                              Save
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                  <div className="lg:col-span-5 flex flex-col items-center justify-center bg-background/50 border border-border-custom rounded-3xl p-6 relative overflow-hidden group min-h-[220px]">
-                    {siteSettings.advertise_promo_image_url ? (
-                      <img 
-                        referrerPolicy="no-referrer"
-                        src={siteSettings.advertise_promo_image_url} 
-                        alt="Advertise Promo" 
-                        className="w-full h-full max-h-[180px] object-cover rounded-2xl border border-border-custom/50"
-                      />
-                    ) : (
-                      <div className="text-center p-4">
-                        <Sparkles className="w-10 h-10 text-foreground/25 mx-auto mb-2" />
-                        <span className="text-[10px] font-bold text-foreground/40 uppercase block">No custom image</span>
-                        <span className="text-[9px] text-foreground/20 italic block">Default promo image will load</span>
+                {/* 2. Promotional Pop-up Image Section */}
+                <div className="bg-surface rounded-[2.5rem] p-10 border border-border-custom space-y-8 shadow-sm">
+                  <div className="flex items-center justify-between border-b border-border-custom pb-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-orange-500/10 rounded-2xl flex items-center justify-center border border-orange-500/20">
+                        <Sparkles className="w-6 h-6 text-orange-500" />
                       </div>
-                    )}
-                    {uploadingAdvertisePromo && (
-                      <div className="absolute inset-0 bg-background/85 backdrop-blur-xs flex flex-col items-center justify-center">
-                        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin mb-2" />
-                        <span className="text-[9px] font-bold text-primary uppercase tracking-wider">Uploading asset...</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="lg:col-span-7 space-y-5">
-                    <div className="space-y-2">
-                      <label className="text-[10px] uppercase font-black tracking-[0.2em] text-foreground/40 block ml-2">Upload Promo Image File</label>
-                      <div className="relative border-2 border-dashed border-border-custom hover:border-primary/20 rounded-2xl transition-all p-6 text-center cursor-pointer bg-background/25">
-                        <input 
-                          type="file" 
-                          accept="image/*"
-                          onChange={handleAdvertisePromoImageFileChange}
-                          className="absolute inset-0 opacity-0 cursor-pointer" 
-                          disabled={uploadingAdvertisePromo}
-                        />
-                        <Camera className="w-6 h-6 text-primary/50 mx-auto mb-2" />
-                        <h4 className="text-[11px] font-bold text-foreground">Click to select file...</h4>
-                        <p className="text-[9px] text-foreground/40 mt-1 italic">Recommended size: 1200x800px</p>
+                      <div>
+                        <h2 className="text-xl font-display font-bold text-foreground uppercase tracking-tight">Promotional Pop-up Image</h2>
+                        <p className="text-[10px] text-foreground/40 font-bold uppercase tracking-widest mt-1 italic">This image appears in the automated pop-up once every 24 hours.</p>
                       </div>
                     </div>
+                    <div className="flex items-center gap-3 bg-background/50 px-4 py-2 rounded-2xl border border-border-custom">
+                       <span className="text-[10px] font-black uppercase text-foreground/40">Status</span>
+                       <button
+                         onClick={() => {
+                           const newVal = !enablePopupAd;
+                           setEnablePopupAd(newVal);
+                           saveSiteSetting('enable_popup_ad', newVal.toString());
+                         }}
+                         className={cn(
+                           "transition-all duration-300",
+                           enablePopupAd ? "text-primary" : "text-foreground/20"
+                         )}
+                       >
+                         {enablePopupAd ? <ToggleRight className="w-8 h-8" /> : <ToggleLeft className="w-8 h-8" />}
+                       </button>
+                    </div>
+                  </div>
 
-                    <div className="space-y-2">
-                      <label className="text-[10px] uppercase font-black tracking-[0.2em] text-foreground/40 block ml-2">Direct Image URL Link</label>
-                      <div className="flex gap-2">
-                        <input 
-                          type="text"
-                          value={siteSettings.advertise_promo_image_url || ''}
-                          onChange={(e) => setSiteSettings(prev => ({ ...prev, advertise_promo_image_url: e.target.value }))}
-                          placeholder="Or paste direct image URL link..."
-                          className="flex-grow bg-background border border-border-custom rounded-2xl px-4 py-3 text-xs text-foreground focus:border-primary/50 shadow-inner"
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <div className="lg:col-span-4 flex flex-col items-center justify-center bg-background/50 border border-border-custom rounded-3xl p-6 relative overflow-hidden group min-h-[200px]">
+                      {siteSettings.popup_promo_image_url ? (
+                        <img 
+                          referrerPolicy="no-referrer"
+                          src={siteSettings.popup_promo_image_url} 
+                          alt="Pop-up Promo" 
+                          className="w-full h-full object-cover rounded-xl border border-border-custom/50"
                         />
+                      ) : (
+                        <div className="text-center p-4">
+                          <Image className="w-8 h-8 text-foreground/20 mx-auto mb-2" />
+                          <span className="text-[9px] font-bold text-foreground/40 uppercase block">No Image</span>
+                        </div>
+                      )}
+                      {uploadingPopupPromo && (
+                        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center">
+                          <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="lg:col-span-8 space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 block ml-2">Upload Pop-up Picture</label>
+                          <div className="relative border border-dashed border-border-custom hover:border-primary/40 rounded-2xl transition-all p-4 text-center cursor-pointer bg-background/10">
+                            <input 
+                              type="file" 
+                              accept="image/*"
+                              onChange={handlePopupPromoImageFileChange}
+                              className="absolute inset-0 opacity-0 cursor-pointer" 
+                              disabled={uploadingPopupPromo}
+                            />
+                            <h4 className="text-[10px] font-bold text-foreground">Click to upload...</h4>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 block ml-2">Image URL link</label>
+                          <div className="flex gap-2">
+                            <input 
+                              type="text"
+                              value={siteSettings.popup_promo_image_url || ''}
+                              onChange={(e) => setSiteSettings(prev => ({ ...prev, popup_promo_image_url: e.target.value }))}
+                              placeholder="Direct image link..."
+                              className="flex-grow bg-background border border-border-custom rounded-xl px-4 py-2 text-[11px] text-foreground focus:border-primary/50 shadow-inner"
+                            />
+                            <button
+                              onClick={() => saveSiteSetting('popup_promo_image_url', siteSettings.popup_promo_image_url || '')}
+                              className="px-4 bg-primary/20 text-primary border border-primary/20 hover:bg-primary hover:text-white transition-all text-[9px] font-bold uppercase tracking-wider rounded-xl"
+                            >
+                              Save
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-foreground/20 italic px-2">This image will be displayed inside the pop-up notification. Recommended format: Square or Portrait.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Promotional Video Section */}
+                <div className="bg-surface rounded-[2.5rem] p-10 border border-border-custom space-y-8 shadow-sm">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-red-500/10 rounded-2xl flex items-center justify-center border border-red-500/20">
+                      <PlayCircle className="w-6 h-6 text-red-500" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-display font-bold text-foreground uppercase tracking-tight">Promotional Video Content</h2>
+                      <p className="text-[10px] text-foreground/40 font-bold uppercase tracking-widest mt-1 italic">Manage videos used for marketing and featured content.</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <div className="lg:col-span-4 flex flex-col items-center justify-center bg-background/50 border border-border-custom rounded-3xl p-6 relative overflow-hidden group min-h-[200px]">
+                      {siteSettings.promo_video_url ? (
+                        <div className="w-full h-full bg-black rounded-xl overflow-hidden flex items-center justify-center">
+                           <PlayCircle className="w-12 h-12 text-white/20" />
+                        </div>
+                      ) : (
+                        <div className="text-center p-4">
+                          <Video className="w-8 h-8 text-foreground/20 mx-auto mb-2" />
+                          <span className="text-[9px] font-bold text-foreground/40 uppercase block">No Video</span>
+                        </div>
+                      )}
+                      {uploadingPromoVideo && (
+                        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center">
+                          <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="lg:col-span-8 space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 block ml-2">Upload Video File</label>
+                          <div className="relative border border-dashed border-border-custom hover:border-primary/40 rounded-2xl transition-all p-4 text-center cursor-pointer bg-background/10">
+                            <input 
+                              type="file" 
+                              accept="video/*"
+                              onChange={handlePromoVideoFileChange}
+                              className="absolute inset-0 opacity-0 cursor-pointer" 
+                              disabled={uploadingPromoVideo}
+                            />
+                            <h4 className="text-[10px] font-bold text-foreground">Click to upload...</h4>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 block ml-2">Direct Video URL</label>
+                          <div className="flex gap-2">
+                            <input 
+                              type="text"
+                              value={siteSettings.promo_video_url || ''}
+                              onChange={(e) => setSiteSettings(prev => ({ ...prev, promo_video_url: e.target.value }))}
+                              placeholder="Direct video link..."
+                              className="flex-grow bg-background border border-border-custom rounded-xl px-4 py-2 text-[11px] text-foreground focus:border-primary/50 shadow-inner"
+                            />
+                            <button
+                              onClick={() => saveSiteSetting('promo_video_url', siteSettings.promo_video_url || '')}
+                              className="px-4 bg-primary/20 text-primary border border-primary/20 hover:bg-primary hover:text-white transition-all text-[9px] font-bold uppercase tracking-wider rounded-xl"
+                            >
+                              Save
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-foreground/20 italic px-2">Supported formats: MP4, WebM. You can also paste direct links from video hosting services.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Other Banner & Tracking Toggles */}
+                <div className="bg-surface rounded-[2.5rem] p-10 border border-border-custom space-y-8 shadow-sm">
+                   <div className="flex items-center gap-4 border-b border-border-custom pb-6">
+                      <div className="w-12 h-12 bg-purple-500/10 rounded-2xl flex items-center justify-center border border-purple-500/20">
+                        <BarChart3 className="w-6 h-6 text-purple-500" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-display font-bold text-foreground uppercase tracking-tight">Display & Ad Injections</h2>
+                        <p className="text-[10px] text-foreground/40 font-bold uppercase tracking-widest mt-1 italic">Controls for external ad scripts and global banners.</p>
+                      </div>
+                   </div>
+
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="bg-background/25 p-6 rounded-3xl border border-border-custom flex items-center justify-between">
+                        <div className="space-y-1">
+                          <h4 className="text-sm font-bold text-foreground">External Monetag Ads</h4>
+                          <p className="text-[10px] text-foreground/40 italic">Pop-under and external ad injections.</p>
+                        </div>
                         <button
-                          onClick={() => saveSiteSetting('advertise_promo_image_url', siteSettings.advertise_promo_image_url || '')}
-                          disabled={uploadingAdvertisePromo}
-                          className="px-5 bg-primary/10 border border-primary/20 hover:bg-primary hover:text-white transition-all text-[9px] font-bold uppercase tracking-wider rounded-2xl text-primary"
+                          onClick={() => {
+                            const newVal = !enableMonetagAds;
+                            setEnableMonetagAds(newVal);
+                            saveSiteSetting('enable_monetag_ads', newVal.toString());
+                          }}
+                          className={cn(
+                            "transition-all duration-300",
+                            enableMonetagAds ? "text-primary" : "text-foreground/20"
+                          )}
                         >
-                          Save URL
+                          {enableMonetagAds ? <ToggleRight className="w-10 h-10" /> : <ToggleLeft className="w-10 h-10" />}
                         </button>
                       </div>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Pop-up Ad and Banner Toggles */}
-                <div className="pt-8 border-t border-border-custom grid grid-cols-1 md:grid-cols-3 gap-8">
-                  <div className="bg-background/25 p-6 rounded-3xl border border-border-custom flex items-center justify-between">
-                    <div className="space-y-1">
-                      <h4 className="text-sm font-bold text-foreground">Promotional Pop-up Ad</h4>
-                      <p className="text-[10px] text-foreground/40 italic">When enabled, a promotional popup overlay appears for visitors on the home page.</p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        const newVal = !enablePopupAd;
-                        setEnablePopupAd(newVal);
-                        saveSiteSetting('enable_popup_ad', newVal.toString());
-                      }}
-                      className={cn(
-                        "transition-all duration-300",
-                        enablePopupAd ? "text-primary" : "text-foreground/20"
-                      )}
-                    >
-                      {enablePopupAd ? <ToggleRight className="w-10 h-10" /> : <ToggleLeft className="w-10 h-10" />}
-                    </button>
-                  </div>
-
-                  <div className="bg-background/25 p-6 rounded-3xl border border-border-custom flex items-center justify-between">
-                    <div className="space-y-1">
-                      <h4 className="text-sm font-bold text-foreground">External Monetag Ads</h4>
-                      <p className="text-[10px] text-foreground/40 italic">Pop-under and external monetag ad injections. Warning: High annoyance logic.</p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        const newVal = !enableMonetagAds;
-                        setEnableMonetagAds(newVal);
-                        saveSiteSetting('enable_monetag_ads', newVal.toString());
-                      }}
-                      className={cn(
-                        "transition-all duration-300",
-                        enableMonetagAds ? "text-primary" : "text-foreground/20"
-                      )}
-                    >
-                      {enableMonetagAds ? <ToggleRight className="w-10 h-10" /> : <ToggleLeft className="w-10 h-10" />}
-                    </button>
-                  </div>
-
-                  <div className="bg-background/25 p-6 rounded-3xl border border-border-custom flex items-center justify-between">
-                    <div className="space-y-1">
-                      <h4 className="text-sm font-bold text-foreground">Site-wide Event Banner</h4>
-                      <p className="text-[10px] text-foreground/40 italic">Global banner displayed at the top of the screen (used for events).</p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        const newVal = !enableEventBanner;
-                        setEnableEventBanner(newVal);
-                        saveSiteSetting('enable_event_banner', newVal.toString());
-                      }}
-                      className={cn(
-                        "transition-all duration-300",
-                        enableEventBanner ? "text-primary" : "text-foreground/20"
-                      )}
-                    >
-                      {enableEventBanner ? <ToggleRight className="w-10 h-10" /> : <ToggleLeft className="w-10 h-10" />}
-                    </button>
-                  </div>
+                      <div className="bg-background/25 p-6 rounded-3xl border border-border-custom flex items-center justify-between">
+                        <div className="space-y-1">
+                          <h4 className="text-sm font-bold text-foreground">Global Event Banner</h4>
+                          <p className="text-[10px] text-foreground/40 italic">Notification banner at the top of every page.</p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const newVal = !enableEventBanner;
+                            setEnableEventBanner(newVal);
+                            saveSiteSetting('enable_event_banner', newVal.toString());
+                          }}
+                          className={cn(
+                            "transition-all duration-300",
+                            enableEventBanner ? "text-primary" : "text-foreground/20"
+                          )}
+                        >
+                          {enableEventBanner ? <ToggleRight className="w-10 h-10" /> : <ToggleLeft className="w-10 h-10" />}
+                        </button>
+                      </div>
+                   </div>
                 </div>
               </div>
+
 
               {/* Roster / Team Members Management Block */}
               <div className="bg-surface rounded-[2.5rem] p-10 border border-border-custom space-y-8 shadow-sm">
