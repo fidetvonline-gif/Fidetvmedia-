@@ -3,6 +3,9 @@ import { supabase } from '@/lib/supabase';
 import { Link } from 'react-router-dom';
 import { Event, Community, News, Booking, Profile, PortfolioItem, TvChannel, Service } from '@/types';
 import { 
+  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line 
+} from 'recharts';
+import { 
   LayoutDashboard, Radio, MessageSquare, Users, Settings, Plus, 
   Edit2, Trash2, Globe, Youtube, ToggleLeft, ToggleRight, 
   Sparkles, Camera, Eye, Newspaper, BookOpen, Clock, CheckCircle2, XCircle,
@@ -71,6 +74,7 @@ export default function Admin() {
   const [dbErrors, setDbErrors] = useState<Record<string, string>>({});
   const [communityStats, setCommunityStats] = useState<any[]>([]);
   const [visitCount, setVisitCount] = useState(0);
+  const [visitTrends, setVisitTrends] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isBloggerOnly, setIsBloggerOnly] = useState(false);
@@ -143,6 +147,7 @@ export default function Admin() {
   const [smedanUrl, setSmedanUrl] = useState('');
   const [certUploading, setCertUploading] = useState(false);
   const [smedanUploading, setSmedanUploading] = useState(false);
+  const [playlistIdInput, setPlaylistIdInput] = useState('PL-6S90yUuZeKxMmO4C63nxIHWSjQtIi2d');
 
   useEffect(() => {
     checkAdmin();
@@ -164,6 +169,10 @@ export default function Admin() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'services' }, () => fetchServices())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'portfolio_items' }, () => fetchPortfolio())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tv_channels' }, () => fetchChannels())
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'site_visits' }, () => {
+        fetchVisits();
+        fetchVisitTrends();
+      })
       .subscribe();
 
     return () => {
@@ -230,7 +239,8 @@ export default function Admin() {
         fetchServices(),
         fetchSiteSettings(),
         fetchAdUnits(),
-        fetchVisits()
+        fetchVisits(),
+        fetchVisitTrends()
       ]);
     }
     if (activeTab === 'events') await fetchEvents();
@@ -651,6 +661,46 @@ export default function Admin() {
     }
   };
 
+  const fetchVisitTrends = async () => {
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const { data, error } = await supabase
+        .from('site_visits')
+        .select('created_at')
+        .gte('created_at', thirtyDaysAgo.toISOString())
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      // Create a map of the last 30 days
+      const days: Record<string, number> = {};
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        days[format(d, 'MMM dd')] = 0;
+      }
+
+      // Fill in actual visit data
+      data?.forEach((visit: any) => {
+        const dateKey = format(new Date(visit.created_at), 'MMM dd');
+        if (days[dateKey] !== undefined) {
+          days[dateKey]++;
+        }
+      });
+
+      const trendData = Object.entries(days).map(([date, visits]) => ({
+        date,
+        visits
+      }));
+
+      setVisitTrends(trendData);
+    } catch (err) {
+      console.warn("Could not fetch visit trends:", err);
+    }
+  };
+
   const fetchVisits = async () => {
     const baseVisits = 18542;
     try {
@@ -734,15 +784,20 @@ export default function Admin() {
   };
 
   const handlePlaylistImport = async () => {
-    const playlistId = 'PL-6S90yUuZeKxMmO4C63nxIHWSjQtIi2d';
+    // Extract ID if URL is provided
+    let playlistId = playlistIdInput.trim();
+    if (playlistId.includes('list=')) {
+      playlistId = playlistId.split('list=')[1]?.split('&')[0] || playlistId;
+    }
+
     console.log("Starting playlist import for ID:", playlistId);
     setImportingPlaylist(true);
     try {
       const items = await fetchPlaylistItems(playlistId);
-      console.log("Playlist Sync Result:", items);
+      console.log("Full data from YouTube:", items);
       
       if (!items || items.length === 0) {
-        alert("No videos found in this playlist. Please double check if the playlist is Public on YouTube.");
+        alert(`No videos found in playlist (ID: ${playlistId}). Please check if it's public and has videos.`);
         return;
       }
 
@@ -1049,19 +1104,27 @@ export default function Admin() {
                <h1 className="text-4xl font-display font-bold text-foreground tracking-tighter">Admin <span className="text-foreground/40 italic">Studio.</span></h1>
                <p className="text-foreground/40 font-medium tracking-wide">Command center for FideTV Media content and community.</p>
             </div>
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-wrap gap-4 items-center">
               {activeTab === 'events' && (
-                <button 
-                  onClick={handlePlaylistImport}
-                  disabled={importingPlaylist}
-                  className="px-8 py-4 bg-red-600 text-white font-bold rounded-2xl flex items-center space-x-3 shadow-lg shadow-red-600/20 hover:scale-105 transition-all active:scale-95 disabled:opacity-50"
-                  title="Sync with World Cup Playlist"
-                >
-                  <Youtube className="w-5 h-5" />
-                  <span className="uppercase tracking-widest text-xs">
-                    {importingPlaylist ? 'Syncing...' : 'Sync Playlist'}
-                  </span>
-                </button>
+                <div className="flex items-center bg-foreground/5 rounded-2xl p-1 border border-foreground/10">
+                  <input 
+                    type="text" 
+                    value={playlistIdInput}
+                    onChange={(e) => setPlaylistIdInput(e.target.value)}
+                    placeholder="Playlist ID or URL"
+                    className="bg-transparent border-none focus:ring-0 px-4 py-2 text-sm w-48 lg:w-64"
+                  />
+                  <button 
+                    onClick={handlePlaylistImport}
+                    disabled={importingPlaylist || !playlistIdInput.trim()}
+                    className="px-6 py-3 bg-red-600 text-white font-bold rounded-xl flex items-center space-x-2 shadow-lg shadow-red-600/20 hover:bg-red-700 transition-all disabled:opacity-50"
+                  >
+                    <Youtube className="w-4 h-4" />
+                    <span className="text-xs uppercase">
+                      {importingPlaylist ? 'Syncing...' : 'Sync'}
+                    </span>
+                  </button>
+                </div>
               )}
               {activeTab !== 'site' && activeTab !== 'bookings' && activeTab !== 'support' && activeTab !== 'partnerships' && activeTab !== 'overview' && (
                 <button 
@@ -2107,6 +2170,74 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                       <p className="text-[10px] uppercase font-black text-foreground/30 tracking-widest italic">{stat.label}</p>
                   </div>
                 ))}
+              </div>
+
+              {/* Visitor Trends Chart */}
+              <div className="bg-surface rounded-[3rem] border border-border-custom p-10 shadow-sm space-y-8">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border-custom pb-8">
+                   <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center border border-primary/20">
+                         <TrendingUp className="w-6 h-6 text-primary" />
+                      </div>
+                      <div>
+                         <h2 className="text-xl font-display font-bold text-foreground uppercase tracking-tight">Visitor Trends</h2>
+                         <p className="text-[10px] text-foreground/40 font-bold uppercase tracking-widest mt-1 italic">Last 30 days activity report</p>
+                      </div>
+                   </div>
+                   <div className="flex items-center gap-3 bg-background/50 px-4 py-2 rounded-2xl border border-border-custom">
+                      <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                      <span className="text-[9px] font-black uppercase tracking-widest text-foreground/60 italic">Real-time Pulse active</span>
+                   </div>
+                </div>
+
+                <div className="h-[350px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={visitTrends}>
+                      <defs>
+                        <linearGradient id="colorVisits" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                      <XAxis 
+                        dataKey="date" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fontSize: 9, fontWeight: 700, fill: 'rgba(255,255,255,0.2)' }}
+                        dy={10}
+                      />
+                      <YAxis 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fontSize: 9, fontWeight: 700, fill: 'rgba(255,255,255,0.2)' }}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(15, 15, 15, 0.95)', 
+                          borderRadius: '20px', 
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          backdropFilter: 'blur(10px)',
+                          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)'
+                        }}
+                        itemStyle={{ color: 'white', fontWeight: 700, fontSize: '10px', textTransform: 'uppercase' }}
+                        labelStyle={{ color: 'rgba(255,255,255,0.4)', fontWeight: 800, fontSize: '9px', marginBottom: '4px', textTransform: 'uppercase' }}
+                        cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="visits" 
+                        stroke="var(--color-primary)" 
+                        strokeWidth={4}
+                        fillOpacity={1} 
+                        fill="url(#colorVisits)" 
+                        animationDuration={2000}
+                        dot={{ r: 4, fill: 'var(--color-primary)', strokeWidth: 2, stroke: 'var(--color-surface)' }}
+                        activeDot={{ r: 6, strokeWidth: 0, fill: 'white', boxShadow: '0 0 15px var(--color-primary)' }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

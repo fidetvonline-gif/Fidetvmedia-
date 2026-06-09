@@ -383,3 +383,18 @@ CREATE TABLE IF NOT EXISTS public.site_visits (
 ALTER TABLE public.site_visits ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public can insert visits" ON public.site_visits FOR INSERT WITH CHECK (true);
 CREATE POLICY "Admin view visits" ON public.site_visits FOR SELECT USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
+
+-- 16. Reviews Table
+CREATE TABLE IF NOT EXISTS public.reviews (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_name TEXT NOT NULL,
+  user_avatar TEXT,
+  rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  comment TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Reviews viewable by everyone" ON public.reviews FOR SELECT USING (true);
+CREATE POLICY "Authenticated users can submit reviews" ON public.reviews FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Only admin can manage reviews" ON public.reviews FOR ALL USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');

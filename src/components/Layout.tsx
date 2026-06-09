@@ -60,6 +60,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     };
 
     fetchVisitorCount();
+    
+    // Subscribe to real-time updates for site visits
+    const visitChannel = supabase
+      .channel('public-site-visits')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'site_visits' }, () => {
+        fetchVisitorCount();
+      })
+      .subscribe();
+
     const fetchEventBannerStatus = async () => {
       try {
         const { data, error } = await supabase
@@ -76,8 +85,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       }
     };
     fetchEventBannerStatus();
-    const interval = setInterval(fetchVisitorCount, 15000);
-    return () => clearInterval(interval);
+
+    return () => {
+      supabase.removeChannel(visitChannel);
+    };
   }, []);
 
   useEffect(() => {
@@ -186,11 +197,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         {location.pathname !== '/live' && showEventBanner && <LiveEventBanner />}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20 items-center">
-            <Link to="/" className="flex items-center space-x-2 group">
-              <div className="w-8 h-8 text-foreground flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+            <Link to="/" className="flex items-center group mr-8 shrink-0 gap-3">
+              <div className="w-10 h-10 text-foreground flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                 <FideTvLogo className="w-full h-full" />
               </div>
-              <span className="font-display font-bold text-2xl tracking-tighter text-foreground">
+              <span className="font-display font-black text-2xl tracking-tighter text-foreground hidden sm:block">
                 FideTv
               </span>
             </Link>

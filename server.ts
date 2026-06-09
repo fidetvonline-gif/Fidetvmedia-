@@ -111,7 +111,7 @@ Compose a short, direct, vocal response (max 2 sentences, 150 characters) that i
       queryParams.set('key', apiKey);
 
       const url = `https://www.googleapis.com/youtube/v3/${endpoint}?${queryParams.toString()}`;
-      console.log(`[YouTube Proxy] Fetching ${endpoint} (Params: ${queryParams.toString().replace(apiKey, 'REDACTED')})`);
+      console.log(`[YouTube Proxy] Fetching ${endpoint} with params:`, Object.fromEntries(queryParams.entries()));
       
       const response = await fetch(url);
       const data = await response.json().catch(() => ({}));
@@ -121,6 +121,7 @@ Compose a short, direct, vocal response (max 2 sentences, 150 characters) that i
         return res.status(response.status).json(data);
       }
       
+      console.log(`[YouTube Proxy] Successfully fetched ${endpoint}. Items found: ${data.items?.length || 0}`);
       res.json(data);
     } catch (error: any) {
       console.error('[YouTube Proxy] Unexpected Error:', error);

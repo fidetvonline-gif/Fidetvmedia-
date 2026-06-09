@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Download, Smartphone, Apple, Play, CheckCircle2, ChevronRight, HelpCircle, Copy, Check, History, Loader2, Star, AlertTriangle, X } from 'lucide-react';
+import { Download, Smartphone, Apple, Play, CheckCircle2, ChevronRight, HelpCircle, Copy, Check, History, Loader2, Star, AlertTriangle, X, Quote, ChevronLeft, Share2, MessageCircle, Twitter, Facebook } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 
@@ -21,8 +21,51 @@ export default function DownloadApp() {
   const [submittingReport, setSubmittingReport] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [swStatus, setSwStatus] = useState<'not-ready' | 'loading' | 'ready'>('not-ready');
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
+  const [loadingReviews, setLoadingReviews] = useState(true);
 
   useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('reviews')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (data && data.length > 0) {
+          setReviews(data);
+        } else {
+          // Fallback static reviews if DB is empty
+          setReviews([
+            {
+              user_name: "Sarah Jensen",
+              rating: 5,
+              comment: "FideTV has completely changed how I watch live sports. The stream quality is unmatched!",
+              user_avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop"
+            },
+            {
+              user_name: "Michael Chen",
+              rating: 5,
+              comment: "The PWA installation was so simple. No need to clear space for a massive app download.",
+              user_avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop"
+            },
+            {
+              user_name: "Amina Okoro",
+              rating: 4,
+              comment: "Love the community chat feature. It makes watching live events so much more interactive!",
+              user_avatar: "https://images.unsplash.com/photo-1531123897727-8f129e16fd3c?w=100&h=100&fit=crop"
+            }
+          ]);
+        }
+      } catch (err) {
+        console.error("Error fetching reviews:", err);
+      } finally {
+        setLoadingReviews(false);
+      }
+    };
+    fetchReviews();
+
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
@@ -175,6 +218,52 @@ export default function DownloadApp() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  };
+
+  const handleShare = async () => {
+    const shareData = {
+      title: 'FideTV - High fidelity live events',
+      text: 'Check out FideTV for high fidelity live streaming and community events!',
+      url: window.location.origin,
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        console.error('Error sharing:', err);
+      }
+    } else {
+      handleCopyLink();
+    }
+  };
+
+  const shareToPlatform = (platform: 'x' | 'facebook' | 'whatsapp') => {
+    const url = encodeURIComponent(window.location.origin);
+    const text = encodeURIComponent('Experience live events and community on FideTV! Download the app now.');
+    
+    let shareUrl = '';
+    switch (platform) {
+      case 'x':
+        shareUrl = `https://twitter.com/intent/tweet?url=${url}&text=${text}`;
+        break;
+      case 'facebook':
+        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${url}`;
+        break;
+      case 'whatsapp':
+        shareUrl = `https://api.whatsapp.com/send?text=${text}%20${url}`;
+        break;
+    }
+    
+    window.open(shareUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const nextReview = () => {
+    setCurrentReviewIndex((prev) => (prev + 1) % reviews.length);
+  };
+
+  const prevReview = () => {
+    setCurrentReviewIndex((prev) => (prev - 1 + reviews.length) % reviews.length);
   };
 
   return (
@@ -342,6 +431,67 @@ export default function DownloadApp() {
         )}
       </section>
 
+      {/* Social Sharing Section */}
+      <section className="glass rounded-[3rem] p-12 border-white/5 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-32 -mt-32" />
+        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div className="space-y-6">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/20 text-primary text-xs font-bold uppercase tracking-widest">
+              <Share2 className="w-4 h-4" />
+              Spread the Word
+            </div>
+            <h2 className="text-3xl md:text-5xl font-display font-black text-white tracking-tighter">
+              Share the <span className="text-primary">Vibe.</span>
+            </h2>
+            <p className="text-gray-400 text-lg leading-relaxed max-w-md">
+              Love the experience? Invite your community to join the FideTV revolution. One click is all it takes.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <button 
+              onClick={() => shareToPlatform('x')}
+              className="flex flex-col items-center justify-center gap-4 p-6 bg-white/5 hover:bg-white/10 rounded-[2rem] border border-white/10 transition-all group"
+            >
+              <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center border border-white/10 group-hover:scale-110 transition-transform">
+                <Twitter className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-white text-[10px] font-black uppercase tracking-widest opacity-60">Post to X</span>
+            </button>
+
+            <button 
+              onClick={() => shareToPlatform('facebook')}
+              className="flex flex-col items-center justify-center gap-4 p-6 bg-white/5 hover:bg-white/10 rounded-[2rem] border border-white/10 transition-all group"
+            >
+              <div className="w-12 h-12 bg-[#1877F2] rounded-xl flex items-center justify-center border border-white/10 group-hover:scale-110 transition-transform">
+                <Facebook className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-white text-[10px] font-black uppercase tracking-widest opacity-60">Facebook</span>
+            </button>
+
+            <button 
+              onClick={() => shareToPlatform('whatsapp')}
+              className="flex flex-col items-center justify-center gap-4 p-6 bg-white/5 hover:bg-white/10 rounded-[2rem] border border-white/10 transition-all group"
+            >
+              <div className="w-12 h-12 bg-[#25D366] rounded-xl flex items-center justify-center border border-white/10 group-hover:scale-110 transition-transform">
+                <MessageCircle className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-white text-[10px] font-black uppercase tracking-widest opacity-60">WhatsApp</span>
+            </button>
+
+            <button 
+              onClick={handleShare}
+              className="flex flex-col items-center justify-center gap-4 p-6 bg-primary/10 hover:bg-primary/20 rounded-[2rem] border border-primary/20 transition-all group"
+            >
+              <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center border border-primary/30 group-hover:scale-110 transition-transform">
+                <Share2 className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-primary text-[10px] font-black uppercase tracking-widest">More Options</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
       {/* FAQ & Setup Instructions */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
           <div className="space-y-8">
@@ -487,6 +637,92 @@ export default function DownloadApp() {
                )}
             </AnimatePresence>
          </div>
+      </section>
+
+      {/* Testimonial Carousel Section */}
+      <section className="space-y-12 py-12">
+        <div className="text-center space-y-4">
+           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/20 text-primary text-xs font-bold uppercase tracking-widest">
+              <Quote className="w-4 h-4" />
+              Testimonials
+           </div>
+           <h2 className="text-3xl md:text-5xl font-display font-black text-white tracking-tighter">
+             Community <span className="text-primary">Love.</span>
+           </h2>
+           <p className="text-gray-400 max-w-lg mx-auto">
+             Hear from thousands of users enjoying the FideTV experience every day.
+           </p>
+        </div>
+
+        <div className="relative max-w-4xl mx-auto px-4">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentReviewIndex}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.5 }}
+              className="glass p-8 md:p-12 rounded-[3rem] border-white/5 relative overflow-hidden"
+            >
+              <div className="flex flex-col md:flex-row items-center gap-8">
+                <div className="w-24 h-24 shrink-0 rounded-full overflow-hidden border-4 border-primary/20 shadow-xl mx-auto md:mx-0">
+                  <img 
+                    src={reviews[currentReviewIndex]?.user_avatar || `https://ui-avatars.com/api/?name=${reviews[currentReviewIndex]?.user_name}&background=random`} 
+                    alt={reviews[currentReviewIndex]?.user_name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="flex-1 space-y-4 text-center md:text-left">
+                  <div className="flex items-center justify-center md:justify-start gap-1">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star 
+                        key={i} 
+                        className={cn(
+                          "w-4 h-4",
+                          i < (reviews[currentReviewIndex]?.rating || 0) ? "text-yellow-500 fill-yellow-500" : "text-gray-600"
+                        )} 
+                      />
+                    ))}
+                  </div>
+                  <p className="text-xl md:text-2xl text-white font-medium italic leading-relaxed">
+                    "{reviews[currentReviewIndex]?.comment}"
+                  </p>
+                  <div className="pt-4 border-t border-white/5">
+                    <h4 className="text-white font-bold text-lg">{reviews[currentReviewIndex]?.user_name}</h4>
+                    <p className="text-primary text-[10px] font-black uppercase tracking-widest mt-1">Verified User</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+
+          <div className="flex justify-center items-center gap-6 mt-12">
+            <button 
+              onClick={prevReview}
+              className="p-4 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 transition-all text-white"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+            <div className="flex gap-2">
+              {reviews.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setCurrentReviewIndex(idx)}
+                  className={cn(
+                    "w-2 h-2 rounded-full transition-all duration-300",
+                    idx === currentReviewIndex ? "w-8 bg-primary" : "bg-white/20"
+                  )}
+                />
+              ))}
+            </div>
+            <button 
+              onClick={nextReview}
+              className="p-4 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 transition-all text-white"
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
       </section>
 
       {/* Version History Section */}
