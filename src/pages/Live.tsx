@@ -296,7 +296,9 @@ export default function Live() {
   }, [event, isFideTvLive]);
 
   const allChannels = React.useMemo(() => {
-    const dynamic = dbChannels.map((ch: any) => ({
+    const dynamic = dbChannels
+      .filter((ch: any) => ch.is_active !== false)
+      .map((ch: any) => ({
       id: ch.id,
       name: ch.name,
       category: ch.category || 'General',

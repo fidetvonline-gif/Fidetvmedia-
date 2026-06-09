@@ -25,6 +25,7 @@ export interface Profile {
   verification_requested?: boolean;
   verification_details?: string;
   role?: string;
+  referred_by?: string;
   created_at: string;
 }
 

@@ -72,12 +72,16 @@ export default function Onboarding() {
     setError(null);
 
     try {
+      const { safeSessionStorage } = await import('@/lib/storage');
+      const referredBy = safeSessionStorage.getItem('fidetv_referral') || undefined;
+
       const { error: profileError } = await supabase.from('profiles').upsert({
         id: user.id,
         username: username.toLowerCase(),
         full_name: fullName,
         bio: bio,
         avatar_url: avatarUrl,
+        referred_by: referredBy,
       });
 
       if (profileError) throw profileError;

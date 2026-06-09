@@ -21,6 +21,7 @@ import { DEFAULT_CHANNELS } from '@/constants/channels';
 import AdBanner from '@/components/AdBanner';
 import AdminAdManagement from '@/components/AdminAdManagement';
 import InlineAdsManager from '@/components/InlineAdsManager';
+import { ReferralAnalytics } from '@/components/ReferralAnalytics';
 import MDEditor from '@uiw/react-md-editor';
 import { safeLocalStorage } from '@/lib/storage';
 
@@ -83,6 +84,35 @@ export default function Admin() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [ytStats, setYtStats] = useState<Record<string, YouTubeStats>>({});
   
+  const [showAllChannels, setShowAllChannels] = useState(false);
+  
+  // Computed list of all channels including defaults not yet in DB
+  const allViewableChannels = React.useMemo(() => {
+    // Show all if toggled, otherwise only active
+    const merged = [...channels].filter(c => showAllChannels || c.is_active !== false);
+    DEFAULT_CHANNELS.forEach(defCh => {
+      // Avoid adding defaults if they or a channel with the same name/url already exist in the database list
+      const existsInDb = channels.some(m => m.name.toLowerCase() === defCh.name.toLowerCase() || m.url === defCh.url);
+      
+      if (!existsInDb) {
+        // Create a virtual channel object
+        merged.push({
+          id: `virtual_${defCh.id}`,
+          name: defCh.name,
+          category: defCh.category,
+          thumbnail: defCh.thumbnail,
+          url: defCh.url,
+          description: defCh.description,
+          is_active: defCh.isLive,
+          order_index: 999, // Put defaults at the end
+          created_at: new Date().toISOString(),
+          isVirtual: true
+        } as any);
+      }
+    });
+    return merged.sort((a, b) => (a.order_index ?? 999) - (b.order_index ?? 999));
+  }, [channels, showAllChannels]);
+
   // Settings Toggles
   const [enablePopupAd, setEnablePopupAd] = useState(false);
   const [enableEventBanner, setEnableEventBanner] = useState(true);
@@ -953,7 +983,11 @@ export default function Admin() {
   const handleDelete = async (table: string, id: string) => {
     if (!window.confirm("Delete this item?")) return;
     const { error } = await supabase.from(table).delete().eq('id', id);
-    if (!error) fetchData();
+    if (!error) {
+      await fetchData();
+    } else {
+      alert("Delete failed: " + error.message);
+    }
   };
 
   const handleVerification = async (userId: string, approve: boolean) => {
@@ -2233,11 +2267,26 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                         fill="url(#colorVisits)" 
                         animationDuration={2000}
                         dot={{ r: 4, fill: 'var(--color-primary)', strokeWidth: 2, stroke: 'var(--color-surface)' }}
-                        activeDot={{ r: 6, strokeWidth: 0, fill: 'white', boxShadow: '0 0 15px var(--color-primary)' }}
+                        activeDot={{ r: 6, strokeWidth: 0, fill: 'white' }}
                       />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
+              </div>
+
+              {/* Referral Analytics & Growth Section */}
+              <div id="referral-intelligence-section" className="bg-surface rounded-[3rem] border border-border-custom p-10 shadow-sm space-y-8">
+                <div className="flex items-center gap-4 border-b border-border-custom pb-8">
+                   <div className="w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center border border-amber-500/20">
+                      <BarChart3 className="w-6 h-6 text-amber-500" />
+                   </div>
+                   <div>
+                      <h2 className="text-xl font-display font-bold text-foreground uppercase tracking-tight">Referral Intelligence</h2>
+                      <p className="text-[10px] text-foreground/40 font-bold uppercase tracking-widest mt-1 italic">Invite growth & conversion performance</p>
+                   </div>
+                </div>
+                
+                <ReferralAnalytics />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -2368,19 +2417,81 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
 
           {activeTab === 'channels' && (
             <div className="space-y-12">
+               <div className="flex justify-between items-center bg-surface p-4 rounded-2xl border border-border-custom">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                      <Tv className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-foreground">Broadcast Stations</h3>
+                      <p className="text-[10px] text-foreground/40 font-medium italic">Manage live TV feeds and station metadata</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <button 
+                      onClick={() => setShowAllChannels(!showAllChannels)}
+                      className={cn(
+                        "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all flex items-center gap-2",
+                        showAllChannels ? "bg-foreground text-background border-foreground" : "bg-background text-foreground/40 border-border-custom hover:border-foreground/20"
+                      )}
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      {showAllChannels ? 'Hide Trash' : 'View Trash'}
+                    </button>
+                    {allViewableChannels.some(c => (c as any).isVirtual) && (
+                      <button 
+                        onClick={async () => {
+                        if (confirm('Import all missing default system channels to database?')) {
+                          const missing = DEFAULT_CHANNELS.filter(def => 
+                            !channels.some(c => c.name.toLowerCase() === def.name.toLowerCase() || c.url === def.url)
+                          );
+                          for (const ch of missing) {
+                            await supabase.from('tv_channels').insert({
+                              name: ch.name,
+                              category: ch.category,
+                              url: ch.url,
+                              thumbnail: ch.thumbnail,
+                              description: ch.description,
+                              is_active: true,
+                              order_index: channels.length
+                            });
+                          }
+                          fetchChannels();
+                        }
+                      }}
+                      className="px-6 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl text-[10px] font-black uppercase tracking-widest border border-primary/20 transition-all"
+                    >
+                      Import Missing Defaults
+                    </button>
+                  )}
+                </div>
+               </div>
+
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                 {channels.map(channel => (
-                   <div key={channel.id} className="bg-surface rounded-3xl border border-border-custom p-6 space-y-6 group hover:border-primary/20 transition-all shadow-sm">
+                 {allViewableChannels.map(channel => (
+                   <div key={channel.id} className={cn(
+                     "bg-surface rounded-3xl border p-6 space-y-6 group hover:border-primary/20 transition-all shadow-sm relative overflow-hidden",
+                     (channel as any).isVirtual ? "border-dashed border-border-custom/50" : "border-border-custom"
+                   )}>
+                     {(channel as any).isVirtual && (
+                       <div className="absolute top-0 right-0 p-1 px-3 bg-foreground/5 text-[7px] font-black uppercase tracking-widest text-foreground/40 rounded-bl-xl border-l border-b border-border-custom">
+                         System Template
+                       </div>
+                     )}
                      <div className="relative aspect-video rounded-2xl overflow-hidden border border-border-custom bg-background shadow-inner">
                         <img src={channel.thumbnail || "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=800&q=80"} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" />
                         <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
                         <div className="absolute top-4 left-4 bg-primary/90 text-white text-[8px] font-black uppercase px-2 py-1 rounded-md tracking-tighter">
                            {channel.category}
                         </div>
-                        {channel.is_active && (
+                        {channel.is_active ? (
                           <div className="absolute top-4 right-4 bg-red-600/90 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black uppercase text-white tracking-widest border border-red-500/50 flex items-center gap-2">
                              <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
                              LIVE
+                          </div>
+                        ) : (
+                          <div className="absolute top-4 right-4 bg-foreground/20 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black uppercase text-foreground/60 tracking-widest border border-foreground/10 flex items-center gap-2">
+                             HIDDEN
                           </div>
                         )}
                      </div>
@@ -2394,17 +2505,59 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                            <span className="text-[8px] text-foreground/20 font-black uppercase tracking-[0.2em]">#{channel.order_index}</span>
                         </div>
                         <div className="flex space-x-2">
-                           <button onClick={() => { 
-                             setEditingId(channel.id); setTitle(channel.name); setCategory(channel.category); setDescription(channel.description || ''); setImageUrl(channel.thumbnail || ''); setStreamUrl(channel.url); setStatus(channel.is_active ? 'live' : 'offline'); 
+                           <button onClick={() => {
+                             setEditingId((channel as any).isVirtual ? null : channel.id); 
+                             setTitle(channel.name); 
+                             setCategory(channel.category); 
+                             setDescription(channel.description || ''); 
+                             setImageUrl(channel.thumbnail || ''); 
+                             setStreamUrl(channel.url); 
+                             setStatus(channel.is_active ? 'live' : 'offline'); 
                              setIsEditing(true); 
-                           }} className="p-2.5 text-foreground/40 hover:text-foreground transition-colors bg-background border border-border-custom rounded-xl shadow-inner"><Edit2 className="w-3.5 h-3.5" /></button>
-                           <button onClick={() => handleDelete('tv_channels', channel.id)} className="p-2.5 text-foreground/40 hover:text-red-500 transition-colors bg-background border border-border-custom rounded-xl shadow-inner"><Trash2 className="w-3.5 h-3.5" /></button>
+                           }} className={cn(
+                             "p-2.5 transition-all bg-background border border-border-custom rounded-xl shadow-inner flex items-center gap-2 group/btn",
+                             (channel as any).isVirtual ? "text-primary hover:bg-primary hover:text-white" : "text-foreground/40 hover:text-foreground"
+                           )}>
+                             <Edit2 className="w-3.5 h-3.5" />
+                             {(channel as any).isVirtual && <span className="text-[8px] font-black uppercase tracking-widest pr-1">Import & Edit</span>}
+                           </button>
+                           
+                           <button onClick={async () => {
+                             if ((channel as any).isVirtual) {
+                               if (confirm(`Remove default station "${channel.name}" from your broadcast list?`)) {
+                                 const { error } = await supabase.from('tv_channels').insert({
+                                   name: channel.name,
+                                   category: channel.category,
+                                   url: channel.url,
+                                   thumbnail: channel.thumbnail,
+                                   description: channel.description,
+                                   is_active: false,
+                                   order_index: channels.length
+                                 });
+                                 if (!error) await fetchChannels();
+                                 else alert(error.message);
+                               }
+                             } else {
+                               const isDefault = DEFAULT_CHANNELS.some(d => d.name.toLowerCase() === channel.name.toLowerCase() || d.url === channel.url);
+                               if (isDefault) {
+                                  if (confirm(`This is a default station. Would you like to hide it from the live list?`)) {
+                                     const { error } = await supabase.from('tv_channels').update({ is_active: false }).eq('id', channel.id);
+                                     if (!error) await fetchChannels();
+                                     else alert(error.message);
+                                  }
+                               } else {
+                                  await handleDelete('tv_channels', channel.id);
+                               }
+                             }
+                           }} className="p-2.5 text-foreground/40 hover:text-red-500 transition-colors bg-background border border-border-custom rounded-xl shadow-inner">
+                             <Trash2 className="w-3.5 h-3.5" />
+                           </button>
                         </div>
                      </div>
                    </div>
                  ))}
                  
-                 {channels.length === 0 && !loading && (
+                 {allViewableChannels.length === 0 && !loading && (
                    <div className="col-span-full py-32 text-center bg-surface rounded-[4rem] border border-border-custom border-dashed shadow-inner flex flex-col items-center justify-center space-y-8">
                       <div className="w-20 h-20 bg-background rounded-3xl flex items-center justify-center border border-border-custom shadow-sm text-foreground/10">
                          <Tv className="w-10 h-10" />

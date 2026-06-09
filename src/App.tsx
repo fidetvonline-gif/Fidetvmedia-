@@ -90,6 +90,13 @@ function AnalyticsTracker() {
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
 
     const trackVisit = async () => {
+      // Capture referral code if present in URL
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get('ref');
+      if (ref) {
+        safeSessionStorage.setItem('fidetv_referral', ref);
+      }
+
       // Use a session storage flag to avoid double counting page refreshes during the same session
       const sessionTracked = safeSessionStorage.getItem('fidetv_tracked');
       if (!sessionTracked) {

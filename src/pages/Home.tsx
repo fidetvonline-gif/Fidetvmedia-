@@ -16,6 +16,8 @@ import LiveEventBanner from '@/components/LiveEventBanner';
 import PromotionPopup from '@/components/PromotionPopup';
 import DisplayInlineAds from '@/components/DisplayInlineAds';
 
+import { ReferralLeaderboard } from '@/components/ReferralLeaderboard';
+
 const Player = ReactPlayer as any;
 
 const fadeInUp: any = {
@@ -1283,6 +1285,21 @@ export default function Home() {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Referral Leaderboard Section */}
+      <section className="py-24 relative overflow-hidden bg-surface-bright/20 border-t border-border-custom">
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-[600px] bg-primary/3 rounded-[100%] blur-[120px] pointer-events-none" />
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+          >
+            <ReferralLeaderboard />
+          </motion.div>
         </div>
       </section>
 

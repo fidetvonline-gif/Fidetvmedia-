@@ -24,6 +24,7 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
+  const [referralCount, setReferralCount] = useState(0);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [submittingFeedback, setSubmittingFeedback] = useState<string | null>(null);
   const [feedbackText, setFeedbackText] = useState('');
@@ -86,7 +87,8 @@ export default function Profile() {
       
       await Promise.all([
         fetchUserPosts(data.id),
-        fetchFollowerCounts(data.id)
+        fetchFollowerCounts(data.id),
+        fetchReferralCount(data.username)
       ]);
     } else {
       setLoading(false);
@@ -103,6 +105,21 @@ export default function Profile() {
       setFollowingCount(following.count || 0);
     } catch (e) {
       console.warn("Followers count error", e);
+    }
+  };
+
+  const fetchReferralCount = async (username: string) => {
+    try {
+      const { count, error } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('referred_by', username);
+      
+      if (!error) {
+        setReferralCount(count || 0);
+      }
+    } catch (e) {
+      console.warn("Referral count error", e);
     }
   };
 
@@ -227,6 +244,9 @@ export default function Profile() {
       .single();
     
     if (error && error.code === 'PGRST116') {
+      const { safeSessionStorage } = await import('@/lib/storage');
+      const referredBy = safeSessionStorage.getItem('fidetv_referral') || undefined;
+
       // Profile doesn't exist, create it
       const { data: newData, error: createError } = await supabase
         .from('profiles')
@@ -235,6 +255,7 @@ export default function Profile() {
           username: currentUser.email?.split('@')[0] || `user_${currentUser.id.slice(0, 5)}`,
           full_name: currentUser.user_metadata?.full_name || '',
           avatar_url: currentUser.user_metadata?.avatar_url || '',
+          referred_by: referredBy,
         })
         .select()
         .single();
@@ -255,7 +276,8 @@ export default function Profile() {
       await Promise.all([
         fetchUserPosts(data.id),
         fetchUserBookings(data.id),
-        fetchFollowerCounts(data.id)
+        fetchFollowerCounts(data.id),
+        fetchReferralCount(data.username)
       ]);
     }
   };
@@ -561,6 +583,44 @@ export default function Profile() {
                     </div>
                   </div>
                 )}
+             </div>
+
+             <div className="glass rounded-[2.5rem] p-8 space-y-6">
+                <h3 className="font-display font-bold text-foreground text-lg flex items-center gap-3">
+                   <Users className="w-5 h-5 text-primary" />
+                   Referral System
+                </h3>
+                <div className="space-y-4">
+                  <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl space-y-2">
+                    <p className="text-[10px] text-foreground/40 font-black uppercase tracking-widest">Invited Friends</p>
+                    <p className="text-3xl font-display font-bold text-primary">{referralCount}</p>
+                  </div>
+                  
+                  {isOwnProfile && (
+                    <div className="space-y-3">
+                      <p className="text-[10px] text-foreground/40 font-black uppercase tracking-widest ml-1">Your Tracking Link</p>
+                      <div className="relative group">
+                        <input 
+                          type="text" 
+                          readOnly 
+                          value={`${window.location.origin}/auth?ref=${profile?.username}`}
+                          className="w-full bg-surface border border-border-custom rounded-xl py-3 pl-4 pr-12 text-[10px] text-foreground/60 font-mono focus:outline-none"
+                        />
+                        <button 
+                          onClick={() => {
+                            navigator.clipboard.writeText(`${window.location.origin}/auth?ref=${profile?.username}`);
+                            alert('Link copied to clipboard!');
+                          }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                          title="Copy Link"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-foreground/40 leading-relaxed italic">Share this link with your friends. When they join FideTV, they'll be counted as your referrals.</p>
+                    </div>
+                  )}
+                </div>
              </div>
 
              <div className="glass rounded-[2.5rem] p-8 space-y-6">
