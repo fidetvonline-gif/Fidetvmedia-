@@ -16,6 +16,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [hasProfileSet, setHasProfileSet] = useState<boolean | null>(null);
   const [isStandalone, setIsStandalone] = useState(false);
   const [totalVisits, setTotalVisits] = useState<number>(18542);
   const [showEventBanner, setShowEventBanner] = useState(true);
@@ -109,6 +110,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       if (session?.user) {
         checkProfile(session.user.id, session.user.email);
+      } else {
+        setHasProfileSet(null);
+        setIsAdmin(false);
       }
     });
 
@@ -126,13 +130,22 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setIsMenuOpen(false);
     if (user) {
+      // Small delay to ensure session is fully processed
       checkProfile(user.id, user.email);
     }
-  }, [location.pathname]);
+  }, [location.pathname, user]);
 
   const checkProfile = async (userId: string, email?: string) => {
+    // If we already know the profile is set, don't check again on every navigation
+    if (hasProfileSet === true) {
+      // Even if set, we still update Admin status if needed
+      if (email === 'fidetvonline@gmail.com') setIsAdmin(true);
+      return;
+    }
+
     // Only check if not on auth or onboarding or policies pages
-    const publicPaths = ['/auth', '/onboarding', '/policies', '/about', '/contact', '/services', '/admin', '/profile', '/download', '/advertise'];
+    // Added '/' and '/news' to public paths to prevent forced redirects from Home/News
+    const publicPaths = ['/', '/news', '/auth', '/onboarding', '/policies', '/about', '/contact', '/services', '/admin', '/profile', '/download', '/advertise'];
 
     const { data, error } = await supabase
       .from('profiles')
@@ -142,18 +155,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       
     if (email === 'fidetvonline@gmail.com' || data?.role === 'blogger' || data?.role === 'admin') {
       setIsAdmin(true);
-    } else {
-      setIsAdmin(false);
     }
 
-    if (publicPaths.some(path => location.pathname.startsWith(path))) return;
+    // If we found a username, remember it
+    if (data?.username) {
+      setHasProfileSet(true);
+    }
+
+    if (publicPaths.some(path => location.pathname === path || location.pathname.startsWith(path + '/'))) return;
 
     // Exempt admin from being forced to onboarding
     if (email === 'fidetvonline@gmail.com') return;
 
     // If no profile or no username, go to onboarding
-    // Error code PGRST116 means no rows found
     if (error || !data?.username) {
+      setHasProfileSet(false);
       navigate('/onboarding');
     }
   };

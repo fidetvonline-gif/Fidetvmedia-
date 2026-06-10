@@ -808,6 +808,10 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
     setConnectionState('disconnected');
     setHasRaisedHand(false);
 
+    // Cleanup remote audio elements
+    const audioElements = document.querySelectorAll('audio');
+    audioElements.forEach(el => el.remove());
+
     // Close all current P2P channels
     Object.keys(peerConnectionsRef.current).forEach(key => {
       peerConnectionsRef.current[key].close();
@@ -823,6 +827,21 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
     const url = new URL(window.location.href);
     url.searchParams.delete('room');
     window.history.replaceState({}, '', url.toString());
+  };
+
+  const forceAudioRecovery = async () => {
+    console.log('VoiceRoom: Manual audio recovery triggered');
+    await resumeAudioCtx();
+    
+    // Trigger a renegotiation signal to all peers to refresh ICE paths
+    if (supabaseChannelRef.current && userProfile) {
+      supabaseChannelRef.current.send({
+        type: 'broadcast',
+        event: 'trigger-renegotiate',
+        payload: { userId: userProfile.id }
+      } as any);
+    }
+    alert('Audio systems refreshed. P2P connections are being re-negotiated and the browser audio engine has been resumed.');
   };
 
   const endVoiceRoom = () => {
@@ -968,6 +987,13 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
           { urls: 'stun:stun2.l.google.com:19302' },
           { urls: 'stun:stun3.l.google.com:19302' },
           { urls: 'stun:stun4.l.google.com:19302' },
+          { urls: 'stun:stun.ekiga.net' },
+          { urls: 'stun:stun.ideasip.com' },
+          { urls: 'stun:stun.rixos.com' },
+          { urls: 'stun:stun.schlund.de' },
+          { urls: 'stun:stun.voiparound.com' },
+          { urls: 'stun:stun.voipbuster.com' },
+          { urls: 'stun:stun.voipstunt.com' }
         ],
         iceCandidatePoolSize: 10,
         iceTransportPolicy: 'all'
@@ -976,19 +1002,58 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
       const pc = new RTCPeerConnection(configuration);
       peerConnectionsRef.current[remoteUserId] = pc;
 
-      // Debugging: Monitor ICE connection state changes
+      // 1. Set ontrack FIRST
+      pc.ontrack = (event) => {
+        const remoteStream = event.streams[0] || new MediaStream([event.track]);
+        
+        if (event.track.kind === 'video') {
+          setRemoteVideoStreams(prev => ({
+            ...prev,
+            [remoteUserId]: remoteStream
+          }));
+        } else if (event.track.kind === 'audio') {
+          let audioEl = document.getElementById(`audio-${remoteUserId}`) as HTMLAudioElement;
+          if (!audioEl) {
+            audioEl = document.createElement('audio');
+            audioEl.id = `audio-${remoteUserId}`;
+            audioEl.autoplay = true;
+            audioEl.setAttribute('playsinline', 'true');
+            audioEl.preload = 'auto';
+            
+            if (selectedOutputId && 'setSinkId' in HTMLMediaElement.prototype) {
+              try {
+                (audioEl as any).setSinkId(selectedOutputId);
+              } catch (err) {
+                console.warn('VoiceRoom: Error setting initial sink ID', err);
+              }
+            }
+            
+            document.body.appendChild(audioEl);
+          }
+          
+          if (audioEl.srcObject !== remoteStream) {
+            audioEl.srcObject = remoteStream;
+          }
+          audioEl.muted = !isSpeakerOnRef.current;
+          
+          audioEl.play().catch(e => {
+            console.warn('VoiceRoom: Autoplay prevented for remote user:', remoteUserId, e);
+          });
+        }
+      };
+
+      // 2. Monitor ICE connection state changes
       pc.oniceconnectionstatechange = () => {
         console.log(`VoiceRoom: ICE state with ${remoteUserId}: ${pc.iceConnectionState}`);
-        // Force a UI refresh to show connection status
         setParticipants(prev => [...prev]);
       };
 
-      // Add local track audio mapping
+      // 3. Add local tracks
       localStream.getTracks().forEach(track => {
         pc.addTrack(track, localStream);
       });
 
-      // Handle ICE candidate negotiation
+      // 4. Handle ICE candidate negotiation
       pc.onicecandidate = (event) => {
         if (event.candidate) {
           sendWebRtcSignal(remoteUserId, { candidate: event.candidate });
@@ -1005,42 +1070,6 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
           console.error('Negotiation error:', err);
         } finally {
           makingOfferRef.current[remoteUserId] = false;
-        }
-      };
-
-      // Receives incoming audio / video stream from remote user
-      pc.ontrack = (event) => {
-        const remoteStream = event.streams[0] || new MediaStream([event.track]);
-        
-        if (event.track.kind === 'video') {
-          setRemoteVideoStreams(prev => ({
-            ...prev,
-            [remoteUserId]: remoteStream
-          }));
-        } else {
-          let audioEl = document.getElementById(`audio-${remoteUserId}`) as HTMLAudioElement;
-          if (!audioEl) {
-            audioEl = document.createElement('audio');
-            audioEl.id = `audio-${remoteUserId}`;
-            audioEl.autoplay = true;
-            audioEl.setAttribute('playsinline', 'true');
-            
-            if (selectedOutputId && 'setSinkId' in HTMLMediaElement.prototype) {
-              try {
-                (audioEl as any).setSinkId(selectedOutputId);
-              } catch (err) {
-                console.warn('VoiceRoom: Error setting initial sink ID', err);
-              }
-            }
-            
-            document.body.appendChild(audioEl);
-          }
-          audioEl.srcObject = remoteStream;
-          audioEl.muted = !isSpeakerOnRef.current;
-          
-          audioEl.play().catch(e => {
-            console.warn('VoiceRoom: Autoplay prevented for remote user:', remoteUserId, e);
-          });
         }
       };
 
@@ -1078,6 +1107,17 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
   const ignoreOfferRef = useRef<{ [key: string]: boolean }>({});
   // Buffer to hold ICE candidates that arrive before the remote description is set
   const iceCandidateBufferRef = useRef<{ [key: string]: RTCIceCandidateInit[] }>({});
+
+  // Sync speaker state to all audio elements
+  useEffect(() => {
+    const audioElements = document.querySelectorAll('audio');
+    audioElements.forEach((audio: any) => {
+      audio.muted = !isSpeakerOn;
+      if (isSpeakerOn && audio.paused) {
+        audio.play().catch((e: any) => console.warn('Sync play failed:', e));
+      }
+    });
+  }, [isSpeakerOn]);
 
   const handleWebRtcSignal = async (senderId: string, signal: any) => {
     if (!userProfile) return;
@@ -1189,13 +1229,13 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
   const toggleSpeaker = () => {
     const nextSpeakerState = !isSpeakerOn;
     setIsSpeakerOn(nextSpeakerState);
-    // Mute or unmute all remote audio tags
-    setParticipants(pList => {
-      pList.forEach(p => {
-        const audioEl = document.getElementById(`audio-${p.id}`) as HTMLAudioElement;
-        if (audioEl) audioEl.muted = !nextSpeakerState;
-      });
-      return pList;
+    // Mute or unmute all remote audio tags using exhaustive selector
+    const audioElements = document.querySelectorAll('audio');
+    audioElements.forEach((audio: any) => {
+      audio.muted = !nextSpeakerState;
+      if (nextSpeakerState && audio.paused) {
+        audio.play().catch((e: any) => console.warn('Toggle play failed:', e));
+      }
     });
   };
 
@@ -2231,6 +2271,12 @@ Keep the tone inspiring, strategic, and professional.`;
 
               {/* Close session button */}
               <div className="flex gap-2 w-full md:w-auto font-sans">
+                <button
+                  onClick={forceAudioRecovery}
+                  className="px-4 py-4 bg-white/5 hover:bg-white/10 text-white/60 border border-white/10 rounded-xl transition-all text-xs font-bold uppercase tracking-wider cursor-pointer"
+                >
+                  Repair Audio
+                </button>
                 {activeRoom.hostId === userProfile?.id ? (
                   <button
                     onClick={endVoiceRoom}

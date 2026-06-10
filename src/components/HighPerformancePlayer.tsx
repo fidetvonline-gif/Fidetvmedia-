@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2, Settings, Check } from 'lucide-react';
+
+import { motion, AnimatePresence } from 'motion/react';
 
 interface HighPerformancePlayerProps {
   url: string;
@@ -30,6 +32,9 @@ export default function HighPerformancePlayer({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [retryMessage, setRetryMessage] = useState<string | null>(null);
+  const [levels, setLevels] = useState<any[]>([]);
+  const [currentLevel, setCurrentLevel] = useState<number>(-1); // -1 = Auto
+  const [showQualityMenu, setShowQualityMenu] = useState(false);
 
   const networkRetryCountRef = useRef(0);
   const mediaRetryCountRef = useRef(0);
@@ -41,6 +46,9 @@ export default function HighPerformancePlayer({
     setLoading(true);
     setError(null);
     setRetryMessage(null);
+    setLevels([]);
+    setCurrentLevel(-1);
+    setShowQualityMenu(false);
     networkRetryCountRef.current = 0;
     mediaRetryCountRef.current = 0;
 
@@ -75,19 +83,29 @@ export default function HighPerformancePlayer({
       hls.loadSource(url);
       hls.attachMedia(video);
 
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
         setLoading(false);
         setError(null);
         setRetryMessage(null);
         networkRetryCountRef.current = 0;
         mediaRetryCountRef.current = 0;
+        
+        if (hls.levels && hls.levels.length > 1) {
+          // Only show quality selector if multiple levels exist
+          setLevels(hls.levels);
+        }
+
         if (playing) {
           video.play().catch(e => {
             console.warn('Auto-play blocked:', e);
-            // Non-fatal, user might need to interact
           });
         }
         onReady?.();
+      });
+
+      hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => {
+        // If we are in Auto mode, update the UI to show what's actually being played
+        // but currentLevel in state -1 indicates we are in auto
       });
 
       hls.on(Hls.Events.ERROR, (event, data) => {
@@ -187,6 +205,74 @@ export default function HighPerformancePlayer({
         poster={poster}
         crossOrigin="anonymous"
       />
+      
+      {levels.length > 0 && (
+        <div className="absolute bottom-16 right-4 z-30 flex flex-col items-end">
+          <AnimatePresence>
+            {showQualityMenu && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                className="mb-2 bg-black/90 backdrop-blur-xl border border-white/10 rounded-xl p-1 min-w-[140px] shadow-2xl overflow-hidden"
+              >
+                <div className="px-3 py-2 text-[10px] font-bold text-white/40 uppercase tracking-widest border-b border-white/5 mb-1">
+                  Quality Selector
+                </div>
+                
+                <button
+                  onClick={() => {
+                    if (hlsRef.current) hlsRef.current.currentLevel = -1;
+                    setCurrentLevel(-1);
+                    setShowQualityMenu(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
+                    currentLevel === -1 ? 'bg-primary/20 text-primary' : 'text-white/70 hover:bg-white/5'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    Auto
+                    <span className="text-[9px] opacity-40 font-mono">bits</span>
+                  </span>
+                  {currentLevel === -1 && <Check className="w-3.5 h-3.5" />}
+                </button>
+
+                {levels.slice().reverse().map((level, idx) => {
+                  const originalIdx = levels.length - 1 - idx;
+                  const label = level.height ? `${level.height}p` : `${(level.bitrate / 1000).toFixed(0)}k`;
+                  return (
+                    <button
+                      key={originalIdx}
+                      onClick={() => {
+                        if (hlsRef.current) hlsRef.current.currentLevel = originalIdx;
+                        setCurrentLevel(originalIdx);
+                        setShowQualityMenu(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
+                        currentLevel === originalIdx ? 'bg-primary/20 text-primary' : 'text-white/70 hover:bg-white/5'
+                      }`}
+                    >
+                      <span>{label}</span>
+                      {currentLevel === originalIdx && <Check className="w-3.5 h-3.5" />}
+                    </button>
+                  );
+                })}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <button
+            onClick={() => setShowQualityMenu(!showQualityMenu)}
+            className="p-2.5 bg-black/50 backdrop-blur-md rounded-full text-white/80 hover:text-white hover:bg-black/70 transition-all border border-white/10 flex items-center gap-2 group cursor-pointer"
+            title="Video Quality"
+          >
+            <Settings className={`w-4 h-4 ${showQualityMenu ? 'rotate-90' : ''} transition-transform duration-500`} />
+            <span className="text-[10px] font-bold uppercase tracking-tighter opacity-0 group-hover:opacity-100 max-w-0 group-hover:max-w-[100px] overflow-hidden transition-all duration-500 whitespace-nowrap">
+              {currentLevel === -1 ? 'Auto' : levels[currentLevel]?.height ? `${levels[currentLevel].height}p` : 'Manual'}
+            </span>
+          </button>
+        </div>
+      )}
       
       {loading && !error && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm z-10 gap-2">
