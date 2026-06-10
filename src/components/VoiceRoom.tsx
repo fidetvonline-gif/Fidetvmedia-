@@ -168,8 +168,14 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
   const resumeAudioCtx = async () => {
     if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
       await audioContextRef.current.resume();
-      setAudioContextActive(true);
     }
+    setAudioContextActive(true);
+    
+    // Also kick off any audio elements that might be stuck due to autoplay
+    const audioElements = document.querySelectorAll('audio');
+    audioElements.forEach(audio => {
+      audio.play().catch(e => console.warn('Delayed audio play error:', e));
+    });
   };
 
   // Enumerate devices
@@ -448,7 +454,10 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
 
   const stopLocalAudio = () => {
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current.getTracks().forEach(track => {
+        track.stop();
+        track.enabled = false;
+      });
       localStreamRef.current = null;
     }
     if (localVideoTrack) {
@@ -461,6 +470,7 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
     }
     if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
       audioContextRef.current.close();
+      audioContextRef.current = null;
     }
   };
 
@@ -684,11 +694,30 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
         // Ensure this signaling is addressed to us
         if (targetId !== userProfile.id) return;
 
-        const pc = peerConnectionsRef.current[senderId];
-        if (!pc) return;
+        let pc = peerConnectionsRef.current[senderId];
+        if (!pc) {
+          // If we haven't initialized this peer yet (maybe they joined before us or simultaneous)
+          // We must have a localStream to add tracks
+          if (!localStreamRef.current) {
+            await startLocalAudio();
+          }
+          pc = await initializePeerConnection(senderId, localStreamRef.current!, false);
+        }
 
         try {
           if (signal.sdp) {
+            const offerCollision = signal.sdp.type === 'offer' && 
+                                 (makingOfferRef.current[senderId] || pc.signalingState !== 'stable');
+            
+            // Polite peer is the one with the "larger" ID
+            const isPolite = userProfile.id > senderId;
+            ignoreOfferRef.current[senderId] = !isPolite && offerCollision;
+            
+            if (ignoreOfferRef.current[senderId]) {
+              console.log('VoiceRoom: Ignoring impolite offer collision');
+              return;
+            }
+
             await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
             if (signal.sdp.type === 'offer') {
                const answer = await pc.createAnswer();
@@ -696,7 +725,11 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
               sendWebRtcSignal(senderId, { sdp: answer });
             }
           } else if (signal.candidate) {
-            await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+            try {
+              await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+            } catch (err) {
+              if (!ignoreOfferRef.current[senderId]) throw err;
+            }
           }
         } catch (e) {
           console.error('WebRTC offer/answer session error:', e);
@@ -943,7 +976,7 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
   };
 
   // --- 5. Pure WebRTC Mesh Implementation with custom signals over Supabase Realtime ---
-  const initializePeerConnection = async (remoteUserId: string, localStream: MediaStream) => {
+  const initializePeerConnection = async (remoteUserId: string, localStream: MediaStream, isInitiator = true) => {
     try {
       if (peerConnectionsRef.current[remoteUserId]) {
         try {
@@ -954,7 +987,8 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
       const configuration = {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' }
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' }
         ]
       };
 
@@ -973,10 +1007,22 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
         }
       };
 
+      pc.onnegotiationneeded = async () => {
+        try {
+          makingOfferRef.current[remoteUserId] = true;
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          sendWebRtcSignal(remoteUserId, { sdp: pc.localDescription });
+        } catch (err) {
+          console.error('Negotiation error:', err);
+        } finally {
+          makingOfferRef.current[remoteUserId] = false;
+        }
+      };
+
       // Receives incoming audio / video stream from remote user
       pc.ontrack = (event) => {
         const remoteStream = event.streams[0] || new MediaStream([event.track]);
-        console.log('VoiceRoom: Received track', event.track.kind, 'with stream', remoteStream);
         
         if (event.track.kind === 'video') {
           setRemoteVideoStreams(prev => ({
@@ -1005,19 +1051,23 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
           audioEl.muted = !isSpeakerOn;
           
           audioEl.play().catch(e => {
-              console.error('Autoplay failed:', e);
+            console.warn('Autoplay prevented, user interaction required:', e);
           });
         }
       };
 
+      if (isInitiator) {
+        makingOfferRef.current[remoteUserId] = true;
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        sendWebRtcSignal(remoteUserId, { sdp: pc.localDescription });
+        makingOfferRef.current[remoteUserId] = false;
+      }
 
-      // Create local offer
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      sendWebRtcSignal(remoteUserId, { sdp: offer });
-
+      return pc;
     } catch (e) {
       console.error('WebRTC interface connection failed:', e);
+      throw e;
     }
   };
 
@@ -1034,6 +1084,10 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
       }
     } as any);
   };
+
+  // WebRTC Perfect Negotiation state
+  const makingOfferRef = useRef<{ [key: string]: boolean }>({});
+  const ignoreOfferRef = useRef<{ [key: string]: boolean }>({});
 
   // --- 6. Moderation Controls & UI events ---
   const handleRaiseHand = () => {
@@ -1079,15 +1133,19 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
 
     const nextMuted = !isLocalMuted;
     setIsLocalMuted(nextMuted);
+    isLocalMutedRef.current = nextMuted;
+    
+    if (localStreamRef.current) {
+      localStreamRef.current.getAudioTracks().forEach(track => {
+        track.enabled = !nextMuted;
+      });
+    }
     
     if (nextMuted) {
-      stopLocalAudio();
       setIsLocalSpeaking(false);
       broadcastLocalState({ isMuted: true, isSpeaking: false });
     } else {
-      startLocalAudio().then(stream => {
-        broadcastLocalState({ isMuted: false });
-      });
+      broadcastLocalState({ isMuted: false });
     }
   };
 
