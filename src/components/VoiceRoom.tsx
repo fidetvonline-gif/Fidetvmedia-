@@ -80,6 +80,7 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
   const [aiAssistantPrompt, setAiAssistantPrompt] = useState('');
 
   // Sync state with Refs to prevent stale closures inside RTC loops
+  const isSpeakerOnRef = useRef(true);
   const isLocalMutedRef = useRef(false);
   const isLocalSpeakingRef = useRef(false);
   const hasRaisedHandRef = useRef(false);
@@ -87,6 +88,7 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
   const localRoleRef = useRef<'host' | 'speaker' | 'listener'>('speaker');
   const userProfileRef = useRef<any>(null);
 
+  useEffect(() => { isSpeakerOnRef.current = isSpeakerOn; }, [isSpeakerOn]);
   useEffect(() => { isLocalMutedRef.current = isLocalMuted; }, [isLocalMuted]);
   useEffect(() => { isLocalSpeakingRef.current = isLocalSpeaking; }, [isLocalSpeaking]);
   useEffect(() => { hasRaisedHandRef.current = hasRaisedHand; }, [hasRaisedHand]);
@@ -600,6 +602,9 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
     // Get microphone stream
     const localStream = await startLocalAudio();
 
+    // Proactively resume audio context
+    await resumeAudioCtx();
+
     // Create a WebRTC Signaling Room via Supabase Realtime channel
     const channel = supabase.channel(`voice-room-${room.id}`, {
       config: {
@@ -658,6 +663,15 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
           peerConnectionsRef.current[key].close();
           delete peerConnectionsRef.current[key];
         }
+        
+        // Remove audio element
+        const audioEl = document.getElementById(`audio-${key}`) as HTMLAudioElement | null;
+        if (audioEl) {
+          audioEl.pause();
+          audioEl.srcObject = null;
+          audioEl.remove();
+        }
+
         setRemoteVideoStreams(prev => {
           const next = { ...prev };
           delete next[key];
@@ -742,14 +756,17 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
           if (action === 'mute') {
             setIsLocalMuted(true);
             isLocalMutedRef.current = true;
-            stopLocalAudio();
+            if (localStreamRef.current) {
+              localStreamRef.current.getAudioTracks().forEach(t => t.enabled = false);
+            }
             broadcastLocalState({ isMuted: true, isSpeaking: false });
           } else if (action === 'unmute') {
             setIsLocalMuted(false);
             isLocalMutedRef.current = false;
-            startLocalAudio().then(() => {
-              broadcastLocalState({ isMuted: false });
-            });
+            if (localStreamRef.current) {
+              localStreamRef.current.getAudioTracks().forEach(t => t.enabled = true);
+            }
+            broadcastLocalState({ isMuted: false });
           } else if (action === 'promote') {
             setLocalRole('speaker');
             localRoleRef.current = 'speaker';
@@ -757,16 +774,19 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
             hasRaisedHandRef.current = false;
             setIsLocalMuted(false);
             isLocalMutedRef.current = false;
-            startLocalAudio().then(() => {
-              broadcastLocalState({ role: 'speaker', isMuted: false, raisedHand: false });
-            });
+            if (localStreamRef.current) {
+              localStreamRef.current.getAudioTracks().forEach(t => t.enabled = true);
+            }
+            broadcastLocalState({ role: 'speaker', isMuted: false, raisedHand: false });
             alert('Congrats! The host has invited you to the stage as an active Speaker.');
           } else if (action === 'demote') {
             setLocalRole('listener');
             localRoleRef.current = 'listener';
             setIsLocalMuted(true);
             isLocalMutedRef.current = true;
-            stopLocalAudio();
+            if (localStreamRef.current) {
+              localStreamRef.current.getAudioTracks().forEach(t => t.enabled = false);
+            }
             broadcastLocalState({ role: 'listener', isMuted: true, isSpeaking: false });
             alert('You have been moved back to the audience listeners group by the host.');
           } else if (action === 'kick') {
@@ -1041,17 +1061,17 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
               try {
                 (audioEl as any).setSinkId(selectedOutputId);
               } catch (err) {
-                console.error('Error setting initial sink ID', err);
+                console.warn('VoiceRoom: Error setting initial sink ID', err);
               }
             }
             
             document.body.appendChild(audioEl);
           }
           audioEl.srcObject = remoteStream;
-          audioEl.muted = !isSpeakerOn;
+          audioEl.muted = !isSpeakerOnRef.current;
           
           audioEl.play().catch(e => {
-            console.warn('Autoplay prevented, user interaction required:', e);
+            console.warn('VoiceRoom: Autoplay prevented for remote user:', remoteUserId, e);
           });
         }
       };
@@ -1747,6 +1767,12 @@ Keep the tone inspiring, strategic, and professional.`;
                           <span className="text-[9px] font-black uppercase tracking-wider block mt-1 font-mono text-green-400 bg-green-400/10 px-2 py-0.5 rounded">
                             {isUserHost ? 'Host' : 'Speaker'}
                           </span>
+
+                          {member.id !== userProfile?.id && peerConnectionsRef.current[member.id] && (
+                            <div className="text-[8px] font-mono text-white/20 mt-1 uppercase">
+                              P2P: {peerConnectionsRef.current[member.id].iceConnectionState}
+                            </div>
+                          )}
 
                           {/* Quick promote/demote or kick action menu overlay */}
                           {activeRoom.hostId === userProfile?.id && member.id !== userProfile?.id && (
