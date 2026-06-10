@@ -54,7 +54,7 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
   const [isVideoEnabled, setIsVideoEnabled] = useState(false);
 
   // Upgrade Role management & Interactive workspace states
-  const [localRole, setLocalRole] = useState<'host' | 'speaker' | 'listener'>('listener');
+  const [localRole, setLocalRole] = useState<'host' | 'speaker' | 'listener'>('speaker');
   const [activeSideTab, setActiveSideTab] = useState<'chat' | 'copilot' | 'moderation'>('chat');
   const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
   const [remoteVideoStreams, setRemoteVideoStreams] = useState<{[userId: string]: MediaStream}>({});
@@ -84,7 +84,7 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
   const isLocalSpeakingRef = useRef(false);
   const hasRaisedHandRef = useRef(false);
   const isVideoEnabledRef = useRef(false);
-  const localRoleRef = useRef<'host' | 'speaker' | 'listener'>('listener');
+  const localRoleRef = useRef<'host' | 'speaker' | 'listener'>('speaker');
   const userProfileRef = useRef<any>(null);
 
   useEffect(() => { isLocalMutedRef.current = isLocalMuted; }, [isLocalMuted]);
@@ -626,7 +626,7 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
               avatarUrl: state.avatarUrl,
               isMuted: state.isMuted,
               isSpeaking: state.isSpeaking,
-              role: state.role || (room.hostId === state.id ? 'host' : 'listener'),
+              role: state.role || (room.hostId === state.id ? 'host' : 'speaker'),
               joinedAt: state.joinedAt || Date.now(),
               raisedHand: state.raisedHand || false,
               isVideoEnabled: state.isVideoEnabled || false
@@ -679,7 +679,7 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
                 avatarUrl: state.avatarUrl,
                 isMuted: state.isMuted,
                 isSpeaking: state.isSpeaking,
-                role: state.role || (room.hostId === state.id ? 'host' : 'listener'),
+                role: state.role || (room.hostId === state.id ? 'host' : 'speaker'),
                 joinedAt: state.joinedAt || Date.now(),
                 raisedHand: state.raisedHand || false,
                 isVideoEnabled: state.isVideoEnabled || false
@@ -799,7 +799,7 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          const initialRole = room.hostId === userProfile.id ? 'host' : 'listener';
+          const initialRole = room.hostId === userProfile.id ? 'host' : 'speaker';
           setLocalRole(initialRole);
           localRoleRef.current = initialRole;
 
@@ -1124,13 +1124,6 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
   };
 
   const toggleLocalMute = () => {
-    // Check if audience member
-    if (localRole === 'listener') {
-      handleRaiseHand();
-      alert('Audience member permissions constraint: Your hand has been raised to request Stage Speaking access.');
-      return;
-    }
-
     const nextMuted = !isLocalMuted;
     setIsLocalMuted(nextMuted);
     isLocalMutedRef.current = nextMuted;
@@ -1997,9 +1990,6 @@ Keep the tone inspiring, strategic, and professional.`;
                       >
                         <div className="flex justify-between items-center border-b border-white/5 pb-2">
                           <span className="text-xs font-bold text-white uppercase tracking-wider">Host Desk Control</span>
-                          {activeRoom.hostId !== userProfile?.id && (
-                            <span className="text-[9px] text-red-400 uppercase font-black bg-red-400/10 px-2 py-0.5 rounded">Listeners Restrict</span>
-                          )}
                         </div>
 
                         <div className="flex-grow overflow-y-auto space-y-2 pr-1 custom-scrollbar text-xs">
