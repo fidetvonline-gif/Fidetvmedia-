@@ -703,51 +703,8 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
           setParticipants(joinedList.sort((a, b) => b.joinedAt - a.joinedAt));
       })
       .on('broadcast', { event: 'webrtc-signal' }, async ({ payload }) => {
-        const { senderId, targetId, signal } = payload;
-        
-        // Ensure this signaling is addressed to us
-        if (targetId !== userProfile.id) return;
-
-        let pc = peerConnectionsRef.current[senderId];
-        if (!pc) {
-          // If we haven't initialized this peer yet (maybe they joined before us or simultaneous)
-          // We must have a localStream to add tracks
-          if (!localStreamRef.current) {
-            await startLocalAudio();
-          }
-          pc = await initializePeerConnection(senderId, localStreamRef.current!, false);
-        }
-
-        try {
-          if (signal.sdp) {
-            const offerCollision = signal.sdp.type === 'offer' && 
-                                 (makingOfferRef.current[senderId] || pc.signalingState !== 'stable');
-            
-            // Polite peer is the one with the "larger" ID
-            const isPolite = userProfile.id > senderId;
-            ignoreOfferRef.current[senderId] = !isPolite && offerCollision;
-            
-            if (ignoreOfferRef.current[senderId]) {
-              console.log('VoiceRoom: Ignoring impolite offer collision');
-              return;
-            }
-
-            await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
-            if (signal.sdp.type === 'offer') {
-               const answer = await pc.createAnswer();
-              await pc.setLocalDescription(answer);
-              sendWebRtcSignal(senderId, { sdp: answer });
-            }
-          } else if (signal.candidate) {
-            try {
-              await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
-            } catch (err) {
-              if (!ignoreOfferRef.current[senderId]) throw err;
-            }
-          }
-        } catch (e) {
-          console.error('WebRTC offer/answer session error:', e);
-        }
+        const { senderId, signal } = payload;
+        await handleWebRtcSignal(senderId, signal);
       })
       .on('broadcast', { event: 'moderator-action' }, (payload: { action: string; targetId: string }) => {
         const { action, targetId } = payload;
@@ -1004,16 +961,27 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
         } catch (e) {}
       }
 
-      const configuration = {
+      const configuration: RTCConfiguration = {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
           { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' }
-        ]
+          { urls: 'stun:stun2.l.google.com:19302' },
+          { urls: 'stun:stun3.l.google.com:19302' },
+          { urls: 'stun:stun4.l.google.com:19302' },
+        ],
+        iceCandidatePoolSize: 10,
+        iceTransportPolicy: 'all'
       };
 
       const pc = new RTCPeerConnection(configuration);
       peerConnectionsRef.current[remoteUserId] = pc;
+
+      // Debugging: Monitor ICE connection state changes
+      pc.oniceconnectionstatechange = () => {
+        console.log(`VoiceRoom: ICE state with ${remoteUserId}: ${pc.iceConnectionState}`);
+        // Force a UI refresh to show connection status
+        setParticipants(prev => [...prev]);
+      };
 
       // Add local track audio mapping
       localStream.getTracks().forEach(track => {
@@ -1108,8 +1076,64 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
   // WebRTC Perfect Negotiation state
   const makingOfferRef = useRef<{ [key: string]: boolean }>({});
   const ignoreOfferRef = useRef<{ [key: string]: boolean }>({});
+  // Buffer to hold ICE candidates that arrive before the remote description is set
+  const iceCandidateBufferRef = useRef<{ [key: string]: RTCIceCandidateInit[] }>({});
 
-  // --- 6. Moderation Controls & UI events ---
+  const handleWebRtcSignal = async (senderId: string, signal: any) => {
+    if (!userProfile) return;
+    const { targetId } = signal;
+    
+    // Ensure this signaling is addressed to us
+    if (targetId !== userProfile.id) return;
+
+    let pc = peerConnectionsRef.current[senderId];
+    if (!pc) {
+      if (!localStreamRef.current) {
+        await startLocalAudio();
+      }
+      pc = await initializePeerConnection(senderId, localStreamRef.current!, false);
+    }
+
+    try {
+      if (signal.sdp) {
+        const offerCollision = signal.sdp.type === 'offer' && 
+                             (makingOfferRef.current[senderId] || pc.signalingState !== 'stable');
+        
+        const isPolite = userProfile.id > senderId;
+        ignoreOfferRef.current[senderId] = !isPolite && offerCollision;
+        
+        if (ignoreOfferRef.current[senderId]) return;
+
+        await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+        
+        if (signal.sdp.type === 'offer') {
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          sendWebRtcSignal(senderId, { sdp: pc.localDescription });
+        }
+
+        // Process any buffered candidates now that the description is set
+        const buffer = iceCandidateBufferRef.current[senderId] || [];
+        for (const candidate of buffer) {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+        iceCandidateBufferRef.current[senderId] = [];
+
+      } else if (signal.candidate) {
+        if (pc.remoteDescription && pc.remoteDescription.type) {
+          await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+        } else {
+          // Buffer candidate until remote description arrives
+          if (!iceCandidateBufferRef.current[senderId]) {
+            iceCandidateBufferRef.current[senderId] = [];
+          }
+          iceCandidateBufferRef.current[senderId].push(signal.candidate);
+        }
+      }
+    } catch (e) {
+      console.error('WebRTC signaling error:', e);
+    }
+  };
   const handleRaiseHand = () => {
     const newState = !hasRaisedHand;
     setHasRaisedHand(newState);
