@@ -3,10 +3,10 @@ import ReactPlayer from 'react-player';
 import { supabase } from '@/lib/supabase';
 import { Event } from '@/types';
 import LiveChat from '@/components/LiveChat';
-import { Calendar, Users, Share2, Youtube, ExternalLink, Clock, AlertCircle, Globe, Tv, Film, MonitorPlay, MessageSquare, Play, VolumeX, Volume2, Pause } from 'lucide-react';
+import { Calendar, Users, Share2, Youtube, ExternalLink, Clock, AlertCircle, Globe, Tv, Film, MonitorPlay, MessageSquare, Play, VolumeX, Volume2, Pause, Settings, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { fetchYouTubeStats, YouTubeStats, fetchRecentUploads } from '@/services/youtubeService';
 import AdBanner from '@/components/AdBanner';
 import { DEFAULT_CHANNELS } from '@/constants/channels';
@@ -43,6 +43,8 @@ export default function Live() {
 
   const [isPiP, setIsPiP] = useState(false);
   const [isPiPDismissed, setIsPiPDismissed] = useState(false);
+  const [quality, setQuality] = useState<'Auto' | '480p' | '720p' | '1080p'>('Auto');
+  const [showQualitySelector, setShowQualitySelector] = useState(false);
   const [isZapping, setIsZapping] = useState(false);
   const zappingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
@@ -585,8 +587,57 @@ export default function Live() {
                        </div>
                      </div>
 
-                     <div className="text-[9px] font-bold text-white/40 font-mono tracking-widest uppercase">
-                       Direct Stream
+                     <div className="flex items-center gap-6">
+                       <div className="flex flex-col items-end">
+                         <div className="text-[9px] font-bold text-white/40 font-mono tracking-widest uppercase mb-1">
+                           Quality
+                         </div>
+                         <div className="relative">
+                           <button 
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               setShowQualitySelector(!showQualitySelector);
+                             }}
+                             className="flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors"
+                           >
+                             <span className="text-[10px] font-bold text-white uppercase tracking-wider">{quality}</span>
+                             <Settings className={cn("w-3 h-3 text-white/40 transition-transform", showQualitySelector && "rotate-90")} />
+                           </button>
+                           
+                           <AnimatePresence>
+                             {showQualitySelector && (
+                               <motion.div
+                                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                 animate={{ opacity: 1, y: 0, scale: 1 }}
+                                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                 className="absolute bottom-full right-0 mb-2 w-32 bg-[#0a0a0a]/95 backdrop-blur-xl border border-white/10 rounded-xl p-1 shadow-2xl z-50 overflow-hidden"
+                               >
+                                 {(['Auto', '480p', '720p', '1080p'] as const).map((q) => (
+                                   <button
+                                     key={q}
+                                     onClick={(e) => {
+                                       e.stopPropagation();
+                                       setQuality(q);
+                                       setShowQualitySelector(false);
+                                     }}
+                                     className={cn(
+                                       "w-full flex items-center justify-between px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors",
+                                       quality === q ? "bg-primary text-white" : "text-white/60 hover:bg-white/5"
+                                     )}
+                                   >
+                                     {q}
+                                     {quality === q && <Check className="w-3 h-3" />}
+                                   </button>
+                                 ))}
+                               </motion.div>
+                             )}
+                           </AnimatePresence>
+                         </div>
+                       </div>
+
+                       <div className="text-[9px] font-bold text-white/40 font-mono tracking-widest uppercase">
+                         Direct Stream
+                       </div>
                      </div>
                   </div>
                 </div>

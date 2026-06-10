@@ -136,16 +136,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   }, [location.pathname, user]);
 
   const checkProfile = async (userId: string, email?: string) => {
-    // If we already know the profile is set, don't check again on every navigation
-    if (hasProfileSet === true) {
-      // Even if set, we still update Admin status if needed
-      if (email === 'fidetvonline@gmail.com') setIsAdmin(true);
+    // Only check if not on public paths
+    const publicPaths = ['/', '/news', '/auth', '/onboarding', '/policies', '/about', '/contact', '/services', '/admin', '/profile', '/download', '/advertise', '/spaces', '/community', '/content'];
+    const isPublicPath = publicPaths.some(path => location.pathname === path || (path !== '/' && location.pathname.startsWith(path)));
+    
+    // Update Admin status always if it's the admin email
+    if (email === 'fidetvonline@gmail.com') setIsAdmin(true);
+
+    // If we already know the profile state and it's a public path, don't re-check everything
+    if (hasProfileSet !== null && isPublicPath) {
       return;
     }
-
-    // Only check if not on auth or onboarding or policies pages
-    // Added '/' and '/news' to public paths to prevent forced redirects from Home/News
-    const publicPaths = ['/', '/news', '/auth', '/onboarding', '/policies', '/about', '/contact', '/services', '/admin', '/profile', '/download', '/advertise'];
 
     const { data, error } = await supabase
       .from('profiles')
@@ -153,24 +154,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       .eq('id', userId)
       .single();
       
-    if (email === 'fidetvonline@gmail.com' || data?.role === 'blogger' || data?.role === 'admin') {
+    if (data?.role === 'blogger' || data?.role === 'admin') {
       setIsAdmin(true);
     }
 
     // If we found a username, remember it
     if (data?.username) {
       setHasProfileSet(true);
-    }
-
-    if (publicPaths.some(path => location.pathname === path || location.pathname.startsWith(path + '/'))) return;
-
-    // Exempt admin from being forced to onboarding
-    if (email === 'fidetvonline@gmail.com') return;
-
-    // If no profile or no username, go to onboarding
-    if (error || !data?.username) {
+    } else {
       setHasProfileSet(false);
-      navigate('/onboarding');
     }
   };
 
