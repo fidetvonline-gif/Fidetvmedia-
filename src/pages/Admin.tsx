@@ -1020,6 +1020,7 @@ export default function Admin() {
     if (!window.confirm("Delete this item?")) return;
     const { error } = await supabase.from(table).delete().eq('id', id);
     if (!error) {
+      alert("Item deleted successfully.");
       await fetchData();
     } else {
       alert("Delete failed: " + error.message);
@@ -2760,7 +2761,7 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                            
                            <button onClick={async () => {
                              if ((channel as any).isVirtual) {
-                               if (confirm(`Remove default station "${channel.name}" from your broadcast list?`)) {
+                               if (confirm(`Hide system station "${channel.name}"? It will move to Trash.`)) {
                                  const { error } = await supabase.from('tv_channels').insert({
                                    name: channel.name,
                                    category: channel.category,
@@ -2776,13 +2777,13 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                              } else {
                                const isDefault = DEFAULT_CHANNELS.some(d => d.name.toLowerCase() === channel.name.toLowerCase() || d.url === channel.url);
                                if (isDefault) {
-                                  if (confirm(`This is a default station. Would you like to hide it from the live list?`)) {
+                                  if (confirm(`Move "${channel.name}" to Trash? You can view and restore it later.`)) {
                                      const { error } = await supabase.from('tv_channels').update({ is_active: false }).eq('id', channel.id);
                                      if (!error) await fetchChannels();
                                      else alert(error.message);
                                   }
                                } else {
-                                  await handleDelete('tv_channels', channel.id);
+                                   await handleDelete('tv_channels', channel.id);
                                }
                              }
                            }} className="p-2.5 text-foreground/40 hover:text-red-500 transition-colors bg-background border border-border-custom rounded-xl shadow-inner">

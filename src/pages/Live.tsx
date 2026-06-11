@@ -36,6 +36,7 @@ export default function Live() {
   
   const [activeChannelId, setActiveChannelId] = useState<string>('fidetv');
   const [activeTab, setActiveTab] = useState<'chat' | 'channels' | 'schedule'>('channels');
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [chatMode, setChatMode] = useState<'youtube' | 'fidetv'>('youtube');
   const [playerError, setPlayerError] = useState(false);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
@@ -46,6 +47,7 @@ export default function Live() {
   const [isPiP, setIsPiP] = useState(false);
   const [isPiPDismissed, setIsPiPDismissed] = useState(false);
   const [isTheaterMode, setIsTheaterMode] = useState(false);
+  const [isZenMode, setIsZenMode] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [quality, setQuality] = useState<'Auto' | '480p' | '720p' | '1080p'>('Auto');
   const [showQualitySelector, setShowQualitySelector] = useState(false);
@@ -468,43 +470,56 @@ export default function Live() {
   return (
     <div className={cn(
       "min-h-screen bg-[#050505] text-white overflow-x-hidden transition-all duration-500",
-      isTheaterMode && "bg-black"
+      (isTheaterMode || isZenMode) && "bg-black"
     )}>
       <div className={cn(
         "max-w-[1920px] mx-auto transition-all duration-500",
-        isTheaterMode ? "max-w-full flex flex-col" : "lg:h-[calc(100vh-80px)] flex flex-col lg:flex-row shadow-2xl lg:overflow-hidden"
+        isZenMode ? "max-w-full h-screen flex flex-col" : (isTheaterMode ? "max-w-full flex flex-col" : "lg:h-[calc(100vh-80px)] flex flex-col lg:flex-row shadow-2xl lg:overflow-hidden")
       )}>
         
         {/* Main Watch Area */}
         <div className={cn(
-          "flex-grow flex flex-col relative z-10 border-white/5 overflow-y-auto custom-scrollbar transition-all duration-500",
-          !isTheaterMode && "border-r lg:h-full"
+          "flex-grow flex flex-col relative z-10 border-white/5 overflow-y-auto custom-scrollbar transition-all duration-500 group/main",
+          !isTheaterMode && !isZenMode && "border-r lg:h-full",
+          isZenMode && "h-screen overflow-hidden"
         )}>
+          {/* Floating Zen Mode Exit Toggle (Only visible in Zen Mode) */}
+          {isZenMode && (
+            <button 
+              onClick={() => setIsZenMode(false)}
+              className="fixed top-6 left-6 z-[100] p-3 bg-primary text-white rounded-full shadow-2xl opacity-0 group-hover/main:opacity-100 transition-opacity hover:scale-110 active:scale-95"
+              title="Exit Zen Mode"
+            >
+              <Minimize className="w-5 h-5" />
+            </button>
+          )}
           {/* FideTV World Cup Campaign Match Banner */}
-          <div className="bg-[#0c0c0c] border-b border-white/5 px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 relative overflow-hidden group/eventticker">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-primary" />
-            <div className="absolute inset-y-0 right-0 w-64 bg-gradient-to-l from-primary/5 to-transparent pointer-events-none" />
-            
-            <div className="flex items-center gap-3 relative z-10">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-              </span>
-              <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/15 shrink-0 self-start md:self-auto">EXCLUSIVE BROADCAST</span>
-                <span className="text-xs font-bold text-white/95 uppercase tracking-wider">ALL WORLD CUP MATCHES — LIVE & FOR FREE</span>
+          {!isTheaterMode && (
+            <div className="bg-[#0c0c0c] border-b border-white/5 px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 relative overflow-hidden group/eventticker">
+              <div className="absolute top-0 left-0 w-1.5 h-full bg-primary" />
+              <div className="absolute inset-y-0 right-0 w-64 bg-gradient-to-l from-primary/5 to-transparent pointer-events-none" />
+              
+              <div className="flex items-center gap-3 relative z-10">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                </span>
+                <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3">
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/15 shrink-0 self-start md:self-auto">EXCLUSIVE BROADCAST</span>
+                  <span className="text-xs font-bold text-white/95 uppercase tracking-wider">ALL WORLD Cup MATCHES — LIVE & FOR FREE</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 ml-auto sm:ml-0 relative z-10">
+                <span className="text-[10px] text-[#e0650d] bg-[#e0650d]/10 border border-[#e0650d]/20 px-2.5 py-1 rounded-lg font-black font-mono">
+                  🏆 LIVE MATCH DAY
+                </span>
+                <span className="hidden sm:inline-flex text-[10px] text-primary uppercase font-bold tracking-widest bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-lg">
+                  ★ ONLY ON FIDE TV GROUP
+                </span>
               </div>
             </div>
-
-            <div className="flex items-center gap-3 ml-auto sm:ml-0 relative z-10">
-              <span className="text-[10px] text-[#e0650d] bg-[#e0650d]/10 border border-[#e0650d]/20 px-2.5 py-1 rounded-lg font-black font-mono">
-                🏆 LIVE MATCH DAY
-              </span>
-              <span className="hidden sm:inline-flex text-[10px] text-primary uppercase font-bold tracking-widest bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-lg">
-                ★ ONLY ON FIDE TV GROUP
-              </span>
-            </div>
-          </div>
+          )}
 
           {/* Enhanced Signal Indicator Overlay */}
           <div className="absolute top-6 left-6 z-20 flex flex-col gap-2 pointer-events-none drop-shadow-2xl">
@@ -868,7 +883,8 @@ export default function Live() {
           {/* YouTube-like Metadata Section */}
           <div className={cn(
             "bg-[#050505] px-4 sm:px-6 lg:px-8 py-5 border-b border-white/5",
-            isTheaterMode && "max-w-[1280px] mx-auto w-full"
+            isTheaterMode && "max-w-[1280px] mx-auto w-full",
+            isZenMode && "hidden md:flex flex-col opacity-0 group-hover/main:opacity-100 transition-opacity fixed bottom-0 left-0 right-0 bg-black/80 backdrop-blur-md z-50 pointer-events-auto"
           )}>
             <div className="flex flex-col gap-4">
               <div className="flex flex-wrap items-center gap-3">
@@ -904,22 +920,61 @@ export default function Live() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  {isPlayingFideTv && isFideTvLive && ytStats && (
-                    <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10 backdrop-blur-sm">
-                      <Users className="w-3.5 h-3.5 text-white/40" />
-                      <span className="text-xs font-bold text-white">{ytStats.viewers}</span>
-                      <span className="text-[9px] text-white/40 font-bold uppercase tracking-widest hidden sm:inline">Watching</span>
-                    </div>
-                  )}
-                  <button 
-                    onClick={handleShare}
-                    className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 active:bg-white/20 rounded-full border border-white/10 transition-all text-xs font-bold uppercase tracking-wider"
-                  >
-                    <Share2 className="w-3.5 h-3.5" />
-                    <span>Share</span>
-                  </button>
-                </div>
+                  <div className="flex items-center gap-2">
+                    {isPlayingFideTv && isFideTvLive && ytStats && (
+                      <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10 backdrop-blur-sm">
+                        <Users className="w-3.5 h-3.5 text-white/40" />
+                        <span className="text-xs font-bold text-white">{ytStats.viewers}</span>
+                        <span className="text-[9px] text-white/40 font-bold uppercase tracking-widest hidden sm:inline">Watching</span>
+                      </div>
+                    )}
+                    <button 
+                      onClick={() => setIsZenMode(!isZenMode)}
+                      className={cn(
+                        "flex items-center gap-2 px-4 py-2 rounded-full border transition-all text-xs font-bold uppercase tracking-wider hidden sm:flex",
+                        isZenMode ? "bg-primary text-white border-primary" : "bg-white/5 hover:bg-white/10 border-white/10"
+                      )}
+                      title={isZenMode ? "Exit Zen Mode" : "Zen Mode"}
+                    >
+                      <Video className="w-3.5 h-3.5" />
+                      <span>{isZenMode ? 'Exit Zen' : 'Zen View'}</span>
+                    </button>
+                    
+                    <button 
+                      onClick={() => setIsTheaterMode(!isTheaterMode)}
+                      className={cn(
+                        "flex items-center gap-2 px-4 py-2 rounded-full border transition-all text-xs font-bold uppercase tracking-wider hidden sm:flex",
+                        isTheaterMode ? "bg-primary text-white border-primary" : "bg-white/5 hover:bg-white/10 border-white/10"
+                      )}
+                      title={isTheaterMode ? "Exit Theater Mode" : "Theater Mode"}
+                    >
+                      <Layout className="w-3.5 h-3.5" />
+                      <span>{isTheaterMode ? 'Compact' : 'Wide View'}</span>
+                    </button>
+                    
+                    <button 
+                      onClick={() => {
+                        if (!isFullscreen) {
+                          toggleFullscreen();
+                        } else {
+                          toggleFullscreen();
+                        }
+                      }}
+                      className={cn(
+                        "flex items-center gap-2 px-4 py-2 rounded-full border transition-all text-xs font-bold uppercase tracking-wider bg-white/5 hover:bg-white/10 border-white/10"
+                      )}
+                    >
+                      <Maximize className="w-3.5 h-3.5" />
+                      <span className="hidden xs:inline">Full Size</span>
+                    </button>
+                    <button 
+                      onClick={handleShare}
+                      className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 active:bg-white/20 rounded-full border border-white/10 transition-all text-xs font-bold uppercase tracking-wider"
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      <span>Share</span>
+                    </button>
+                  </div>
               </div>
 
               {/* Description Box - YouTube style */}
@@ -942,14 +997,15 @@ export default function Live() {
         </div>
 
         {/* Sidebar / Interaction Panel */}
-        <div className={cn(
-          "w-full lg:w-[420px] xl:w-[460px] flex-shrink-0 bg-[#070707] flex flex-col z-20 shadow-[-30px_0_60px_rgba(0,0,0,0.8)] border-l border-white/5 relative overflow-hidden transition-all duration-500",
-          isTheaterMode ? "w-full lg:w-full lg:grid lg:grid-cols-2 lg:h-[600px]" : "h-[650px] lg:h-full"
-        )}>
+        {!isZenMode && (
+          <div className={cn(
+            "w-full lg:w-[420px] xl:w-[460px] flex-shrink-0 bg-[#070707] flex flex-col z-20 shadow-[-30px_0_60px_rgba(0,0,0,0.8)] border-l border-white/5 relative overflow-hidden transition-all duration-500",
+            isTheaterMode ? "w-full lg:w-full lg:h-auto" : "h-[650px] lg:h-full"
+          )}>
           {/* Tab Selection Header */}
           <div className={cn(
             "flex items-center justify-between border-b border-white/5 bg-[#0b0b0b] p-3 shrink-0",
-            isTheaterMode && "lg:col-span-2"
+            isTheaterMode && "w-full"
           )}>
             <div className="flex w-full bg-white/5 p-1 rounded-xl gap-1">
               <button 
@@ -1014,87 +1070,114 @@ export default function Live() {
 
             {/* Channels / Stations View - YouTube style sidebar list */}
             {activeTab === 'channels' && (
-              <div className="h-full overflow-y-auto custom-scrollbar p-3 space-y-3">
-                <div className="px-1 pb-1">
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Up Next / Related Channels</h3>
-                </div>
-                
-                <div className="space-y-1 relative">
-                  {(isZapping || !isPlayerReady) && (
-                    <div className="absolute inset-0 bg-[#070707]/95 backdrop-blur-md z-[100] flex flex-col items-center justify-center pointer-events-auto text-center p-4 rounded-xl border border-white/5">
-                      <div className="w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin mb-2" />
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary animate-pulse">Switching...</span>
-                    </div>
-                  )}
-                  {/* FideTV Primary Stream */}
-                  <button
-                    onClick={() => handleChannelSwitch('fidetv')}
-                    disabled={isZapping || !isPlayerReady}
-                    className={cn(
-                      "w-full text-left p-1.5 rounded-lg flex gap-x-3 items-start group transition-all duration-200 cursor-pointer",
-                      isPlayingFideTv 
-                        ? "bg-white/10" 
-                        : "hover:bg-white/5",
-                      (isZapping || !isPlayerReady) && "opacity-50 cursor-not-allowed"
-                    )}
-                  >
-                    <div className="w-40 aspect-video rounded-lg overflow-hidden relative shrink-0 border border-white/10">
-                      <OptimizedImage src={customBroadcast.thumbnail} className="w-full h-full object-cover group-hover:scale-105 transition-transform" alt="" />
-                      <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-all" />
-                      {isFideTvLive && (
-                        <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-red-600 rounded text-[7px] font-black uppercase tracking-wider text-white">
-                           LIVE
-                        </div>
+              <div className="h-full flex flex-col">
+                {/* Category Filter */}
+                <div className="flex overflow-x-auto custom-scrollbar gap-2 px-4 py-2 border-b border-white/5 bg-black/20 shrink-0">
+                  {['All', ...Array.from(new Set(allChannels.map(c => c.category)))].map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all",
+                        selectedCategory === cat 
+                          ? "bg-primary text-white" 
+                          : "bg-white/5 text-white/40 hover:bg-white/10"
                       )}
-                    </div>
-                    <div className="flex flex-col overflow-hidden min-w-0 pt-0.5">
-                       <h4 className="text-xs font-bold text-white line-clamp-2 leading-[1.3] group-hover:text-primary transition-colors">{customBroadcast.name}</h4>
-                       <div className="flex items-center gap-1.5 mt-1">
-                         <span className="text-[9px] text-white/40 font-bold uppercase tracking-tight">FideTV Official</span>
-                         {isPlayingFideTv && <div className="w-2 h-2 bg-primary rounded-full" />}
-                       </div>
-                       <span className="text-[9px] text-white/30 mt-0.5">{isFideTvLive ? (ytStats?.viewers || '1.2K') : 'Broadcasted'} · {customBroadcast.category}</span>
-                    </div>
-                  </button>
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
 
-                  {/* Other Channels - YouTube Recommendation List style */}
-                  {allChannels.filter(c => c.id !== 'fidetv').map((channel) => {
-                    const isSelected = activeChannelId === channel.id;
-                    return (
+                <div className="flex-grow overflow-y-auto custom-scrollbar p-3 space-y-3">
+                  <div className="px-1 pb-1">
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">
+                      {selectedCategory === 'All' ? 'Up Next / Related Channels' : `${selectedCategory} Channels`}
+                    </h3>
+                  </div>
+                  
+                  <div className="space-y-1 relative">
+                    {(isZapping || !isPlayerReady) && (
+                      <div className="absolute inset-0 bg-[#070707]/95 backdrop-blur-md z-[100] flex flex-col items-center justify-center pointer-events-auto text-center p-4 rounded-xl border border-white/5">
+                        <div className="w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin mb-2" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary animate-pulse">Switching...</span>
+                      </div>
+                    )}
+                    {/* FideTV Primary Stream */}
+                    {selectedCategory === 'All' && (
                       <button
-                        key={channel.id}
-                        onClick={() => handleChannelSwitch(channel.id)}
+                        onClick={() => handleChannelSwitch('fidetv')}
                         disabled={isZapping || !isPlayerReady}
                         className={cn(
                           "w-full text-left p-1.5 rounded-lg flex gap-x-3 items-start group transition-all duration-200 cursor-pointer",
-                          isSelected 
+                          isPlayingFideTv 
                             ? "bg-white/10" 
                             : "hover:bg-white/5",
                           (isZapping || !isPlayerReady) && "opacity-50 cursor-not-allowed"
                         )}
                       >
                         <div className="w-40 aspect-video rounded-lg overflow-hidden relative shrink-0 border border-white/10">
-                          <OptimizedImage src={channel.thumbnail} className="w-full h-full object-cover group-hover:scale-105 transition-transform" alt="" />
-                          <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-all flex items-center justify-center">
-                            <Play className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </div>
-                          {channel.isLive && (
+                          <OptimizedImage src={customBroadcast.thumbnail} className="w-full h-full object-cover group-hover:scale-105 transition-transform" alt="" />
+                          <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-all" />
+                          {isFideTvLive && (
                             <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-red-600 rounded text-[7px] font-black uppercase tracking-wider text-white">
                                LIVE
                             </div>
                           )}
                         </div>
                         <div className="flex flex-col overflow-hidden min-w-0 pt-0.5">
-                           <h4 className="text-xs font-bold text-white line-clamp-2 leading-[1.3] group-hover:text-primary transition-colors">{channel.name}</h4>
+                           <h4 className="text-xs font-bold text-white line-clamp-2 leading-[1.3] group-hover:text-primary transition-colors">{customBroadcast.name}</h4>
                            <div className="flex items-center gap-1.5 mt-1">
-                             <span className="text-[9px] text-white/40 font-bold tracking-tight">{channel.category}</span>
-                             {isSelected && <div className="w-2 h-2 bg-primary rounded-full" />}
+                             <span className="text-[9px] text-white/40 font-bold uppercase tracking-tight">FideTV Official</span>
+                             {isPlayingFideTv && <div className="w-2 h-2 bg-primary rounded-full" />}
                            </div>
-                           <span className="text-[9px] text-white/30 mt-0.5">Recommended Local Station</span>
+                           <span className="text-[9px] text-white/30 mt-0.5 font-mono">{isFideTvLive ? (ytStats?.viewers || '1.2K') : 'Broadcasted'} · {customBroadcast.category}</span>
                         </div>
                       </button>
-                    );
-                  })}
+                    )}
+
+                    {/* Other Channels - YouTube Recommendation List style */}
+                    {allChannels
+                      .filter(c => c.id !== 'fidetv')
+                      .filter(c => selectedCategory === 'All' || c.category === selectedCategory)
+                      .map((channel) => {
+                      const isSelected = activeChannelId === channel.id;
+                      return (
+                        <button
+                          key={channel.id}
+                          onClick={() => handleChannelSwitch(channel.id)}
+                          disabled={isZapping || !isPlayerReady}
+                          className={cn(
+                            "w-full text-left p-1.5 rounded-lg flex gap-x-3 items-start group transition-all duration-200 cursor-pointer",
+                            isSelected 
+                              ? "bg-white/10" 
+                              : "hover:bg-white/5",
+                            (isZapping || !isPlayerReady) && "opacity-50 cursor-not-allowed"
+                          )}
+                        >
+                          <div className="w-40 aspect-video rounded-lg overflow-hidden relative shrink-0 border border-white/10">
+                            <OptimizedImage src={channel.thumbnail} className="w-full h-full object-cover group-hover:scale-105 transition-transform" alt="" />
+                            <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-all flex items-center justify-center">
+                              <Play className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                            {channel.isLive && (
+                              <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-red-600 rounded text-[7px] font-black uppercase tracking-wider text-white">
+                                 LIVE
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex flex-col overflow-hidden min-w-0 pt-0.5">
+                             <h4 className="text-xs font-bold text-white line-clamp-2 leading-[1.3] group-hover:text-primary transition-colors">{channel.name}</h4>
+                             <div className="flex items-center gap-1.5 mt-1">
+                               <span className="text-[9px] text-white/40 font-bold tracking-tight">{channel.category}</span>
+                               {isSelected && <div className="w-2 h-2 bg-primary rounded-full" />}
+                             </div>
+                             <span className="text-[9px] text-white/30 mt-0.5 font-mono">Recommended Local Station</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
@@ -1193,6 +1276,7 @@ export default function Live() {
             )}
           </div>
         </div>
+      )}
 
       </div>
     </div>

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
-import { AlertCircle, Loader2, Settings, Check } from 'lucide-react';
+import { AlertCircle, Loader2, Settings, Check, Maximize, Minimize } from 'lucide-react';
 
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -32,9 +32,36 @@ export default function HighPerformancePlayer({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [retryMessage, setRetryMessage] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
   const [levels, setLevels] = useState<any[]>([]);
   const [currentLevel, setCurrentLevel] = useState<number>(-1); // -1 = Auto
   const [showQualityMenu, setShowQualityMenu] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const playerRef = useRef<HTMLDivElement>(null);
+
+  const toggleFullscreen = () => {
+    if (!playerRef.current) return;
+    
+    if (!document.fullscreenElement) {
+      playerRef.current.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+      });
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   const networkRetryCountRef = useRef(0);
   const mediaRetryCountRef = useRef(0);
@@ -66,17 +93,25 @@ export default function HighPerformancePlayer({
     if (isHls && Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
-        lowLatencyMode: true,
-        backBufferLength: 60,
-        maxBufferLength: 30,
-        maxMaxBufferLength: 60,
-        liveSyncDurationCount: 3,
-        manifestLoadingMaxRetry: 10,
-        levelLoadingMaxRetry: 10,
-        fragLoadingMaxRetry: 10,
-        startLevel: -1, // Auto
+        lowLatencyMode: false, // Disable low latency for better compatibility with standard streams
+        backBufferLength: 90,
+        maxBufferLength: 40, // Increased buffer
+        maxMaxBufferLength: 120, // Increased max buffer
+        maxBufferSize: 80 * 1024 * 1024, // 80MB
+        liveSyncDurationCount: 5, // More stable sync
+        manifestLoadingMaxRetry: 50,
+        levelLoadingMaxRetry: 50,
+        fragLoadingMaxRetry: 50,
+        manifestLoadingRetryDelay: 1000,
+        levelLoadingRetryDelay: 1000,
+        fragLoadingRetryDelay: 1000,
+        startLevel: -1, 
         abrEwmaDefaultEstimate: 500000,
         testBandwidth: true,
+        progressive: true,
+        xhrSetup: (xhr, url) => {
+          xhr.withCredentials = false;
+        }
       });
 
       hlsRef.current = hls;
@@ -112,11 +147,19 @@ export default function HighPerformancePlayer({
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              if (networkRetryCountRef.current < 5) {
+              if (networkRetryCountRef.current < 20) {
                 networkRetryCountRef.current += 1;
-                const msg = `Reconnecting stream... (Attempt ${networkRetryCountRef.current}/5)`;
+                const msg = `Reconnecting stream... (Attempt ${networkRetryCountRef.current}/20)`;
                 console.warn(msg);
                 setRetryMessage(msg);
+                
+                if (networkRetryCountRef.current % 5 === 0) {
+                  // Every 5 fails, try a hard reset of the HLS instance
+                  console.warn('Network error persists, performing hard reset...');
+                  setRetryKey(prev => prev + 1);
+                  return; // useEffect will handle re-init
+                }
+                
                 hls.startLoad();
               } else {
                 console.error('Fatal network error: reached maximum retries');
@@ -181,7 +224,7 @@ export default function HighPerformancePlayer({
         hlsRef.current = null;
       }
     };
-  }, [url]);
+  }, [url, retryKey]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -195,7 +238,10 @@ export default function HighPerformancePlayer({
   }, [playing]);
 
   return (
-    <div className={`relative w-full h-full bg-black overflow-hidden flex items-center justify-center ${className}`}>
+    <div 
+      ref={playerRef}
+      className={`relative w-full h-full bg-black overflow-hidden flex items-center justify-center ${className}`}
+    >
       <video
         ref={videoRef}
         className="w-full h-full object-contain"
@@ -203,7 +249,6 @@ export default function HighPerformancePlayer({
         controls={controls}
         playsInline={playsinline}
         poster={poster}
-        crossOrigin="anonymous"
       />
       
       {levels.length > 0 && (
@@ -271,6 +316,14 @@ export default function HighPerformancePlayer({
               {currentLevel === -1 ? 'Auto' : levels[currentLevel]?.height ? `${levels[currentLevel].height}p` : 'Manual'}
             </span>
           </button>
+
+          <button
+            onClick={toggleFullscreen}
+            className="p-2.5 bg-black/50 backdrop-blur-md rounded-full text-white/80 hover:text-white hover:bg-black/70 transition-all border border-white/10 flex items-center gap-2 group cursor-pointer"
+            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+          >
+            {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+          </button>
         </div>
       )}
       
@@ -284,15 +337,29 @@ export default function HighPerformancePlayer({
       )}
 
       {error && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-20 p-6 text-center">
-          <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
-          <p className="text-white font-medium">{error}</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="mt-4 px-6 py-2 bg-primary text-white rounded-full text-xs font-bold uppercase tracking-widest"
-          >
-            Retry
-          </button>
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-20 p-6 text-center backdrop-blur-xl">
+          <AlertCircle className="w-16 h-16 text-red-500 mb-6 drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]" />
+          <h3 className="text-xl font-black uppercase tracking-tight text-white mb-2">Signal Lost</h3>
+          <p className="text-white/60 text-sm max-w-xs mx-auto leading-relaxed mb-8 italic">
+            {error}
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button 
+              onClick={() => {
+                setError(null);
+                setRetryKey(prev => prev + 1);
+              }}
+              className="px-8 py-3 bg-primary text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
+            >
+              Reconnect Stream
+            </button>
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-8 py-3 bg-white/5 border border-white/10 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-white/10 transition-all"
+            >
+              Hard Browser Refresh
+            </button>
+          </div>
         </div>
       )}
     </div>
