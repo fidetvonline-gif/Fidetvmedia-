@@ -3,7 +3,7 @@ import ReactPlayer from 'react-player';
 import { supabase } from '@/lib/supabase';
 import { Event } from '@/types';
 import LiveChat from '@/components/LiveChat';
-import { Calendar, Users, Share2, Youtube, ExternalLink, Clock, AlertCircle, Globe, Tv, Film, MonitorPlay, MessageSquare, Play, VolumeX, Volume2, Pause, Settings, Check, Video } from 'lucide-react';
+import { Calendar, Users, Share2, Youtube, ExternalLink, Clock, AlertCircle, Globe, Tv, Film, MonitorPlay, MessageSquare, Play, VolumeX, Volume2, Pause, Settings, Check, Video, Maximize, Minimize, Square, Layout } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -45,6 +45,8 @@ export default function Live() {
 
   const [isPiP, setIsPiP] = useState(false);
   const [isPiPDismissed, setIsPiPDismissed] = useState(false);
+  const [isTheaterMode, setIsTheaterMode] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [quality, setQuality] = useState<'Auto' | '480p' | '720p' | '1080p'>('Auto');
   const [showQualitySelector, setShowQualitySelector] = useState(false);
   const [isZapping, setIsZapping] = useState(false);
@@ -289,6 +291,29 @@ export default function Live() {
     return () => clearTimeout(timer);
   }, [activeChannelId]);
 
+  const toggleFullscreen = () => {
+    if (!playerContainerRef.current) return;
+    
+    if (!document.fullscreenElement) {
+      playerContainerRef.current.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+      });
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
   const handleShare = async () => {
     if (isSharingRef.current) return;
     
@@ -441,11 +466,20 @@ export default function Live() {
   const isPlayingFideTv = activeChannel.id === 'fidetv';
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white overflow-x-hidden">
-      <div className="max-w-[1920px] mx-auto lg:h-[calc(100vh-80px)] flex flex-col lg:flex-row shadow-2xl lg:overflow-hidden">
+    <div className={cn(
+      "min-h-screen bg-[#050505] text-white overflow-x-hidden transition-all duration-500",
+      isTheaterMode && "bg-black"
+    )}>
+      <div className={cn(
+        "max-w-[1920px] mx-auto transition-all duration-500",
+        isTheaterMode ? "max-w-full flex flex-col" : "lg:h-[calc(100vh-80px)] flex flex-col lg:flex-row shadow-2xl lg:overflow-hidden"
+      )}>
         
         {/* Main Watch Area */}
-        <div className="flex-grow flex flex-col relative z-10 border-r border-[#ffffff0a] overflow-y-auto custom-scrollbar">
+        <div className={cn(
+          "flex-grow flex flex-col relative z-10 border-white/5 overflow-y-auto custom-scrollbar transition-all duration-500",
+          !isTheaterMode && "border-r lg:h-full"
+        )}>
           {/* FideTV World Cup Campaign Match Banner */}
           <div className="bg-[#0c0c0c] border-b border-white/5 px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 relative overflow-hidden group/eventticker">
             <div className="absolute top-0 left-0 w-1.5 h-full bg-primary" />
@@ -499,7 +533,16 @@ export default function Live() {
           </div>
 
           {/* Player Container */}
-          <div ref={playerContainerRef} className="relative w-full aspect-video bg-black group/player">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            ref={playerContainerRef} 
+            className={cn(
+              "relative w-full bg-black group/player transition-all duration-500",
+              isTheaterMode ? "aspect-[21/9] max-h-[85vh]" : "aspect-video"
+            )}
+          >
             <div className={cn(
                "transition-all duration-300 z-[999]",
                isPiP && !isPiPDismissed 
@@ -684,7 +727,29 @@ export default function Live() {
                      </div>
 
                      <div className="flex items-center gap-6">
-                       <div className="flex flex-col items-end">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsTheaterMode(!isTheaterMode);
+                          }}
+                          className="hidden sm:flex p-1.5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-colors"
+                          title="Theater Mode"
+                        >
+                          <Square className={cn("w-4 h-4", isTheaterMode && "fill-white/20")} />
+                        </button>
+
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFullscreen();
+                          }}
+                          className="p-1.5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-colors"
+                          title="Fullscreen"
+                        >
+                          {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                        </button>
+
+                        <div className="flex flex-col items-end">
                          <div className="text-[9px] font-bold text-white/40 font-mono tracking-widest uppercase mb-1">
                            Quality
                          </div>
@@ -725,7 +790,7 @@ export default function Live() {
                                      {quality === q && <Check className="w-3 h-3" />}
                                    </button>
                                  ))}
-                               </motion.div>
+                                </motion.div>
                              )}
                            </AnimatePresence>
                          </div>
@@ -769,7 +834,26 @@ export default function Live() {
                 </div>
             )}
             </div>
+          </motion.div>
             
+            {/* Persistent Comfort Controls (Always available on hover for all players) */}
+            <div className="absolute top-6 right-20 flex space-x-2 z-30 opacity-0 group-hover/player:opacity-100 transition-opacity">
+                <button 
+                  onClick={toggleFullscreen}
+                  className="p-3 bg-black/40 hover:bg-primary backdrop-blur-xl rounded-full text-white border border-white/10 transition-all shadow-xl"
+                  title="Toggle Fullscreen"
+                >
+                  {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+                </button>
+                <button 
+                  onClick={() => setIsTheaterMode(!isTheaterMode)}
+                  className="hidden sm:flex p-3 bg-black/40 hover:bg-primary backdrop-blur-xl rounded-full text-white border border-white/10 transition-all shadow-xl"
+                  title="Toggle Theater Mode"
+                >
+                  <Square className={cn("w-5 h-5", isTheaterMode && "fill-white/20")} />
+                </button>
+            </div>
+
             {/* Share action overlay */}
             <div className="absolute top-6 right-6 flex space-x-3 z-20 pointer-events-auto">
                 <button 
@@ -780,10 +864,12 @@ export default function Live() {
                   <Share2 className="w-5 h-5" />
                 </button>
             </div>
-          </div>
 
           {/* YouTube-like Metadata Section */}
-          <div className="bg-[#050505] px-4 sm:px-6 lg:px-8 py-5 border-b border-white/5">
+          <div className={cn(
+            "bg-[#050505] px-4 sm:px-6 lg:px-8 py-5 border-b border-white/5",
+            isTheaterMode && "max-w-[1280px] mx-auto w-full"
+          )}>
             <div className="flex flex-col gap-4">
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className="text-lg sm:text-xl md:text-2xl font-black text-white leading-tight tracking-tight">
@@ -855,10 +941,16 @@ export default function Live() {
           </div>
         </div>
 
-        {/* Sidebar / Interaction Panel - Redesigned to be a Multi-functional Hub (Chat, Channels, Guide) */}
-        <div className="w-full lg:w-[420px] xl:w-[460px] flex-shrink-0 bg-[#070707] flex flex-col h-[650px] lg:h-full z-20 shadow-[-30px_0_60px_rgba(0,0,0,0.8)] border-l border-white/5 relative overflow-hidden">
+        {/* Sidebar / Interaction Panel */}
+        <div className={cn(
+          "w-full lg:w-[420px] xl:w-[460px] flex-shrink-0 bg-[#070707] flex flex-col z-20 shadow-[-30px_0_60px_rgba(0,0,0,0.8)] border-l border-white/5 relative overflow-hidden transition-all duration-500",
+          isTheaterMode ? "w-full lg:w-full lg:grid lg:grid-cols-2 lg:h-[600px]" : "h-[650px] lg:h-full"
+        )}>
           {/* Tab Selection Header */}
-          <div className="flex items-center justify-between border-b border-white/5 bg-[#0b0b0b] p-3 shrink-0">
+          <div className={cn(
+            "flex items-center justify-between border-b border-white/5 bg-[#0b0b0b] p-3 shrink-0",
+            isTheaterMode && "lg:col-span-2"
+          )}>
             <div className="flex w-full bg-white/5 p-1 rounded-xl gap-1">
               <button 
                 onClick={() => setActiveTab('chat')}

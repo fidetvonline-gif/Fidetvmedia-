@@ -1052,7 +1052,7 @@ export default function Admin() {
       if (!session) throw new Error("No active session. Please log in again.");
 
       console.log("[Admin] Initiating password reset for user:", userId);
-      const response = await fetch('/api/admin/reset-user-password', {
+      const response = await fetch('/api/admin-reset-pw', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,62 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Play, Timer, Sparkles, X, Tv, Bell, Calendar, Flame, AlertCircle } from 'lucide-react';
+import { Play, Tv, Bell, Calendar, Flame, AlertCircle, Sparkles, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import fidetvWorldCup from '@/assets/images/fidetv_world_cup_1780392851684.png';
-
-interface TimeLeft {
-  days: number;
-  hours: number;
-  minutes: number;
-  seconds: number;
-  isCompleted: boolean;
-}
 
 export default function LiveEventBanner({ isCardOnly = false }: { isCardOnly?: boolean }) {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(true);
   
-  // Set the big match event date. 
-  // Let's make it dynamic: setting it to June 10, 2026, 18:00 UTC (a prime-time match), 
-  // or relative if that date has passed to keep the demo always beautifully functioning!
-  const targetDate = new Date('2026-06-10T18:00:00Z');
-  
-  const [timeLeft, setTimeLeft] = useState<TimeLeft>({
-    days: 0,
-    hours: 0,
-    minutes: 0,
-    seconds: 0,
-    isCompleted: false,
-  });
-
-  useEffect(() => {
-    const calculateTimeLeft = () => {
-      let difference = +targetDate - +new Date();
-      
-      // If the static date has passed or is very near, keep a dynamic 48-hour rolling timer for preview purposes
-      if (difference <= 0) {
-        const fallbackTarget = new Date();
-        fallbackTarget.setDate(fallbackTarget.getDate() + 2);
-        fallbackTarget.setHours(19, 0, 0, 0);
-        difference = +fallbackTarget - +new Date();
-      }
-
-      let timeLeftData: TimeLeft = {
-        days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-        hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-        minutes: Math.floor((difference / 1000 / 60) % 60),
-        seconds: Math.floor((difference / 1000) % 60),
-        isCompleted: difference <= 0
-      };
-
-      setTimeLeft(timeLeftData);
-    };
-
-    calculateTimeLeft();
-    const interval = setInterval(calculateTimeLeft, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
   const handleTuneIn = () => {
     navigate('/live');
   };
@@ -94,30 +45,13 @@ export default function LiveEventBanner({ isCardOnly = false }: { isCardOnly?: b
               Experience the absolute pinnacle of global football! Watch all premium world tournament matches live, completely for free, and exclusively on **FideTV.online**. Feel the true stadium energy with professional high-definition feeds, instant fan live chat interactions, play-by-plays, and exclusive highlights.
             </p>
 
-            {/* Countdown Items in high-tech display grid */}
-            <div className="grid grid-cols-4 gap-3 max-w-md pt-2">
-              {[
-                { label: 'Days', value: timeLeft.days },
-                { label: 'Hours', value: timeLeft.hours },
-                { label: 'Mins', value: timeLeft.minutes },
-                { label: 'Secs', value: timeLeft.seconds },
-              ].map((item, idx) => (
-                <div 
-                  key={idx} 
-                  className="bg-surface-bright/80 border border-border-custom rounded-2xl p-3 text-center mix-blend-normal shadow-sm group-hover:border-primary/15 transition-colors"
-                >
-                  <span className="block text-xl sm:text-3xl font-display font-black text-foreground">{item.value.toString().padStart(2, '0')}</span>
-                  <span className="text-[9px] uppercase font-bold tracking-wider text-text-muted">{item.label}</span>
-                </div>
-              ))}
-            </div>
-
             {/* Micro details notice */}
             <div className="flex items-center gap-2 text-xs text-text-muted italic pt-1">
               <AlertCircle className="w-4 h-4 text-primary shrink-0" />
               <span>Broadcast starts exactly at kick-off. No sign-up required to view!</span>
             </div>
           </div>
+
 
           {/* Call to Actions & Media Mockup / Watch link */}
           <div className="lg:col-span-5 flex flex-col space-y-6 lg:pl-6">
@@ -197,12 +131,6 @@ export default function LiveEventBanner({ isCardOnly = false }: { isCardOnly?: b
 
             {/* Right side countdown and action buttons */}
             <div className="flex items-center gap-4 ml-auto">
-              {/* Small dynamic timer */}
-              <div className="hidden sm:flex items-center gap-2 text-[11px] font-bold text-text-muted bg-surface-bright border border-border-custom rounded-lg px-2.5 py-1">
-                <Timer className="w-3.5 h-3.5 text-primary" />
-                <span>Starts in: {timeLeft.days}d {timeLeft.hours}h {timeLeft.minutes}m {timeLeft.seconds}s</span>
-              </div>
-
               <button
                 onClick={handleTuneIn}
                 className="px-3.5 py-1.5 bg-primary hover:bg-primary/95 text-white text-[10px] font-black uppercase tracking-widest rounded-lg shadow-sm transition-all hover:scale-[1.02] cursor-pointer flex items-center gap-1.5"
