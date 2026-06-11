@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Download, Smartphone, Apple, Play, CheckCircle2, ChevronRight, HelpCircle, Copy, Check, History, Loader2, Star, AlertTriangle, X, Quote, ChevronLeft, Share2, MessageCircle, Twitter, Facebook } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -24,6 +24,23 @@ export default function DownloadApp() {
   const [reviews, setReviews] = useState<any[]>([]);
   const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
   const [loadingReviews, setLoadingReviews] = useState(true);
+  const videoRef1 = useRef<HTMLVideoElement>(null);
+  const videoRef2 = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    // Force play for both videos if needed
+    const playVideos = async () => {
+      try {
+        if (videoRef1.current) await videoRef1.current.play();
+        if (videoRef2.current) await videoRef2.current.play();
+      } catch (err) {
+        console.warn("Video autoplay failed:", err);
+      }
+    };
+    if (isTutorialOpen || true) {
+      playVideos();
+    }
+  }, [isTutorialOpen]);
 
   useEffect(() => {
     const fetchReviews = async () => {
@@ -511,6 +528,30 @@ export default function DownloadApp() {
             <h2 className="text-3xl md:text-5xl font-display font-black text-white tracking-tighter">
               Setup Your App
             </h2>
+            
+            {/* On-page Video Tutorial */}
+            <div className="rounded-[2.5rem] overflow-hidden border border-white/5 bg-white/5 aspect-video relative group shadow-2xl">
+               <video 
+                 ref={videoRef1}
+                 src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"
+                 autoPlay
+                 loop
+                 muted
+                 playsInline
+                 preload="auto"
+                 crossOrigin="anonymous"
+                 className="w-full h-full object-cover opacity-100 group-hover:scale-105 transition-transform duration-1000"
+               >
+                 Your browser does not support the video tag.
+               </video>
+               <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
+               <div className="absolute top-6 left-6">
+                  <div className="px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-[9px] font-black uppercase tracking-widest text-primary border border-primary/20">
+                     Video Tutorial
+                  </div>
+               </div>
+            </div>
+
             <p className="text-gray-400">
               Follow these simple steps to get FideTV on your mobile device.
             </p>
@@ -936,6 +977,34 @@ export default function DownloadApp() {
               </div>
 
               <div className="grid gap-8">
+                 {/* Video Tutorial Area */}
+                 <div className="rounded-[2rem] overflow-hidden border border-white/10 bg-black/40 aspect-video relative group shadow-2xl">
+                    <video 
+                      ref={videoRef2}
+                      src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      preload="auto"
+                      crossOrigin="anonymous"
+                      className="w-full h-full object-cover opacity-100 group-hover:scale-105 transition-transform duration-700"
+                    >
+                      Your browser does not support the video tag.
+                    </video>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                    <div className="absolute bottom-6 left-8 right-8 flex items-end justify-between">
+                       <div className="space-y-1">
+                          <div className="flex items-center gap-2 text-primary text-[10px] font-black uppercase tracking-widest">
+                             <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
+                             Auto-playing Tutorial
+                          </div>
+                          <h4 className="text-white font-bold text-lg">PWA Installation Demo</h4>
+                       </div>
+                       <Play className="w-10 h-10 text-white/20 group-hover:text-primary transition-colors duration-300" />
+                    </div>
+                 </div>
+
                  {isSafari || isIOS ? (
                    // Safari/iOS Instructions
                    <div className="space-y-8">

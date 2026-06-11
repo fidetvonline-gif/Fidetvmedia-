@@ -3,8 +3,14 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
+import { createClient } from "@supabase/supabase-js";
 
 dotenv.config();
+
+const supabaseAdmin = createClient(
+  process.env.VITE_SUPABASE_URL || "",
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+);
 
 async function startServer() {
   const app = express();
@@ -128,6 +134,44 @@ Compose a short, direct, vocal response (max 2 sentences, 150 characters) that i
       res.status(500).json({ 
         error: { message: error.message || 'Internal server error while fetching from YouTube' } 
       });
+    }
+  });
+
+  app.post("/api/admin/reset-password", async (req, res) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: "No authorization header" });
+    }
+
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+
+    if (authError || !user || user.email !== "fidetvonline@gmail.com") {
+      return res.status(403).json({ error: "Unauthorized. Admin access required." });
+    }
+
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+
+    // Generate a random password (8 characters)
+    const newPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-2).toUpperCase() + "!";
+
+    try {
+      const { data, error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+        password: newPassword
+      });
+
+      if (error) throw error;
+
+      res.json({ 
+        message: "Password reset successful", 
+        newPassword 
+      });
+    } catch (error: any) {
+      console.error("Password reset error:", error);
+      res.status(500).json({ error: error.message || "Failed to reset password" });
     }
   });
 

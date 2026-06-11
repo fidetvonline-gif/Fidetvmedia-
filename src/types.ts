@@ -153,3 +153,11 @@ export interface Service {
   order_index: number;
   created_at: string;
 }
+
+export interface SiteSetting {
+  id: string;
+  key: string;
+  value: string;
+  description?: string;
+  updated_at: string;
+}

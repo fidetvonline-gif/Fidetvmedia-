@@ -11,7 +11,7 @@ import {
   Sparkles, Camera, Eye, Newspaper, BookOpen, Clock, CheckCircle2, XCircle,
   ShieldCheck, ShieldAlert, Award, Headset, Briefcase, Tv, Zap, DollarSign,
   ExternalLink, TrendingUp, BarChart3, Wallet, ArrowUpRight, PenTool,
-  Megaphone, Video, PlayCircle, Image
+  Megaphone, Video, PlayCircle, Image, KeyRound
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -22,14 +22,17 @@ import { DEFAULT_CHANNELS } from '@/constants/channels';
 import AdBanner from '@/components/AdBanner';
 import AdminAdManagement from '@/components/AdminAdManagement';
 import InlineAdsManager from '@/components/InlineAdsManager';
+import StreamManager from '@/components/StreamManager';
 import { ReferralAnalytics } from '@/components/ReferralAnalytics';
 import MDEditor from '@uiw/react-md-editor';
 import { safeLocalStorage } from '@/lib/storage';
 
-type AdminTab = 'overview' | 'events' | 'news' | 'communities' | 'bookings' | 'partnerships' | 'users' | 'support' | 'portfolio' | 'channels' | 'services' | 'site' | 'ads';
+type AdminTab = 'overview' | 'events' | 'news' | 'communities' | 'bookings' | 'partnerships' | 'users' | 'support' | 'portfolio' | 'channels' | 'services' | 'site' | 'ads' | 'streaming';
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
+  const [resettingPasswordUserId, setResettingPasswordUserId] = useState<string | null>(null);
+  const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [channels, setChannels] = useState<TvChannel[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -1039,6 +1042,33 @@ export default function Admin() {
     }
   };
 
+  const handleResetPassword = async (userId: string) => {
+    if (!window.confirm("Are you sure you want to reset this user's password? The new password will be displayed to you immediately.")) return;
+    
+    setResettingPasswordUserId(userId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("No active session");
+
+      const response = await fetch('/api/admin/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ userId })
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Failed to reset password");
+
+      setGeneratedPassword(result.newPassword);
+    } catch (err: any) {
+      alert(err.message);
+      setResettingPasswordUserId(null);
+    }
+  };
+
   const handleConfirmPartner = async (book: any) => {
     try {
       setLoading(true);
@@ -1193,7 +1223,7 @@ export default function Admin() {
                   </button>
                 </div>
               )}
-              {activeTab !== 'site' && activeTab !== 'bookings' && activeTab !== 'support' && activeTab !== 'partnerships' && activeTab !== 'overview' && (
+              {activeTab !== 'site' && activeTab !== 'bookings' && activeTab !== 'support' && activeTab !== 'partnerships' && activeTab !== 'overview' && activeTab !== 'streaming' && (
                 <button 
                   onClick={() => { resetForm(); setIsEditing(true); }}
                   className="px-8 py-4 bg-primary text-white font-bold rounded-2xl flex items-center space-x-3 shadow-lg shadow-primary/20 hover:scale-105 transition-all active:scale-95"
@@ -1222,6 +1252,7 @@ export default function Admin() {
               { id: 'partnerships', name: 'Partnerships', icon: Award },
               { id: 'support', name: 'Support', icon: MessageSquare },
               { id: 'site', name: 'Site Setup', icon: Settings },
+              { id: 'streaming', name: 'Direct Stream', icon: Video },
               { id: 'ads', name: 'Google Ads', icon: DollarSign }
             ].filter(tab => !isBloggerOnly || tab.id === 'news').map(tab => (
               <button
@@ -3192,6 +3223,13 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                             >
                               <PenTool className="w-4 h-4" />
                             </button>
+                            <button 
+                              onClick={() => handleResetPassword(user.id)}
+                              className="p-2 bg-background border border-border-custom text-amber-500 hover:bg-amber-500 hover:text-white transition-all rounded-lg shadow-sm"
+                              title="Reset Password"
+                            >
+                              <KeyRound className="w-4 h-4" />
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -3616,8 +3654,58 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
               </div>
             </div>
           )}
+
+          {activeTab === 'streaming' && (
+            <div className="animate-fade-in">
+              <StreamManager />
+            </div>
+          )}
              {/* Form Modal */}
-       <AnimatePresence>
+       <AnimatePresence mode="wait">
+          {generatedPassword && (
+            <>
+              <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }} 
+                className="fixed inset-0 bg-background/90 backdrop-blur-xl z-[200]" 
+                onClick={() => setGeneratedPassword(null)} 
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: 20 }} 
+                animate={{ opacity: 1, scale: 1, y: 0 }} 
+                exit={{ opacity: 0, scale: 0.9, y: 20 }} 
+                className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-surface rounded-[3rem] border border-border-custom z-[201] p-10 shadow-2xl text-center space-y-8"
+              >
+                  <div className="w-20 h-20 bg-amber-500/10 rounded-3xl flex items-center justify-center mx-auto border border-amber-500/20 shadow-inner">
+                    <KeyRound className="w-10 h-10 text-amber-500" />
+                  </div>
+                  <div className="space-y-2">
+                    <h2 className="text-2xl font-display font-bold text-foreground tracking-tight">Password Reset Success</h2>
+                    <p className="text-[10px] text-foreground/40 font-black uppercase tracking-widest italic">New Security Credentials Generated</p>
+                  </div>
+
+                  <div className="bg-background border border-border-custom rounded-2xl p-6 space-y-3 shadow-inner group">
+                    <p className="text-[10px] text-foreground/40 font-bold uppercase tracking-widest">Temporary Password</p>
+                    <div className="flex items-center justify-center gap-3">
+                      <span className="text-2xl font-mono font-bold text-primary tracking-wider select-all">{generatedPassword}</span>
+                    </div>
+                  </div>
+
+                  <p className="text-[10px] text-foreground/40 leading-relaxed font-medium italic px-4">
+                    Copy this password and provide it to the user. They can use it to log in and update their security settings in their profile.
+                  </p>
+
+                  <button 
+                    onClick={() => setGeneratedPassword(null)}
+                    className="w-full py-4 bg-primary text-white font-black uppercase tracking-widest text-[10px] rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/20 cursor-pointer"
+                  >
+                    Dismiss Intelligence Report
+                  </button>
+              </motion.div>
+            </>
+          )}
+
           {isEditing && (
             <>
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-background/80 backdrop-blur-md z-[100]" onClick={() => setIsEditing(false)} />

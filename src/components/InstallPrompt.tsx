@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Download, X } from 'lucide-react';
+import { Download, X, Play } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { safeLocalStorage } from '@/lib/storage';
 
@@ -12,6 +12,15 @@ export default function InstallPrompt() {
   const [isIOS, setIsIOS] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const navigate = useNavigate();
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (isTutorialOpen && videoRef.current) {
+      videoRef.current.play().catch(err => {
+        console.warn("Modal video autoplay failed:", err);
+      });
+    }
+  }, [isTutorialOpen]);
 
   useEffect(() => {
     // Detect Safari
@@ -158,6 +167,34 @@ export default function InstallPrompt() {
               </div>
 
               <div className="grid gap-8">
+                 {/* Video Tutorial Area */}
+                  <div className="rounded-[2rem] overflow-hidden border border-white/10 bg-black/40 aspect-video relative group shadow-2xl">
+                     <video 
+                       ref={videoRef}
+                       src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+                       autoPlay
+                       loop
+                       muted
+                       playsInline
+                       preload="auto"
+                       crossOrigin="anonymous"
+                       className="w-full h-full object-cover opacity-100 group-hover:scale-105 transition-transform duration-700"
+                     >
+                       Your browser does not support the video tag.
+                     </video>
+                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                     <div className="absolute bottom-6 left-8 right-8 flex items-end justify-between">
+                        <div className="space-y-1">
+                           <div className="flex items-center gap-2 text-primary text-[10px] font-black uppercase tracking-widest">
+                              <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
+                              Auto-playing Tutorial
+                           </div>
+                           <h4 className="text-white font-bold text-lg">PWA Installation Demo</h4>
+                        </div>
+                        <Play className="w-10 h-10 text-white/20 group-hover:text-primary transition-colors duration-300" />
+                     </div>
+                  </div>
+
                  {isSafari || isIOS ? (
                    // Safari/iOS Instructions
                    <div className="space-y-8">

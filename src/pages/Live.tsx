@@ -3,7 +3,7 @@ import ReactPlayer from 'react-player';
 import { supabase } from '@/lib/supabase';
 import { Event } from '@/types';
 import LiveChat from '@/components/LiveChat';
-import { Calendar, Users, Share2, Youtube, ExternalLink, Clock, AlertCircle, Globe, Tv, Film, MonitorPlay, MessageSquare, Play, VolumeX, Volume2, Pause, Settings, Check } from 'lucide-react';
+import { Calendar, Users, Share2, Youtube, ExternalLink, Clock, AlertCircle, Globe, Tv, Film, MonitorPlay, MessageSquare, Play, VolumeX, Volume2, Pause, Settings, Check, Video } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -32,6 +32,7 @@ export default function Live() {
   const [loading, setLoading] = useState(true);
   const [ytStats, setYtStats] = useState<YouTubeStats | null>(null);
   const [recentUploads, setRecentUploads] = useState<any[]>([]);
+  const [directStreamUrl, setDirectStreamUrl] = useState<string | null>(null);
   
   const [activeChannelId, setActiveChannelId] = useState<string>('fidetv');
   const [activeTab, setActiveTab] = useState<'chat' | 'channels' | 'schedule'>('channels');
@@ -40,6 +41,7 @@ export default function Live() {
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'live' | 'offline' | 'connecting'>('connecting');
 
   const [isPiP, setIsPiP] = useState(false);
   const [isPiPDismissed, setIsPiPDismissed] = useState(false);
@@ -90,6 +92,11 @@ export default function Live() {
 
     const delay = isEmbed ? 200 : 2500;
 
+    checkStreamSignal(activeChannelId === 'fidetv' 
+      ? customBroadcast.url 
+      : dbChannels.find((ch: any) => ch.id === activeChannelId)?.url
+    );
+
     // Safety timeout: if player takes too long to signal ready, hide overlay anyway
     // so user can see if there's a play button or interaction needed
     const safetyTimer = setTimeout(() => {
@@ -110,16 +117,68 @@ export default function Live() {
     }
     
     setPlayerError(true);
+    setConnectionStatus('offline');
   };
 
   const handlePlayerReady = () => {
     console.log('Player is ready for playback');
     setIsPlayerReady(true);
     setPlayerError(false);
+    setConnectionStatus('live');
+  };
+
+  const checkStreamSignal = async (url: string) => {
+    if (!url) {
+      setConnectionStatus('offline');
+      return;
+    }
+
+    if (url.includes('<iframe') || url.includes('limex.tv') || (!url.includes('.m3u8') && !url.includes('.mp4') && !url.includes('youtube.com') && !url.includes('youtu.be'))) {
+      // For iframes and external web links, we mark as live since we can't probe them directly
+      setConnectionStatus('live');
+      return;
+    }
+
+    setConnectionStatus('connecting');
+
+    // For HLS/m3u8, try to probe the manifest
+    if (url.toLowerCase().includes('.m3u8')) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        // We use no-cors to avoid CORS issues if server isn't configured for our domain
+        // It won't give us the 'ok' status but will fail if the server is down
+        await fetch(url, { 
+          method: 'GET', 
+          mode: 'no-cors',
+          signal: controller.signal,
+          cache: 'no-cache'
+        });
+        
+        clearTimeout(timeoutId);
+        setConnectionStatus('live');
+      } catch (err) {
+        console.warn('Stream probe failed:', err);
+        setConnectionStatus('offline');
+      }
+    } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
+      // For YouTube, it takes longer to signal ready
+      // We don't probe directly due to CORS
+    }
   };
   useEffect(() => {
     const fetchLiveEventData = async () => {
       setLoading(true);
+
+      // Fetch site settings for direct stream URL
+      const { data: settingsData } = await supabase.from('site_settings').select('key, value');
+      if (settingsData) {
+        const directUrlSetting = settingsData.find(s => s.key === 'direct_stream_hls_url');
+        if (directUrlSetting?.value) {
+          setDirectStreamUrl(directUrlSetting.value);
+        }
+      }
       
       // Fetch all upcoming and live events for the schedule
       const { data: eventsData } = await supabase
@@ -313,6 +372,21 @@ export default function Live() {
     }));
     
     const merged = [...dynamic];
+
+    if (directStreamUrl) {
+      merged.unshift({
+        id: 'direct_obs_stream',
+        name: 'Direct OBS Stream',
+        category: 'Pro Member',
+        thumbnail: 'https://images.unsplash.com/photo-1540655037529-dec987208707?auto=format&fit=crop&q=80&w=800',
+        url: directStreamUrl,
+        icon: Video,
+        description: 'Direct live stream from OBS Studio.',
+        isLive: true,
+        isDirect: true
+      } as any);
+    }
+
     DEFAULT_CHANNELS.forEach(defCh => {
       if (!merged.some(m => m.id === defCh.id || m.name.toLowerCase() === defCh.name.toLowerCase())) {
         merged.push({
@@ -412,8 +486,8 @@ export default function Live() {
               )} />
               <span>
                 {isPlayingFideTv 
-                  ? (isFideTvLive ? 'On Air' : isFideTvUpcoming ? 'Upcoming' : 'Standby') 
-                  : (activeChannel.isLive ? 'Network Live' : 'Streaming')}
+                  ? (isFideTvLive ? (connectionStatus === 'live' ? 'On Air' : connectionStatus === 'connecting' ? 'Connecting...' : 'Offline') : isFideTvUpcoming ? 'Upcoming' : 'Standby') 
+                  : (activeChannel.isLive ? (connectionStatus === 'live' ? 'Network Live' : connectionStatus === 'connecting' ? 'Connecting...' : 'Offline') : 'Streaming')}
               </span>
             </div>
             {isPlayingFideTv && isFideTvLive && (
@@ -498,6 +572,28 @@ export default function Live() {
                    {(activeChannel.url.includes('youtube.com') || activeChannel.url.includes('youtu.be')) && (
                      <div className="absolute top-0 inset-x-0 h-[10%] bg-black z-[5] pointer-events-none" />
                    )}
+                </div>
+              ) : (activeChannel.url?.includes('limex.tv') || (!activeChannel.url?.includes('.m3u8') && !activeChannel.url?.includes('.mp4') && !activeChannel.url?.includes('youtube.com') && !activeChannel.url?.includes('youtu.be'))) ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0a0a] z-20">
+                   <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] pointer-events-none" />
+                   <div className="relative z-10 flex flex-col items-center justify-center p-12 text-center">
+                     <div className="w-24 h-24 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-8 shadow-[0_0_50px_rgba(242,125,38,0.1)]">
+                       <MonitorPlay className="w-10 h-10 text-primary" />
+                     </div>
+                     <h3 className="text-2xl font-display font-black uppercase tracking-tight mb-4">External Broadcast</h3>
+                     <p className="text-white/50 text-sm max-w-sm mb-10 leading-relaxed italic">
+                       This provider requires viewing directly on their official platform to ensure broadcast security and full feature support.
+                     </p>
+                     <a 
+                       href={activeChannel.url} 
+                       target="_blank" 
+                       rel="noopener noreferrer"
+                       className="px-10 py-5 bg-primary text-white font-black rounded-2xl flex items-center gap-4 hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-primary/30 group"
+                     >
+                       <span>Watch Live on Official Site</span>
+                       <ExternalLink className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                     </a>
+                   </div>
                 </div>
               ) : activeChannel.url?.toLowerCase().includes('youtube.com') || activeChannel.url?.toLowerCase().includes('youtu.be') ? (
                 <div className="w-full h-full absolute inset-0 overflow-hidden select-none">
@@ -689,9 +785,20 @@ export default function Live() {
           {/* YouTube-like Metadata Section */}
           <div className="bg-[#050505] px-4 sm:px-6 lg:px-8 py-5 border-b border-white/5">
             <div className="flex flex-col gap-4">
-              <h1 className="text-lg sm:text-xl md:text-2xl font-black text-white leading-tight tracking-tight">
-                {isPlayingFideTv && event?.title ? event.title : activeChannel.name}
-              </h1>
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-lg sm:text-xl md:text-2xl font-black text-white leading-tight tracking-tight">
+                  {isPlayingFideTv && event?.title ? event.title : activeChannel.name}
+                </h1>
+                <div className={cn(
+                  "px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest flex items-center gap-2",
+                  connectionStatus === 'live' ? "bg-green-500/10 text-green-500 border border-green-500/20" :
+                  connectionStatus === 'connecting' ? "bg-primary/10 text-primary border border-primary/20 animate-pulse" :
+                  "bg-red-500/10 text-red-500 border border-red-500/20"
+                )}>
+                  <div className={cn("w-1.5 h-1.5 rounded-full", connectionStatus === 'live' ? "bg-green-500" : connectionStatus === 'connecting' ? "bg-primary" : "bg-red-500")} />
+                  {connectionStatus}
+                </div>
+              </div>
 
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-3">

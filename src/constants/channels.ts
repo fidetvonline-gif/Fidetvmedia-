@@ -104,6 +104,16 @@ export const DEFAULT_CHANNELS = [
     isLive: true
   },
   {
+    id: 'sports_afrosport_tv',
+    name: 'Afrosport TV',
+    category: 'Sports',
+    thumbnail: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=800',
+    url: 'https://v1.afrosportnow.com/afrosport/playlist.m3u8',
+    icon: MonitorPlay,
+    description: 'Africa\'s first 24-hour multi-sport channel.',
+    isLive: true
+  },
+  {
     id: 'test_mp4',
     name: 'Nature Showcase (MP4)',
     category: 'Documentary',
