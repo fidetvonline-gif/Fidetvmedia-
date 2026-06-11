@@ -1046,11 +1046,13 @@ export default function Admin() {
     if (!window.confirm("Are you sure you want to reset this user's password? The new password will be displayed to you immediately.")) return;
     
     setResettingPasswordUserId(userId);
+    setGeneratedPassword(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("No active session");
+      if (!session) throw new Error("No active session. Please log in again.");
 
-      const response = await fetch('/api/admin/reset-password', {
+      console.log("[Admin] Initiating password reset for user:", userId);
+      const response = await fetch('/api/admin/reset-user-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1059,12 +1061,29 @@ export default function Admin() {
         body: JSON.stringify({ userId })
       });
 
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Failed to reset password");
+      const text = await response.text();
+      console.log("[Admin] Server response status:", response.status);
+      
+      let result;
+      try {
+        result = text ? JSON.parse(text) : {};
+      } catch (e) {
+        console.error("[Admin] Failed to parse JSON response:", text);
+        throw new Error(`Server returned invalid response: ${text.substring(0, 100) || '(empty)'}`);
+      }
+
+      if (!response.ok) {
+        throw new Error(result.error || `Server error (${response.status}): ${text.substring(0, 100)}`);
+      }
+
+      if (!result.newPassword) {
+        throw new Error("Server succeeded but no password was generated.");
+      }
 
       setGeneratedPassword(result.newPassword);
     } catch (err: any) {
-      alert(err.message);
+      console.error("[Admin] Reset password failure:", err);
+      alert("Password Reset Error: " + (err.message || "Unknown error"));
       setResettingPasswordUserId(null);
     }
   };

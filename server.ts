@@ -137,41 +137,75 @@ Compose a short, direct, vocal response (max 2 sentences, 150 characters) that i
     }
   });
 
-  app.post("/api/admin/reset-password", async (req, res) => {
+  app.post("/api/admin/reset-user-password", async (req, res) => {
+    const { userId } = req.body;
+    console.log("[Admin API] Reset password request received for userId:", userId);
+    
     const authHeader = req.headers.authorization;
     if (!authHeader) {
+      console.error("[Admin API] Missing auth header");
       return res.status(401).json({ error: "No authorization header" });
     }
 
     const token = authHeader.split(" ")[1];
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-
-    if (authError || !user || user.email !== "fidetvonline@gmail.com") {
-      return res.status(403).json({ error: "Unauthorized. Admin access required." });
-    }
-
-    const { userId } = req.body;
-    if (!userId) {
-      return res.status(400).json({ error: "User ID is required" });
-    }
-
-    // Generate a random password (8 characters)
-    const newPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-2).toUpperCase() + "!";
-
+    
     try {
-      const { data, error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      if (!supabaseUrl || !serviceKey || serviceKey.trim() === "") {
+        console.error("[Admin API] Missing Supabase admin configuration (URL or Service Key)");
+        return res.status(500).json({ error: "Server configuration error: Missing admin credentials." });
+      }
+
+      // Re-validate session with the token to ensure the requester is an admin
+      const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+
+      if (authError || !user) {
+        console.error("[Admin API] Auth validation error:", authError);
+        return res.status(403).json({ error: "Unauthorized. Please log in again." });
+      }
+
+      // Strict admin check
+      if (user.email !== "fidetvonline@gmail.com") {
+        console.error("[Admin API] Non-admin access attempt by:", user.email);
+        return res.status(403).json({ error: "Access denied. Admin only." });
+      }
+
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+
+      // Generate a complex random password
+      const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()";
+      let newPassword = "";
+      for (let i = 0; i < 12; i++) {
+        newPassword += charset.charAt(Math.floor(Math.random() * charset.length));
+      }
+
+      console.log("[Admin API] Executing password update via Supabase Admin SDK...");
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
         password: newPassword
       });
 
-      if (error) throw error;
+      if (updateError) {
+        console.error("[Admin API] Supabase Admin update error:", updateError);
+        return res.status(updateError.status || 500).json({ 
+          error: `Supabase Admin Error: ${updateError.message}` 
+        });
+      }
 
-      res.json({ 
+      console.log("[Admin API] Password successfully reset for userId:", userId);
+      return res.status(200).json({ 
         message: "Password reset successful", 
         newPassword 
       });
+
     } catch (error: any) {
-      console.error("Password reset error:", error);
-      res.status(500).json({ error: error.message || "Failed to reset password" });
+      console.error("[Admin API] Unhandled internal error during password reset:", error);
+      return res.status(500).json({ 
+        error: "Internal Server Error: " + (error.message || "Unknown error")
+      });
     }
   });
 
