@@ -1,0 +1,12 @@
+[
+  {"name": "News Channel 1", "category": "News", "url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"},
+  {"name": "News Channel 2", "category": "News", "url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"},
+  {"name": "Music Channel 1", "category": "Music", "url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"},
+  {"name": "Music Channel 2", "category": "Music", "url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"},
+  {"name": "Entertainment 1", "category": "Entertainment", "url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"},
+  {"name": "Entertainment 2", "category": "Entertainment", "url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"},
+  {"name": "Sports Channel 1", "category": "Sports", "url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"},
+  {"name": "Sports Channel 2", "category": "Sports", "url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"},
+  {"name": "Science Channel 1", "category": "Science", "url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"},
+  {"name": "Science Channel 2", "category": "Science", "url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"}
+]

@@ -220,6 +220,8 @@ export default function HighPerformancePlayer({
         onReady?.();
       });
       video.addEventListener('error', (e) => {
+        const error = (e.target as HTMLVideoElement).error;
+        if (error && error.code === 1) return; // 1 = MEDIA_ERR_ABORTED
         setError('Native playback error');
         onError?.(e);
       });
@@ -233,6 +235,8 @@ export default function HighPerformancePlayer({
       video.addEventListener('loadedmetadata', handleLoaded);
       video.addEventListener('playing', handleLoaded);
       video.addEventListener('error', (e) => {
+        const error = (e.target as HTMLVideoElement).error;
+        if (error && error.code === 1) return; // 1 = MEDIA_ERR_ABORTED
         setError('Playback error');
         onError?.(e);
       });

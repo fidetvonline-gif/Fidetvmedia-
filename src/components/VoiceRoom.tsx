@@ -603,6 +603,7 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
   };
 
   const joinVoiceRoom = async (room: VoiceRoomData) => {
+    console.log(`[DEBUG] VoiceRoom: Joining room ${room.id} as ${userProfile?.id}`);
     if (!userProfile) return;
     setConnectionState('connecting');
     setActiveRoom(room);
@@ -1012,6 +1013,7 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
 
       // 1. Set ontrack FIRST
       pc.ontrack = async (event) => {
+        console.log(`[DEBUG] VoiceRoom: Received track from ${remoteUserId}:`, event.track.kind);
         const remoteStream = event.streams[0] || new MediaStream([event.track]);
         
         if (event.track.kind === 'video') {
@@ -1058,7 +1060,7 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
 
       // 2. Monitor ICE connection state changes
       pc.oniceconnectionstatechange = () => {
-        console.log(`VoiceRoom: ICE state with ${remoteUserId}: ${pc.iceConnectionState}`);
+        console.log(`[DEBUG] VoiceRoom: ICE state with ${remoteUserId}: ${pc.iceConnectionState}`);
         setParticipants(prev => [...prev]);
       };
 
@@ -1069,6 +1071,7 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
 
       // 4. Handle ICE candidate negotiation
       pc.onicecandidate = (event) => {
+        console.log(`[DEBUG] VoiceRoom: ICE candidate for ${remoteUserId}:`, event.candidate);
         if (event.candidate) {
           sendWebRtcSignal(remoteUserId, { candidate: event.candidate });
         }

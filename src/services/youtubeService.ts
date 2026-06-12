@@ -47,16 +47,21 @@ export const fetchYouTubeStats = async (youtubeId: string): Promise<YouTubeStats
     };
   }
 };
-export const fetchRecentUploads = async (channelId: string) => {
+export const fetchRecentUploads = async (channelId: string, signal?: AbortSignal) => {
   try {
     const response = await fetch(
-      `${BASE_URL}/search?part=snippet&channelId=${channelId}&order=date&type=video&maxResults=5`
+      `${BASE_URL}/search?part=snippet&channelId=${channelId}&order=date&type=video&maxResults=5`,
+      { signal }
     );
     if (!response.ok) return [];
     const data = await response.json();
     return data.items || [];
-  } catch (error) {
-    console.error('Error fetching recent uploads', error);
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      console.log('Fetch recent uploads aborted');
+    } else {
+      console.error('Error fetching recent uploads', error);
+    }
     return [];
   }
 };

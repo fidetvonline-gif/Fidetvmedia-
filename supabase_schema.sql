@@ -153,7 +153,13 @@ CREATE TABLE IF NOT EXISTS public.tv_channels (
   url TEXT NOT NULL,
   icon TEXT,
   description TEXT,
+  country TEXT,
+  language TEXT,
+  stream_type TEXT,
+  backup_urls TEXT[] DEFAULT '{}',
+  epg_id TEXT,
   is_active BOOLEAN DEFAULT true,
+  is_featured BOOLEAN DEFAULT false,
   order_index INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );

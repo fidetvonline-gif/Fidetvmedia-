@@ -3,7 +3,8 @@ import ReactPlayer from 'react-player';
 import { supabase } from '@/lib/supabase';
 import { Event } from '@/types';
 import LiveChat from '@/components/LiveChat';
-import { Calendar, Users, Share2, Youtube, ExternalLink, Clock, AlertCircle, Globe, Tv, Film, MonitorPlay, MessageSquare, Play, VolumeX, Volume2, Pause, Settings, Check, Video, Maximize, Minimize, Square, Layout, Heart, HelpCircle, X } from 'lucide-react';
+import { BatchChannelImport } from '@/components/BatchChannelImport';
+import { Calendar, Users, Share2, Youtube, ExternalLink, Clock, AlertCircle, Globe, Tv, Film, MonitorPlay, MessageSquare, Play, VolumeX, Volume2, Pause, Settings, Check, Video, Maximize, Minimize, Square, Layout, Heart, HelpCircle, X, Upload } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -53,11 +54,13 @@ export default function Live() {
   const [showQualitySelector, setShowQualitySelector] = useState(false);
   const [showStreamHelp, setShowStreamHelp] = useState(false);
   const [isZapping, setIsZapping] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [presenceCount, setPresenceCount] = useState(1);
   const [likes, setLikes] = useState(0);
   const [hasLiked, setHasLiked] = useState(false);
   const zappingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
+  const fetchControllerRef = useRef<AbortController | null>(null);
   const isSharingRef = useRef(false);
 
   const handleLike = () => {
@@ -139,12 +142,27 @@ export default function Live() {
   }, [activeChannelId]);
 
   const handlePlayerError = (e: any) => {
+    console.log('[DEBUG] handlePlayerError received:', e);
+    // If it's a DOMException or has a name, check if it's an AbortError
+    if ((e instanceof DOMException && e.name === 'AbortError') || (e?.name === 'AbortError')) {
+      return;
+    }
+
+    // Attempt to extract error from event target
+    const errorTarget = e?.target as HTMLVideoElement;
+    const mediaError = errorTarget?.error;
+    
+    // Check for MEDIA_ERR_ABORTED (code 1)
+    if (mediaError?.code === 1) {
+      return;
+    }
+
     console.error('Player error:', e);
-    // Be more specific about errors that should trigger the error UI
-    const errMsg = e?.toString() || '';
+    // Extract message
+    const errMsg = (e?.message || mediaError?.message || e?.toString() || '').toLowerCase();
     
     // Ignore benign errors
-    if (errMsg.includes('aborted') || errMsg.includes('interrupted') || errMsg.includes('NS_ERROR_DOM_MEDIA_ABORT_ERR')) {
+    if (errMsg.includes('aborted') || errMsg.includes('interrupted') || errMsg.includes('ns_error_dom_media_abort_err')) {
       return;
     }
     
@@ -199,85 +217,86 @@ export default function Live() {
       // We don't probe directly due to CORS
     }
   };
-  useEffect(() => {
-    const fetchLiveEventData = async () => {
-      setLoading(true);
+  const fetchLiveEventData = React.useCallback(async (signal: AbortSignal) => {
+    setLoading(true);
 
-      // Fetch site settings for direct stream URL
-      const { data: settingsData } = await supabase.from('site_settings').select('key, value');
-      if (settingsData) {
-        const directUrlSetting = settingsData.find(s => s.key === 'direct_stream_hls_url');
-        if (directUrlSetting?.value) {
-          setDirectStreamUrl(directUrlSetting.value);
-        }
+    // Fetch site settings for direct stream URL
+    const { data: settingsData } = await supabase.from('site_settings').select('key, value');
+    if (settingsData) {
+      const directUrlSetting = settingsData.find(s => s.key === 'direct_stream_hls_url');
+      if (directUrlSetting?.value) {
+        setDirectStreamUrl(directUrlSetting.value);
       }
+    }
+    
+    // Fetch all upcoming and live events for the schedule
+    const { data: eventsData } = await supabase
+      .from('events')
+      .select('*')
+      .or('status.eq.live,status.eq.upcoming')
+      .order('status', { ascending: false }) // live first
+      .order('start_time', { ascending: true });
+
+    let currentEvent = null;
+    if (eventsData && eventsData.length > 0) {
+      setEvents(eventsData as Event[]);
+      currentEvent = eventsData.find(e => e.status === 'live') || eventsData[0];
+      setEvent(currentEvent);
       
-      // Fetch all upcoming and live events for the schedule
-      const { data: eventsData } = await supabase
-        .from('events')
+      if (currentEvent.youtube_id) {
+        fetchYouTubeStats(currentEvent.youtube_id).then(setYtStats).catch(console.error);
+      }
+      fetchRecentUploads('UC_x5XG1OV2P6uZZ5FSM9Ttw', signal).then(setRecentUploads).catch(console.error);
+    }
+    
+    // Fetch custom TV Channels with fallback and safety checks
+    try {
+      const { data: channelsData, error: channelsError } = await supabase
+        .from('tv_channels')
         .select('*')
-        .or('status.eq.live,status.eq.upcoming')
-        .order('status', { ascending: false }) // live first
-        .order('start_time', { ascending: true });
-
-      let currentEvent = null;
-      if (eventsData && eventsData.length > 0) {
-        setEvents(eventsData as Event[]);
-        currentEvent = eventsData.find(e => e.status === 'live') || eventsData[0];
-        setEvent(currentEvent);
+        .order('order_index', { ascending: true })
+        .order('created_at', { ascending: false });
         
-        if (currentEvent.youtube_id) {
-          fetchYouTubeStats(currentEvent.youtube_id).then(setYtStats).catch(console.error);
-        }
-        fetchRecentUploads('UC_x5XG1OV2P6uZZ5FSM9Ttw').then(setRecentUploads).catch(console.error);
-      }
-      
-      // Fetch custom TV Channels with fallback and safety checks
-      try {
-        const { data: channelsData, error: channelsError } = await supabase
-          .from('tv_channels')
-          .select('*')
-          .order('order_index', { ascending: true })
-          .order('created_at', { ascending: false });
-          
-        if (!channelsError && channelsData) {
-          setDbChannels(channelsData);
-          
-          const queryParams = new URLSearchParams(window.location.search);
-          const urlChannelId = queryParams.get('channel');
-          if (urlChannelId) {
-            setActiveChannelId(urlChannelId);
+      if (!channelsError && channelsData) {
+        setDbChannels(channelsData);
+        
+        const queryParams = new URLSearchParams(window.location.search);
+        const urlChannelId = queryParams.get('channel');
+        if (urlChannelId) {
+          setActiveChannelId(urlChannelId);
+        } else {
+          // Priority ordering: if live event is on, load it. Otherwise check database actives or default.
+          if (currentEvent?.status === 'live') {
+            setActiveChannelId('fidetv');
           } else {
-            // Priority ordering: if live event is on, load it. Otherwise check database actives or default.
-            if (currentEvent?.status === 'live') {
-              setActiveChannelId('fidetv');
+            const liveDbChannel = channelsData.find((c: any) => c.is_active);
+            if (liveDbChannel) {
+              setActiveChannelId(liveDbChannel.id);
+            } else if (channelsData.length > 0 && !currentEvent) {
+              setActiveChannelId(channelsData[0].id);
             } else {
-              const liveDbChannel = channelsData.find((c: any) => c.is_active);
-              if (liveDbChannel) {
-                setActiveChannelId(liveDbChannel.id);
-              } else if (channelsData.length > 0 && !currentEvent) {
-                setActiveChannelId(channelsData[0].id);
-              } else {
-                setActiveChannelId('fidetv');
-              }
+              setActiveChannelId('fidetv');
             }
           }
-        } else {
-          const queryParams = new URLSearchParams(window.location.search);
-          const urlChannelId = queryParams.get('channel');
-          setActiveChannelId(urlChannelId || 'fidetv');
         }
-      } catch (err) {
-        console.error('Error fetching tv channels in live page:', err);
+      } else {
         const queryParams = new URLSearchParams(window.location.search);
         const urlChannelId = queryParams.get('channel');
         setActiveChannelId(urlChannelId || 'fidetv');
       }
-      
-      setLoading(false);
-    };
+    } catch (err) {
+      console.error('Error fetching tv channels in live page:', err);
+      const queryParams = new URLSearchParams(window.location.search);
+      const urlChannelId = queryParams.get('channel');
+      setActiveChannelId(urlChannelId || 'fidetv');
+    }
+    
+    setLoading(false);
+  }, []);
 
-    fetchLiveEventData();
+  useEffect(() => {
+    fetchControllerRef.current = new AbortController();
+    fetchLiveEventData(fetchControllerRef.current.signal);
 
     // Listen for status changes
     let channel: any;
@@ -292,10 +311,14 @@ export default function Live() {
       channel = supabase
         .channel(channelName)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, payload => {
-          fetchLiveEventData();
+          if (fetchControllerRef.current) fetchControllerRef.current.abort();
+          fetchControllerRef.current = new AbortController();
+          fetchLiveEventData(fetchControllerRef.current.signal);
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'tv_channels' }, payload => {
-          fetchLiveEventData();
+          if (fetchControllerRef.current) fetchControllerRef.current.abort();
+          fetchControllerRef.current = new AbortController();
+          fetchLiveEventData(fetchControllerRef.current.signal);
         })
         .subscribe();
     };
@@ -303,6 +326,7 @@ export default function Live() {
     setupRealtime();
 
     return () => {
+      if (fetchControllerRef.current) fetchControllerRef.current.abort();
       if (channel) {
         supabase.removeChannel(channel);
       }
@@ -1168,22 +1192,31 @@ export default function Live() {
             {activeTab === 'channels' && (
               <div className="h-full flex flex-col">
                 {/* Category Filter */}
-                <div className="flex overflow-x-auto custom-scrollbar gap-2 px-4 py-2 border-b border-white/5 bg-black/20 shrink-0">
-                  {['All', ...Array.from(new Set(allChannels.map(c => c.category)))].map(cat => (
-                    <button
-                      key={cat}
-                      onClick={() => setSelectedCategory(cat)}
-                      className={cn(
-                        "px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all",
-                        selectedCategory === cat 
-                          ? "bg-primary text-white" 
-                          : "bg-white/5 text-white/40 hover:bg-white/10"
-                      )}
-                    >
-                      {cat}
-                    </button>
-                  ))}
+                <div className="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-black/20 shrink-0">
+                  <div className="flex overflow-x-auto custom-scrollbar gap-2 shrink-0">
+                    {['All', ...Array.from(new Set(allChannels.map(c => c.category)))].map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => setSelectedCategory(cat)}
+                        className={cn(
+                          "px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all",
+                          selectedCategory === cat 
+                            ? "bg-primary text-white" 
+                            : "bg-white/5 text-white/40 hover:bg-white/10"
+                        )}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                  <button onClick={() => setIsImportModalOpen(true)} className="p-1.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white rounded-lg">
+                    <Upload className="w-4 h-4" />
+                  </button>
                 </div>
+
+                {isImportModalOpen && (
+                  <BatchChannelImport onClose={() => setIsImportModalOpen(false)} onImportComplete={() => {}} />
+                )}
 
                 <div className="flex-grow overflow-y-auto custom-scrollbar p-3 space-y-3">
                   <div className="px-1 pb-1">
