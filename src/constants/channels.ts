@@ -6,7 +6,7 @@ export const DEFAULT_CHANNELS = [
     name: 'Channels TV',
     category: 'Nigeria',
     thumbnail: 'https://images.unsplash.com/photo-1598252580418-c4163a329d00?auto=format&fit=crop&q=80&w=800',
-    url: 'https://channels-live.sh-cdn.com/hls/live/master.m3u8',
+    url: 'https://www.youtube.com/watch?v=N63CkaXmX0Y', // Updated to stable YT live link
     icon: Tv,
     description: 'Premier 24-hour news channel in Nigeria.',
     isLive: true
@@ -16,19 +16,9 @@ export const DEFAULT_CHANNELS = [
     name: 'TVC News',
     category: 'Nigeria',
     thumbnail: 'https://images.unsplash.com/photo-1526470608268-f674ce90ebd4?auto=format&fit=crop&q=80&w=800',
-    url: 'https://tvc-live.sh-cdn.com/hls/live/master.m3u8',
+    url: 'https://www.youtube.com/watch?v=9V2hJ7lmsEw', // Updated to stable YT live link
     icon: Globe,
     description: 'Leading news and current affairs from Nigeria and Africa.',
-    isLive: true
-  },
-  {
-    id: 'news_ait',
-    name: 'AIT Nigeria',
-    category: 'Nigeria',
-    thumbnail: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=800',
-    url: 'https://ait-live.sh-cdn.com/hls/live/master.m3u8',
-    icon: Tv,
-    description: 'Africa Independent Television - news and entertainment.',
     isLive: true
   },
   {
@@ -36,9 +26,19 @@ export const DEFAULT_CHANNELS = [
     name: 'Arise News',
     category: 'Nigeria',
     thumbnail: 'https://images.unsplash.com/photo-1495020689067-958852a7765e?auto=format&fit=crop&q=80&w=800',
-    url: 'https://arise-live.sh-cdn.com/hls/live/master.m3u8',
+    url: 'https://www.youtube.com/watch?v=_H-xM0U-1yE', // Updated to stable YT live link
     icon: Globe,
     description: 'Arise News is an international news channel.',
+    isLive: true
+  },
+  {
+    id: 'news_ait',
+    name: 'AIT Nigeria',
+    category: 'Nigeria',
+    thumbnail: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=800',
+    url: 'https://www.youtube.com/watch?v=ZfTsuNRE5rY', // Added stable YT mirror
+    icon: Tv,
+    description: 'Africa Independent Television - news and entertainment.',
     isLive: true
   },
   {
@@ -46,10 +46,10 @@ export const DEFAULT_CHANNELS = [
     name: 'NTA News 24',
     category: 'Nigeria',
     thumbnail: 'https://images.unsplash.com/photo-1493612276216-ee3925520721?auto=format&fit=crop&q=80&w=800',
-    url: 'https://nta-live.sh-cdn.com/hls/live/master.m3u8',
+    url: '', // Video not available as direct stream
     icon: Tv,
     description: 'Nigeria Television Authority 24-hour news.',
-    isLive: true
+    isLive: false
   },
   {
     id: 'sports_bein_xtra',
@@ -516,10 +516,10 @@ export const DEFAULT_CHANNELS = [
     name: 'Afrosport TV',
     category: 'Sports',
     thumbnail: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=800',
-    url: 'https://v1.afrosportnow.com/afrosport/playlist.m3u8',
+    url: '', // Video not available as direct stream
     icon: MonitorPlay,
     description: 'Africa\'s first 24-hour multi-sport channel.',
-    isLive: true
+    isLive: false
   },
   {
     id: 'test_mp4',

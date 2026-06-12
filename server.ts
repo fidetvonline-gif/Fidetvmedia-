@@ -172,6 +172,87 @@ async function startServer() {
     }
   });
 
+  // 4. HLS/M3U8 Stream Proxy with Manifest Rewriting
+  apiRouter.get("/proxy-stream", async (req, res) => {
+    const { url, referer } = req.query;
+    if (!url) return res.status(400).send("No URL provided");
+    
+    try {
+      const streamUrl = url as string;
+      
+      // Basic URL check
+      try {
+        new URL(streamUrl);
+      } catch (e) {
+        return res.status(400).send("Invalid stream URL");
+      }
+
+      console.log(`[Proxy] Fetching: ${streamUrl}`);
+      
+      const response = await fetch(streamUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Referer': (referer as string) || 'https://limex.tv/',
+          'Origin': 'https://limex.tv'
+        },
+        // Set a reasonable timeout for proxy requests
+        signal: AbortSignal.timeout(15000)
+      });
+      
+      if (!response.ok) {
+        console.warn(`[Proxy] Source returned status ${response.status} for ${streamUrl}`);
+        return res.status(response.status).send(`Upstream returned ${response.status}`);
+      }
+
+      const contentType = response.headers.get('Content-Type') || '';
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Content-Type', contentType);
+
+      if (contentType.includes('application/vnd.apple.mpegurl') || contentType.includes('audio/mpegurl') || streamUrl.endsWith('.m3u8')) {
+        // It's a manifest - we must rewrite relative URLs to keep them in the proxy
+        const text = await response.text();
+        const baseUrl = streamUrl.substring(0, streamUrl.lastIndexOf('/') + 1);
+        
+        const rewrittenText = text.split('\n').map(line => {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith('#')) return line;
+          
+          // It's a URI
+          let absoluteUrl = trimmed;
+          try {
+            if (!trimmed.startsWith('http')) {
+              absoluteUrl = new URL(trimmed, baseUrl).href;
+            }
+          } catch (e) {
+            return line;
+          }
+          
+          return `/api/proxy-stream?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(referer as string || 'https://limex.tv/')}`;
+        }).join('\n');
+        
+        res.send(rewrittenText);
+      } else {
+        // It's a segment (.ts) or other binary data - pipe directly
+        const body = await response.arrayBuffer();
+        res.send(Buffer.from(body));
+      }
+    } catch (error: any) {
+      // Handle known error types like ENOTFOUND or timeout
+      if (error.name === 'AbortError') {
+        console.error(`[Proxy Timeout] URL: ${url}`);
+        return res.status(504).send("Stream source timed out");
+      }
+      
+      if (error.code === 'ENOTFOUND' || error.message?.includes('ENOTFOUND')) {
+        // Quietly handle known unreachable streams
+        return res.status(502).send("Stream source domain not found (Source is currently offline)");
+      }
+
+      console.error("[Proxy Unexpected Error]", error.message || error);
+      res.status(502).send("Stream proxy failed to reach destination");
+    }
+  });
+
   // Mount the API Router
   app.use("/api", apiRouter);
 

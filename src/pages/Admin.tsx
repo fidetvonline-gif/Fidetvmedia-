@@ -101,7 +101,7 @@ export default function Admin() {
       const existsInDb = channels.some(m => m.name.toLowerCase() === defCh.name.toLowerCase() || m.url === defCh.url);
       
       if (!existsInDb) {
-        // Create a virtual channel object
+        // Create a virtual channel object for easier management
         merged.push({
           id: `virtual_${defCh.id}`,
           name: defCh.name,
@@ -109,14 +109,21 @@ export default function Admin() {
           thumbnail: defCh.thumbnail,
           url: defCh.url,
           description: defCh.description,
-          is_active: defCh.isLive,
+          is_active: defCh.isLive, // Assuming isLive maps to is_active
           order_index: 999, // Put defaults at the end
           created_at: new Date().toISOString(),
           isVirtual: true
         } as any);
       }
     });
-    return merged.sort((a, b) => (a.order_index ?? 999) - (b.order_index ?? 999));
+
+    // Helper: Mark "trash" channels
+    // Filter out trash
+    return merged.map(ch => ({
+      ...ch,
+      isTrash: !ch.url || ch.url.trim() === '' || !ch.thumbnail || ch.thumbnail.trim() === ''
+    })).filter(ch => !ch.isTrash)
+    .sort((a, b) => (a.order_index ?? 999) - (b.order_index ?? 999));
   }, [channels, showAllChannels]);
 
   // Settings Toggles
@@ -1250,7 +1257,7 @@ export default function Admin() {
                 >
                   <Plus className="w-5 h-5" />
                   <span className="uppercase tracking-widest text-xs">
-                    Create {activeTab === 'events' ? 'Event' : activeTab === 'communities' ? 'Community' : activeTab === 'news' ? 'Article' : activeTab === 'portfolio' ? 'Portfolio Item' : activeTab === 'channels' ? 'TV Channel' : activeTab === 'services' ? 'Service' : activeTab}
+                    Create {activeTab === 'events' ? 'Schedule Item' : activeTab === 'communities' ? 'Community' : activeTab === 'news' ? 'Article' : activeTab === 'portfolio' ? 'Portfolio Item' : activeTab === 'channels' ? 'TV Channel' : activeTab === 'services' ? 'Service' : activeTab}
                   </span>
                 </button>
               )}
@@ -1264,7 +1271,7 @@ export default function Admin() {
               { id: 'channels', name: 'TV Channels', icon: Tv },
               { id: 'services', name: 'Services', icon: Zap },
               { id: 'portfolio', name: 'Portfolio & Shows', icon: Briefcase },
-              { id: 'events', name: 'Events', icon: Radio },
+              { id: 'events', name: 'Guide / Schedule', icon: Radio },
               { id: 'news', name: 'Blog Studio', icon: Newspaper },
               { id: 'communities', name: 'Communities', icon: Users },
               { id: 'users', name: 'Users', icon: ShieldCheck },
@@ -2710,6 +2717,11 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                      "bg-surface rounded-3xl border p-6 space-y-6 group hover:border-primary/20 transition-all shadow-sm relative overflow-hidden",
                      (channel as any).isVirtual ? "border-dashed border-border-custom/50" : "border-border-custom"
                    )}>
+                     {(channel as any).isTrash && (
+                       <div className="absolute top-0 left-0 p-1 px-3 bg-red-500/10 text-[7px] font-black uppercase tracking-widest text-red-500 rounded-br-xl border-r border-b border-red-500/20">
+                         Trash / Broken
+                       </div>
+                     )}
                      {(channel as any).isVirtual && (
                        <div className="absolute top-0 right-0 p-1 px-3 bg-foreground/5 text-[7px] font-black uppercase tracking-widest text-foreground/40 rounded-bl-xl border-l border-b border-border-custom">
                          System Template
@@ -2783,7 +2795,11 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                                      else alert(error.message);
                                   }
                                } else {
-                                   await handleDelete('tv_channels', channel.id);
+                                   if ((channel as any).isVirtual) {
+                                       alert("Cannot delete virtual/system channels.");
+                                   } else {
+                                       await handleDelete('tv_channels', channel.id);
+                                   }
                                }
                              }
                            }} className="p-2.5 text-foreground/40 hover:text-red-500 transition-colors bg-background border border-border-custom rounded-xl shadow-inner">
@@ -4057,6 +4073,14 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                          <div className="space-y-2">
                             <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">Start Time</label>
                             <input type="datetime-local" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full bg-background border border-border-custom rounded-2xl p-5 text-foreground shadow-inner" />
+                         </div>
+                         <div className="space-y-2">
+                            <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">Status</label>
+                            <select value={status} onChange={e => setStatus(e.target.value as any)} className="w-full bg-background border border-border-custom rounded-2xl p-5 text-foreground shadow-inner">
+                              <option value="upcoming">Upcoming</option>
+                              <option value="live">Live</option>
+                              <option value="offline">Offline</option>
+                            </select>
                          </div>
                       </div>
                     )}

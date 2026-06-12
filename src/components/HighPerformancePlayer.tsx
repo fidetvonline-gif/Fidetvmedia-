@@ -90,15 +90,35 @@ export default function HighPerformancePlayer({
                   url.toLowerCase().includes('/hls/') ||
                   url.toLowerCase().includes('/live/');
 
+    // Automatic proxy for problematic domains known to have CORS/Referrer issues
+    let finalUrl = url;
+    const problematicDomains = [
+      'sh-cdn.com', 
+      'limexltd.com', 
+      'limex.tv', 
+      'clive.tv', 
+      'fide.tv',
+      'afrosportnow.com',
+      'indiatoday-live.sh-cdn.com'
+    ];
+    const needsProxy = problematicDomains.some(domain => url.toLowerCase().includes(domain.toLowerCase()));
+    
+    if (needsProxy && isHls) {
+      // We pass the URL to our backend proxy which injects the correct Referer/Origin headers
+      const proxyReferer = url.includes('sh-cdn.com') ? 'https://limex.tv/' : '';
+      finalUrl = `/api/proxy-stream?url=${encodeURIComponent(url)}${proxyReferer ? `&referer=${encodeURIComponent(proxyReferer)}` : ''}`;
+      console.log('Using proxy for restricted stream:', url);
+    }
+
     if (isHls && Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
-        lowLatencyMode: false, // Disable low latency for better compatibility with standard streams
+        lowLatencyMode: false,
         backBufferLength: 90,
-        maxBufferLength: 40, // Increased buffer
-        maxMaxBufferLength: 120, // Increased max buffer
-        maxBufferSize: 80 * 1024 * 1024, // 80MB
-        liveSyncDurationCount: 5, // More stable sync
+        maxBufferLength: 40,
+        maxMaxBufferLength: 120,
+        maxBufferSize: 80 * 1024 * 1024,
+        liveSyncDurationCount: 5,
         manifestLoadingMaxRetry: 50,
         levelLoadingMaxRetry: 50,
         fragLoadingMaxRetry: 50,
@@ -115,7 +135,7 @@ export default function HighPerformancePlayer({
       });
 
       hlsRef.current = hls;
-      hls.loadSource(url);
+      hls.loadSource(finalUrl);
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {

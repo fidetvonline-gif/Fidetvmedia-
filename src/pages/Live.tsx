@@ -3,7 +3,7 @@ import ReactPlayer from 'react-player';
 import { supabase } from '@/lib/supabase';
 import { Event } from '@/types';
 import LiveChat from '@/components/LiveChat';
-import { Calendar, Users, Share2, Youtube, ExternalLink, Clock, AlertCircle, Globe, Tv, Film, MonitorPlay, MessageSquare, Play, VolumeX, Volume2, Pause, Settings, Check, Video, Maximize, Minimize, Square, Layout } from 'lucide-react';
+import { Calendar, Users, Share2, Youtube, ExternalLink, Clock, AlertCircle, Globe, Tv, Film, MonitorPlay, MessageSquare, Play, VolumeX, Volume2, Pause, Settings, Check, Video, Maximize, Minimize, Square, Layout, Heart, HelpCircle, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -51,10 +51,38 @@ export default function Live() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [quality, setQuality] = useState<'Auto' | '480p' | '720p' | '1080p'>('Auto');
   const [showQualitySelector, setShowQualitySelector] = useState(false);
+  const [showStreamHelp, setShowStreamHelp] = useState(false);
   const [isZapping, setIsZapping] = useState(false);
+  const [presenceCount, setPresenceCount] = useState(1);
+  const [likes, setLikes] = useState(0);
+  const [hasLiked, setHasLiked] = useState(false);
   const zappingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const isSharingRef = useRef(false);
+
+  const handleLike = () => {
+    if (hasLiked) return;
+    setHasLiked(true);
+    setLikes(prev => prev + 1);
+    
+    // Broadcast like to other viewers via Supabase channel if chat is active
+    const channelName = `live-chat-${event?.id || activeChannelId}`;
+    const channel = supabase.getChannels().find(c => c.topic === `realtime:${channelName}`);
+    if (channel) {
+      channel.send({
+        type: 'broadcast',
+        event: 'reaction',
+        payload: { emoji: '❤️' }
+      });
+    }
+  };
+
+  useEffect(() => {
+    // Sync random likes for demo comfort if no backend persistence yet
+    // In a real app, this would be fetched from Supabase
+    const baseLikes = Math.floor(Math.random() * 50) + 120;
+    setLikes(baseLikes);
+  }, [activeChannelId]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -386,17 +414,30 @@ export default function Live() {
   const allChannels = React.useMemo(() => {
     const dynamic = dbChannels
       .filter((ch: any) => ch.is_active !== false)
-      .map((ch: any) => ({
-      id: ch.id,
-      name: ch.name,
-      category: ch.category || 'General',
-      thumbnail: ch.thumbnail,
-      url: ch.url,
-      icon: Tv,
-      logo: ch.logo,
-      description: ch.description || 'Watch live broadcast stream.',
-      isLive: ch.is_active ?? true
-    }));
+      .map((ch: any) => {
+        // Self-healing: If DB has stale/unstable URLs for these specific channels,
+        // we use the verified mirrors from DEFAULT_CHANNELS instead.
+        const verifiedMatch = DEFAULT_CHANNELS.find(d => 
+          d.id === ch.id || 
+          d.name.toLowerCase() === ch.name.toLowerCase()
+        );
+
+        const isUnstable = ch.url?.includes('sh-cdn.com') || 
+                          ch.url?.includes('afrosportnow.com') || 
+                          ch.url?.includes('limexltd.com');
+
+        return {
+          id: ch.id,
+          name: ch.name,
+          category: ch.category || 'General',
+          thumbnail: ch.thumbnail,
+          url: (isUnstable && verifiedMatch) ? verifiedMatch.url : ch.url,
+          icon: Tv,
+          logo: ch.logo,
+          description: ch.description || 'Watch live broadcast stream.',
+          isLive: ch.is_active ?? true
+        };
+      });
     
     const merged = [...dynamic];
 
@@ -903,6 +944,33 @@ export default function Live() {
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-4">
+                {showStreamHelp && (
+                  <motion.div 
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="w-full bg-primary/10 border border-primary/20 rounded-2xl p-4 sm:p-5"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="p-2 bg-primary/20 rounded-xl">
+                        <HelpCircle className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-white font-bold text-sm mb-2 uppercase tracking-wider">Troubleshooting Live Stream</h4>
+                        <ul className="text-xs text-white/70 space-y-2 list-disc pl-4">
+                          <li><span className="text-white font-semibold">Blank screen?</span> Some international channels are geo-restricted to their home regions.</li>
+                          <li><span className="text-white font-semibold">Constant buffering?</span> Check your connection or try the <span className="text-primary italic">Reconnect Stream</span> button in the player.</li>
+                          <li><span className="text-white font-semibold">Imported channels not showing?</span> Some streams use private manifests that block embedding. We prioritize YouTube mirrors for these where available.</li>
+                          <li><span className="text-white font-semibold">Browser support:</span> For the best experience, use <span className="text-white italic">Chrome or Safari</span>. Some Firefox configurations block HLS by default.</li>
+                        </ul>
+                      </div>
+                      <button onClick={() => setShowStreamHelp(false)} className="text-white/40 hover:text-white">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden border border-white/10 shrink-0 bg-white/5 flex items-center justify-center">
                     {activeChannel.logo ? (
@@ -921,13 +989,38 @@ export default function Live() {
                 </div>
 
                   <div className="flex items-center gap-2">
-                    {isPlayingFideTv && isFideTvLive && ytStats && (
+                    {/* Viewer Count integrated with Presence */}
                       <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10 backdrop-blur-sm">
                         <Users className="w-3.5 h-3.5 text-white/40" />
-                        <span className="text-xs font-bold text-white">{ytStats.viewers}</span>
-                        <span className="text-[9px] text-white/40 font-bold uppercase tracking-widest hidden sm:inline">Watching</span>
+                        <span className="text-xs font-bold text-white">
+                          {isPlayingFideTv && isFideTvLive && ytStats ? ytStats.viewers : presenceCount}
+                        </span>
+                        <span className="text-[9px] text-white/40 font-bold uppercase tracking-widest hidden sm:inline">Watching Live</span>
                       </div>
-                    )}
+
+                    <button 
+                      onClick={handleLike}
+                      disabled={hasLiked}
+                      className={cn(
+                        "flex items-center gap-2 px-4 py-2 rounded-full border transition-all text-xs font-bold uppercase tracking-wider",
+                        hasLiked ? "bg-red-500/10 text-red-500 border-red-500/20" : "bg-white/5 hover:bg-white/10 border-white/10 text-white/70 hover:text-white"
+                      )}
+                    >
+                      <Heart className={cn("w-3.5 h-3.5", hasLiked && "fill-current animate-pulse")} />
+                      <span>{likes}</span>
+                    </button>
+
+                    <button 
+                      onClick={() => setShowStreamHelp(!showStreamHelp)}
+                      className={cn(
+                        "flex items-center justify-center p-2 rounded-full border transition-all",
+                        showStreamHelp ? "bg-primary text-white border-primary" : "bg-white/5 hover:bg-white/10 border-white/10 text-white/40 hover:text-white"
+                      )}
+                      title="Having issues?"
+                    >
+                      <HelpCircle className="w-4 h-4" />
+                    </button>
+
                     <button 
                       onClick={() => setIsZenMode(!isZenMode)}
                       className={cn(
@@ -1064,7 +1157,10 @@ export default function Live() {
                   '--border-custom': 'rgba(255, 255, 255, 0.04)'
                 } as React.CSSProperties}
               >
-                <LiveChat eventId={event ? event.id : `channel_${activeChannelId}`} />
+                <LiveChat 
+                  eventId={event ? event.id : `channel_${activeChannelId}`} 
+                  onPresenceUpdate={setPresenceCount}
+                />
               </div>
             )}
 

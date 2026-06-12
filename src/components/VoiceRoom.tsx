@@ -126,7 +126,9 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
     useEffect(() => {
       if (videoRef.current && stream) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play().catch(e => console.warn('Remote video player delayed:', e));
+        videoRef.current.play().catch(e => {
+          if (e.name !== 'AbortError') console.warn('Remote video player delayed:', e);
+        });
       }
     }, [remoteUserId, stream]);
 
@@ -176,7 +178,9 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
     // Also kick off any audio elements that might be stuck due to autoplay
     const audioElements = document.querySelectorAll('audio');
     audioElements.forEach(audio => {
-      audio.play().catch(e => console.warn('Delayed audio play error:', e));
+      audio.play().catch(e => {
+        if (e.name !== 'AbortError') console.warn('Delayed audio play error:', e);
+      });
     });
   };
 
@@ -229,7 +233,11 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
         });
       } else {
         // Fallback guest profile
-        const guestId = 'guest-' + Math.random().toString(36).substring(2, 9);
+        const storedGuestId = safeLocalStorage.getItem('fidetv-guest-id');
+        const guestId = storedGuestId || 'guest-' + Math.random().toString(36).substring(2, 9);
+        if (!storedGuestId) {
+          safeLocalStorage.setItem('fidetv-guest-id', guestId);
+        }
         setUserProfile({
           id: guestId,
           username: `Guest_${Math.floor(Math.random() * 9000 + 1000)}`,
@@ -1003,7 +1011,7 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
       peerConnectionsRef.current[remoteUserId] = pc;
 
       // 1. Set ontrack FIRST
-      pc.ontrack = (event) => {
+      pc.ontrack = async (event) => {
         const remoteStream = event.streams[0] || new MediaStream([event.track]);
         
         if (event.track.kind === 'video') {
@@ -1036,9 +1044,15 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
           }
           audioEl.muted = !isSpeakerOnRef.current;
           
-          audioEl.play().catch(e => {
-            console.warn('VoiceRoom: Autoplay prevented for remote user:', remoteUserId, e);
-          });
+          try {
+            if (audioEl.paused) {
+              await audioEl.play();
+            }
+          } catch (e: any) {
+            if (e.name !== 'AbortError') {
+              console.warn('VoiceRoom: Autoplay prevented for remote user:', remoteUserId, e);
+            }
+          }
         }
       };
 
@@ -1114,7 +1128,9 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
     audioElements.forEach((audio: any) => {
       audio.muted = !isSpeakerOn;
       if (isSpeakerOn && audio.paused) {
-        audio.play().catch((e: any) => console.warn('Sync play failed:', e));
+        audio.play().catch((e: any) => {
+          if (e.name !== 'AbortError') console.warn('Sync play failed:', e);
+        });
       }
     });
   }, [isSpeakerOn]);

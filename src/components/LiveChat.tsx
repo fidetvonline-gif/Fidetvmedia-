@@ -17,13 +17,32 @@ interface Message {
   };
 }
 
-export default function LiveChat({ eventId }: { eventId: string }) {
+export default function LiveChat({ 
+  eventId, 
+  onPresenceUpdate 
+}: { 
+  eventId: string; 
+  onPresenceUpdate?: (count: number) => void;
+}) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newChat, setNewChat] = useState('');
   const [user, setUser] = useState<any>(null);
   const [presenceCount, setPresenceCount] = useState(1);
   const [reactions, setReactions] = useState<{ id: string; emoji: string }[]>([]);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const isAtBottom = target.scrollHeight - target.scrollTop <= target.clientHeight + 100;
+    setShowScrollBottom(!isAtBottom);
+  };
+
+  const scrollToBottom = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -38,9 +57,12 @@ export default function LiveChat({ eventId }: { eventId: string }) {
           .select('*, profiles(username, avatar_url)')
           .eq('post_id', `live_${eventId}`)
           .order('created_at', { ascending: true })
-          .limit(50);
+          .limit(100);
 
-        if (!error && data) setMessages(data as any);
+        if (!error && data) {
+          setMessages(data as any);
+          setTimeout(scrollToBottom, 500);
+        }
       } catch (e) {
         console.error("Error fetching chat history", e);
       }
@@ -81,7 +103,9 @@ export default function LiveChat({ eventId }: { eventId: string }) {
             setMessages((prev) => {
               // Avoid duplicates
               if (prev.find(m => m.id === newMessage.id)) return prev;
-              return [...prev, newMessage];
+              const next = [...prev, newMessage];
+              // Keep last 150 messages for performance
+              return next.length > 150 ? next.slice(-150) : next;
             });
           }
         )
@@ -97,11 +121,15 @@ export default function LiveChat({ eventId }: { eventId: string }) {
           const state = channel.presenceState();
           const count = Object.keys(state).length;
           setPresenceCount(count || 1);
+          onPresenceUpdate?.(count || 1);
+        })
+        .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+          // You could show a small "User joined" toast here if desired
         })
         .subscribe(async (status: string) => {
           if (status === 'SUBSCRIBED' && channel) {
             await channel.track({
-              user_id: user?.id || 'anonymous',
+              user_id: user?.id || `anon-${Math.random().toString(36).substring(7)}`,
               online_at: new Date().toISOString(),
             });
           }
@@ -197,6 +225,7 @@ export default function LiveChat({ eventId }: { eventId: string }) {
 
       <div 
         ref={scrollRef}
+        onScroll={handleScroll}
         className="flex-grow overflow-y-auto p-4 space-y-4 scroll-smooth custom-scrollbar"
       >
         {messages.length === 0 && (
@@ -231,6 +260,15 @@ export default function LiveChat({ eventId }: { eventId: string }) {
             </div>
           </div>
         ))}
+
+        {showScrollBottom && (
+          <button 
+            onClick={scrollToBottom}
+            className="fixed bottom-32 right-8 z-50 p-2 bg-primary text-white rounded-full shadow-lg animate-bounce"
+          >
+            <Send className="w-4 h-4 rotate-90" />
+          </button>
+        )}
       </div>
 
       {/* Shared Reactions Bar */}
