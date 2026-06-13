@@ -13,7 +13,10 @@ export class YouTubeIngestionService {
   private searchQueries = [
     'live news', '24/7 live TV', 'breaking news live', 'live TV stream',
     'NTA live', 'Channels TV live', 'Arise News live', 'BBC live',
-    'CNN live', 'Al Jazeera live', 'sports live stream', 'world news live'
+    'CNN live', 'Al Jazeera live', 'sports live stream', 'world news live',
+    'lofi hip hop radio live', '24/7 music live', 'live concert stream',
+    'smooth jazz live 24/7', 'top hits music live', 'classical music live 24/7',
+    'relaxing music live', 'techno live stream 24/7', 'african music live radio'
   ];
 
   constructor(supabase: SupabaseClient, apiKey: string) {

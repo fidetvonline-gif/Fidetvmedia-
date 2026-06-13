@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Trash2, Edit2, Plus, Search, X, Upload, Zap } from 'lucide-react';
+import { Trash2, Edit2, Plus, Search, X, Upload, Zap, RefreshCw } from 'lucide-react';
 import { BatchChannelImport } from './BatchChannelImport';
 import { cn } from '../lib/utils';
+import { DEFAULT_CHANNELS } from '../constants/channels';
 
 export const ChannelManagement = () => {
   const [channels, setChannels] = useState([]);
@@ -17,6 +18,7 @@ export const ChannelManagement = () => {
   const [toast, setToast] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [syncingThumbnails, setSyncingThumbnails] = useState(false);
+  const [restoringDefaults, setRestoringDefaults] = useState(false);
   const [currentThumbnail, setCurrentThumbnail] = useState('');
   const [channelName, setChannelName] = useState('');
   const [category, setCategory] = useState('');
@@ -76,6 +78,50 @@ export const ChannelManagement = () => {
     broadcastChange('sync');
     showToast("Sync signal sent to all live screens!", 'success');
     fetchChannels();
+  };
+
+  const handleRestoreDefaults = async () => {
+    if (!confirm(`This will restore ${DEFAULT_CHANNELS.length} default channels. Existing channels with the same URLs will be skipped. Continue?`)) return;
+    
+    setRestoringDefaults(true);
+    try {
+      let restoredCount = 0;
+      
+      for (const ch of DEFAULT_CHANNELS) {
+        // Skip channels with empty URL
+        if (!ch.url) continue;
+
+        // Check if exists
+        const { data: existing } = await supabase
+          .from('tv_channels')
+          .select('id')
+          .eq('url', ch.url)
+          .single();
+
+        if (!existing) {
+          const { error } = await supabase.from('tv_channels').insert([{
+            name: ch.name,
+            category: ch.category,
+            url: ch.url,
+            thumbnail: ch.thumbnail,
+            description: ch.description,
+            is_active: ch.isLive,
+            icon: ch.icon?.name || 'Tv',
+            order_index: restoredCount
+          }]);
+          
+          if (!error) restoredCount++;
+        }
+      }
+      
+      showToast(`Successfully restored ${restoredCount} channels!`, 'success');
+      broadcastChange('restore');
+      fetchChannels();
+    } catch (err: any) {
+      showToast(err.message, 'error');
+    } finally {
+      setRestoringDefaults(false);
+    }
   };
 
   const handleThumbnailSync = async () => {
@@ -275,6 +321,15 @@ export const ChannelManagement = () => {
               title="Force update all users' screens"
             >
               <Zap className="w-4 h-4" /> Sync All Screens
+            </button>
+            <button 
+              onClick={handleRestoreDefaults} 
+              disabled={restoringDefaults}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors shadow-lg active:scale-95 disabled:opacity-50"
+              title="Restore 50+ original channels from setup"
+            >
+              <RefreshCw className={cn("w-4 h-4", restoringDefaults && "animate-spin")} /> 
+              {restoringDefaults ? 'Restoring...' : 'Restore Defaults'}
             </button>
             <button onClick={() => setIsImportModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors">
               <Upload className="w-4 h-4" /> Import
