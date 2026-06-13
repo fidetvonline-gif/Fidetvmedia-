@@ -44,7 +44,6 @@ export const ChannelManagement = () => {
         language: data.language,
         stream_type: data.stream_type,
         is_active: data.is_active === 'on',
-        is_featured: data.is_featured === 'on',
     };
 
     if (currentChannel) {
@@ -143,9 +142,6 @@ export const ChannelManagement = () => {
                     </select>
                     <label className="flex items-center gap-2 mb-2">
                         <input type="checkbox" name="is_active" defaultChecked={currentChannel?.is_active ?? true} /> Active
-                    </label>
-                    <label className="flex items-center gap-2 mb-2">
-                        <input type="checkbox" name="is_featured" defaultChecked={currentChannel?.is_featured ?? false} /> Featured
                     </label>
                     <button type="submit" className="w-full p-2 bg-primary text-white rounded">Save</button>
                 </form>
