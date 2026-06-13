@@ -154,6 +154,28 @@ export default function Admin() {
     }
   }, [title, activeTab, editingId]);
 
+  // Auto-fetch YouTube metadata for channels
+  useEffect(() => {
+    const fetchYtMetadata = async () => {
+      if (activeTab === 'channels' && streamUrl && (streamUrl.includes('youtube.com') || streamUrl.includes('youtu.be')) && !imageUrl) {
+        try {
+          const res = await fetch(`/api/youtube/metadata?url=${encodeURIComponent(streamUrl)}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.thumbnail) setImageUrl(data.thumbnail);
+            if (data.title && (!title || title === '')) setTitle(data.title);
+            if (data.description && (!description || description === '')) setDescription(data.description);
+          }
+        } catch (e) {
+          console.warn('Metadata fetch failed:', e);
+        }
+      }
+    };
+
+    const timer = setTimeout(fetchYtMetadata, 1000);
+    return () => clearTimeout(timer);
+  }, [streamUrl, activeTab]);
+
   // UTILS
   const [uploading, setUploading] = useState(false);
   const [certUrl, setCertUrl] = useState('');

@@ -22,6 +22,54 @@ export class YouTubeIngestionService {
   }
 
   /**
+   * Extract video ID from various YouTube URL formats
+   */
+  public static extractVideoId(url: string): string | null {
+    if (!url) return null;
+    const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[7].length === 11) ? match[7] : null;
+  }
+
+  /**
+   * Fetch metadata for a specific YouTube video
+   */
+  async getVideoMetadata(videoId: string) {
+    try {
+      const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails&id=${videoId}&key=${this.apiKey}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (!data.items || data.items.length === 0) {
+        // Fallback: Generate basic info if API fails or video not found via specific ID
+        return {
+          title: "YouTube Live Stream",
+          thumbnail: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+          channelTitle: "Unknown Channel",
+          description: ""
+        };
+      }
+      
+      const video = data.items[0];
+      return {
+        title: video.snippet.title,
+        thumbnail: video.snippet.thumbnails.maxres?.url || video.snippet.thumbnails.high?.url || `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+        channelTitle: video.snippet.channelTitle,
+        channelId: video.snippet.channelId,
+        description: video.snippet.description,
+        isLive: video.snippet.liveBroadcastContent === 'live'
+      };
+    } catch (err) {
+      return {
+        title: "YouTube Live Stream",
+        thumbnail: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+        channelTitle: "YouTube",
+        description: ""
+      };
+    }
+  }
+
+  /**
    * Main discovery loop
    */
   async runDiscoveryCycle(): Promise<YoutubeDiscoveryReport> {

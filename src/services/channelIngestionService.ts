@@ -149,10 +149,23 @@ export class ChannelIngestionService {
   private async moveToStable(channel: any) {
     console.log(`[Channel Ingestion] Moving channel to stable: ${channel.name}`);
     
+    let thumbnail = channel.thumbnail;
+    
+    // Auto-fetch thumbnail if YouTube and missing
+    if (!thumbnail && (channel.url.includes('youtube.com') || channel.url.includes('youtu.be'))) {
+      const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+      const match = channel.url.match(regExp);
+      const videoId = (match && match[7].length === 11) ? match[7] : null;
+      if (videoId) {
+        thumbnail = `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
+      }
+    }
+
     const stablePayload = {
       name: channel.name,
       url: channel.url,
       category: channel.category || 'General',
+      thumbnail: thumbnail,
       is_active: true,
       last_verified: new Date().toISOString()
     };

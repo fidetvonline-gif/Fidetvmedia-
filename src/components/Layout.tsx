@@ -10,6 +10,7 @@ import NotificationTray from '@/components/NotificationTray';
 import TourGuide from './TourGuide';
 import LiveEventBanner from '@/components/LiveEventBanner';
 import PromotionPopup from '@/components/PromotionPopup';
+import FeaturedChannelPopup from '@/components/FeaturedChannelPopup';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -196,6 +197,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground overflow-x-clip selection:bg-primary/30">
       <PromotionPopup />
+      <FeaturedChannelPopup />
       {/* <TourGuide /> */}
       <nav className={cn(
         "fixed top-0 left-0 right-0 transition-all duration-500",

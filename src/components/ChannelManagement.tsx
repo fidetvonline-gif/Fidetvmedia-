@@ -73,6 +73,29 @@ export const ChannelManagement = () => {
     }
   };
 
+  const handleUrlBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
+    const url = e.target.value;
+    if (!url || (!url.includes('youtube.com') && !url.includes('youtu.be'))) return;
+    
+    try {
+      const res = await fetch(`/api/youtube/metadata?url=${encodeURIComponent(url)}`);
+      if (res.ok) {
+        const metadata = await res.json();
+        
+        // Update form fields if they are empty
+        const nameInput = document.querySelector('input[name="name"]') as HTMLInputElement;
+        const thumbInput = document.querySelector('input[name="thumbnail"]') as HTMLInputElement;
+        const categoryInput = document.querySelector('input[name="category"]') as HTMLInputElement;
+        
+        if (nameInput && (!nameInput.value || nameInput.value === '')) nameInput.value = metadata.title;
+        if (thumbInput && (!thumbInput.value || thumbInput.value === '')) thumbInput.value = metadata.thumbnail;
+        if (categoryInput && (!categoryInput.value || categoryInput.value === '')) categoryInput.value = metadata.channelTitle || 'General';
+      }
+    } catch (err) {
+      console.warn('Failed to auto-fetch YT metadata', err);
+    }
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
@@ -83,6 +106,7 @@ export const ChannelManagement = () => {
         name: data.name,
         category: data.category,
         url: data.url,
+        thumbnail: data.thumbnail,
         country: data.country,
         language: data.language,
         stream_type: data.stream_type,
@@ -222,7 +246,12 @@ export const ChannelManagement = () => {
                       
                       <div>
                         <label className="text-xs font-semibold text-zinc-400 block mb-1">Source URL (M3U8 HLS link or YouTube Video Link) *</label>
-                        <input name="url" placeholder="https://..." defaultValue={currentChannel?.url} className="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-primary text-sm" required />
+                        <input onBlur={handleUrlBlur} name="url" placeholder="https://..." defaultValue={currentChannel?.url} className="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-primary text-sm" required />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-semibold text-zinc-400 block mb-1">Thumbnail URL (Auto-fetched for YouTube)</label>
+                        <input name="thumbnail" placeholder="https://example.com/thumb.jpg" defaultValue={currentChannel?.thumbnail} className="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-primary text-sm" />
                       </div>
                       
                       <div className="grid grid-cols-2 gap-4">

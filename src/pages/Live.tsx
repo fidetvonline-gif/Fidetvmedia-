@@ -122,7 +122,8 @@ export default function Live() {
           icon: Tv,
           logo: ch.logo,
           description: ch.description || 'Watch live broadcast stream.',
-          isLive: ch.is_active ?? true
+          isLive: ch.is_active ?? true,
+          created_at: ch.created_at
         };
       });
     
@@ -138,18 +139,20 @@ export default function Live() {
         icon: Video,
         description: 'Direct live stream from OBS Studio.',
         isLive: true,
-        isDirect: true
+        isDirect: true,
+        created_at: new Date().toISOString()
       } as any);
     }
     
-    // Fallback logic removed to give Admin full control over the database content.
-    // If the database is empty, the channel list will be empty.
-    
-    // Sort consistently but including the custom broadcast
+    // Sort by created_at DESC (newest first) but keeping FideTV as a special option
     const result = [customBroadcast, ...merged].sort((a, b) => {
-       if (a.id === 'fidetv') return -1;
-       if (b.id === 'fidetv') return 1;
-       return a.name.localeCompare(b.name);
+       if (a.id === 'fidetv') return 1; // Put FideTV after newest channels if they exist
+       if (b.id === 'fidetv') return -1;
+       
+       // Newest first
+       const dateA = new Date(a.created_at || 0).getTime();
+       const dateB = new Date(b.created_at || 0).getTime();
+       return dateB - dateA;
     });
     return result;
   }, [dbChannels, customBroadcast, directStreamUrl]);
@@ -387,26 +390,19 @@ export default function Live() {
         const queryParams = new URLSearchParams(window.location.search);
         const urlChannelId = queryParams.get('channel');
         
-        // Ensure activeChannelId is valid if it was set
+        // Selection Priority:
+        // 1. URL parameter
+        // 2. Most recently added active channel from DB
+        // 3. FideTV default
         const channelExists = channelsData.some((c: any) => c.id === urlChannelId);
+        const latestActive = channelsData.find((c: any) => c.is_active !== false);
+
         if (urlChannelId && (urlChannelId === 'fidetv' || channelExists)) {
           setActiveChannelId(urlChannelId);
+        } else if (latestActive) {
+          setActiveChannelId(latestActive.id);
         } else {
-          setActiveChannelId(currentActiveId => {
-            const currentExists = channelsData.some((c: any) => c.id === currentActiveId);
-            if (currentActiveId === 'fidetv' || currentExists) {
-              return currentActiveId;
-            }
-            console.log('[Live] Current active channel was removed, resetting to default');
-            const liveDbChannel = channelsData.find((c: any) => c.is_active);
-            if (liveDbChannel) {
-              return liveDbChannel.id;
-            } else if (channelsData.length > 0) {
-              return channelsData[0].id;
-            } else {
-              return 'fidetv';
-            }
-          });
+          setActiveChannelId('fidetv');
         }
       } else {
         const queryParams = new URLSearchParams(window.location.search);

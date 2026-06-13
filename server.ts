@@ -279,6 +279,21 @@ async function startServer() {
     }
   });
 
+  apiRouter.get("/youtube/metadata", async (req, res) => {
+    try {
+      const { url } = req.query;
+      if (!url) return res.status(400).json({ error: "URL is required" });
+      
+      const videoId = YouTubeIngestionService.extractVideoId(url as string);
+      if (!videoId) return res.status(400).json({ error: "Invalid YouTube URL" });
+      
+      const metadata = await youtubeIngestion.getVideoMetadata(videoId);
+      res.json(metadata);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   apiRouter.get("/youtube/discovery-report", async (req, res) => {
     try {
       const adminClient = getSupabaseAdmin();
@@ -298,11 +313,25 @@ async function startServer() {
   });
 
   apiRouter.post("/channels/ingest", async (req, res) => {
-    const { name, url, category } = req.body;
+    let { name, url, category } = req.body;
     if (!name || !url) return res.status(400).json({ error: "Name and URL are required" });
 
     try {
       const adminClient = getSupabaseAdmin();
+      
+      // Auto-enrich if YouTube
+      const videoId = YouTubeIngestionService.extractVideoId(url);
+      let thumbnail = null;
+      if (videoId) {
+        try {
+          const metadata = await youtubeIngestion.getVideoMetadata(videoId);
+          thumbnail = metadata.thumbnail;
+          if (!name || name === "New Channel") name = metadata.title;
+        } catch (e) {
+          console.warn("[YouTube Enrichment Error]", e);
+        }
+      }
+
       const { data, error } = await adminClient
         .from('discovered_channels')
         .insert([{ name, url, category, status: 'pending' }])
