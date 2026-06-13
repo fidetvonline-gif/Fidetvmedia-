@@ -41,17 +41,21 @@ export const ChannelIngestionManager = () => {
     }
   };
 
-  const triggerDiscovery = async () => {
+  const triggerDiscovery = async (deep: boolean = false) => {
     setTriggeringDiscovery(true);
     try {
       const response = await fetch('/api/youtube/trigger-discovery', { 
         method: 'POST',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest' 
+        },
+        body: JSON.stringify({ deep }),
         credentials: 'include'
       });
       const data = await response.json();
       setDiscoveryReport(data);
-      alert('YouTube discovery cycle complete!');
+      alert(deep ? 'Deep discovery cycle complete! Hundreds of channels scanned.' : 'YouTube discovery cycle complete!');
     } catch (err) {
       console.error('Discovery trigger error:', err);
       alert('Discovery failed. Check server logs.');
@@ -140,14 +144,26 @@ export const ChannelIngestionManager = () => {
             <Youtube className="w-5 h-5" />
             <h2 className="text-xl font-bold">YouTube Auto-Discovery</h2>
           </div>
-          <button
-            onClick={triggerDiscovery}
-            disabled={triggeringDiscovery}
-            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-xl hover:bg-primary hover:text-white transition-all disabled:opacity-50"
-          >
-            <RefreshCcw className={cn("w-3.5 h-3.5", triggeringDiscovery && "animate-spin")} />
-            Trigger Manual Scan
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => triggerDiscovery(false)}
+              disabled={triggeringDiscovery}
+              className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-xl hover:bg-primary hover:text-white transition-all disabled:opacity-50"
+              title="Quickly search for 50+ channels"
+            >
+              <RefreshCcw className={cn("w-3.5 h-3.5", triggeringDiscovery && !discoveryReport?.is_deep && "animate-spin")} />
+              Quick Scan
+            </button>
+            <button
+              onClick={() => triggerDiscovery(true)}
+              disabled={triggeringDiscovery}
+              className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all shadow-lg active:scale-95 disabled:opacity-50"
+              title="Deep crawl for 500+ global channels"
+            >
+              <Zap className={cn("w-3.5 h-3.5", triggeringDiscovery && "animate-pulse")} />
+              Deep Mass Discovery
+            </button>
+          </div>
         </div>
 
         {discoveryReport ? (

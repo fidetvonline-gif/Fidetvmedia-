@@ -398,13 +398,19 @@ async function startServer() {
 
   // YouTube Ingestion - Every 60 minutes
   setInterval(() => {
-    youtubeIngestion.runDiscoveryCycle().catch(console.error);
+    // Regular scan every hour
+    youtubeIngestion.runDiscoveryCycle(2).catch(console.error);
   }, 1000 * 60 * 60);
 
   // Manual trigger endpoints
   apiRouter.post("/youtube/trigger-discovery", async (req, res) => {
     try {
-      const report = await youtubeIngestion.runDiscoveryCycle();
+      const isDeep = req.body.deep === true;
+      console.log(`[YouTube Ingestion] Manual trigger. Deep Scan: ${isDeep}`);
+      
+      // If deep, fetch 8 pages per query (up to 400 results per query)
+      const pages = isDeep ? 8 : 2;
+      const report = await youtubeIngestion.runDiscoveryCycle(pages);
       res.json(report);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -471,32 +477,55 @@ async function startServer() {
   });
 
   apiRouter.post("/channels/ingest", async (req, res) => {
-    let { name, url, category } = req.body;
+    let { name, url, category, auto_publish = true } = req.body;
     if (!name || !url) return res.status(400).json({ error: "Name and URL are required" });
 
     try {
-      const adminClient = getSupabaseAdmin();
+      const adminClient = getSupabaseAdmin()!;
       
       // Auto-enrich if YouTube
       const videoId = YouTubeIngestionService.extractVideoId(url);
       let thumbnail = null;
+      let description = req.body.description || "";
+
       if (videoId) {
         try {
           const metadata = await youtubeIngestion.getVideoMetadata(videoId);
           thumbnail = metadata.thumbnail;
           if (!name || name === "New Channel") name = metadata.title;
+          if (!description) description = metadata.description;
         } catch (e) {
           console.warn("[YouTube Enrichment Error]", e);
         }
       }
 
+      // If auto_publish is set, go straight to tv_channels
+      if (auto_publish) {
+        const { data, error } = await adminClient
+          .from('tv_channels')
+          .upsert([{ 
+             name, 
+             url, 
+             category, 
+             thumbnail, 
+             description,
+             is_active: true,
+             youtube_video_id: videoId || undefined,
+             last_verified_at: new Date().toISOString()
+          }], { onConflict: 'url' })
+          .select();
+
+        if (error) throw error;
+        return res.status(201).json(data[0]);
+      }
+
       const { data, error } = await adminClient
         .from('discovered_channels')
-        .insert([{ name, url, category, status: 'pending' }])
+        .insert([{ name, url, category, status: 'pending', description, thumbnail }])
         .select();
 
       if (error) {
-        if (error.code === '23505') return res.status(409).json({ error: "Channel URL already exists" });
+        if (error.code === '23505') return res.status(409).json({ error: "Channel already exists" });
         throw error;
       }
 

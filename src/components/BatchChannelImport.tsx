@@ -22,7 +22,12 @@ export const BatchChannelImport = ({ onClose, onImportComplete }) => {
 
       // Process items for individual error tracking
       for (const item of data) {
-        const { error } = await supabase.from('tv_channels').insert([item]);
+        const channelToInsert = {
+          ...item,
+          is_active: item.is_active ?? true, // Default to true if not specified
+          order_index: item.order_index ?? 0
+        };
+        const { error } = await supabase.from('tv_channels').insert([channelToInsert]);
         if (error) {
           results.failed.push({ item, error: error.message });
         } else {

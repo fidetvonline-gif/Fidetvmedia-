@@ -11,12 +11,40 @@ export class YouTubeIngestionService {
   private supabase: SupabaseClient;
   private apiKey: string;
   private searchQueries = [
+    // NEWS & POLITICS
     'live news', '24/7 live TV', 'breaking news live', 'live TV stream',
     'NTA live', 'Channels TV live', 'Arise News live', 'BBC live',
-    'CNN live', 'Al Jazeera live', 'sports live stream', 'world news live',
+    'CNN live', 'Al Jazeera live', 'Sky News live', 'ABC News live',
+    'France 24 live', 'DW News live', 'CCTV live', 'Russia Today live',
+    'TVC News live', 'AIT live', 'Plus TV Africa live', 'Africa 24 live',
+    
+    // MUSIC & ENTERTAINMENT
     'lofi hip hop radio live', '24/7 music live', 'live concert stream',
     'smooth jazz live 24/7', 'top hits music live', 'classical music live 24/7',
-    'relaxing music live', 'techno live stream 24/7', 'african music live radio'
+    'relaxing music live', 'techno live stream 24/7', 'african music live radio',
+    'trace tv live', 'mtv live stream', 'soundcity live', 'hip tv live stream',
+    'viva tv live', 'k-pop live stream 24/7', 'reggae music live',
+    'gospel music live radio', 'worship 24/7 live', 'dj mix live',
+    
+    // SPORTS
+    'sports live stream', 'football live 24/7', 'basketball live stream',
+    'tennis live channel', 'boxing live stream', 'cricket live match',
+    'esports live', 'super sport live stream', 'bein sports live',
+    'espn live stream', 'fox sports live', 'racing live 24/7',
+    
+    // FAITH & INSPIRATION
+    'christian live tv', 'islamic live tv', 'prayer line live',
+    'sunday service live', 'emmanuel tv live', 'dove tv live',
+    'loveworld tv live', 'shiloh live', 'makkah live 24/7',
+    
+    // KIDS & FAMILY
+    'cartoons live 24/7', 'disney channel live', 'nickelodeon live',
+    'nursery rhymes live', 'kids stories live', 'educational videos live',
+    
+    // LIFESTYLE & DOCUMENTARY
+    'wildlife live camera', 'space live stream nasa', 'cooking live stream',
+    'travel live 24/7', 'fashion tv live', 'tastemade live',
+    'national geographic live', 'discovery channel live'
   ];
 
   constructor(supabase: SupabaseClient, apiKey: string) {
@@ -143,8 +171,8 @@ export class YouTubeIngestionService {
   /**
    * Main discovery loop
    */
-  async runDiscoveryCycle(): Promise<YoutubeDiscoveryReport> {
-    console.log('[YouTube Ingestion] Starting discovery cycle...');
+  async runDiscoveryCycle(maxPagesPerQuery: number = 2): Promise<YoutubeDiscoveryReport> {
+    console.log(`[YouTube Ingestion] Starting discovery cycle with ${maxPagesPerQuery} pages per query...`);
     const report: YoutubeDiscoveryReport = {
       new_channels_added: [],
       active_channels: [],
@@ -156,16 +184,23 @@ export class YouTubeIngestionService {
       // 1. Collect potential live streams from all queries
       const discoveredVideos = new Map<string, any>(); // Video ID -> Metadata
 
-      for (const query of this.searchQueries) {
-        const results = await this.searchLiveStreams(query);
+      // Randomize queries to avoid hitting same content every time
+      const prioritizedQueries = [...this.searchQueries].sort(() => Math.random() - 0.5);
+
+      for (const query of prioritizedQueries) {
+        console.log(`[YouTube Ingestion] Searching for: ${query}`);
+        const results = await this.searchLiveStreams(query, maxPagesPerQuery);
         results.forEach(video => {
-          if (!discoveredVideos.has(video.id.videoId)) {
+          if (video.id.videoId && !discoveredVideos.has(video.id.videoId)) {
             discoveredVideos.set(video.id.videoId, video);
           }
         });
+        
+        // Safety break if we found a ton of content to stay within limits
+        if (discoveredVideos.size > 500) break;
       }
 
-      console.log(`[YouTube Ingestion] Found ${discoveredVideos.size} potential live streams.`);
+      console.log(`[YouTube Ingestion] Discovery phase found ${discoveredVideos.size} unique potential live streams.`);
 
       // 2. Fetch current active channels from DB to track changes
       const { data: existingChannels } = await this.supabase
@@ -254,21 +289,33 @@ export class YouTubeIngestionService {
     }
   }
 
-  private async searchLiveStreams(query: string): Promise<any[]> {
+  private async searchLiveStreams(query: string, pages: number = 1): Promise<any[]> {
+    const allItems: any[] = [];
+    let nextToken = '';
+
     try {
-      const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&eventType=live&maxResults=25&q=${encodeURIComponent(query)}&key=${this.apiKey}`;
-      const response = await fetch(url);
-      const data = await response.json();
-      
-      if (data.error) {
-        console.error(`[YouTube API Error] Query: ${query}`, data.error);
-        return [];
+      for (let i = 0; i < pages; i++) {
+        const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&eventType=live&maxResults=50&q=${encodeURIComponent(query)}&key=${this.apiKey}${nextToken ? `&pageToken=${nextToken}` : ''}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.error) {
+          console.error(`[YouTube API Error] Query: ${query}`, data.error);
+          break; 
+        }
+        
+        if (data.items) {
+          allItems.push(...data.items);
+        }
+        
+        nextToken = data.nextPageToken;
+        if (!nextToken) break;
       }
       
-      return data.items || [];
+      return allItems;
     } catch (err) {
       console.error(`[YouTube Search Fetch Error] Query: ${query}`, err);
-      return [];
+      return allItems;
     }
   }
 
@@ -290,11 +337,21 @@ export class YouTubeIngestionService {
 
   private inferCategory(title: string, channel: string): string {
     const t = (title + ' ' + channel).toLowerCase();
+    
+    // Geographical Mapping
+    if (t.includes('nigeria') || t.includes('nta') || t.includes('tvc') || t.includes('lagos') || t.includes('abuja') || t.includes('arise news')) return 'Nigeria';
+    if (t.includes('international') || t.includes('global') || t.includes('world') || t.includes('bbc') || t.includes('cnn') || t.includes('al jazeera') || t.includes('france 24')) return 'International';
+    
+    // Niche Mapping
     if (t.includes('news')) return 'News';
-    if (t.includes('sport') || t.includes('football') || t.includes('match')) return 'Sports';
-    if (t.includes('music') || t.includes('song')) return 'Music';
-    if (t.includes('movie') || t.includes('film')) return 'Movies';
-    if (t.includes('game') || t.includes('gaming')) return 'Gaming';
+    if (t.includes('sport') || t.includes('football') || t.includes('match') || t.includes('goal')) return 'Sports';
+    if (t.includes('music') || t.includes('song') || t.includes('radio') || t.includes('concert')) return 'Music';
+    if (t.includes('movie') || t.includes('film') || t.includes('cinema')) return 'Movies';
+    if (t.includes('game') || t.includes('gaming') || t.includes('play')) return 'Gaming';
+    if (t.includes('kid') || t.includes('cartoon') || t.includes('nursery') || t.includes('child')) return 'Kids';
+    if (t.includes('church') || t.includes('bible') || t.includes('faith') || t.includes('prayer') || t.includes('gospel')) return 'Religion';
+    if (t.includes('food') || t.includes('cook') || t.includes('chef')) return 'Lifestyle';
+    
     return 'General';
   }
 }

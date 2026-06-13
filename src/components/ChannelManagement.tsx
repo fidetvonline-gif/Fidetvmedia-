@@ -105,7 +105,7 @@ export const ChannelManagement = () => {
             url: ch.url,
             thumbnail: ch.thumbnail,
             description: ch.description,
-            is_active: ch.isLive,
+            is_active: true, // Force active on restore
             icon: ch.icon?.name || 'Tv',
             order_index: restoredCount
           }]);

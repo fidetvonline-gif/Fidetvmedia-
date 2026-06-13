@@ -46,10 +46,10 @@ export const DEFAULT_CHANNELS = [
     name: 'NTA News 24',
     category: 'Nigeria',
     thumbnail: 'https://images.unsplash.com/photo-1493612276216-ee3925520721?auto=format&fit=crop&q=80&w=800',
-    url: '', // Video not available as direct stream
+    url: 'https://www.youtube.com/watch?v=XhA6r6W5-x8', // Updated with stable live link
     icon: Tv,
     description: 'Nigeria Television Authority 24-hour news.',
-    isLive: false
+    isLive: true
   },
   {
     id: 'sports_bein_xtra',
@@ -352,6 +352,66 @@ export const DEFAULT_CHANNELS = [
     isLive: true
   },
   {
+    id: 'news_rt_news',
+    name: 'RT News Live',
+    category: 'International',
+    thumbnail: 'https://images.unsplash.com/photo-1521295121783-8a321d551ad2?auto=format&fit=crop&q=80&w=800',
+    url: 'https://rt-eng-apple-rakuten.amagi.tv/playlist.m3u8',
+    icon: Globe,
+    description: 'International news network covering stories often missed by mainstream media.',
+    isLive: true
+  },
+  {
+    id: 'news_tastemade_home',
+    name: 'Tastemade Home',
+    category: 'Lifestyle',
+    thumbnail: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&q=80&w=800',
+    url: 'https://tastemade-rakuten.amagi.tv/playlist.m3u8',
+    icon: Tv,
+    description: '24/7 home and design inspiration.',
+    isLive: true
+  },
+  {
+    id: 'news_reuters',
+    name: 'Reuters Now',
+    category: 'News',
+    thumbnail: 'https://images.unsplash.com/photo-1495020689067-958852a7765e?auto=format&fit=crop&q=80&w=800',
+    url: 'https://reuters-reutersnow-1-us.ottera.tv/playlist.m3u8',
+    icon: Globe,
+    description: 'Global news and market data from Reuters.',
+    isLive: true
+  },
+  {
+    id: 'ent_gossiptv',
+    name: 'Gossip TV',
+    category: 'Entertainment',
+    thumbnail: 'https://images.unsplash.com/photo-1511988617509-a57c8a288659?auto=format&fit=crop&q=80&w=800',
+    url: 'https://gossiptv.mediatank.site/live/gossiptv/playlist.m3u8',
+    icon: MonitorPlay,
+    description: 'Celebrity news, red carpets, and Hollywood style.',
+    isLive: true
+  },
+  {
+    id: 'news_africa_24',
+    name: 'Africa 24',
+    category: 'Nigeria',
+    thumbnail: 'https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?auto=format&fit=crop&q=80&w=800',
+    url: 'https://africa24.mediatank.site/live/africa24/playlist.m3u8',
+    icon: Globe,
+    description: 'Pan-African news and analysis from across the continent.',
+    isLive: true
+  },
+  {
+    id: 'music_afrobeat_tv',
+    name: 'Afrobeat TV 24/7',
+    category: 'Music',
+    thumbnail: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?auto=format&fit=crop&q=80&w=800',
+    url: 'https://afrobeats.mediatank.site/live/afrobeats/playlist.m3u8',
+    icon: MonitorPlay,
+    description: 'Non-stop Afrobeat hits, music videos, and party mixes.',
+    isLive: true
+  },
+  {
     id: 'news_euronews_eng',
     name: 'Euronews English',
     category: 'News',
@@ -516,10 +576,10 @@ export const DEFAULT_CHANNELS = [
     name: 'Afrosport TV',
     category: 'Sports',
     thumbnail: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=800',
-    url: '', // Video not available as direct stream
+    url: 'https://www.youtube.com/watch?v=vVjH2n7_I-g', // Updated with alternative live feed
     icon: MonitorPlay,
     description: 'Africa\'s first 24-hour multi-sport channel.',
-    isLive: false
+    isLive: true
   },
   {
     id: 'test_mp4',
