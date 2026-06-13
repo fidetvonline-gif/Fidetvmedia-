@@ -15,6 +15,8 @@ const BLOCKLIST = [
 
 export interface YouTubeStats {
   viewers: string;
+  likes: string;
+  commentCount: string;
   title: string;
   thumbnail: string;
   isLive: boolean;
@@ -36,6 +38,8 @@ export const fetchYouTubeStats = async (youtubeId: string): Promise<YouTubeStats
         title: 'Video',
         thumbnail: `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`,
         viewers: '0',
+        likes: '0',
+        commentCount: '0',
         isLive: false
       };
     }
@@ -46,11 +50,14 @@ export const fetchYouTubeStats = async (youtubeId: string): Promise<YouTubeStats
 
     const item = data.items[0];
     const liveDetails = item.liveStreamingDetails;
+    const stats = item.statistics;
     
     return {
       title: item.snippet.title,
       thumbnail: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default?.url,
       viewers: liveDetails?.concurrentViewers || '0',
+      likes: stats?.likeCount || '0',
+      commentCount: stats?.commentCount || '0',
       isLive: item.snippet.liveBroadcastContent === 'live'
     };
   } catch (error) {
@@ -59,6 +66,8 @@ export const fetchYouTubeStats = async (youtubeId: string): Promise<YouTubeStats
       title: 'Video',
       thumbnail: `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`,
       viewers: '0',
+      likes: '0',
+      commentCount: '0',
       isLive: false
     };
   }

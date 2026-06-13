@@ -44,6 +44,7 @@ export default function Live() {
   const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'live' | 'offline' | 'connecting'>('connecting');
+  const [activeChanStats, setActiveChanStats] = useState<YouTubeStats | null>(null);
 
   const [isPiP, setIsPiP] = useState(false);
   const [isPiPDismissed, setIsPiPDismissed] = useState(false);
@@ -93,6 +94,8 @@ export default function Live() {
       thumbnail: event?.thumbnail_url || fidetvWorldCup,
       description: event?.description || 'Watch premium official FideTV broadcasts live and exclusively.',
       isLive: isFideTvLive,
+      viewer_count: (ytStats?.viewers ? parseInt(ytStats.viewers) : undefined),
+      like_count: (ytStats?.likes ? parseInt(ytStats.likes) : undefined),
       icon: Tv,
       logo: undefined as string | undefined,
     };
@@ -123,6 +126,9 @@ export default function Live() {
           logo: ch.logo,
           description: ch.description || 'Watch live broadcast stream.',
           isLive: ch.is_active ?? true,
+          viewer_count: ch.viewer_count,
+          like_count: ch.like_count,
+          comment_count: ch.comment_count,
           created_at: ch.created_at
         };
       });
@@ -221,6 +227,14 @@ export default function Live() {
     const delay = isEmbed ? 200 : 2500;
 
     checkStreamSignal(activeCh?.url || '');
+
+    // Fetch live stats for the active channel if it's YouTube
+    const ytId = getYouTubeId(activeCh?.url);
+    if (ytId) {
+      fetchYouTubeStats(ytId).then(setActiveChanStats).catch(console.error);
+    } else {
+      setActiveChanStats(null);
+    }
 
     // Safety timeout: if player takes too long to signal ready, hide overlay anyway
     // so user can see if there's a play button or interaction needed
@@ -1084,7 +1098,9 @@ export default function Live() {
                       <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10 backdrop-blur-sm">
                         <Users className="w-3.5 h-3.5 text-white/40" />
                         <span className="text-xs font-bold text-white">
-                          {isPlayingFideTv && isFideTvLive && ytStats ? ytStats.viewers : presenceCount}
+                          {activeChanStats?.viewers && activeChanStats.viewers !== '0' 
+                            ? parseInt(activeChanStats.viewers).toLocaleString() 
+                            : (isPlayingFideTv && isFideTvLive && ytStats ? parseInt(ytStats.viewers).toLocaleString() : presenceCount)}
                         </span>
                         <span className="text-[9px] text-white/40 font-bold uppercase tracking-widest hidden sm:inline">Watching Live</span>
                       </div>
@@ -1098,7 +1114,11 @@ export default function Live() {
                       )}
                     >
                       <Heart className={cn("w-3.5 h-3.5", hasLiked && "fill-current animate-pulse")} />
-                      <span>{likes}</span>
+                      <span>
+                        {activeChanStats?.likes && activeChanStats.likes !== '0' 
+                          ? parseInt(activeChanStats.likes).toLocaleString() 
+                          : likes}
+                      </span>
                     </button>
 
                     <button 
@@ -1368,7 +1388,19 @@ export default function Live() {
                                <span className="text-[9px] text-white/40 font-bold tracking-tight">{channel.category}</span>
                                {isSelected && <div className="w-2 h-2 bg-primary rounded-full" />}
                              </div>
-                             <span className="text-[9px] text-white/30 mt-0.5 font-mono">Recommended Local Station</span>
+                             <span className="text-[9px] text-white/30 mt-0.5 font-mono flex items-center gap-2">
+                               <span>
+                                 {channel.viewer_count 
+                                   ? `${parseInt(channel.viewer_count).toLocaleString()} watching` 
+                                   : 'Recommended'}
+                               </span>
+                               {channel.like_count > 0 && (
+                                 <span className="flex items-center gap-0.5 text-red-500/60">
+                                   <Heart className="w-2 h-2 fill-current" />
+                                   {parseInt(channel.like_count).toLocaleString()}
+                                 </span>
+                               )}
+                             </span>
                           </div>
                         </button>
                       );

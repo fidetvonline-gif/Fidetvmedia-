@@ -257,7 +257,7 @@ async function startServer() {
     }
   });
 
-  // 4. YouTube Proxy (Specific routes FIRST to avoid shadowing)
+  // 4. YouTube Proxy
   apiRouter.get("/youtube/metadata", async (req, res) => {
     try {
       const { url } = req.query;
@@ -272,6 +272,22 @@ async function startServer() {
       res.status(500).json({ error: err.message });
     }
   });
+
+  apiRouter.post("/channels/sync-thumbnails", async (req, res) => {
+    try {
+      console.log("[Storage] Starting manual stats and thumbnail sync...");
+      await youtubeIngestion.updateAllChannelStats();
+      res.json({ success: true, message: "Sync completed" });
+    } catch (err: any) {
+      console.error("[Storage] Sync failed:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Background stats update every 15 minutes
+  setInterval(() => {
+    youtubeIngestion.updateAllChannelStats().catch(err => console.error("Periodic stats update failed:", err));
+  }, 15 * 60 * 1000);
 
   apiRouter.get("/youtube/:endpoint", async (req, res) => {
     try {

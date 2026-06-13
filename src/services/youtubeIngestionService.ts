@@ -52,11 +52,11 @@ export class YouTubeIngestionService {
   }
 
   /**
-   * Fetch metadata for a specific YouTube video
+   * Fetch metadata and statistics for a specific YouTube video
    */
   async getVideoMetadata(videoId: string) {
     try {
-      const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails&id=${videoId}&key=${this.apiKey}`;
+      const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails,statistics&id=${videoId}&key=${this.apiKey}`;
       const response = await fetch(url);
       const data = await response.json();
       
@@ -66,26 +66,74 @@ export class YouTubeIngestionService {
           title: "YouTube Live Stream",
           thumbnail: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
           channelTitle: "Unknown Channel",
-          description: ""
+          description: "",
+          viewers: "0",
+          likes: "0",
+          isLive: false
         };
       }
       
       const video = data.items[0];
+      const liveDetails = video.liveStreamingDetails;
+      const stats = video.statistics;
+
       return {
         title: video.snippet.title,
         thumbnail: video.snippet.thumbnails.maxres?.url || video.snippet.thumbnails.high?.url || `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
         channelTitle: video.snippet.channelTitle,
         channelId: video.snippet.channelId,
         description: video.snippet.description,
-        isLive: video.snippet.liveBroadcastContent === 'live'
+        isLive: video.snippet.liveBroadcastContent === 'live',
+        viewers: liveDetails?.concurrentViewers || "0",
+        likes: stats?.likeCount || "0",
+        commentCount: stats?.commentCount || "0"
       };
     } catch (err) {
       return {
         title: "YouTube Live Stream",
         thumbnail: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
         channelTitle: "YouTube",
-        description: ""
+        description: "",
+        viewers: "0",
+        likes: "0",
+        isLive: false
       };
+    }
+  }
+
+  /**
+   * Update statistics for all active channels in the database
+   */
+  async updateAllChannelStats() {
+    console.log('[YouTube Ingestion] Updating statistics for all channels...');
+    try {
+      const { data: channels, error } = await this.supabase
+        .from('tv_channels')
+        .select('id, url, name')
+        .eq('is_active', true);
+
+      if (error) throw error;
+      if (!channels) return;
+
+      for (const channel of channels) {
+        const videoId = YouTubeIngestionService.extractVideoId(channel.url);
+        if (videoId) {
+          const metadata = await this.getVideoMetadata(videoId);
+          await this.supabase
+            .from('tv_channels')
+            .update({
+              viewer_count: parseInt(metadata.viewers) || 0,
+              like_count: parseInt(metadata.likes) || 0,
+              comment_count: parseInt(metadata.commentCount || "0") || 0,
+              thumbnail: metadata.thumbnail, // Auto-heal thumbnail
+              last_verified_at: new Date().toISOString()
+            })
+            .eq('id', channel.id);
+        }
+      }
+      console.log(`[YouTube Ingestion] Stats update complete for ${channels.length} channels.`);
+    } catch (err) {
+      console.error('[YouTube Ingestion] Stats update failed:', err);
     }
   }
 

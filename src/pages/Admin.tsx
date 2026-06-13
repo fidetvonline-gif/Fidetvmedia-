@@ -165,7 +165,9 @@ export default function Admin() {
           });
           if (res.ok) {
             const data = await res.json();
-            if (data.thumbnail) setImageUrl(data.thumbnail);
+            // Use the higher resolution thumbnail if available
+            const thumb = data.thumbnail;
+            if (thumb) setImageUrl(thumb);
             if (data.title && (!title || title === '')) setTitle(data.title);
             if (data.description && (!description || description === '')) setDescription(data.description);
           }

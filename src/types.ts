@@ -125,6 +125,9 @@ export interface TvChannel {
   description?: string;
   is_active: boolean;
   order_index: number;
+  viewer_count?: number;
+  like_count?: number;
+  comment_count?: number;
   created_at: string;
 }
 
