@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { ChannelManagement } from '@/components/ChannelManagement';
+import { ChannelIngestionManager } from '@/components/ChannelIngestionManager';
 import { Link } from 'react-router-dom';
 import { Event, Community, News, Booking, Profile, PortfolioItem, TvChannel, Service } from '@/types';
 import { 
@@ -10,7 +11,7 @@ import {
   LayoutDashboard, Radio, MessageSquare, Users, Settings, Plus, 
   Edit2, Trash2, Globe, Youtube, ToggleLeft, ToggleRight, 
   Sparkles, Camera, Eye, Newspaper, BookOpen, Clock, CheckCircle2, XCircle,
-  ShieldCheck, ShieldAlert, Award, Headset, Briefcase, Tv, Zap, DollarSign,
+  ShieldCheck, ShieldAlert, Award, Headset, Briefcase, Tv, Zap, DollarSign, Activity,
   ExternalLink, TrendingUp, BarChart3, Wallet, ArrowUpRight, PenTool,
   Megaphone, Video, PlayCircle, Image, KeyRound
 } from 'lucide-react';
@@ -28,7 +29,7 @@ import { ReferralAnalytics } from '@/components/ReferralAnalytics';
 import MDEditor from '@uiw/react-md-editor';
 import { safeLocalStorage } from '@/lib/storage';
 
-type AdminTab = 'overview' | 'events' | 'news' | 'communities' | 'bookings' | 'partnerships' | 'users' | 'support' | 'portfolio' | 'channels' | 'services' | 'site' | 'ads' | 'streaming';
+type AdminTab = 'overview' | 'events' | 'news' | 'communities' | 'bookings' | 'partnerships' | 'users' | 'support' | 'portfolio' | 'channels' | 'services' | 'site' | 'ads' | 'streaming' | 'ingestion';
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
@@ -36,6 +37,8 @@ export default function Admin() {
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [channels, setChannels] = useState<TvChannel[]>([]);
+  const [stableChannels, setStableChannels] = useState<any[]>([]);
+  const [discoveredChannels, setDiscoveredChannels] = useState<any[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
   const [news, setNews] = useState<News[]>([]);
@@ -246,6 +249,8 @@ export default function Admin() {
         fetchCommunityStats(),
         fetchPortfolio(),
         fetchChannels(),
+        fetchStableChannels(),
+        fetchDiscoveredChannels(),
         fetchServices(),
         fetchSiteSettings(),
         fetchAdUnits(),
@@ -263,7 +268,10 @@ export default function Admin() {
     if (activeTab === 'users') await fetchProfiles();
     if (activeTab === 'support') await fetchSupportChats();
     if (activeTab === 'portfolio') await fetchPortfolio();
-    if (activeTab === 'channels') await fetchChannels();
+    if (activeTab === 'channels') {
+      await Promise.all([fetchChannels(), fetchStableChannels()]);
+    }
+    if (activeTab === 'ingestion') await fetchDiscoveredChannels();
     if (activeTab === 'services') await fetchServices();
     if (activeTab === 'site') await fetchSiteSettings();
     if (activeTab === 'ads') await fetchAdUnits();
@@ -626,6 +634,38 @@ export default function Admin() {
       return;
     }
     if (data) setChannels(data);
+  };
+
+  const fetchStableChannels = async () => {
+    try {
+      const { data, error } = await supabase.from('stable_channels').select('*').order('created_at', { ascending: false });
+      if (error) {
+         if (error.code === 'PGRST116' || error.message?.includes('not found') || error.code === 'PGRST205') {
+           setStableChannels([]);
+           return;
+         }
+         throw error;
+      }
+      if (data) setStableChannels(data);
+    } catch (e) {
+      console.warn('fetchStableChannels error:', e);
+    }
+  };
+
+  const fetchDiscoveredChannels = async () => {
+    try {
+      const { data, error } = await supabase.from('discovered_channels').select('*').order('created_at', { ascending: false });
+      if (error) {
+        if (error.code === 'PGRST116' || error.message?.includes('not found') || error.code === 'PGRST205') {
+          setDiscoveredChannels([]);
+          return;
+        }
+        throw error;
+      }
+      if (data) setDiscoveredChannels(data);
+    } catch (e) {
+      console.warn('fetchDiscoveredChannels error:', e);
+    }
   };
 
   const fetchPortfolio = async () => {
@@ -1249,6 +1289,7 @@ export default function Admin() {
               { id: 'support', name: 'Support', icon: MessageSquare },
               { id: 'site', name: 'Site Setup', icon: Settings },
               { id: 'streaming', name: 'Direct Stream', icon: Video },
+              { id: 'ingestion', name: 'Ingestion', icon: Activity },
               { id: 'ads', name: 'Google Ads', icon: DollarSign }
             ].filter(tab => !isBloggerOnly || tab.id === 'news').map(tab => (
               <button
@@ -3478,6 +3519,59 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
           {activeTab === 'streaming' && (
             <div className="animate-fade-in">
               <StreamManager />
+            </div>
+          )}
+          
+          {activeTab === 'ingestion' && (
+            <div className="animate-fade-in space-y-8">
+              <ChannelIngestionManager />
+              
+              <div className="bg-surface rounded-[2.5rem] border border-border-custom p-10 space-y-6">
+                 <div className="flex items-center gap-4 border-b border-white/5 pb-6">
+                    <div className="w-10 h-10 bg-red-500/10 rounded-xl flex items-center justify-center border border-red-500/20">
+                       <ShieldAlert className="w-5 h-5 text-red-500" />
+                    </div>
+                    <div>
+                       <h3 className="text-xl font-display font-bold text-foreground">Emergency Stream Purge</h3>
+                       <p className="text-[10px] text-foreground/40 font-bold uppercase tracking-widest mt-1">Force remove unwanted content from all databases</p>
+                    </div>
+                 </div>
+
+                 <div className="p-6 bg-red-500/5 border border-red-500/10 rounded-2xl space-y-4">
+                    <p className="text-sm text-foreground/70 leading-relaxed">
+                       This utility will scan <b>Events</b>, <b>TV Channels</b>, <b>Discovered Channels</b>, and <b>Portfolio Items</b> for any entries containing the word "Mexico" or "SportyTV" and delete them permanently. Use this if a blocked stream is still appearing due to manual entry or ingestion errors.
+                    </p>
+                    <button 
+                      onClick={async () => {
+                        if (!confirm('Are you sure you want to run the global purge? This will delete all entries matching the blocklist keywords.')) return;
+                        setLoading(true);
+                        try {
+                            const keywords = ['Mexico', 'SportyTV', '™'];
+                            for (const kw of keywords) {
+                              const pattern = `%${kw}%`;
+                              await supabase.from('events').delete().ilike('title', pattern);
+                              await supabase.from('tv_channels').delete().ilike('name', pattern);
+                              
+                              // These might fail if tables don't exist, so we wrap them individually
+                              try { await supabase.from('discovered_channels').delete().ilike('name', pattern); } catch (e) {}
+                              try { await supabase.from('stable_channels').delete().ilike('name', pattern); } catch (e) {}
+                              
+                              await supabase.from('portfolio_items').delete().ilike('title', pattern);
+                            }
+                          alert('Purge complete. Blocked content has been eradicated.');
+                          fetchData();
+                        } catch (err) {
+                          alert('Purge failed: ' + err.message);
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                      className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-red-600/20"
+                    >
+                      Initialize Content Purge
+                    </button>
+                 </div>
+              </div>
             </div>
           )}
              {/* Form Modal */}

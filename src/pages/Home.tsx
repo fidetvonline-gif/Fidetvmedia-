@@ -139,14 +139,14 @@ export default function Home() {
           isLive: ch.is_active ?? true
         }));
         
-        // Use ONLY database channels if they exist, giving full control to Admin
+        // Use ONLY database channels, giving full control to Admin
         setChannels(mappedChannels);
       } else {
-        setChannels(DEFAULT_CHANNELS);
+        setChannels([]);
       }
     } catch (err) {
       console.error('Error fetching tv channels:', err);
-      setChannels(DEFAULT_CHANNELS);
+      setChannels([]);
     } finally {
       setLoadingChannels(false);
     }
@@ -241,9 +241,10 @@ export default function Home() {
         .order('status', { ascending: false })
         .order('start_time', { ascending: true })
         .limit(3);
-      if (data) setUpcomingEvents(data);
+      setUpcomingEvents(data || []);
     } catch (err) {
       console.error('Error fetching upcoming events:', err);
+      setUpcomingEvents([]);
     }
   };
 

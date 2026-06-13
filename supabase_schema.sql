@@ -161,8 +161,26 @@ CREATE TABLE IF NOT EXISTS public.tv_channels (
   is_active BOOLEAN DEFAULT true,
   is_featured BOOLEAN DEFAULT false,
   order_index INTEGER DEFAULT 0,
+  -- YouTube Discovery Metadata
+  youtube_channel_id TEXT UNIQUE,
+  youtube_video_id TEXT,
+  is_24_7 BOOLEAN DEFAULT false,
+  last_verified_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- 18. YouTube Ingestion Reports
+CREATE TABLE IF NOT EXISTS public.youtube_ingestion_reports (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  new_channels JSONB DEFAULT '[]',
+  active_channels JSONB DEFAULT '[]',
+  removed_channels JSONB DEFAULT '[]',
+  total_active_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.youtube_ingestion_reports ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admin can view ingestion reports" ON public.youtube_ingestion_reports FOR SELECT USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
 
 -- 7. RLS (Row Level Security) Settings
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -404,3 +422,43 @@ ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Reviews viewable by everyone" ON public.reviews FOR SELECT USING (true);
 CREATE POLICY "Authenticated users can submit reviews" ON public.reviews FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 CREATE POLICY "Only admin can manage reviews" ON public.reviews FOR ALL USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
+
+-- 17. Channel Ingestion System
+CREATE TABLE IF NOT EXISTS public.discovered_channels (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  url TEXT NOT NULL UNIQUE,
+  category TEXT,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'testing', 'stable', 'failed')),
+  fail_count INTEGER DEFAULT 0,
+  last_check TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.stable_channels (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  category TEXT NOT NULL,
+  thumbnail TEXT,
+  url TEXT NOT NULL UNIQUE,
+  icon TEXT,
+  description TEXT,
+  country TEXT,
+  language TEXT,
+  stream_type TEXT,
+  backup_urls TEXT[] DEFAULT '{}',
+  epg_id TEXT,
+  is_active BOOLEAN DEFAULT true,
+  is_featured BOOLEAN DEFAULT false,
+  order_index INTEGER DEFAULT 0,
+  last_verified TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.discovered_channels ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stable_channels ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admin can manage discovered_channels" ON public.discovered_channels FOR ALL USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
+CREATE POLICY "Public can view discovered_channels status" ON public.discovered_channels FOR SELECT USING (true);
+CREATE POLICY "Admin can manage stable_channels" ON public.stable_channels FOR ALL USING (auth.jwt() ->> 'email' = 'fidetvonline@gmail.com');
+CREATE POLICY "Public can view stable_channels" ON public.stable_channels FOR SELECT USING (true);

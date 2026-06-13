@@ -221,7 +221,19 @@ export default function HighPerformancePlayer({
       });
       video.addEventListener('error', (e) => {
         const error = (e.target as HTMLVideoElement).error;
-        if (error && error.code === 1) return; // 1 = MEDIA_ERR_ABORTED
+        if (error) {
+          if (error.code === 1) return; // 1 = MEDIA_ERR_ABORTED
+          const errMsg = (error.message || '').toLowerCase();
+          if (
+            errMsg.includes('abort') || 
+            errMsg.includes('fetching process') || 
+            errMsg.includes('media resource') || 
+            errMsg.includes('prevented') || 
+            errMsg.includes('interrupted')
+          ) {
+            return;
+          }
+        }
         setError('Native playback error');
         onError?.(e);
       });
@@ -236,7 +248,19 @@ export default function HighPerformancePlayer({
       video.addEventListener('playing', handleLoaded);
       video.addEventListener('error', (e) => {
         const error = (e.target as HTMLVideoElement).error;
-        if (error && error.code === 1) return; // 1 = MEDIA_ERR_ABORTED
+        if (error) {
+          if (error.code === 1) return; // 1 = MEDIA_ERR_ABORTED
+          const errMsg = (error.message || '').toLowerCase();
+          if (
+            errMsg.includes('abort') || 
+            errMsg.includes('fetching process') || 
+            errMsg.includes('media resource') || 
+            errMsg.includes('prevented') || 
+            errMsg.includes('interrupted')
+          ) {
+            return;
+          }
+        }
         setError('Playback error');
         onError?.(e);
       });

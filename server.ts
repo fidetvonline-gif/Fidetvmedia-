@@ -4,6 +4,8 @@ import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
+import { ChannelIngestionService } from "./src/services/channelIngestionService";
+import { YouTubeIngestionService } from "./src/services/youtubeIngestionService";
 
 dotenv.config();
 
@@ -252,6 +254,99 @@ async function startServer() {
       res.status(502).send("Stream proxy failed to reach destination");
     }
   });
+
+  // 5. Channel Ingestion System
+  const ingestionService = new ChannelIngestionService(getSupabaseAdmin());
+  const youtubeIngestion = new YouTubeIngestionService(getSupabaseAdmin()!, process.env.YOUTUBE_API_KEY || "");
+
+  // Weekly maintenance or triggered checks
+  setInterval(() => {
+    ingestionService.runHealthChecks().catch(console.error);
+  }, 1000 * 60 * 60 * 24); // Once a day primary health check
+
+  // YouTube Ingestion - Every 60 minutes
+  setInterval(() => {
+    youtubeIngestion.runDiscoveryCycle().catch(console.error);
+  }, 1000 * 60 * 60);
+
+  // Manual trigger endpoints
+  apiRouter.post("/youtube/trigger-discovery", async (req, res) => {
+    try {
+      const report = await youtubeIngestion.runDiscoveryCycle();
+      res.json(report);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  apiRouter.get("/youtube/discovery-report", async (req, res) => {
+    try {
+      const adminClient = getSupabaseAdmin();
+      if (!adminClient) throw new Error("Supabase Admin not configured");
+      const { data, error } = await adminClient
+        .from('youtube_ingestion_reports')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') throw error;
+      res.json(data || { message: "No reports found yet" });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  apiRouter.post("/channels/ingest", async (req, res) => {
+    const { name, url, category } = req.body;
+    if (!name || !url) return res.status(400).json({ error: "Name and URL are required" });
+
+    try {
+      const adminClient = getSupabaseAdmin();
+      const { data, error } = await adminClient
+        .from('discovered_channels')
+        .insert([{ name, url, category, status: 'pending' }])
+        .select();
+
+      if (error) {
+        if (error.code === '23505') return res.status(409).json({ error: "Channel URL already exists" });
+        throw error;
+      }
+
+      res.status(201).json(data[0]);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  apiRouter.get("/channels/discovered", async (req, res) => {
+    try {
+      const adminClient = getSupabaseAdmin();
+      if (!adminClient) throw new Error("Supabase Admin not configured");
+      const { data, error } = await adminClient.from('discovered_channels').select('*').order('created_at', { ascending: false });
+      if (error) {
+        // Handle common Supabase table-not-found error
+        if (error.code === 'PGRST116' || error.message?.includes('not found') || error.code === 'PGRST205') {
+          return res.status(200).json([]); // Return empty array if table doesn't exist yet
+        }
+        throw error;
+      }
+      res.json(data || []);
+    } catch (err: any) {
+      console.error('[API discovered channels error]', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  apiRouter.post("/channels/trigger-check", async (req, res) => {
+    await ingestionService.runHealthChecks();
+    res.json({ message: "Health check cycle triggered" });
+  });
+
+  // Start health check loop every 5 minutes
+  setInterval(() => {
+    ingestionService.runHealthChecks().catch(err => console.error('[Ingestion LOOP ERROR]', err));
+  }, 5 * 60 * 1000);
 
   // Mount the API Router
   app.use("/api", apiRouter);

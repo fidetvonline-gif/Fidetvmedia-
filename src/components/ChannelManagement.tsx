@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Trash2, Edit2, Plus, Search, X, Upload, Zap } from 'lucide-react';
 import { BatchChannelImport } from './BatchChannelImport';
+import { cn } from '../lib/utils';
 
 export const ChannelManagement = () => {
   const [channels, setChannels] = useState([]);
@@ -9,6 +10,16 @@ export const ChannelManagement = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [currentChannel, setCurrentChannel] = useState(null);
+  
+  // Custom non-blocking modal and alert states
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [deleteConfirmName, setDeleteConfirmName] = useState('');
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   const fetchChannels = async () => {
     const { data, error } = await supabase.from('tv_channels').select('*').order('order_index');
@@ -43,20 +54,22 @@ export const ChannelManagement = () => {
 
   const handleSync = () => {
     broadcastChange('sync');
-    alert("Sync signal sent to all live users.");
+    showToast("Sync signal sent to all live screens!", 'success');
     fetchChannels();
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this channel?")) return;
-    const { error } = await supabase.from('tv_channels').delete().eq('id', id);
+  const executeDelete = async () => {
+    if (!deleteConfirmId) return;
+    const { error } = await supabase.from('tv_channels').delete().eq('id', deleteConfirmId);
     if (!error) {
-      alert("Deleted successfully");
+      showToast(`Channel "${deleteConfirmName}" deleted successfully`, 'success');
+      setDeleteConfirmId(null);
+      setDeleteConfirmName('');
       // Broadcast the delete to other clients
       broadcastChange('delete');
       fetchChannels();
     } else {
-      alert("Delete failed: " + error.message);
+      showToast("Delete failed: " + error.message, 'error');
     }
   };
 
@@ -82,18 +95,20 @@ export const ChannelManagement = () => {
         const { error, data: updatedData } = await supabase.from('tv_channels').update(channelData).eq('id', currentChannel.id).select();
         if (error) {
             console.error("Update failed", error);
-            alert("Update failed: " + error.message);
+            showToast("Update failed: " + error.message, 'error');
             return;
         }
         console.log("Updated channel successfully:", updatedData);
+        showToast("Channel updated successfully", 'success');
     } else {
         const { error, data: insertedData } = await supabase.from('tv_channels').insert(channelData).select();
         if (error) {
             console.error("Insert failed", error);
-            alert("Insert failed: " + error.message);
+            showToast("Insert failed: " + error.message, 'error');
             return;
         }
         console.log("Inserted channel successfully:", insertedData);
+        showToast("Channel added successfully", 'success');
     }
     
     // Broadcast the update/delete to other clients
@@ -109,7 +124,20 @@ export const ChannelManagement = () => {
   );
 
   return (
-    <div className="p-6 bg-background rounded-xl border border-border-custom shadow-inner">
+    <div className="p-6 bg-background rounded-xl border border-border-custom shadow-inner relative">
+      {/* Visual Toast Notification Banner */}
+      {toast && (
+        <div className={cn(
+          "fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-xl border text-sm flex items-center gap-2 animate-fade-in",
+          toast.type === 'success' 
+            ? "bg-emerald-950/90 text-emerald-200 border-emerald-800/50" 
+            : "bg-red-950/90 text-red-200 border-red-800/50"
+        )}>
+          <span className="font-medium">{toast.message}</span>
+          <button onClick={() => setToast(null)} className="ml-2 hover:opacity-80 text-xs font-bold">×</button>
+        </div>
+      )}
+
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-bold">Channel Management</h2>
         <div className="flex gap-2">
@@ -133,64 +161,140 @@ export const ChannelManagement = () => {
         <input 
           type="text" 
           placeholder="Search channels..." 
-          className="w-full p-2 border border-border-custom rounded-lg"
+          className="w-full p-2 border border-border-custom rounded-lg bg-zinc-900 text-white"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
 
       {isImportModalOpen && (
-        <BatchChannelImport onClose={() => setIsImportModalOpen(false)} onImportComplete={fetchChannels} />
+        <BatchChannelImport onClose={() => setIsImportModalOpen(false)} onImportComplete={() => { fetchChannels(); broadcastChange('import'); }} />
       )}
-      <table className="w-full border-collapse">
-        <thead>
-          <tr className="border-b border-border-custom">
-            <th className="p-2 text-left">Name</th>
-            <th className="p-2 text-left">Category</th>
-            <th className="p-2 text-left">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredChannels.map(channel => (
-            <tr key={channel.id} className="border-b border-border-custom">
-              <td className="p-2">{channel.name}</td>
-              <td className="p-2">{channel.category}</td>
-              <td className="p-2 flex gap-2">
-                <button onClick={() => { setCurrentChannel(channel); setIsModalOpen(true); }} className="text-blue-500"><Edit2 className="w-4 h-4" /></button>
-                <button onClick={() => handleDelete(channel.id)} className="text-red-500"><Trash2 className="w-4 h-4" /></button>
-              </td>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="border-b border-border-custom text-zinc-400">
+              <th className="p-2 text-left text-sm font-medium">Name</th>
+              <th className="p-2 text-left text-sm font-medium">Category</th>
+              <th className="p-2 text-left text-sm font-medium">Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {filteredChannels.map(channel => (
+              <tr key={channel.id} className="border-b border-border-custom hover:bg-white/5 transition-colors">
+                <td className="p-2 text-sm font-medium text-white">{channel.name}</td>
+                <td className="p-2 text-sm text-zinc-400">
+                  <span className="px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded text-xs select-none">{channel.category}</span>
+                </td>
+                <td className="p-2 text-sm flex gap-2">
+                  <button onClick={() => { setCurrentChannel(channel); setIsModalOpen(true); }} className="text-blue-500 hover:text-blue-400 p-1 rounded hover:bg-blue-500/10 transition-colors" title="Edit"><Edit2 className="w-4 h-4" /></button>
+                  <button onClick={() => { setDeleteConfirmId(channel.id); setDeleteConfirmName(channel.name); }} className="text-red-500 hover:text-red-400 p-1 rounded hover:bg-red-500/10 transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                </td>
+              </tr>
+            ))}
+            {filteredChannels.length === 0 && (
+              <tr>
+                <td colSpan={3} className="text-center p-8 text-zinc-500 text-sm">No channels found</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
 
         {isModalOpen && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
-                <form onSubmit={handleSave} className="bg-background p-6 rounded-lg w-full max-w-lg border border-border-custom">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-bold">{currentChannel ? 'Edit Channel' : 'Add Channel'}</h3>
-                        <button onClick={() => setIsModalOpen(false)}><X/></button>
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-40">
+                <form onSubmit={handleSave} className="bg-zinc-950 p-6 rounded-xl w-full max-w-lg border border-zinc-800 shadow-2xl scrollbar-thin max-h-[90vh] overflow-y-auto">
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-lg font-bold text-white">{currentChannel ? 'Edit Channel' : 'Add Channel'}</h3>
+                        <button type="button" onClick={() => setIsModalOpen(false)} className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-zinc-800 transition-colors"><X className="w-5 h-5"/></button>
                     </div>
-                    <input name="name" placeholder="Name" defaultValue={currentChannel?.name} className="w-full p-2 mb-2 border rounded" required />
-                    <input name="category" placeholder="Category" defaultValue={currentChannel?.category} className="w-full p-2 mb-2 border rounded" required />
-                    <input name="url" placeholder="Source URL" defaultValue={currentChannel?.url} className="w-full p-2 mb-2 border rounded" required />
-                    <input name="country" placeholder="Country" defaultValue={currentChannel?.country} className="w-full p-2 mb-2 border rounded" />
-                    <input name="language" placeholder="Language" defaultValue={currentChannel?.language} className="w-full p-2 mb-2 border rounded" />
-                    <select name="stream_type" defaultValue={currentChannel?.stream_type} className="w-full p-2 mb-2 border rounded">
-                        <option value="HLS">HLS</option>
-                        <option value="DASH">DASH</option>
-                        <option value="MP4">MP4</option>
-                        <option value="embed">Embed</option>
-                    </select>
-                    <input name="epg_id" placeholder="EPG ID" defaultValue={currentChannel?.epg_id} className="w-full p-2 mb-2 border rounded" />
-                    <label className="flex items-center gap-2 mb-2">
-                        <input type="checkbox" name="is_active" defaultChecked={currentChannel?.is_active ?? true} /> Active
-                    </label>
-                    <label className="flex items-center gap-2 mb-2">
-                        <input type="checkbox" name="is_featured" defaultChecked={currentChannel?.is_featured ?? false} /> Featured
-                    </label>
-                    <button type="submit" className="w-full p-2 bg-primary text-white rounded">Save</button>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-xs font-semibold text-zinc-400 block mb-1">Channel Name *</label>
+                        <input name="name" placeholder="Channels TV" defaultValue={currentChannel?.name} className="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-primary text-sm" required />
+                      </div>
+                      
+                      <div>
+                        <label className="text-xs font-semibold text-zinc-400 block mb-1">Category *</label>
+                        <input name="category" placeholder="Nigeria" defaultValue={currentChannel?.category} className="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-primary text-sm" required />
+                      </div>
+                      
+                      <div>
+                        <label className="text-xs font-semibold text-zinc-400 block mb-1">Source URL (M3U8 HLS link or YouTube Video Link) *</label>
+                        <input name="url" placeholder="https://..." defaultValue={currentChannel?.url} className="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-primary text-sm" required />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-xs font-semibold text-zinc-400 block mb-1">Country</label>
+                          <input name="country" placeholder="Nigeria" defaultValue={currentChannel?.country} className="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-primary text-sm" />
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-zinc-400 block mb-1">Language</label>
+                          <input name="language" placeholder="English" defaultValue={currentChannel?.language} className="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-primary text-sm" />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-xs font-semibold text-zinc-400 block mb-1">Stream Format</label>
+                          <select name="stream_type" defaultValue={currentChannel?.stream_type || 'HLS'} className="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-primary text-sm">
+                              <option value="HLS">HLS (.m3u8)</option>
+                              <option value="DASH">DASH (.mpd)</option>
+                              <option value="MP4">MP4 (.mp4)</option>
+                              <option value="embed">Embed (Iframe)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-zinc-400 block mb-1">EPG ID (For Guide data)</label>
+                          <input name="epg_id" placeholder="e.g. channelstv" defaultValue={currentChannel?.epg_id} className="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-primary text-sm" />
+                        </div>
+                      </div>
+
+                      <div className="flex gap-6 pt-2">
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input type="checkbox" name="is_active" defaultChecked={currentChannel?.is_active ?? true} className="w-4 h-4 rounded border-zinc-800 text-primary focus:ring-primary focus:ring-offset-zinc-950" />
+                            <span className="text-sm font-medium text-zinc-300">Active (Visible in App)</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input type="checkbox" name="is_featured" defaultChecked={currentChannel?.is_featured ?? false} className="w-4 h-4 rounded border-zinc-800 text-primary focus:ring-primary focus:ring-offset-zinc-950" />
+                            <span className="text-sm font-medium text-zinc-300">Featured</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-zinc-900">
+                      <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-lg transition-all text-sm font-medium">Cancel</button>
+                      <button type="submit" className="px-5 py-2 bg-primary hover:bg-primary/95 text-white rounded-lg transition-all text-sm font-semibold shadow-lg active:scale-95">Save Channel</button>
+                    </div>
                 </form>
+            </div>
+        )}
+
+        {/* Custom Confirmation Modal for TV Channel Deletes */}
+        {deleteConfirmId && (
+            <div className="fixed inset-0 bg-black/65 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                <div className="bg-zinc-950 border border-zinc-800 p-6 rounded-xl w-full max-w-md shadow-2xl">
+                    <h3 className="text-lg font-bold text-white mb-2">Delete TV Channel</h3>
+                    <p className="text-sm text-zinc-400 mb-6">Are you sure you want to delete <span className="font-semibold text-zinc-200">"{deleteConfirmName}"</span>? This will permanently remove it from the live channel directory.</p>
+                    <div className="flex justify-end gap-3">
+                        <button 
+                          type="button"
+                          onClick={() => { setDeleteConfirmId(null); setDeleteConfirmName(''); }}
+                          className="px-4 py-2 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-lg transition-colors text-sm font-medium"
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={executeDelete}
+                          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm font-semibold active:scale-95 shadow-md shadow-red-950/20"
+                        >
+                          Delete Channel
+                        </button>
+                    </div>
+                </div>
             </div>
         )}
     </div>

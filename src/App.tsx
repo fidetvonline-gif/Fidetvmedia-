@@ -64,6 +64,20 @@ function AnalyticsTracker() {
 
     // Send telemetry before crash
     const sendTelemetry = async (message: string, stack?: string) => {
+      const msg = String(message || '').toLowerCase();
+      // Suppress benign media loading abort or autoplay interruption errors
+      if (
+        msg.includes('aborted') || 
+        msg.includes('abort') || 
+        msg.includes('fetching process') || 
+        msg.includes('media resource') || 
+        msg.includes('play()') || 
+        msg.includes('interrupted') || 
+        msg.includes('prevented') ||
+        msg.includes('ns_error_dom_media_abort_err')
+      ) {
+        return;
+      }
       try {
         await supabase.from('error_logs').insert({
           message: String(message).substring(0, 1000),

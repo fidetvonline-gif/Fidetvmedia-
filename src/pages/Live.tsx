@@ -64,6 +64,96 @@ export default function Live() {
   const channelRef = useRef<any>(null);
   const isSharingRef = useRef(false);
 
+  const isFideTvLive = event ? event.status === 'live' : true;
+  const isFideTvUpcoming = event ? event.status === 'upcoming' : false;
+
+  const [fallbackStreamUrl, setFallbackStreamUrl] = useState('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4');
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      const { data } = await supabase.from('site_settings').select('*');
+      if (data) {
+        const fallback = data.find(s => s.key === 'fidetv_fallback_url')?.value;
+        if (fallback) setFallbackStreamUrl(fallback);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  const customBroadcast = React.useMemo(() => {
+    return {
+      id: 'fidetv',
+      name: event?.title || 'FideTV Official Broadcast',
+      category: 'Official',
+      url: event?.youtube_id 
+        ? (event.youtube_id.includes('http') || event.youtube_id.includes('<iframe') 
+            ? event.youtube_id 
+            : `https://www.youtube.com/watch?v=${event.youtube_id}`)
+        : (event?.stream_url || fallbackStreamUrl),
+      thumbnail: event?.thumbnail_url || fidetvWorldCup,
+      description: event?.description || 'Watch premium official FideTV broadcasts live and exclusively.',
+      isLive: isFideTvLive,
+      icon: Tv,
+      logo: undefined as string | undefined,
+    };
+  }, [event, isFideTvLive, fallbackStreamUrl]);
+
+  const allChannels = React.useMemo(() => {
+    const dynamic = dbChannels
+      .filter((ch: any) => ch.is_active !== false)
+      .map((ch: any) => {
+        // Self-healing: If DB has stale/unstable URLs for these specific channels,
+        // we use the verified mirrors from DEFAULT_CHANNELS instead.
+        const verifiedMatch = DEFAULT_CHANNELS.find(d => 
+          d.id === ch.id || 
+          d.name.toLowerCase() === ch.name.toLowerCase()
+        );
+
+        const isUnstable = ch.url?.includes('sh-cdn.com') || 
+                          ch.url?.includes('afrosportnow.com') || 
+                          ch.url?.includes('limexltd.com');
+
+        return {
+          id: ch.id,
+          name: ch.name,
+          category: ch.category || 'General',
+          thumbnail: ch.thumbnail,
+          url: (isUnstable && verifiedMatch) ? verifiedMatch.url : ch.url,
+          icon: Tv,
+          logo: ch.logo,
+          description: ch.description || 'Watch live broadcast stream.',
+          isLive: ch.is_active ?? true
+        };
+      });
+    
+    const merged = [...dynamic];
+
+    if (directStreamUrl) {
+      merged.unshift({
+        id: 'direct_obs_stream',
+        name: 'Direct OBS Stream',
+        category: 'Pro Member',
+        thumbnail: 'https://images.unsplash.com/photo-1540655037529-dec987208707?auto=format&fit=crop&q=80&w=800',
+        url: directStreamUrl,
+        icon: Video,
+        description: 'Direct live stream from OBS Studio.',
+        isLive: true,
+        isDirect: true
+      } as any);
+    }
+    
+    // Fallback logic removed to give Admin full control over the database content.
+    // If the database is empty, the channel list will be empty.
+    
+    // Sort consistently but including the custom broadcast
+    const result = [customBroadcast, ...merged].sort((a, b) => {
+       if (a.id === 'fidetv') return -1;
+       if (b.id === 'fidetv') return 1;
+       return a.name.localeCompare(b.name);
+    });
+    return result;
+  }, [dbChannels, customBroadcast, directStreamUrl]);
+
   const handleLike = () => {
     if (hasLiked) return;
     setHasLiked(true);
@@ -122,16 +212,12 @@ export default function Live() {
     setIsPlaying(true);
     setIsMuted(false);
 
-    const isEmbed = activeChannelId === 'fidetv' 
-      ? customBroadcast.url?.includes('<iframe') 
-      : dbChannels.find((ch: any) => ch.id === activeChannelId)?.url?.includes('<iframe');
+    const activeCh = allChannels.find(c => c.id === activeChannelId) || customBroadcast;
+    const isEmbed = activeCh?.url?.includes('<iframe');
 
     const delay = isEmbed ? 200 : 2500;
 
-    checkStreamSignal(activeChannelId === 'fidetv' 
-      ? customBroadcast.url 
-      : dbChannels.find((ch: any) => ch.id === activeChannelId)?.url
-    );
+    checkStreamSignal(activeCh?.url || '');
 
     // Safety timeout: if player takes too long to signal ready, hide overlay anyway
     // so user can see if there's a play button or interaction needed
@@ -140,7 +226,7 @@ export default function Live() {
     }, delay);
 
     return () => clearTimeout(safetyTimer);
-  }, [activeChannelId]);
+  }, [activeChannelId, allChannels, customBroadcast]);
 
   const handlePlayerError = (e: any) => {
     console.log('[DEBUG] handlePlayerError received:', e);
@@ -151,19 +237,37 @@ export default function Live() {
 
     // Attempt to extract error from event target
     const errorTarget = e?.target as HTMLVideoElement;
-    const mediaError = errorTarget?.error;
+    const mediaError = errorTarget?.error || e?.error;
     
-    // Check for MEDIA_ERR_ABORTED (code 1)
-    if (mediaError?.code === 1) {
+    // Check for MEDIA_ERR_ABORTED (code 1) or any code indicating abort
+    if (mediaError?.code === 1 || e?.code === 1 || e?.error?.code === 1) {
+      console.log('[DEBUG] Ignoring MEDI_ERR_ABORTED (code 1)');
       return;
     }
 
     console.error('Player error:', e);
     // Extract message
-    const errMsg = (e?.message || mediaError?.message || e?.toString() || '').toLowerCase();
+    const errMsg = (
+      e?.message || 
+      mediaError?.message || 
+      e?.target?.error?.message || 
+      (typeof e === 'string' ? e : '') ||
+      e?.toString() || 
+      ''
+    ).toLowerCase();
     
     // Ignore benign errors
-    if (errMsg.includes('aborted') || errMsg.includes('interrupted') || errMsg.includes('ns_error_dom_media_abort_err')) {
+    if (
+      errMsg.includes('aborted') || 
+      errMsg.includes('abort') || 
+      errMsg.includes('fetching process') || 
+      errMsg.includes('media resource') || 
+      errMsg.includes('interrupted') || 
+      errMsg.includes('ns_error_dom_media_abort_err') ||
+      errMsg.includes('play()') ||
+      errMsg.includes('prevented')
+    ) {
+      console.log('[DEBUG] Ignoring suppressed benign media error:', errMsg);
       return;
     }
     
@@ -242,59 +346,66 @@ export default function Live() {
       .order('status', { ascending: false }) // live first
       .order('start_time', { ascending: true });
 
-    let currentEvent = null;
     if (eventsData && eventsData.length > 0) {
       setEvents(eventsData as Event[]);
-      currentEvent = eventsData.find(e => e.status === 'live') || eventsData[0];
+      const currentEvent = eventsData.find(e => e.status === 'live') || eventsData[0];
       setEvent(currentEvent);
       
       if (currentEvent.youtube_id) {
         fetchYouTubeStats(currentEvent.youtube_id).then(setYtStats).catch(console.error);
       }
       fetchRecentUploads('UC_x5XG1OV2P6uZZ5FSM9Ttw', signal).then(setRecentUploads).catch(console.error);
+    } else {
+      setEvents([]);
+      setEvent(null);
+      setYtStats(null);
+      setRecentUploads([]);
     }
     
     // Fetch custom TV Channels with fallback and safety checks
     try {
       console.log('[Live] Fetching channels...');
-      const { data: channelsData, error: channelsError } = await supabase
-        .from('tv_channels')
-        .select('*')
-        .order('order_index', { ascending: true })
-        .order('created_at', { ascending: false });
+      const [channelsRes, stableRes] = await Promise.all([
+        supabase
+          .from('tv_channels')
+          .select('*')
+          .order('order_index', { ascending: true })
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('stable_channels')
+          .select('*')
+          .order('created_at', { ascending: false })
+      ]);
         
-      console.log('[Live] Channels fetched:', channelsData);
+      const channelsData = [...(channelsRes.data || []), ...(stableRes.data || [])];
         
-      if (!channelsError && channelsData) {
+
+        
+      if (channelsData.length > 0) {
         setDbChannels(channelsData);
         
         const queryParams = new URLSearchParams(window.location.search);
         const urlChannelId = queryParams.get('channel');
         
         // Ensure activeChannelId is valid if it was set
-        if (urlChannelId) {
+        const channelExists = channelsData.some((c: any) => c.id === urlChannelId);
+        if (urlChannelId && (urlChannelId === 'fidetv' || channelExists)) {
           setActiveChannelId(urlChannelId);
         } else {
           setActiveChannelId(currentActiveId => {
-            // If the current active channel is no longer in the list (unless it's 'fidetv'), reset it
             const currentExists = channelsData.some((c: any) => c.id === currentActiveId);
-            
-            if (currentActiveId !== 'fidetv' && !currentExists) {
-              console.log('[Live] Current active channel was removed, resetting to default');
-              if (currentEvent?.status === 'live') {
-                return 'fidetv';
-              } else {
-                const liveDbChannel = channelsData.find((c: any) => c.is_active);
-                if (liveDbChannel) {
-                  return liveDbChannel.id;
-                } else if (channelsData.length > 0 && !currentEvent) {
-                  return channelsData[0].id;
-                } else {
-                  return 'fidetv';
-                }
-              }
+            if (currentActiveId === 'fidetv' || currentExists) {
+              return currentActiveId;
             }
-            return currentActiveId;
+            console.log('[Live] Current active channel was removed, resetting to default');
+            const liveDbChannel = channelsData.find((c: any) => c.is_active);
+            if (liveDbChannel) {
+              return liveDbChannel.id;
+            } else if (channelsData.length > 0) {
+              return channelsData[0].id;
+            } else {
+              return 'fidetv';
+            }
           });
         }
       } else {
@@ -457,99 +568,6 @@ export default function Live() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
-
-  const isFideTvLive = event ? event.status === 'live' : true;
-  const isFideTvUpcoming = event ? event.status === 'upcoming' : false;
-
-  const customBroadcast = React.useMemo(() => {
-    return {
-      id: 'fidetv',
-      name: event?.title || 'ALL WORLD CUP MATCHES LIVE & FOR FREE',
-      category: 'World Cup',
-      url: event?.youtube_id 
-        ? (event.youtube_id.includes('http') || event.youtube_id.includes('<iframe') 
-            ? event.youtube_id 
-            : `https://www.youtube.com/watch?v=${event.youtube_id}`)
-        : (event?.stream_url || 'https://fifa-fifaplus-5-us.ottera.tv/playlist.m3u8'),
-      thumbnail: event?.thumbnail_url || fidetvWorldCup,
-      description: event?.description || 'Watch all World Cup matches live, for free, and exclusively on FideTV.online.',
-      isLive: isFideTvLive,
-      icon: Tv,
-      logo: undefined as string | undefined,
-    };
-  }, [event, isFideTvLive]);
-
-  const allChannels = React.useMemo(() => {
-    const dynamic = dbChannels
-      .filter((ch: any) => ch.is_active !== false)
-      .map((ch: any) => {
-        // Self-healing: If DB has stale/unstable URLs for these specific channels,
-        // we use the verified mirrors from DEFAULT_CHANNELS instead.
-        const verifiedMatch = DEFAULT_CHANNELS.find(d => 
-          d.id === ch.id || 
-          d.name.toLowerCase() === ch.name.toLowerCase()
-        );
-
-        const isUnstable = ch.url?.includes('sh-cdn.com') || 
-                          ch.url?.includes('afrosportnow.com') || 
-                          ch.url?.includes('limexltd.com');
-
-        return {
-          id: ch.id,
-          name: ch.name,
-          category: ch.category || 'General',
-          thumbnail: ch.thumbnail,
-          url: (isUnstable && verifiedMatch) ? verifiedMatch.url : ch.url,
-          icon: Tv,
-          logo: ch.logo,
-          description: ch.description || 'Watch live broadcast stream.',
-          isLive: ch.is_active ?? true
-        };
-      });
-    
-    const merged = [...dynamic];
-
-    if (directStreamUrl) {
-      merged.unshift({
-        id: 'direct_obs_stream',
-        name: 'Direct OBS Stream',
-        category: 'Pro Member',
-        thumbnail: 'https://images.unsplash.com/photo-1540655037529-dec987208707?auto=format&fit=crop&q=80&w=800',
-        url: directStreamUrl,
-        icon: Video,
-        description: 'Direct live stream from OBS Studio.',
-        isLive: true,
-        isDirect: true
-      } as any);
-    }
-    
-    // Only add DEFAULT_CHANNELS if the database is empty. 
-    // This allows the admin dashboard to have full control over the list.
-    if (dbChannels.length === 0) {
-      DEFAULT_CHANNELS.forEach(defCh => {
-        if (!merged.some(m => m.id === defCh.id || m.name.toLowerCase() === defCh.name.toLowerCase())) {
-          merged.push({
-            id: defCh.id,
-            name: defCh.name,
-            category: defCh.category,
-            thumbnail: defCh.thumbnail,
-            url: defCh.url,
-            icon: defCh.icon || Tv,
-            logo: undefined,
-            description: defCh.description,
-            isLive: defCh.isLive
-          });
-        }
-      });
-    }
-    
-    // Sort consistently but including the custom broadcast
-    return [customBroadcast, ...merged].sort((a, b) => {
-       if (a.id === 'fidetv') return -1;
-       if (b.id === 'fidetv') return 1;
-       return a.name.localeCompare(b.name);
-     });
-  }, [dbChannels, customBroadcast]);
 
   const activeChannelUrl = React.useMemo(() => {
     const activeCh = allChannels.find(c => c.id === activeChannelId) || customBroadcast;
