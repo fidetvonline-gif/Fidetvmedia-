@@ -712,8 +712,8 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
           setParticipants(joinedList.sort((a, b) => b.joinedAt - a.joinedAt));
       })
       .on('broadcast', { event: 'webrtc-signal' }, async ({ payload }) => {
-        const { senderId, signal } = payload;
-        await handleWebRtcSignal(senderId, signal);
+        const { senderId, targetId, signal } = payload;
+        await handleWebRtcSignal(senderId, signal, targetId);
       })
       .on('broadcast', { event: 'moderator-action' }, (payload: { action: string; targetId: string }) => {
         const { action, targetId } = payload;
@@ -1013,13 +1013,16 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
 
       // 1. Set ontrack FIRST
       pc.ontrack = async (event) => {
-        console.log(`[DEBUG] VoiceRoom: Received track from ${remoteUserId}:`, event.track.kind);
-        const remoteStream = event.streams[0] || new MediaStream([event.track]);
+        const stream = event.streams[0] || new MediaStream([event.track]);
+        console.log(`[WEBRTC] Received remote track from ${remoteUserId}: ${event.track.kind} (${event.track.id})`, {
+          streamId: stream.id,
+          numTracks: stream.getTracks().length
+        });
         
         if (event.track.kind === 'video') {
           setRemoteVideoStreams(prev => ({
             ...prev,
-            [remoteUserId]: remoteStream
+            [remoteUserId]: stream
           }));
         } else if (event.track.kind === 'audio') {
           let audioEl = document.getElementById(`audio-${remoteUserId}`) as HTMLAudioElement;
@@ -1029,45 +1032,68 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
             audioEl.autoplay = true;
             audioEl.setAttribute('playsinline', 'true');
             audioEl.preload = 'auto';
+            audioEl.setAttribute('data-peer-id', remoteUserId);
             
             if (selectedOutputId && 'setSinkId' in HTMLMediaElement.prototype) {
               try {
                 (audioEl as any).setSinkId(selectedOutputId);
               } catch (err) {
-                console.warn('VoiceRoom: Error setting initial sink ID', err);
+                console.warn('[WEBRTC] Error setting initial sink ID', err);
               }
             }
             
             document.body.appendChild(audioEl);
+            console.log(`[WEBRTC] Created new audio element for peer ${remoteUserId}`);
           }
           
-          if (audioEl.srcObject !== remoteStream) {
-            audioEl.srcObject = remoteStream;
+          if (audioEl.srcObject !== stream) {
+            audioEl.srcObject = stream;
+            console.log(`[WEBRTC] Attached stream to audio element for ${remoteUserId}`);
           }
-          audioEl.muted = !isSpeakerOnRef.current;
           
-          try {
-            if (audioEl.paused) {
-              await audioEl.play();
+          audioEl.muted = false; 
+          audioEl.volume = isSpeakerOnRef.current ? 1.0 : 0.0;
+          
+          const playWithRetry = async () => {
+            try {
+              if (audioEl.paused) {
+                await audioEl.play();
+                console.log(`[WEBRTC] Audio playback started for peer ${remoteUserId}`);
+              }
+            } catch (e: any) {
+              console.warn(`[WEBRTC] Playback prevented for ${remoteUserId}. Audio state: ${audioContextRef.current?.state}`, e);
+              // Retry once after a delay if context is suspended
+              if (audioContextRef.current?.state === 'suspended') {
+                 setTimeout(() => playWithRetry(), 1000);
+              }
             }
-          } catch (e: any) {
-            if (e.name !== 'AbortError') {
-              console.warn('VoiceRoom: Autoplay prevented for remote user:', remoteUserId, e);
-            }
-          }
+          };
+          
+          playWithRetry();
         }
       };
 
       // 2. Monitor ICE connection state changes
       pc.oniceconnectionstatechange = () => {
-        console.log(`[DEBUG] VoiceRoom: ICE state with ${remoteUserId}: ${pc.iceConnectionState}`);
+        const state = pc.iceConnectionState;
+        console.log(`[WEBRTC] ICE connection state with ${remoteUserId}: ${state}`);
+        if (state === 'failed') {
+          pc.restartIce();
+        }
         setParticipants(prev => [...prev]);
       };
 
+      pc.onconnectionstatechange = () => {
+        console.log(`[WEBRTC] Peer connection state with ${remoteUserId}: ${pc.connectionState}`);
+      };
+
       // 3. Add local tracks
-      localStream.getTracks().forEach(track => {
-        pc.addTrack(track, localStream);
-      });
+      if (localStream) {
+        console.log(`[WEBRTC] Adding ${localStream.getTracks().length} tracks to PC for ${remoteUserId}`);
+        localStream.getTracks().forEach(track => {
+          pc.addTrack(track, localStream);
+        });
+      }
 
       // 4. Handle ICE candidate negotiation
       pc.onicecandidate = (event) => {
@@ -1129,7 +1155,9 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
   useEffect(() => {
     const audioElements = document.querySelectorAll('audio');
     audioElements.forEach((audio: any) => {
-      audio.muted = !isSpeakerOn;
+      // Instead of muting the element (which some browsers use to block playback entirely), 
+      // we toggle volume and rely on isSpeakerOn state.
+      audio.volume = isSpeakerOn ? 1.0 : 0.0;
       if (isSpeakerOn && audio.paused) {
         audio.play().catch((e: any) => {
           if (e.name !== 'AbortError') console.warn('Sync play failed:', e);
@@ -1138,15 +1166,15 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
     });
   }, [isSpeakerOn]);
 
-  const handleWebRtcSignal = async (senderId: string, signal: any) => {
+  const handleWebRtcSignal = async (senderId: string, signal: any, targetId: string) => {
     if (!userProfile) return;
-    const { targetId } = signal;
     
     // Ensure this signaling is addressed to us
     if (targetId !== userProfile.id) return;
 
     let pc = peerConnectionsRef.current[senderId];
     if (!pc) {
+      console.log(`[WEBRTC] Initializing passive connection for ${senderId} from signal`);
       if (!localStreamRef.current) {
         await startLocalAudio();
       }
@@ -1155,42 +1183,69 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
 
     try {
       if (signal.sdp) {
-        const offerCollision = signal.sdp.type === 'offer' && 
+        const description = new RTCSessionDescription(signal.sdp);
+        const offerCollision = (description.type === 'offer') && 
                              (makingOfferRef.current[senderId] || pc.signalingState !== 'stable');
         
         const isPolite = userProfile.id > senderId;
         ignoreOfferRef.current[senderId] = !isPolite && offerCollision;
         
-        if (ignoreOfferRef.current[senderId]) return;
+        if (ignoreOfferRef.current[senderId]) {
+          console.log(`[WEBRTC] Ignoring offer collision from ${senderId} (I am impolite)`);
+          return;
+        }
 
-        await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+        if (offerCollision) {
+          console.log(`[WEBRTC] Handling offer collision from ${senderId} (I am polite, rolling back)`);
+          await Promise.all([
+            pc.setLocalDescription({ type: 'rollback' } as any),
+            pc.setRemoteDescription(description)
+          ]);
+        } else {
+          console.log(`[WEBRTC] Setting remote description from ${senderId} (${description.type})`);
+          await pc.setRemoteDescription(description);
+        }
         
-        if (signal.sdp.type === 'offer') {
+        if (description.type === 'offer') {
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
+          console.log(`[WEBRTC] Sending answer to ${senderId}`);
           sendWebRtcSignal(senderId, { sdp: pc.localDescription });
         }
 
         // Process any buffered candidates now that the description is set
         const buffer = iceCandidateBufferRef.current[senderId] || [];
-        for (const candidate of buffer) {
-          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        if (buffer.length > 0) {
+          console.log(`[WEBRTC] Processing ${buffer.length} buffered candidates for ${senderId}`);
+          for (const candidate of buffer) {
+            try {
+              await pc.addIceCandidate(new RTCIceCandidate(candidate));
+            } catch (e) {
+              console.warn(`[WEBRTC] Error adding buffered candidate for ${senderId}`, e);
+            }
+          }
+          iceCandidateBufferRef.current[senderId] = [];
         }
-        iceCandidateBufferRef.current[senderId] = [];
 
       } else if (signal.candidate) {
+        const candidate = new RTCIceCandidate(signal.candidate);
         if (pc.remoteDescription && pc.remoteDescription.type) {
-          await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+          try {
+            await pc.addIceCandidate(candidate);
+          } catch (e) {
+            console.warn(`[WEBRTC] Error adding candidate for ${senderId}`, e);
+          }
         } else {
           // Buffer candidate until remote description arrives
+          console.log(`[WEBRTC] Buffering candidate from ${senderId}`);
           if (!iceCandidateBufferRef.current[senderId]) {
             iceCandidateBufferRef.current[senderId] = [];
           }
           iceCandidateBufferRef.current[senderId].push(signal.candidate);
         }
       }
-    } catch (e) {
-      console.error('WebRTC signaling error:', e);
+    } catch (err) {
+      console.error(`[WEBRTC] Signaling error with ${senderId}:`, err);
     }
   };
   const handleRaiseHand = () => {
@@ -1251,7 +1306,7 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
     // Mute or unmute all remote audio tags using exhaustive selector
     const audioElements = document.querySelectorAll('audio');
     audioElements.forEach((audio: any) => {
-      audio.muted = !nextSpeakerState;
+      audio.volume = nextSpeakerState ? 1.0 : 0.0;
       if (nextSpeakerState && audio.paused) {
         audio.play().catch((e: any) => console.warn('Toggle play failed:', e));
       }
