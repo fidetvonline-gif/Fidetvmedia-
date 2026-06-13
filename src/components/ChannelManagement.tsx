@@ -131,9 +131,15 @@ export const ChannelManagement = () => {
         const metadata = await res.json();
         
         // Auto-fill fields if they are empty
-        if (metadata.title && (!channelName || channelName === '')) setChannelName(metadata.title);
+        if (metadata.title && (!channelName || channelName === '')) {
+          setChannelName(metadata.title);
+          showToast(`Auto-fetched: ${metadata.title}`, 'success');
+        }
         if (metadata.thumbnail) setCurrentThumbnail(metadata.thumbnail);
         if (metadata.channelTitle && (!category || category === '')) setCategory(metadata.channelTitle);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        console.warn('Failed to auto-fetch YT metadata', errData.error);
       }
     } catch (err) {
       console.warn('Failed to auto-fetch YT metadata', err);
@@ -148,7 +154,7 @@ export const ChannelManagement = () => {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('bucket', 'thumbnails');
+      formData.append('bucket', 'event-thumbnails');
 
       const response = await fetch('/api/storage/upload', {
         method: 'POST',

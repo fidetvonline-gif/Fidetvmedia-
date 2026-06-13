@@ -872,15 +872,45 @@ export default function Admin() {
     if (!e.target.files?.[0]) return;
     setUploading(true);
     const file = e.target.files[0];
-    const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true });
-    if (!error) {
-       const url = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
-       callback(url + '?t=' + Date.now());
-    } else {
-       console.error("Upload error:", error);
-       alert(`Upload error: ${error.message}`);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('bucket', bucket);
+      
+      const response = await fetch('/api/storage/upload', {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: formData,
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        const text = await response.text();
+        console.error("Non-JSON upload response:", text);
+        
+        if (text.includes('Cookie check') || text.includes('redirectToReturnUrl')) {
+          throw new Error("Authentication interaction required by platform. Please refresh the page and try again.");
+        }
+        
+        try {
+          const errorData = JSON.parse(text);
+          throw new Error(errorData.error || `Server error: ${response.status}`);
+        } catch (e) {
+          throw new Error(`Server returned invalid response (${response.status}).`);
+        }
+      }
+      
+      const { publicUrl } = await response.json();
+      callback(publicUrl + '?t=' + Date.now());
+    } catch (err: any) {
+       console.error("Upload error:", err);
+       alert(`Upload error: ${err.message}`);
+    } finally {
+       setUploading(false);
     }
-    setUploading(false);
   };
 
   const fetchEvents = async () => {

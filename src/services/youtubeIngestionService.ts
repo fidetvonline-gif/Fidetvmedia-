@@ -26,9 +26,29 @@ export class YouTubeIngestionService {
    */
   public static extractVideoId(url: string): string | null {
     if (!url) return null;
-    const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+    
+    // Support standard watch?v=, short youtu.be, embed/, v/, live/, shorts/
+    const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?v=)|(live\/)|(shorts\/)|(watch\?))\??v?=?([^#&?]*).*/;
     const match = url.match(regExp);
-    return (match && match[7].length === 11) ? match[7] : null;
+    
+    if (match && match[match.length - 1].length === 11) {
+      return match[match.length - 1];
+    }
+    
+    // Fallback for simple URL paths if regex missed it
+    try {
+      const urlObj = new URL(url);
+      if (urlObj.hostname.includes('youtube.com')) {
+        if (urlObj.pathname.startsWith('/live/') || urlObj.pathname.startsWith('/shorts/')) {
+          return urlObj.pathname.split('/')[2];
+        }
+        return urlObj.searchParams.get('v');
+      } else if (urlObj.hostname === 'youtu.be') {
+        return urlObj.pathname.slice(1);
+      }
+    } catch (e) {}
+    
+    return null;
   }
 
   /**

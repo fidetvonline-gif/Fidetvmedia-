@@ -186,9 +186,11 @@ async function startServer() {
       const { bucket = "thumbnails" } = req.body;
       
       if (!file) {
-        console.warn("[Storage] No file in request");
+        console.warn("[Storage] No file in request. Body keys:", Object.keys(req.body));
         return res.status(400).json({ error: "No file provided for upload" });
       }
+
+      console.log(`[Storage] Processing upload. File: ${file.originalname}, Size: ${file.size}, Bucket: ${bucket}`);
 
       // Generate a cleaner filename with extension from mimetype if originalname is generic
       let ext = file.originalname.split('.').pop() || '';
