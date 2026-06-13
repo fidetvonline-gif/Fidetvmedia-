@@ -311,11 +311,13 @@ export default function Live() {
       channel = supabase
         .channel(channelName)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, payload => {
+          console.log('[Live] Event change received:', payload);
           if (fetchControllerRef.current) fetchControllerRef.current.abort();
           fetchControllerRef.current = new AbortController();
           fetchLiveEventData(fetchControllerRef.current.signal);
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'tv_channels' }, payload => {
+          console.log('[Live] Channel change received:', payload);
           if (fetchControllerRef.current) fetchControllerRef.current.abort();
           fetchControllerRef.current = new AbortController();
           fetchLiveEventData(fetchControllerRef.current.signal);

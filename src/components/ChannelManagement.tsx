@@ -55,7 +55,7 @@ export const ChannelManagement = () => {
             alert("Update failed: " + error.message);
             return;
         }
-        console.log("Updated data:", updatedData);
+        console.log("Updated channel successfully:", updatedData);
     } else {
         const { error, data: insertedData } = await supabase.from('tv_channels').insert(channelData).select();
         if (error) {
@@ -63,7 +63,7 @@ export const ChannelManagement = () => {
             alert("Insert failed: " + error.message);
             return;
         }
-        console.log("Inserted data:", insertedData);
+        console.log("Inserted channel successfully:", insertedData);
     }
     
     setIsModalOpen(false);
