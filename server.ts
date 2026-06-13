@@ -11,7 +11,7 @@ import multer from "multer";
 dotenv.config();
 
 const upload = multer({ 
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
   storage: multer.memoryStorage()
 });
 
@@ -388,6 +388,47 @@ async function startServer() {
     try {
       const report = await youtubeIngestion.runDiscoveryCycle();
       res.json(report);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  apiRouter.post("/channels/sync-thumbnails", async (req, res) => {
+    try {
+      const adminClient = getSupabaseAdmin();
+      if (!adminClient) throw new Error("Supabase Admin not configured");
+
+      const { data: channels, error: fetchError } = await adminClient
+        .from('tv_channels')
+        .select('id, url, thumbnail, name');
+
+      if (fetchError) throw fetchError;
+
+      let updatedCount = 0;
+      let errors = [];
+
+      for (const channel of channels) {
+        const videoId = YouTubeIngestionService.extractVideoId(channel.url);
+        if (videoId) {
+          try {
+            const metadata = await youtubeIngestion.getVideoMetadata(videoId);
+            if (metadata && metadata.thumbnail) {
+               const { error: updateError } = await adminClient
+                .from('tv_channels')
+                .update({ thumbnail: metadata.thumbnail })
+                .eq('id', channel.id);
+               
+               if (updateError) throw updateError;
+               updatedCount++;
+            }
+          } catch (e: any) {
+            console.error(`[Sync] Error updating ${channel.name}:`, e.message);
+            errors.push({ id: channel.id, name: channel.name, error: e.message });
+          }
+        }
+      }
+
+      res.json({ success: true, updatedCount, totalChannels: channels.length, errors });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

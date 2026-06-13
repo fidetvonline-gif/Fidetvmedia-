@@ -1395,12 +1395,14 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
       const response = await fetch('/api/voice-assistant', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
         },
         body: JSON.stringify({
           text: promptText,
           participants: activeUsernames
-        })
+        }),
+        credentials: 'include'
       });
 
       const data = await response.json();
@@ -1447,12 +1449,14 @@ Keep the tone inspiring, strategic, and professional.`;
       const response = await fetch('/api/voice-assistant', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
         },
         body: JSON.stringify({
           text: promptText,
           participants: activeUsernames
-        })
+        }),
+        credentials: 'include'
       });
       const data = await response.json();
       if (data && data.text) {

@@ -258,14 +258,14 @@ export default function Home() {
     const smedan = supabase.storage.from('event-thumbnails').getPublicUrl('smedan_certificate').data.publicUrl;
       
     try {
-      const resCac = await fetch(cac, { method: 'HEAD' });
+      const resCac = await fetch(cac, { method: 'HEAD', credentials: 'include' });
       if (resCac.ok) {
         setCertUrl(cac + '?t=' + Date.now());
       }
     } catch (e) {}
 
     try {
-      const resSmedan = await fetch(smedan, { method: 'HEAD' });
+      const resSmedan = await fetch(smedan, { method: 'HEAD', credentials: 'include' });
       if (resSmedan.ok) {
         setSmedanUrl(smedan + '?t=' + Date.now());
       }

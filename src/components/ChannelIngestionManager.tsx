@@ -28,7 +28,10 @@ export const ChannelIngestionManager = () => {
 
   const fetchDiscoveryReport = async () => {
     try {
-      const response = await fetch('/api/youtube/discovery-report');
+      const response = await fetch('/api/youtube/discovery-report', {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'include'
+      });
       const data = await response.json();
       if (!data.error) {
         setDiscoveryReport(data);
@@ -41,7 +44,11 @@ export const ChannelIngestionManager = () => {
   const triggerDiscovery = async () => {
     setTriggeringDiscovery(true);
     try {
-      const response = await fetch('/api/youtube/trigger-discovery', { method: 'POST' });
+      const response = await fetch('/api/youtube/trigger-discovery', { 
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'include'
+      });
       const data = await response.json();
       setDiscoveryReport(data);
       alert('YouTube discovery cycle complete!');
@@ -55,7 +62,10 @@ export const ChannelIngestionManager = () => {
 
   const fetchDiscoveredChannels = async () => {
     try {
-      const response = await fetch('/api/channels/discovered');
+      const response = await fetch('/api/channels/discovered', {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'include'
+      });
       const data = await response.json();
       if (Array.isArray(data)) {
         setChannels(data);
@@ -75,8 +85,12 @@ export const ChannelIngestionManager = () => {
     try {
       const response = await fetch('/api/channels/ingest', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newChannel)
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest' 
+        },
+        body: JSON.stringify(newChannel),
+        credentials: 'include'
       });
       if (response.ok) {
         setNewChannel({ name: '', url: '', category: 'General' });
@@ -95,7 +109,11 @@ export const ChannelIngestionManager = () => {
   const triggerHealthCheck = async () => {
     setChecking(true);
     try {
-      await fetch('/api/channels/trigger-check', { method: 'POST' });
+      await fetch('/api/channels/trigger-check', { 
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'include'
+      });
       // Wait a bit for the worker to start working
       setTimeout(fetchDiscoveredChannels, 2000);
     } catch (err) {

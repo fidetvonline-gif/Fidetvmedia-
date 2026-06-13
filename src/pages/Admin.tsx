@@ -157,9 +157,12 @@ export default function Admin() {
   // Auto-fetch YouTube metadata for channels
   useEffect(() => {
     const fetchYtMetadata = async () => {
-      if (activeTab === 'channels' && streamUrl && (streamUrl.includes('youtube.com') || streamUrl.includes('youtu.be')) && !imageUrl) {
+      if (activeTab === 'channels' && streamUrl && (streamUrl.includes('youtube.com') || streamUrl.includes('youtu.be'))) {
         try {
-          const res = await fetch(`/api/youtube/metadata?url=${encodeURIComponent(streamUrl)}`);
+          const res = await fetch(`/api/youtube/metadata?url=${encodeURIComponent(streamUrl)}`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'include'
+          });
           if (res.ok) {
             const data = await res.json();
             if (data.thumbnail) setImageUrl(data.thumbnail);
@@ -1098,9 +1101,11 @@ export default function Admin() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ userId })
+        body: JSON.stringify({ userId }),
+        credentials: 'include'
       });
 
       const text = await response.text();
@@ -2465,10 +2470,11 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
               )}
 
               {/* Stats Bar */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
                 {[
                   { label: 'Site Visits', value: visitCount, icon: Eye },
                   { label: 'Active Streams', value: events.filter(e => e.status === 'live').length, icon: Radio },
+                  { label: 'TV Channels', value: channels.length, icon: Tv },
                   { label: 'Total Users', value: profiles.length, icon: ShieldCheck },
                   { label: 'Communities', value: communities.length, icon: Users },
                   { label: 'Pending Bookings', value: bookings.filter(b => b.status === 'pending').length, icon: BookOpen },
@@ -2568,7 +2574,43 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                 <ReferralAnalytics />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  <div className="bg-surface p-8 sm:p-10 rounded-[3rem] border border-border-custom space-y-8 shadow-sm">
+                      <div className="flex items-center justify-between border-b border-border-custom pb-6">
+                        <h2 className="text-xl font-display font-bold text-foreground flex items-center gap-3">
+                           <Tv className="w-5 h-5 text-primary" />
+                           Recent Channels
+                        </h2>
+                        <span className="text-[10px] font-black text-primary/80 uppercase tracking-widest bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
+                          {channels.length} Total
+                        </span>
+                      </div>
+                      <div className="space-y-4">
+                         {channels.slice(0, 5).map(channel => (
+                           <div key={channel.id} className="flex items-center justify-between p-4 bg-background rounded-2xl border border-border-custom shadow-inner group">
+                              <div className="flex items-center gap-4">
+                                 <div className="w-10 h-10 bg-surface rounded-xl flex items-center justify-center border border-border-custom shadow-sm overflow-hidden">
+                                    {channel.thumbnail ? <img src={channel.thumbnail} className="w-full h-full object-cover" /> : <Tv className="w-5 h-5 text-foreground/20" />}
+                                 </div>
+                                 <div className="flex flex-col">
+                                    <span className="font-bold text-foreground text-sm tracking-tight line-clamp-1">{channel.name}</span>
+                                    <span className="text-[9px] uppercase font-black text-foreground/20 tracking-widest italic">{channel.category}</span>
+                                 </div>
+                              </div>
+                              <button onClick={() => setActiveTab('channels')} className="p-2 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary hover:text-white transition-all shadow-sm">
+                                <Plus className="w-4 h-4" />
+                              </button>
+                           </div>
+                         ))}
+                         {channels.length === 0 && (
+                            <div className="py-20 text-center bg-background rounded-[2rem] border border-dashed border-border-custom shadow-inner flex flex-col items-center justify-center space-y-4">
+                               <Tv className="w-12 h-12 text-foreground/5" />
+                               <p className="text-[10px] text-foreground/20 font-black tracking-[0.3em] uppercase italic">No Channels Added</p>
+                            </div>
+                         )}
+                      </div>
+                  </div>
+
                   <div className="bg-surface p-8 sm:p-10 rounded-[3rem] border border-border-custom space-y-8 shadow-sm">
                       <div className="flex items-center justify-between border-b border-border-custom pb-6">
                         <h2 className="text-xl font-display font-bold text-foreground flex items-center gap-3">

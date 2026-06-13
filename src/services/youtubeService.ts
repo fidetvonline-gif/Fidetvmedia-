@@ -23,7 +23,11 @@ export interface YouTubeStats {
 export const fetchYouTubeStats = async (youtubeId: string): Promise<YouTubeStats | null> => {
   try {
     const response = await fetch(
-      `${BASE_URL}/videos?part=snippet,liveStreamingDetails,statistics&id=${youtubeId}`
+      `${BASE_URL}/videos?part=snippet,liveStreamingDetails,statistics&id=${youtubeId}`,
+      {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'include'
+      }
     );
     
     if (!response.ok) {
@@ -63,7 +67,11 @@ export const fetchRecentUploads = async (channelId: string, signal?: AbortSignal
   try {
     const response = await fetch(
       `${BASE_URL}/search?part=snippet&channelId=${channelId}&order=date&type=video&maxResults=5`,
-      { signal }
+      { 
+        signal,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'include'
+      }
     );
     if (!response.ok) return [];
     const data = await response.json();
@@ -87,7 +95,11 @@ export const fetchRecentUploads = async (channelId: string, signal?: AbortSignal
 export const fetchPlaylistItems = async (playlistId: string) => {
   try {
     const response = await fetch(
-      `${BASE_URL}/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=50`
+      `${BASE_URL}/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=50`,
+      {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'include'
+      }
     );
     
     const data = await response.json().catch(() => ({}));

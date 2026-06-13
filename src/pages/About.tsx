@@ -29,13 +29,13 @@ export default function About() {
       
     // Check CAC
     try {
-      const res = await fetch(cacUrl, { method: 'HEAD' });
+      const res = await fetch(cacUrl, { method: 'HEAD', credentials: 'include' });
       if (res.ok) setCertUrl(cacUrl + '?t=' + Date.now());
     } catch (e) {}
 
     // Check SMEDAN
     try {
-      const res = await fetch(sUrl, { method: 'HEAD' });
+      const res = await fetch(sUrl, { method: 'HEAD', credentials: 'include' });
       if (res.ok) setSmedanUrl(sUrl + '?t=' + Date.now());
     } catch (e) {}
   };
