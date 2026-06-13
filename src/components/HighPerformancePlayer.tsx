@@ -231,7 +231,9 @@ export default function HighPerformancePlayer({
             errMsg.includes('fetching process') || 
             errMsg.includes('media resource') || 
             errMsg.includes('prevented') || 
-            errMsg.includes('interrupted')
+            errMsg.includes('interrupted') ||
+            errMsg.includes('user agent') ||
+            errMsg.includes('error 0')
           ) {
             return;
           }
@@ -241,7 +243,9 @@ export default function HighPerformancePlayer({
         if (
           lowEventMsg.includes('abort') || 
           lowEventMsg.includes('fetching process') || 
-          lowEventMsg.includes('media resource')
+          lowEventMsg.includes('media resource') ||
+          lowEventMsg.includes('user agent') ||
+          lowEventMsg.includes('error 0')
         ) {
           return;
         }
@@ -270,7 +274,9 @@ export default function HighPerformancePlayer({
             errMsg.includes('fetching process') || 
             errMsg.includes('media resource') || 
             errMsg.includes('prevented') || 
-            errMsg.includes('interrupted')
+            errMsg.includes('interrupted') ||
+            errMsg.includes('user agent') ||
+            errMsg.includes('error 0')
           ) {
             return;
           }
@@ -280,7 +286,9 @@ export default function HighPerformancePlayer({
         if (
           lowEventMsg.includes('abort') || 
           lowEventMsg.includes('fetching process') || 
-          lowEventMsg.includes('media resource')
+          lowEventMsg.includes('media resource') ||
+          lowEventMsg.includes('user agent') ||
+          lowEventMsg.includes('error 0')
         ) {
           return;
         }

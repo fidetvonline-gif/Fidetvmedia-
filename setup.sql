@@ -28,7 +28,8 @@ VALUES
 ('FIFA+', 'Sports', 'https://fifa-fifaplus-5-us.ottera.tv/playlist.m3u8', 'https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=800', 'Official FIFA live and archive match content.', 'MonitorPlay', 5),
 ('NTA News 24', 'Nigeria', 'https://www.youtube.com/watch?v=2SgEqv8S5dY', 'https://images.unsplash.com/photo-1493612276216-ee3925520721?q=80&w=800', 'Nigeria Television Authority 24-hour news.', 'Tv', 6),
 ('Red Bull TV', 'Sports', 'https://rbmn-live.akamaized.net/hls/live/590964/BoRB-AT/master.m3u8', 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=800', '24/7 Live Action Sports and Lifestyle.', 'MonitorPlay', 7),
-('Al Jazeera English', 'News', 'https://live-hls-web-aje.getaj.net/AJE/index.m3u8', 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=800', 'Breaking news and world events happening right now.', 'Globe', 8),
+('Al Jazeera English', 'News', 'https://live-hls-web-aje.getaj.net/AJE/index.m3u8', 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=800', 'Breaking news and world events happening right now.', 'Globe', 8);
+
 -- 4. Create the services table
 CREATE TABLE IF NOT EXISTS public.services (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,

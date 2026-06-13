@@ -74,6 +74,8 @@ function AnalyticsTracker() {
         msg.includes('play()') || 
         msg.includes('interrupted') || 
         msg.includes('prevented') ||
+        msg.includes('user agent') ||
+        msg.includes('error 0') ||
         msg.includes('ns_error_dom_media_abort_err')
       ) {
         return;

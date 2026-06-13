@@ -166,8 +166,10 @@ async function startServer() {
   apiRouter.post("/storage/upload", (req, res, next) => {
     upload.single('file')(req, res, (err) => {
       if (err instanceof multer.MulterError) {
+        console.error(`[Storage Multer Error] ${err.message}`);
         return res.status(400).json({ error: `Upload error: ${err.message}` });
       } else if (err) {
+        console.error(`[Storage Upload General Error] ${err.message}`);
         return res.status(500).json({ error: `Server upload error: ${err.message}` });
       }
       next();
@@ -175,15 +177,33 @@ async function startServer() {
   }, async (req, res) => {
     try {
       const adminClient = getSupabaseAdmin();
-      if (!adminClient) return res.status(500).json({ error: "Admin client not configured" });
+      if (!adminClient) {
+        console.error("[Storage] Admin client initialization failed (Check VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY)");
+        return res.status(500).json({ error: "Server storage administration is not configured correctly." });
+      }
       
       const file = req.file;
       const { bucket = "thumbnails" } = req.body;
       
-      if (!file) return res.status(400).json({ error: "No file uploaded" });
+      if (!file) {
+        console.warn("[Storage] No file in request");
+        return res.status(400).json({ error: "No file provided for upload" });
+      }
 
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${file.originalname.split('.').pop()}`;
+      // Generate a cleaner filename with extension from mimetype if originalname is generic
+      let ext = file.originalname.split('.').pop() || '';
+      if (ext.length > 5 || ext === 'blob' || !ext) {
+         if (file.mimetype === 'image/jpeg') ext = 'jpg';
+         else if (file.mimetype === 'image/png') ext = 'png';
+         else if (file.mimetype === 'image/gif') ext = 'gif';
+         else if (file.mimetype === 'image/webp') ext = 'webp';
+         else if (file.mimetype === 'image/svg+xml') ext = 'svg';
+      }
+      
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}${ext ? '.' + ext : ''}`;
       const filePath = `uploads/${fileName}`;
+
+      console.log(`[Storage] Uploading ${file.originalname} to bucket ${bucket} as ${filePath} (${file.mimetype})`);
 
       // 1. Try uploading
       let { error: uploadError } = await adminClient.storage
@@ -195,18 +215,19 @@ async function startServer() {
 
       // 2. If bucket not found, try creating it and retry
       if (uploadError && uploadError.message?.toLowerCase().includes('bucket not found')) {
-        console.log(`[Storage] Bucket "${bucket}" not found, attempting to create...`);
+        console.log(`[Storage] Bucket "${bucket}" not found, attempting to auto-create...`);
         const { error: createError } = await adminClient.storage.createBucket(bucket, {
           public: true,
-          fileSizeLimit: 5242880, // 5MB
+          fileSizeLimit: 10 * 1024 * 1024, // 10MB
         });
         
         if (createError) {
           console.error(`[Storage] Failed to create bucket "${bucket}":`, createError);
-          return res.status(500).json({ error: `Bucket missing and creation failed: ${createError.message}` });
+          return res.status(500).json({ error: `Bucket missing and auto-creation failed: ${createError.message}` });
         }
 
-        // Retry upload
+        // Retry upload after bucket creation
+        console.log(`[Storage] Retrying upload to newly created bucket "${bucket}"...`);
         const retryResult = await adminClient.storage
           .from(bucket)
           .upload(filePath, file.buffer, {
@@ -217,18 +238,20 @@ async function startServer() {
       }
 
       if (uploadError) {
-        console.error("[Storage] Upload error:", uploadError);
+        console.error("[Storage] Supabase error:", uploadError);
         return res.status(500).json({ error: uploadError.message });
       }
 
+      // Fetch the public URL
       const { data: { publicUrl } } = adminClient.storage
         .from(bucket)
         .getPublicUrl(filePath);
 
+      console.log(`[Storage] Upload success. Public URL: ${publicUrl}`);
       res.json({ publicUrl });
     } catch (err: any) {
       console.error("[Storage API Critical Error]", err);
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ error: "Storage service encountered an internal error: " + err.message });
     }
   });
 

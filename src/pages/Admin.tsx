@@ -954,7 +954,7 @@ export default function Admin() {
       console.error("Critical Playlist Sync Error:", err);
       const errorMsg = err.message || "Unknown error";
       
-      if (errorMsg.includes('configured')) {
+      if (errorMsg.includes('configured') || errorMsg.includes('missing')) {
         alert("Configuration Error: YOUTUBE_API_KEY is missing in your environment variables.");
       } else if (errorMsg.includes('403') || errorMsg.includes('quota') || errorMsg.includes('permission')) {
         alert("YouTube API Error: Your API key might be invalid, or the quota has been exceeded.");
@@ -2898,15 +2898,15 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="bg-background/50 text-foreground/40 uppercase text-[10px] font-black tracking-widest border-b border-border-custom">
-                      <th className="px-8 py-6">Status</th>
-                      <th className="px-8 py-6">Event Details</th>
-                      <th className="px-8 py-6">Start Time</th>
-                      <th className="px-8 py-6">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border-custom bg-background/20">
-                    {events.map(ev => (
-                      <tr key={ev.id} className="group hover:bg-foreground/5 transition-colors">
+                       <th className="px-8 py-6">Status</th>
+                       <th className="px-8 py-6">Event Details</th>
+                       <th className="px-8 py-6">Start Time</th>
+                       <th className="px-8 py-6">Actions</th>
+                     </tr>
+                   </thead>
+                   <tbody className="divide-y divide-border-custom bg-background/20">
+                     {events.length > 0 ? events.map(ev => (
+                       <tr key={ev.id} className="group hover:bg-foreground/5 transition-colors">
                         <td className="px-8 py-6">
                           <span className={cn(
                             "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest",
@@ -2925,15 +2925,21 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                           {format(new Date(ev.start_time), 'MMM dd, HH:mm')}
                         </td>
                         <td className="px-8 py-6">
-                           <div className="flex space-x-4">
-                              <button onClick={() => { setEditingId(ev.id); setTitle(ev.title); setYoutubeId(ev.youtube_id || ''); setStreamUrl(ev.stream_url || ''); setImageUrl(ev.thumbnail_url || ''); setStartTime(ev.start_time.slice(0, 16)); setStatus(ev.status); setDescription(ev.description); setIsEditing(true); }} className="text-foreground/40 hover:text-foreground transition-colors"><Edit2 className="w-4 h-4" /></button>
-                              <button onClick={() => handleDelete('events', ev.id)} className="text-foreground/40 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
-                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                            <div className="flex space-x-4">
+                               <button onClick={() => { setEditingId(ev.id); setTitle(ev.title); setYoutubeId(ev.youtube_id || ''); setStreamUrl(ev.stream_url || ''); setImageUrl(ev.thumbnail_url || ''); setStartTime(ev.start_time.slice(0, 16)); setStatus(ev.status); setDescription(ev.description); setIsEditing(true); }} className="text-foreground/40 hover:text-foreground transition-colors"><Edit2 className="w-4 h-4" /></button>
+                               <button onClick={() => handleDelete('events', ev.id)} className="text-foreground/40 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                            </div>
+                         </td>
+                       </tr>
+                     )) : (
+                       <tr>
+                         <td colSpan={4} className="px-8 py-20 text-center text-foreground/20 font-bold uppercase tracking-widest italic">
+                           No scheduled events found. Use the sync tool or create one manually.
+                         </td>
+                       </tr>
+                     )}
+                   </tbody>
+                 </table>
               </div>
             </div>
           )}

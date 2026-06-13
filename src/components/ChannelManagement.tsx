@@ -16,6 +16,7 @@ export const ChannelManagement = () => {
   const [deleteConfirmName, setDeleteConfirmName] = useState('');
   const [toast, setToast] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [currentThumbnail, setCurrentThumbnail] = useState('');
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -30,6 +31,14 @@ export const ChannelManagement = () => {
   useEffect(() => {
     fetchChannels();
   }, []);
+
+  useEffect(() => {
+    if (currentChannel) {
+      setCurrentThumbnail(currentChannel.thumbnail || '');
+    } else {
+      setCurrentThumbnail('');
+    }
+  }, [currentChannel]);
 
   const broadcastChange = (action: string) => {
     const channelName = 'live-events';
@@ -85,11 +94,10 @@ export const ChannelManagement = () => {
         
         // Update form fields if they are empty
         const nameInput = document.querySelector('input[name="name"]') as HTMLInputElement;
-        const thumbInput = document.querySelector('input[name="thumbnail"]') as HTMLInputElement;
         const categoryInput = document.querySelector('input[name="category"]') as HTMLInputElement;
         
         if (nameInput && (!nameInput.value || nameInput.value === '')) nameInput.value = metadata.title;
-        if (thumbInput && (!thumbInput.value || thumbInput.value === '')) thumbInput.value = metadata.thumbnail;
+        if (metadata.thumbnail && (!currentThumbnail || currentThumbnail === '')) setCurrentThumbnail(metadata.thumbnail);
         if (categoryInput && (!categoryInput.value || categoryInput.value === '')) categoryInput.value = metadata.channelTitle || 'General';
       }
     } catch (err) {
@@ -119,10 +127,7 @@ export const ChannelManagement = () => {
         if (!response.ok) throw new Error(data.error || 'Upload failed');
         
         const publicUrl = data.publicUrl;
-        const thumbInput = document.querySelector('input[name="thumbnail"]') as HTMLInputElement;
-        if (thumbInput) {
-          thumbInput.value = publicUrl;
-        }
+        setCurrentThumbnail(publicUrl);
         showToast("Thumbnail uploaded successfully", 'success');
       } else {
         const text = await response.text();
@@ -147,7 +152,7 @@ export const ChannelManagement = () => {
         name: data.name,
         category: data.category,
         url: data.url,
-        thumbnail: data.thumbnail,
+        thumbnail: currentThumbnail,
         country: data.country,
         language: data.language,
         stream_type: data.stream_type,
@@ -293,7 +298,13 @@ export const ChannelManagement = () => {
                       <div>
                         <label className="text-xs font-semibold text-zinc-400 block mb-1">Thumbnail URL (Auto-fetched for YouTube)</label>
                         <div className="flex gap-2">
-                          <input name="thumbnail" placeholder="https://example.com/thumb.jpg" defaultValue={currentChannel?.thumbnail} className="flex-1 p-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-primary text-sm" />
+                          <input 
+                            name="thumbnail" 
+                            placeholder="https://example.com/thumb.jpg" 
+                            value={currentThumbnail} 
+                            onChange={(e) => setCurrentThumbnail(e.target.value)}
+                            className="flex-1 p-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-primary text-sm" 
+                          />
                           <div className="relative">
                             <input 
                               type="file" 

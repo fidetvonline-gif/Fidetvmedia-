@@ -13,7 +13,21 @@ export class ErrorBoundary extends Component<Props, State> {
     hasError: false
   };
 
-  public static getDerivedStateFromError(_: Error): State {
+  public static getDerivedStateFromError(error: Error): State {
+    const msg = (error.message || '').toLowerCase();
+    if (
+      msg.includes('aborted') || 
+      msg.includes('abort') || 
+      msg.includes('fetching process') || 
+      msg.includes('media resource') || 
+      msg.includes('play()') || 
+      msg.includes('interrupted') || 
+      msg.includes('prevented') ||
+      msg.includes('user agent') ||
+      msg.includes('error 0')
+    ) {
+      return { hasError: false };
+    }
     return { hasError: true };
   }
 
