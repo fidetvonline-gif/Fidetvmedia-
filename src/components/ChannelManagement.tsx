@@ -24,6 +24,12 @@ export const ChannelManagement = () => {
     const { error } = await supabase.from('tv_channels').delete().eq('id', id);
     if (!error) {
       alert("Deleted successfully");
+      // Broadcast the delete to other clients
+      supabase.channel('live-events').send({
+          type: 'broadcast',
+          event: 'channel-changed',
+          payload: { action: 'delete' }
+      });
       fetchChannels();
     } else {
       alert("Delete failed: " + error.message);
@@ -65,6 +71,13 @@ export const ChannelManagement = () => {
         }
         console.log("Inserted channel successfully:", insertedData);
     }
+    
+    // Broadcast the update/delete to other clients
+    supabase.channel('live-events').send({
+        type: 'broadcast',
+        event: 'channel-changed',
+        payload: { action: currentChannel ? 'update' : 'insert' }
+    });
     
     setIsModalOpen(false);
     setCurrentChannel(null);

@@ -251,11 +251,14 @@ export default function Live() {
     
     // Fetch custom TV Channels with fallback and safety checks
     try {
+      console.log('[Live] Fetching channels...');
       const { data: channelsData, error: channelsError } = await supabase
         .from('tv_channels')
         .select('*')
         .order('order_index', { ascending: true })
         .order('created_at', { ascending: false });
+        
+      console.log('[Live] Channels fetched:', channelsData);
         
       if (!channelsError && channelsData) {
         setDbChannels(channelsData);
@@ -318,6 +321,20 @@ export default function Live() {
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'tv_channels' }, payload => {
           console.log('[Live] Channel change received:', payload);
+          // Log what we received
+          if (payload.eventType === 'DELETE') {
+             console.log('[Live] Deleted channel ID:', payload.old.id);
+          } else if (payload.eventType === 'UPDATE') {
+             console.log('[Live] Updated channel ID:', payload.new.id);
+          } else if (payload.eventType === 'INSERT') {
+             console.log('[Live] New channel ID:', payload.new.id);
+          }
+          if (fetchControllerRef.current) fetchControllerRef.current.abort();
+          fetchControllerRef.current = new AbortController();
+          fetchLiveEventData(fetchControllerRef.current.signal);
+        })
+        .on('broadcast', { event: 'channel-changed' }, payload => {
+          console.log('[Live] Channel broadcast received:', payload);
           if (fetchControllerRef.current) fetchControllerRef.current.abort();
           fetchControllerRef.current = new AbortController();
           fetchLiveEventData(fetchControllerRef.current.signal);
