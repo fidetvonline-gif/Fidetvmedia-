@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Trash2, Edit2, Plus, Search, X, Upload } from 'lucide-react';
+import { Trash2, Edit2, Plus, Search, X, Upload, Zap } from 'lucide-react';
 import { BatchChannelImport } from './BatchChannelImport';
 
 export const ChannelManagement = () => {
@@ -19,17 +19,41 @@ export const ChannelManagement = () => {
     fetchChannels();
   }, []);
 
+  const broadcastChange = (action: string) => {
+    const channelName = 'live-events';
+    const channel = supabase.channel(channelName);
+    
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log(`[Admin] Subscribed for ${action}, sending broadcast...`);
+        channel.send({
+          type: 'broadcast',
+          event: 'channel-changed',
+          payload: { action, timestamp: new Date().toISOString(), sender: 'admin' }
+        }).then((resp) => {
+          console.log('[Admin] Broadcast response:', resp);
+          // Keep channel open briefly for delivery confirmation
+          setTimeout(() => {
+            supabase.removeChannel(channel);
+          }, 2000);
+        });
+      }
+    });
+  };
+
+  const handleSync = () => {
+    broadcastChange('sync');
+    alert("Sync signal sent to all live users.");
+    fetchChannels();
+  };
+
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this channel?")) return;
     const { error } = await supabase.from('tv_channels').delete().eq('id', id);
     if (!error) {
       alert("Deleted successfully");
       // Broadcast the delete to other clients
-      supabase.channel('live-events').send({
-          type: 'broadcast',
-          event: 'channel-changed',
-          payload: { action: 'delete' }
-      });
+      broadcastChange('delete');
       fetchChannels();
     } else {
       alert("Delete failed: " + error.message);
@@ -73,11 +97,7 @@ export const ChannelManagement = () => {
     }
     
     // Broadcast the update/delete to other clients
-    supabase.channel('live-events').send({
-        type: 'broadcast',
-        event: 'channel-changed',
-        payload: { action: currentChannel ? 'update' : 'insert' }
-    });
+    broadcastChange(currentChannel ? 'update' : 'insert');
     
     setIsModalOpen(false);
     setCurrentChannel(null);
@@ -93,11 +113,18 @@ export const ChannelManagement = () => {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-bold">Channel Management</h2>
         <div className="flex gap-2">
-            <button onClick={() => setIsImportModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg">
-              <Upload className="w-4 h-4" /> Import Channels
+            <button 
+              onClick={handleSync} 
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors shadow-lg active:scale-95"
+              title="Force update all users' screens"
+            >
+              <Zap className="w-4 h-4" /> Sync All Screens
             </button>
-            <button onClick={() => { setCurrentChannel(null); setIsModalOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg">
-              <Plus className="w-4 h-4" /> Add Channel
+            <button onClick={() => setIsImportModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors">
+              <Upload className="w-4 h-4" /> Import
+            </button>
+            <button onClick={() => { setCurrentChannel(null); setIsModalOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors">
+              <Plus className="w-4 h-4" /> Add New
             </button>
         </div>
       </div>

@@ -93,40 +93,6 @@ export default function Admin() {
   
   const [showAllChannels, setShowAllChannels] = useState(false);
   
-  // Computed list of all channels including defaults not yet in DB
-  const allViewableChannels = React.useMemo(() => {
-    // Show all if toggled, otherwise only active
-    const merged = [...channels].filter(c => showAllChannels || c.is_active !== false);
-    DEFAULT_CHANNELS.forEach(defCh => {
-      // Avoid adding defaults if they or a channel with the same name/url already exist in the database list
-      const existsInDb = channels.some(m => m.name.toLowerCase() === defCh.name.toLowerCase() || m.url === defCh.url);
-      
-      if (!existsInDb) {
-        // Create a virtual channel object for easier management
-        merged.push({
-          id: `virtual_${defCh.id}`,
-          name: defCh.name,
-          category: defCh.category,
-          thumbnail: defCh.thumbnail,
-          url: defCh.url,
-          description: defCh.description,
-          is_active: defCh.isLive, // Assuming isLive maps to is_active
-          order_index: 999, // Put defaults at the end
-          created_at: new Date().toISOString(),
-          isVirtual: true
-        } as any);
-      }
-    });
-
-    // Helper: Mark "trash" channels
-    // Filter out trash
-    return merged.map(ch => ({
-      ...ch,
-      isTrash: !ch.url || ch.url.trim() === '' || !ch.thumbnail || ch.thumbnail.trim() === ''
-    })).filter(ch => !ch.isTrash)
-    .sort((a, b) => (a.order_index ?? 999) - (b.order_index ?? 999));
-  }, [channels, showAllChannels]);
-
   // Settings Toggles
   const [enablePopupAd, setEnablePopupAd] = useState(false);
   const [enableEventBanner, setEnableEventBanner] = useState(true);

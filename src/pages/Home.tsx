@@ -99,8 +99,22 @@ export default function Home() {
     fetchTvChannels();
     checkAdmin();
 
+    // Listen for real-time channel changes
+    const channelListener = supabase
+      .channel('live-events')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tv_channels' }, () => {
+        console.log('[Home] TV channels changed, refreshing...');
+        fetchTvChannels();
+      })
+      .on('broadcast', { event: 'channel-changed' }, (payload) => {
+        console.log('[Home] Channel broadcast received, refreshing...', payload);
+        fetchTvChannels();
+      })
+      .subscribe();
+
     return () => {
       subscription?.unsubscribe();
+      supabase.removeChannel(channelListener);
     };
   }, []);
 
@@ -125,14 +139,8 @@ export default function Home() {
           isLive: ch.is_active ?? true
         }));
         
-        // Merge so we always have at least 3 channels, prepending database ones
-        const merged = [...mappedChannels];
-        DEFAULT_CHANNELS.forEach(defCh => {
-          if (!merged.some(m => m.id === defCh.id || m.name.toLowerCase() === defCh.name.toLowerCase())) {
-            merged.push(defCh);
-          }
-        });
-        setChannels(merged);
+        // Use ONLY database channels if they exist, giving full control to Admin
+        setChannels(mappedChannels);
       } else {
         setChannels(DEFAULT_CHANNELS);
       }

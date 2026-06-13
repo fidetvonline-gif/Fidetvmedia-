@@ -61,6 +61,7 @@ export default function Live() {
   const zappingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const fetchControllerRef = useRef<AbortController | null>(null);
+  const channelRef = useRef<any>(null);
   const isSharingRef = useRef(false);
 
   const handleLike = () => {
@@ -208,9 +209,13 @@ export default function Live() {
         
         clearTimeout(timeoutId);
         setConnectionStatus('live');
-      } catch (err) {
-        console.warn('Stream probe failed:', err);
-        setConnectionStatus('offline');
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          console.log('[Live] Stream probe aborted');
+        } else {
+          console.warn('Stream probe failed:', err);
+          setConnectionStatus('offline');
+        }
       }
     } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
       // For YouTube, it takes longer to signal ready
@@ -265,22 +270,32 @@ export default function Live() {
         
         const queryParams = new URLSearchParams(window.location.search);
         const urlChannelId = queryParams.get('channel');
+        
+        // Ensure activeChannelId is valid if it was set
         if (urlChannelId) {
           setActiveChannelId(urlChannelId);
         } else {
-          // Priority ordering: if live event is on, load it. Otherwise check database actives or default.
-          if (currentEvent?.status === 'live') {
-            setActiveChannelId('fidetv');
-          } else {
-            const liveDbChannel = channelsData.find((c: any) => c.is_active);
-            if (liveDbChannel) {
-              setActiveChannelId(liveDbChannel.id);
-            } else if (channelsData.length > 0 && !currentEvent) {
-              setActiveChannelId(channelsData[0].id);
-            } else {
-              setActiveChannelId('fidetv');
+          setActiveChannelId(currentActiveId => {
+            // If the current active channel is no longer in the list (unless it's 'fidetv'), reset it
+            const currentExists = channelsData.some((c: any) => c.id === currentActiveId);
+            
+            if (currentActiveId !== 'fidetv' && !currentExists) {
+              console.log('[Live] Current active channel was removed, resetting to default');
+              if (currentEvent?.status === 'live') {
+                return 'fidetv';
+              } else {
+                const liveDbChannel = channelsData.find((c: any) => c.is_active);
+                if (liveDbChannel) {
+                  return liveDbChannel.id;
+                } else if (channelsData.length > 0 && !currentEvent) {
+                  return channelsData[0].id;
+                } else {
+                  return 'fidetv';
+                }
+              }
             }
-          }
+            return currentActiveId;
+          });
         }
       } else {
         const queryParams = new URLSearchParams(window.location.search);
@@ -302,17 +317,21 @@ export default function Live() {
     fetchLiveEventData(fetchControllerRef.current.signal);
 
     // Listen for status changes
-    let channel: any;
 
     const setupRealtime = async () => {
       const channelName = 'live-events';
+      
+      // Ensure any existing channel is removed first
       const existing = supabase.getChannels().find(c => c.topic === `realtime:${channelName}`);
       if (existing) {
         await supabase.removeChannel(existing);
       }
+      
+      // Use the existing if it exists, or create new
+      const channel = supabase.channel(channelName);
+      channelRef.current = channel;
 
-      channel = supabase
-        .channel(channelName)
+      channel
         .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, payload => {
           console.log('[Live] Event change received:', payload);
           if (fetchControllerRef.current) fetchControllerRef.current.abort();
@@ -334,20 +353,26 @@ export default function Live() {
           fetchLiveEventData(fetchControllerRef.current.signal);
         })
         .on('broadcast', { event: 'channel-changed' }, payload => {
-          console.log('[Live] Channel broadcast received:', payload);
+          console.log('[Live] Channel broadcast/sync received:', payload);
+          // Clear cache and refetch
           if (fetchControllerRef.current) fetchControllerRef.current.abort();
           fetchControllerRef.current = new AbortController();
           fetchLiveEventData(fetchControllerRef.current.signal);
+          
+          // If we are currently on a channel that might have been deleted as indicated by payload
+          // the fetchLiveEventData will handle the redirection logic if currentExists is false
         })
-        .subscribe();
+        .subscribe((status) => {
+          console.log('[Live] Subscription status:', status);
+        });
     };
 
     setupRealtime();
 
     return () => {
       if (fetchControllerRef.current) fetchControllerRef.current.abort();
-      if (channel) {
-        supabase.removeChannel(channel);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
       }
     };
   }, []);
@@ -497,22 +522,26 @@ export default function Live() {
         isDirect: true
       } as any);
     }
-
-    DEFAULT_CHANNELS.forEach(defCh => {
-      if (!merged.some(m => m.id === defCh.id || m.name.toLowerCase() === defCh.name.toLowerCase())) {
-        merged.push({
-          id: defCh.id,
-          name: defCh.name,
-          category: defCh.category,
-          thumbnail: defCh.thumbnail,
-          url: defCh.url,
-          icon: defCh.icon || Tv,
-          logo: undefined,
-          description: defCh.description,
-          isLive: defCh.isLive
-        });
-      }
-    });
+    
+    // Only add DEFAULT_CHANNELS if the database is empty. 
+    // This allows the admin dashboard to have full control over the list.
+    if (dbChannels.length === 0) {
+      DEFAULT_CHANNELS.forEach(defCh => {
+        if (!merged.some(m => m.id === defCh.id || m.name.toLowerCase() === defCh.name.toLowerCase())) {
+          merged.push({
+            id: defCh.id,
+            name: defCh.name,
+            category: defCh.category,
+            thumbnail: defCh.thumbnail,
+            url: defCh.url,
+            icon: defCh.icon || Tv,
+            logo: undefined,
+            description: defCh.description,
+            isLive: defCh.isLive
+          });
+        }
+      });
+    }
     
     // Sort consistently but including the custom broadcast
     return [customBroadcast, ...merged].sort((a, b) => {
