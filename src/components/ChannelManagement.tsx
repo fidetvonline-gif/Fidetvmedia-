@@ -43,25 +43,27 @@ export const ChannelManagement = () => {
         country: data.country,
         language: data.language,
         stream_type: data.stream_type,
+        epg_id: data.epg_id,
         is_active: data.is_active === 'on',
+        is_featured: data.is_featured === 'on',
     };
 
     if (currentChannel) {
-        const { error, data } = await supabase.from('tv_channels').update(channelData).eq('id', currentChannel.id).select();
+        const { error, data: updatedData } = await supabase.from('tv_channels').update(channelData).eq('id', currentChannel.id).select();
         if (error) {
             console.error("Update failed", error);
             alert("Update failed: " + error.message);
             return;
         }
-        console.log("Updated data:", data);
+        console.log("Updated data:", updatedData);
     } else {
-        const { error, data } = await supabase.from('tv_channels').insert(channelData).select();
+        const { error, data: insertedData } = await supabase.from('tv_channels').insert(channelData).select();
         if (error) {
             console.error("Insert failed", error);
             alert("Insert failed: " + error.message);
             return;
         }
-        console.log("Inserted data:", data);
+        console.log("Inserted data:", insertedData);
     }
     
     setIsModalOpen(false);
@@ -140,8 +142,12 @@ export const ChannelManagement = () => {
                         <option value="MP4">MP4</option>
                         <option value="embed">Embed</option>
                     </select>
+                    <input name="epg_id" placeholder="EPG ID" defaultValue={currentChannel?.epg_id} className="w-full p-2 mb-2 border rounded" />
                     <label className="flex items-center gap-2 mb-2">
                         <input type="checkbox" name="is_active" defaultChecked={currentChannel?.is_active ?? true} /> Active
+                    </label>
+                    <label className="flex items-center gap-2 mb-2">
+                        <input type="checkbox" name="is_featured" defaultChecked={currentChannel?.is_featured ?? false} /> Featured
                     </label>
                     <button type="submit" className="w-full p-2 bg-primary text-white rounded">Save</button>
                 </form>
