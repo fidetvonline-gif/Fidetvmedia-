@@ -221,8 +221,10 @@ export default function HighPerformancePlayer({
       });
       video.addEventListener('error', (e) => {
         const error = (e.target as HTMLVideoElement).error;
+        const eventMsg = (e as any).message || '';
+        
         if (error) {
-          if (error.code === 1) return; // 1 = MEDIA_ERR_ABORTED
+          if (error.code === 1 || (error as any).name === 'AbortError') return; // 1 = MEDIA_ERR_ABORTED
           const errMsg = (error.message || '').toLowerCase();
           if (
             errMsg.includes('abort') || 
@@ -234,6 +236,16 @@ export default function HighPerformancePlayer({
             return;
           }
         }
+        
+        const lowEventMsg = eventMsg.toLowerCase();
+        if (
+          lowEventMsg.includes('abort') || 
+          lowEventMsg.includes('fetching process') || 
+          lowEventMsg.includes('media resource')
+        ) {
+          return;
+        }
+
         setError('Native playback error');
         onError?.(e);
       });
@@ -248,8 +260,10 @@ export default function HighPerformancePlayer({
       video.addEventListener('playing', handleLoaded);
       video.addEventListener('error', (e) => {
         const error = (e.target as HTMLVideoElement).error;
+        const eventMsg = (e as any).message || '';
+
         if (error) {
-          if (error.code === 1) return; // 1 = MEDIA_ERR_ABORTED
+          if (error.code === 1 || (error as any).name === 'AbortError') return; // 1 = MEDIA_ERR_ABORTED
           const errMsg = (error.message || '').toLowerCase();
           if (
             errMsg.includes('abort') || 
@@ -261,6 +275,16 @@ export default function HighPerformancePlayer({
             return;
           }
         }
+
+        const lowEventMsg = eventMsg.toLowerCase();
+        if (
+          lowEventMsg.includes('abort') || 
+          lowEventMsg.includes('fetching process') || 
+          lowEventMsg.includes('media resource')
+        ) {
+          return;
+        }
+
         setError('Playback error');
         onError?.(e);
       });

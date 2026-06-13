@@ -243,8 +243,8 @@ export default function Live() {
     const mediaError = errorTarget?.error || e?.error;
     
     // Check for MEDIA_ERR_ABORTED (code 1) or any code indicating abort
-    if (mediaError?.code === 1 || e?.code === 1 || e?.error?.code === 1) {
-      console.log('[DEBUG] Ignoring MEDI_ERR_ABORTED (code 1)');
+    if (mediaError?.code === 1 || e?.code === 1 || e?.error?.code === 1 || (e as any).name === 'AbortError' || (mediaError as any)?.name === 'AbortError' || e?.code === 'ECONNABORTED') {
+      console.log('[DEBUG] Ignoring MEDI_ERR_ABORTED, AbortError or ECONNABORTED');
       return;
     }
 
@@ -254,6 +254,7 @@ export default function Live() {
       e?.message || 
       mediaError?.message || 
       e?.target?.error?.message || 
+      (e as any).description ||
       (typeof e === 'string' ? e : '') ||
       e?.toString() || 
       ''
@@ -268,7 +269,9 @@ export default function Live() {
       errMsg.includes('interrupted') || 
       errMsg.includes('ns_error_dom_media_abort_err') ||
       errMsg.includes('play()') ||
-      errMsg.includes('prevented')
+      errMsg.includes('prevented') ||
+      errMsg.includes('interrupted by a call to pause') ||
+      errMsg.includes('interrupted by a new load request')
     ) {
       console.log('[DEBUG] Ignoring suppressed benign media error:', errMsg);
       return;
