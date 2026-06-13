@@ -43,7 +43,6 @@ export const ChannelManagement = () => {
         country: data.country,
         language: data.language,
         stream_type: data.stream_type,
-        epg_id: data.epg_id,
         is_active: data.is_active === 'on',
         is_featured: data.is_featured === 'on',
     };
@@ -142,7 +141,6 @@ export const ChannelManagement = () => {
                         <option value="MP4">MP4</option>
                         <option value="embed">Embed</option>
                     </select>
-                    <input name="epg_id" placeholder="EPG ID" defaultValue={currentChannel?.epg_id} className="w-full p-2 mb-2 border rounded" />
                     <label className="flex items-center gap-2 mb-2">
                         <input type="checkbox" name="is_active" defaultChecked={currentChannel?.is_active ?? true} /> Active
                     </label>
