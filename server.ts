@@ -6,8 +6,14 @@ import { GoogleGenAI } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
 import { ChannelIngestionService } from "./src/services/channelIngestionService";
 import { YouTubeIngestionService } from "./src/services/youtubeIngestionService";
+import multer from "multer";
 
 dotenv.config();
+
+const upload = multer({ 
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  storage: multer.memoryStorage()
+});
 
 let _supabaseAdmin: any = null;
 function getSupabaseAdmin() {
@@ -156,7 +162,92 @@ async function startServer() {
     }
   });
 
-  // 3. YouTube Proxy
+  // 3. Storage Upload Proxy (Auto-creates buckets if needed)
+  apiRouter.post("/storage/upload", (req, res, next) => {
+    upload.single('file')(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        return res.status(400).json({ error: `Upload error: ${err.message}` });
+      } else if (err) {
+        return res.status(500).json({ error: `Server upload error: ${err.message}` });
+      }
+      next();
+    });
+  }, async (req, res) => {
+    try {
+      const adminClient = getSupabaseAdmin();
+      if (!adminClient) return res.status(500).json({ error: "Admin client not configured" });
+      
+      const file = req.file;
+      const { bucket = "thumbnails" } = req.body;
+      
+      if (!file) return res.status(400).json({ error: "No file uploaded" });
+
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${file.originalname.split('.').pop()}`;
+      const filePath = `uploads/${fileName}`;
+
+      // 1. Try uploading
+      let { error: uploadError } = await adminClient.storage
+        .from(bucket)
+        .upload(filePath, file.buffer, {
+          contentType: file.mimetype,
+          upsert: true
+        });
+
+      // 2. If bucket not found, try creating it and retry
+      if (uploadError && uploadError.message?.toLowerCase().includes('bucket not found')) {
+        console.log(`[Storage] Bucket "${bucket}" not found, attempting to create...`);
+        const { error: createError } = await adminClient.storage.createBucket(bucket, {
+          public: true,
+          fileSizeLimit: 5242880, // 5MB
+        });
+        
+        if (createError) {
+          console.error(`[Storage] Failed to create bucket "${bucket}":`, createError);
+          return res.status(500).json({ error: `Bucket missing and creation failed: ${createError.message}` });
+        }
+
+        // Retry upload
+        const retryResult = await adminClient.storage
+          .from(bucket)
+          .upload(filePath, file.buffer, {
+            contentType: file.mimetype,
+            upsert: true
+          });
+        uploadError = retryResult.error;
+      }
+
+      if (uploadError) {
+        console.error("[Storage] Upload error:", uploadError);
+        return res.status(500).json({ error: uploadError.message });
+      }
+
+      const { data: { publicUrl } } = adminClient.storage
+        .from(bucket)
+        .getPublicUrl(filePath);
+
+      res.json({ publicUrl });
+    } catch (err: any) {
+      console.error("[Storage API Critical Error]", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // 4. YouTube Proxy (Specific routes FIRST to avoid shadowing)
+  apiRouter.get("/youtube/metadata", async (req, res) => {
+    try {
+      const { url } = req.query;
+      if (!url) return res.status(400).json({ error: "URL is required" });
+      
+      const videoId = YouTubeIngestionService.extractVideoId(url as string);
+      if (!videoId) return res.status(400).json({ error: "Invalid YouTube URL" });
+      
+      const metadata = await youtubeIngestion.getVideoMetadata(videoId);
+      res.json(metadata);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   apiRouter.get("/youtube/:endpoint", async (req, res) => {
     try {
       const apiKey = process.env.YOUTUBE_API_KEY;
@@ -274,21 +365,6 @@ async function startServer() {
     try {
       const report = await youtubeIngestion.runDiscoveryCycle();
       res.json(report);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  apiRouter.get("/youtube/metadata", async (req, res) => {
-    try {
-      const { url } = req.query;
-      if (!url) return res.status(400).json({ error: "URL is required" });
-      
-      const videoId = YouTubeIngestionService.extractVideoId(url as string);
-      if (!videoId) return res.status(400).json({ error: "Invalid YouTube URL" });
-      
-      const metadata = await youtubeIngestion.getVideoMetadata(videoId);
-      res.json(metadata);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

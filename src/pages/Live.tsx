@@ -145,7 +145,7 @@ export default function Live() {
     }
     
     // Sort by created_at DESC (newest first) but keeping FideTV as a special option
-    const result = [customBroadcast, ...merged].sort((a, b) => {
+    const result = [customBroadcast, ...merged].sort((a: any, b: any) => {
        if (a.id === 'fidetv') return 1; // Put FideTV after newest channels if they exist
        if (b.id === 'fidetv') return -1;
        

@@ -93,14 +93,14 @@ export const fetchPlaylistItems = async (playlistId: string) => {
     const data = await response.json().catch(() => ({}));
     
     if (!response.ok) {
-      throw new Error(data.error?.message || `YouTube API error: ${response.status}`);
+      let errorMessage = `YouTube API error: ${response.status}`;
+      errorMessage = data.error?.message || data.error || errorMessage;
+      throw new Error(errorMessage);
     }
     
     const items = data.items || [];
-    return items.filter((item: any) => {
-      const title = item.snippet?.title || '';
-      return !BLOCKLIST.some(block => title.toLowerCase().includes(block.toLowerCase()));
-    });
+    // We allow all items when explicitly importing a playlist
+    return items;
   } catch (error: any) {
     console.error('Error fetching playlist items:', error);
     throw error;

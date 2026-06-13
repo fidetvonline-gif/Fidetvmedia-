@@ -1,16 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Download, Smartphone, Apple, Play, CheckCircle2, ChevronRight, HelpCircle, Copy, Check, History, Loader2, Star, AlertTriangle, X, Quote, ChevronLeft, Share2, MessageCircle, Twitter, Facebook } from 'lucide-react';
+import { Download, Smartphone, Apple, Play, CheckCircle2, ChevronRight, HelpCircle, Copy, Check, History, Loader2, Star, AlertTriangle, X, Quote, ChevronLeft, Share2, MessageCircle, Twitter, Facebook, UserCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
+import { safeSessionStorage } from '@/lib/storage';
 
 export default function DownloadApp() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [referrer, setReferrer] = useState<any>(null);
   const [isIOS, setIsIOS] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
   const [isChrome, setIsChrome] = useState(false);
   const [isSafari, setIsSafari] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+  const [isPhone, setIsPhone] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [copied, setCopied] = useState(false);
   const [totalDownloads, setTotalDownloads] = useState<number>(0);
@@ -102,6 +106,20 @@ export default function DownloadApp() {
     // Fetch total downloads from site_settings or mock if missing
     const fetchDownloads = async () => {
       try {
+        const refId = safeSessionStorage.getItem('fidetv_referral');
+        if (refId) {
+          // Check if it's a UUID or a username
+          const { data: refProfile } = await supabase
+            .from('profiles')
+            .select('username, avatar_url, full_name, id')
+            .or(`id.eq.${refId},username.eq.${refId}`)
+            .single();
+          
+          if (refProfile) {
+            setReferrer(refProfile);
+          }
+        }
+
         const { data, error } = await supabase
           .from('site_settings')
           .select('value')
@@ -166,13 +184,19 @@ export default function DownloadApp() {
     const isAndroidDevice = /android/.test(userAgent);
     const isChromeBrowser = /chrome|crios|crmo/.test(userAgent) && !/edge|opr|opios|fb_iab|instagram/.test(userAgent);
     const isSafariBrowser = /safari/.test(userAgent) && !/chrome|crios|crmo|edge|opr|opios|fb_iab|instagram/.test(userAgent);
-    const isDesktopDevice = !/android|iphone|ipad|ipod/.test(userAgent);
+    
+    // Accurate tablet detection
+    const isTabletDevice = /(ipad|tablet|(android(?!.*mobile))|(windows(?!.*phone)(.*touch))|kindle|playbook|silk|(puffin(?!.*(IP|AP|WP))))/.test(userAgent);
+    const isPhoneDevice = /iphone|ipod|(android.*mobile)|(windows.*phone)|(blackberry.*mobile)|(opera m(ob|in)i)/.test(userAgent);
+    const isDesktopDevice = !isTabletDevice && !isPhoneDevice;
 
     setIsIOS(isIOSDevice);
     setIsAndroid(isAndroidDevice);
     setIsChrome(isChromeBrowser);
     setIsSafari(isSafariBrowser);
     setIsDesktop(isDesktopDevice);
+    setIsTablet(isTabletDevice);
+    setIsPhone(isPhoneDevice);
 
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
@@ -199,11 +223,27 @@ export default function DownloadApp() {
         try {
           const nextCount = totalDownloads + 1;
           setTotalDownloads(nextCount);
-          await supabase.from('site_settings').upsert({
-            key: 'apk_download_count',
-            value: nextCount.toString(),
-            updated_at: new Date().toISOString()
-          });
+          
+          const promises: any[] = [
+            supabase.from('site_settings').upsert({
+              key: 'apk_download_count',
+              value: nextCount.toString(),
+              updated_at: new Date().toISOString()
+            })
+          ];
+
+          // Attribute referral to inviter if referrer exists
+          if (referrer) {
+            promises.push(
+              supabase.from('referral_logs').insert({
+                inviter_id: referrer.id,
+                event_type: 'install',
+                metadata: { ua: navigator.userAgent }
+              })
+            );
+          }
+
+          await Promise.allSettled(promises);
         } catch (err) {}
       }
     } else if (isIOS) {
@@ -296,6 +336,27 @@ export default function DownloadApp() {
            <Download className="w-10 h-10 text-primary" />
         </motion.div>
         
+        {referrer && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="inline-flex items-center gap-3 px-4 py-2 bg-primary/10 border border-primary/20 rounded-full mb-8 backdrop-blur-sm"
+          >
+            <div className="w-8 h-8 rounded-full overflow-hidden border border-primary/20 bg-background">
+              {referrer.avatar_url ? (
+                <img src={referrer.avatar_url} alt={referrer.username} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-[10px] font-black">{referrer.username?.slice(0, 2).toUpperCase()}</div>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-primary">Invited by</span>
+              <span className="text-sm font-bold text-white">@{referrer.username}</span>
+              <UserCheck className="w-3.5 h-3.5 text-primary" />
+            </div>
+          </motion.div>
+        )}
+        
           <h1 className="text-5xl md:text-7xl font-display font-black text-white tracking-tighter">
           Get the <span className="text-primary">FideTV</span> App
         </h1>
@@ -374,6 +435,59 @@ export default function DownloadApp() {
         <p className="text-gray-400 text-lg md:text-xl font-light leading-relaxed">
           Experience live events, news, and our community right from your home screen. Fast, secure, and always connected.
         </p>
+
+        {/* Dynamic Form Factor Recommendation */}
+        <AnimatePresence>
+          {(isPhone || isTablet) && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="max-w-xl mx-auto p-6 bg-primary/5 border border-primary/20 rounded-3xl backdrop-blur-sm space-y-4"
+            >
+              <div className="flex items-center justify-center gap-3 text-primary">
+                <Star className="w-5 h-5 fill-primary" />
+                <span className="text-xs font-black uppercase tracking-widest">Personalized Recommendation</span>
+              </div>
+              
+              {isPhone ? (
+                <div className="space-y-2">
+                  <h4 className="text-white font-bold text-lg">Optimized for Your Phone</h4>
+                  <p className="text-gray-400 text-sm">
+                    We recommend the <strong>Portrait Layout</strong> for your device. It provides one-handed navigation and quick access to live chat while watching streams.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <h4 className="text-white font-bold text-lg">Enhanced Tablet Experience</h4>
+                  <p className="text-gray-400 text-sm">
+                    Your tablet is perfect for our <strong>Cinema Dashboard</strong>. Enjoy side-by-side news feeds and multi-channel monitoring in landscape mode.
+                  </p>
+                </div>
+              )}
+              
+              <div className="pt-2 flex items-center justify-center gap-4">
+                 <div className="flex flex-col items-center">
+                    <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-1">
+                       <CheckCircle2 className="w-5 h-5 text-green-500" />
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">Touch UI</span>
+                 </div>
+                 <div className="flex flex-col items-center">
+                    <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-1">
+                       <CheckCircle2 className="w-5 h-5 text-green-500" />
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">Full Screen</span>
+                 </div>
+                 <div className="flex flex-col items-center">
+                    <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-1">
+                       <CheckCircle2 className="w-5 h-5 text-green-500" />
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">Biometrics</span>
+                 </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {isStandalone ? (
           <div className="inline-flex items-center gap-3 px-6 py-4 bg-green-500/10 text-green-500 rounded-2xl border border-green-500/20 font-bold uppercase tracking-widest text-sm">
@@ -556,11 +670,19 @@ export default function DownloadApp() {
               Follow these simple steps to get FideTV on your mobile device.
             </p>
 
-            <div className="space-y-6">
-               <div className="glass p-6 rounded-[2rem] border-white/5 space-y-4">
-                  <div className="flex items-center gap-4 text-white font-bold text-lg">
-                    <Apple className="w-6 h-6 text-gray-400" />
-                     iOS (iPhone/iPad)
+             <div className="space-y-6">
+               <div className={cn(
+                 "glass p-6 rounded-[2rem] border-white/5 space-y-4 transition-all duration-500",
+                 isIOS ? "ring-2 ring-primary bg-primary/5 border-primary/20 scale-[1.02]" : "opacity-60"
+               )}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 text-white font-bold text-lg">
+                      <Apple className={cn("w-6 h-6", isIOS ? "text-primary" : "text-gray-400")} />
+                       iOS (iPhone/iPad)
+                    </div>
+                    {isIOS && (
+                      <span className="text-[10px] font-black bg-primary text-white px-2 py-0.5 rounded-full uppercase tracking-tighter">Your Device</span>
+                    )}
                   </div>
                   <ol className="list-decimal list-inside space-y-2 text-gray-400 text-sm leading-relaxed ml-2">
                      <li>Open this website in <strong>Safari</strong>.</li>
@@ -569,11 +691,19 @@ export default function DownloadApp() {
                      <li>Tap <strong>Add</strong> in the top right corner.</li>
                   </ol>
                </div>
-
-                <div className="glass p-6 rounded-[2rem] border-white/5 space-y-4">
-                  <div className="flex items-center gap-4 text-white font-bold text-lg">
-                    <Smartphone className="w-6 h-6 text-gray-100" />
-                     Android & Web (PWA Installation)
+ 
+                <div className={cn(
+                  "glass p-6 rounded-[2rem] border-white/5 space-y-4 transition-all duration-500",
+                  (isAndroid || isDesktop) ? "ring-2 ring-primary bg-primary/5 border-primary/20 scale-[1.02]" : "opacity-60"
+                )}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 text-white font-bold text-lg">
+                      <Smartphone className={cn("w-6 h-6", (isAndroid || isDesktop) ? "text-primary" : "text-gray-100")} />
+                       Android & Web (PWA Installation)
+                    </div>
+                    {(isAndroid || isDesktop) && (
+                      <span className="text-[10px] font-black bg-primary text-white px-2 py-0.5 rounded-full uppercase tracking-tighter">Your Device</span>
+                    )}
                   </div>
                   <ol className="list-decimal list-inside space-y-2 text-gray-400 text-sm leading-relaxed ml-2">
                      <li>Tap the <strong>Download for Android</strong> button above.</li>

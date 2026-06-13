@@ -15,6 +15,7 @@ export const ChannelManagement = () => {
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [deleteConfirmName, setDeleteConfirmName] = useState('');
   const [toast, setToast] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -93,6 +94,46 @@ export const ChannelManagement = () => {
       }
     } catch (err) {
       console.warn('Failed to auto-fetch YT metadata', err);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('bucket', 'thumbnails');
+
+      const response = await fetch('/api/storage/upload', {
+        method: 'POST',
+        body: formData
+        // Note: No JSON content-type header for FormData, browser handles boundary
+      });
+
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Upload failed');
+        
+        const publicUrl = data.publicUrl;
+        const thumbInput = document.querySelector('input[name="thumbnail"]') as HTMLInputElement;
+        if (thumbInput) {
+          thumbInput.value = publicUrl;
+        }
+        showToast("Thumbnail uploaded successfully", 'success');
+      } else {
+        const text = await response.text();
+        console.error("Non-JSON upload response:", text);
+        throw new Error(`Server returned invalid response (${response.status}). Please try a smaller image or contact support.`);
+      }
+    } catch (err: any) {
+      console.error('Upload error:', err);
+      showToast("Upload failed: " + err.message, 'error');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -251,7 +292,29 @@ export const ChannelManagement = () => {
 
                       <div>
                         <label className="text-xs font-semibold text-zinc-400 block mb-1">Thumbnail URL (Auto-fetched for YouTube)</label>
-                        <input name="thumbnail" placeholder="https://example.com/thumb.jpg" defaultValue={currentChannel?.thumbnail} className="w-full p-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-primary text-sm" />
+                        <div className="flex gap-2">
+                          <input name="thumbnail" placeholder="https://example.com/thumb.jpg" defaultValue={currentChannel?.thumbnail} className="flex-1 p-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-primary text-sm" />
+                          <div className="relative">
+                            <input 
+                              type="file" 
+                              id="thumbnail-upload" 
+                              className="hidden" 
+                              accept="image/*"
+                              onChange={handleFileUpload}
+                              disabled={uploading}
+                            />
+                            <label 
+                              htmlFor="thumbnail-upload"
+                              className={cn(
+                                "flex items-center gap-2 px-3 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-700 transition-all cursor-pointer text-xs font-bold",
+                                uploading && "opacity-50 cursor-not-allowed"
+                              )}
+                            >
+                              <Upload className={cn("w-4 h-4", uploading && "animate-bounce")} />
+                              {uploading ? '...' : 'Upload'}
+                            </label>
+                          </div>
+                        </div>
                       </div>
                       
                       <div className="grid grid-cols-2 gap-4">

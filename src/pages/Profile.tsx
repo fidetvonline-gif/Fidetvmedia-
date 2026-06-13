@@ -5,7 +5,7 @@ import {
   User, Settings, Grid, Heart, MessageSquare, LogOut, Camera, 
   Edit3, AlertTriangle, Twitter, Instagram, Linkedin, X, Check, 
   ShieldCheck, ShieldAlert, Award, FileText, Calendar, Star, Send, CheckCircle2,
-  Users, Plus, Image as ImageIcon, Video
+  Users, Plus, Image as ImageIcon, Video, Copy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -44,6 +44,7 @@ export default function Profile() {
   });
 
   const [uploading, setUploading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const [isCreatingPost, setIsCreatingPost] = useState(false);
   const [newPostContent, setNewPostContent] = useState('');
@@ -603,21 +604,22 @@ export default function Profile() {
                         <input 
                           type="text" 
                           readOnly 
-                          value={`${window.location.origin}/auth?ref=${profile?.username}`}
+                          value={`${window.location.origin}/download?ref=${profile?.username || user?.id}`}
                           className="w-full bg-surface border border-border-custom rounded-xl py-3 pl-4 pr-12 text-[10px] text-foreground/60 font-mono focus:outline-none"
                         />
                         <button 
                           onClick={() => {
-                            navigator.clipboard.writeText(`${window.location.origin}/auth?ref=${profile?.username}`);
-                            alert('Link copied to clipboard!');
+                            navigator.clipboard.writeText(`${window.location.origin}/download?ref=${profile?.username || user?.id}`);
+                            setCopied(true);
+                            setTimeout(() => setCopied(false), 2000);
                           }}
                           className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
                           title="Copy Link"
                         >
-                          <Plus className="w-4 h-4" />
+                          {copied ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : <Copy className="w-4 h-4" />}
                         </button>
                       </div>
-                      <p className="text-[10px] text-foreground/40 leading-relaxed italic">Share this link with your friends. When they join FideTV, they'll be counted as your referrals.</p>
+                      <p className="text-[10px] text-foreground/40 leading-relaxed italic">Share this link with your friends. When they install the FideTV app using your link, you'll be credited as the referrer.</p>
                     </div>
                   )}
                 </div>

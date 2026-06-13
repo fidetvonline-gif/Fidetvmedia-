@@ -873,6 +873,9 @@ export default function Admin() {
     if (!error) {
        const url = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
        callback(url + '?t=' + Date.now());
+    } else {
+       console.error("Upload error:", error);
+       alert(`Upload error: ${error.message}`);
     }
     setUploading(false);
   };
@@ -945,7 +948,7 @@ export default function Admin() {
       const { error: insertErr } = await supabase.from('events').insert(newEvents);
       if (insertErr) throw insertErr;
 
-      alert(`Success! Imported ${newEvents.length} new events from the World Cup playlist.`);
+      alert(`Success! Imported ${newEvents.length} new events from the playlist.`);
       await fetchEvents();
     } catch (err: any) {
       console.error("Critical Playlist Sync Error:", err);
