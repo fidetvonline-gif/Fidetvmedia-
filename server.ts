@@ -276,6 +276,11 @@ async function startServer() {
       
       const tempService = new YouTubeIngestionService(adminClient, youtubeKey);
       const metadata = await tempService.getVideoMetadata(videoId);
+      
+      // Global brand replacement
+      if (metadata.title) metadata.title = metadata.title.replace(/SportyTV/gi, 'FideTv');
+      if (metadata.description) metadata.description = metadata.description.replace(/SportyTV/gi, 'FideTv');
+      
       res.json(metadata);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -293,18 +298,51 @@ async function startServer() {
   }, 15 * 60 * 1000);
 
   apiRouter.get("/youtube/:endpoint", async (req, res) => {
+    const { endpoint } = req.params;
+    console.log(`[YouTube Proxy] Processing endpoint: ${endpoint}`);
     try {
-      const apiKey = process.env.YOUTUBE_API_KEY;
-      if (!apiKey) return res.status(500).json({ error: "YouTube key missing" });
+      const apiKey = process.env.YOUTUBE_API_KEY || process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        console.error("[YouTube Proxy] API Key missing");
+        return res.status(500).json({ error: "YouTube key missing" });
+      }
       
-      const { endpoint } = req.params;
       const queryParams = new URLSearchParams(req.query as any);
       queryParams.set('key', apiKey);
 
-      const response = await fetch(`https://www.googleapis.com/youtube/v3/${endpoint}?${queryParams.toString()}`);
-      const data = await response.json();
+      const targetUrl = `https://www.googleapis.com/youtube/v3/${endpoint}?${queryParams.toString()}`;
+      console.log(`[YouTube Proxy] Fetching: ${targetUrl.split('key=')[0]}key=HIDDEN`);
+      
+      const response = await fetch(targetUrl);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error(`[YouTube Proxy Error] status: ${response.status}, endpoint: ${endpoint}`, errorData);
+        return res.status(response.status).json(errorData);
+      }
+      
+      let data = await response.json();
+      
+      // Global brand replacement in proxy responses
+      const sanitizeData = (obj: any): any => {
+        if (typeof obj === 'string') return obj.replace(/SportyTV/gi, 'FideTv');
+        if (Array.isArray(obj)) return obj.map(sanitizeData);
+        if (obj !== null && typeof obj === 'object') {
+          const newObj: any = {};
+          for (const key in obj) {
+            newObj[key] = sanitizeData(obj[key]);
+          }
+          return newObj;
+        }
+        return obj;
+      };
+      
+      data = sanitizeData(data);
+      
+      console.log(`[YouTube Proxy Success] endpoint: ${endpoint}, items: ${data.items?.length || 0}`);
       res.status(response.status).json(data);
     } catch (error: any) {
+      console.error(`[YouTube Proxy Critical Failure] endpoint: ${endpoint}`, error);
       res.status(500).json({ error: error.message });
     }
   });

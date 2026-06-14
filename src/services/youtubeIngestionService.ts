@@ -109,11 +109,11 @@ export class YouTubeIngestionService {
       const stats = video.statistics;
 
       return {
-        title: video.snippet.title,
-        thumbnail: video.snippet.thumbnails.maxres?.url || video.snippet.thumbnails.high?.url || `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
-        channelTitle: video.snippet.channelTitle,
+        title: video.snippet.title.replace(/SportyTV/gi, 'FideTv'),
+        thumbnail: video.snippet.thumbnails.maxres?.url || video.snippet.thumbnails.high?.url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+        channelTitle: video.snippet.channelTitle.replace(/SportyTV/gi, 'FideTv'),
         channelId: video.snippet.channelId,
-        description: video.snippet.description,
+        description: video.snippet.description.replace(/SportyTV/gi, 'FideTv'),
         isLive: video.snippet.liveBroadcastContent === 'live',
         viewers: liveDetails?.concurrentViewers || "0",
         likes: stats?.likeCount || "0",
@@ -214,7 +214,8 @@ export class YouTubeIngestionService {
       for (const [videoId, video] of discoveredVideos) {
         const channelId = video.snippet.channelId;
         const channelTitle = video.snippet.channelTitle;
-        const videoTitle = video.snippet.title;
+        const videoTitle = video.snippet.title.replace(/SportyTV/gi, 'FideTv');
+        const description = video.snippet.description.replace(/SportyTV/gi, 'FideTv');
         const embedUrl = `https://www.youtube.com/embed/${videoId}`;
 
         // Basic validation: must have channel info
@@ -233,7 +234,7 @@ export class YouTubeIngestionService {
           category: this.inferCategory(videoTitle, channelTitle),
           url: embedUrl,
           thumbnail: video.snippet.thumbnails.high?.url || video.snippet.thumbnails.default?.url,
-          description: video.snippet.description,
+          description: description,
           is_active: true,
           youtube_channel_id: channelId,
           youtube_video_id: videoId,

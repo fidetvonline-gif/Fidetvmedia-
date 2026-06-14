@@ -66,7 +66,10 @@ export const fetchRecentUploads = async (channelId: string, signal?: AbortSignal
       `${BASE_URL}/search?part=snippet&channelId=${channelId}&order=date&type=video&maxResults=5`,
       { signal }
     );
-    if (!response.ok) return [];
+    if (!response.ok) {
+      console.warn('YouTube search proxy returned non-ok status:', response.status);
+      return [];
+    }
     const data = await response.json();
     const items = data.items || [];
     

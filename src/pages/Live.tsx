@@ -42,7 +42,7 @@ export default function Live() {
   const [playerError, setPlayerError] = useState(false);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState<'live' | 'offline' | 'connecting'>('connecting');
   const [activeChanStats, setActiveChanStats] = useState<YouTubeStats | null>(null);
 
@@ -85,13 +85,13 @@ export default function Live() {
     const ytId = event?.youtube_id && !event.youtube_id.includes('http') && !event.youtube_id.includes('<iframe') ? event.youtube_id : null;
     return {
       id: 'fidetv',
-      name: event?.title || 'FideTV Official Broadcast',
+      name: (event?.title || 'FideTV Official Broadcast').replace(/SportyTV/gi, 'FideTv'),
       category: 'Official',
       url: ytId 
         ? `https://www.youtube.com/watch?v=${ytId}`
         : (event?.youtube_id || event?.stream_url || fallbackStreamUrl),
-      thumbnail: event?.thumbnail_url || (ytId ? `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg` : fidetvWorldCup),
-      description: event?.description || 'Watch premium official FideTV broadcasts live and exclusively.',
+      thumbnail: event?.thumbnail_url || (ytId ? `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg` : fidetvWorldCup),
+      description: (event?.description || 'Watch premium official FideTV broadcasts live and exclusively.').replace(/SportyTV/gi, 'FideTv'),
       isLive: isFideTvLive,
       viewer_count: (ytStats?.viewers ? parseInt(ytStats.viewers) : undefined),
       like_count: (ytStats?.likes ? parseInt(ytStats.likes) : undefined),
@@ -141,12 +141,12 @@ export default function Live() {
         const ytId = e.youtube_id && !e.youtube_id.includes('http') && !e.youtube_id.includes('<iframe') ? e.youtube_id : null;
         return {
           id: `event_${e.id}`,
-          name: e.title,
+          name: e.title.replace(/SportyTV/gi, 'FideTv'),
           category: 'Scheduled',
-          thumbnail: e.thumbnail_url || (ytId ? `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg` : fidetvWorldCup),
+          thumbnail: e.thumbnail_url || (ytId ? `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg` : fidetvWorldCup),
           url: ytId ? `https://www.youtube.com/watch?v=${ytId}` : (e.stream_url || fallbackStreamUrl),
           icon: e.status === 'live' ? Tv : Calendar,
-          description: e.description,
+          description: e.description.replace(/SportyTV/gi, 'FideTv'),
           isLive: e.status === 'live',
           isUpcoming: e.status === 'upcoming',
           startTime: e.start_time,
@@ -607,12 +607,12 @@ export default function Live() {
   useEffect(() => {
     // Safety timeout to ensure the UI doesn't get stuck on the loader
     const timer = setTimeout(() => {
-      if (!isPlayerReady) {
+      if (!isPlayerReady && connectionStatus !== 'offline') {
         console.log('Safety timeout: forcing player ready state');
         setIsPlayerReady(true);
         setIsZapping(false);
       }
-    }, 5000);
+    }, 3000);
     return () => clearTimeout(timer);
   }, [activeChannelId]);
 
@@ -813,7 +813,7 @@ export default function Live() {
                isPiP && isPiPDismissed ? "opacity-0 pointer-events-none" : "opacity-100"
             )}>
               {/* Zapping / Loading / Upcoming Overlay */}
-            {(isZapping || !isPlayerReady || (activeChannel as any).isUpcoming) && !playerError && (
+            {(isZapping || !isPlayerReady || (activeChannel as any).isUpcoming) && !playerError && connectionStatus !== 'offline' && (
               <div className="absolute inset-0 z-[50] flex flex-col items-center justify-center bg-black transition-opacity duration-300 pointer-events-none">
                 <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
                 
@@ -850,18 +850,21 @@ export default function Live() {
                 )}
               </div>
             )}
-            {playerError ? (
+            {playerError || connectionStatus === 'offline' ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#111111] z-30">
                 <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
-                <h3 className="text-xl font-bold mb-2 text-white">Stream Offline</h3>
+                <h3 className="text-xl font-bold mb-2 text-white">{connectionStatus === 'offline' ? 'Stream Currently Offline' : 'Playback Error'}</h3>
                 <p className="text-white/60 text-sm mb-6 px-8 text-center italic">
-                  This broadcast feed is currently offline or undergoing scheduled maintenance.
+                  {connectionStatus === 'offline' 
+                    ? 'This broadcast feed is currently not transmitting. Please check the schedule for live times.' 
+                    : 'This broadcast feed is currently undergoing scheduled maintenance or experiencing technical issues.'}
                 </p>
                 <div className="flex gap-4">
                   <button 
                     onClick={() => {
                        setPlayerError(false);
-                       setActiveChannelId(activeChannelId); // Force re-render
+                       setConnectionStatus('connecting');
+                       checkStreamSignal(activeChannelUrl);
                     }}
                     className="px-8 py-3 bg-primary hover:scale-105 active:scale-95 rounded-full text-xs font-bold uppercase tracking-widest border border-primary/10 transition-all text-white shadow-lg shadow-primary/20"
                   >
