@@ -267,27 +267,29 @@ async function startServer() {
       const videoId = YouTubeIngestionService.extractVideoId(url as string);
       if (!videoId) return res.status(400).json({ error: "Invalid YouTube URL" });
       
-      const metadata = await youtubeIngestion.getVideoMetadata(videoId);
+      const youtubeKey = process.env.YOUTUBE_API_KEY || process.env.GEMINI_API_KEY;
+      const adminClient = getSupabaseAdmin();
+      
+      if (!youtubeKey || !adminClient) {
+        return res.status(503).json({ error: "YouTube integration not configured" });
+      }
+      
+      const tempService = new YouTubeIngestionService(adminClient, youtubeKey);
+      const metadata = await tempService.getVideoMetadata(videoId);
       res.json(metadata);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
   });
 
-  apiRouter.post("/channels/sync-thumbnails", async (req, res) => {
-    try {
-      console.log("[Storage] Starting manual stats and thumbnail sync...");
-      await youtubeIngestion.updateAllChannelStats();
-      res.json({ success: true, message: "Sync completed" });
-    } catch (err: any) {
-      console.error("[Storage] Sync failed:", err);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
   // Background stats update every 15 minutes
   setInterval(() => {
-    youtubeIngestion.updateAllChannelStats().catch(err => console.error("Periodic stats update failed:", err));
+    const admin = getSupabaseAdmin();
+    const key = process.env.YOUTUBE_API_KEY || process.env.GEMINI_API_KEY;
+    if (admin && key) {
+       const service = new YouTubeIngestionService(admin, key);
+       service.updateAllChannelStats().catch(err => console.error("Periodic stats update failed:", err));
+    }
   }, 15 * 60 * 1000);
 
   apiRouter.get("/youtube/:endpoint", async (req, res) => {
@@ -388,19 +390,30 @@ async function startServer() {
     }
   });
 
-  // 5. Channel Ingestion System
-  const ingestionService = new ChannelIngestionService(getSupabaseAdmin());
-  const youtubeIngestion = new YouTubeIngestionService(getSupabaseAdmin()!, process.env.YOUTUBE_API_KEY || "");
+  // 5. Channel Ingestion System initialization
+  const getIngestionService = () => {
+    const admin = getSupabaseAdmin();
+    if (!admin) return null;
+    return new ChannelIngestionService(admin);
+  };
+
+  const getYouTubeService = () => {
+    const admin = getSupabaseAdmin();
+    const key = process.env.YOUTUBE_API_KEY || process.env.GEMINI_API_KEY;
+    if (!admin || !key) return null;
+    return new YouTubeIngestionService(admin, key);
+  };
 
   // Weekly maintenance or triggered checks
   setInterval(() => {
-    ingestionService.runHealthChecks().catch(console.error);
+    const service = getIngestionService();
+    if (service) service.runHealthChecks().catch(console.error);
   }, 1000 * 60 * 60 * 24); // Once a day primary health check
 
   // YouTube Ingestion - Every 60 minutes
   setInterval(() => {
-    // Regular scan every hour
-    youtubeIngestion.runDiscoveryCycle(2).catch(console.error);
+    const service = getYouTubeService();
+    if (service) service.runDiscoveryCycle(2).catch(console.error);
   }, 1000 * 60 * 60);
 
   // Manual trigger endpoints
@@ -409,9 +422,11 @@ async function startServer() {
       const isDeep = req.body.deep === true;
       console.log(`[YouTube Ingestion] Manual trigger. Deep Scan: ${isDeep}`);
       
-      // If deep, fetch 8 pages per query (up to 400 results per query)
+      const service = getYouTubeService();
+      if (!service) return res.status(503).json({ error: "YouTube service not configured" });
+
       const pages = isDeep ? 8 : 2;
-      const report = await youtubeIngestion.runDiscoveryCycle(pages);
+      const report = await service.runDiscoveryCycle(pages);
       res.json(report);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -421,8 +436,10 @@ async function startServer() {
   apiRouter.post("/channels/sync-thumbnails", async (req, res) => {
     try {
       const adminClient = getSupabaseAdmin();
-      if (!adminClient) throw new Error("Supabase Admin not configured");
+      const apiKey = process.env.YOUTUBE_API_KEY || process.env.GEMINI_API_KEY;
+      if (!adminClient || !apiKey) throw new Error("Server not configured correctly");
 
+      const service = new YouTubeIngestionService(adminClient, apiKey);
       const { data: channels, error: fetchError } = await adminClient
         .from('tv_channels')
         .select('id, url, thumbnail, name');
@@ -436,7 +453,7 @@ async function startServer() {
         const videoId = YouTubeIngestionService.extractVideoId(channel.url);
         if (videoId) {
           try {
-            const metadata = await youtubeIngestion.getVideoMetadata(videoId);
+            const metadata = await service.getVideoMetadata(videoId);
             if (metadata && metadata.thumbnail) {
                const { error: updateError } = await adminClient
                 .from('tv_channels')
@@ -483,15 +500,17 @@ async function startServer() {
 
     try {
       const adminClient = getSupabaseAdmin()!;
+      const apiKey = process.env.YOUTUBE_API_KEY || process.env.GEMINI_API_KEY;
       
       // Auto-enrich if YouTube
       const videoId = YouTubeIngestionService.extractVideoId(url);
       let thumbnail = null;
       let description = req.body.description || "";
 
-      if (videoId) {
+      if (videoId && apiKey) {
         try {
-          const metadata = await youtubeIngestion.getVideoMetadata(videoId);
+          const service = new YouTubeIngestionService(adminClient, apiKey);
+          const metadata = await service.getVideoMetadata(videoId);
           thumbnail = metadata.thumbnail;
           if (!name || name === "New Channel") name = metadata.title;
           if (!description) description = metadata.description;
@@ -556,13 +575,15 @@ async function startServer() {
   });
 
   apiRouter.post("/channels/trigger-check", async (req, res) => {
-    await ingestionService.runHealthChecks();
+    const service = getIngestionService();
+    if (service) await service.runHealthChecks();
     res.json({ message: "Health check cycle triggered" });
   });
 
   // Start health check loop every 5 minutes
   setInterval(() => {
-    ingestionService.runHealthChecks().catch(err => console.error('[Ingestion LOOP ERROR]', err));
+    const service = getIngestionService();
+    if (service) service.runHealthChecks().catch(err => console.error('[Ingestion LOOP ERROR]', err));
   }, 5 * 60 * 1000);
 
   // Mount the API Router

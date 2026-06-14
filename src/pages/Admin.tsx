@@ -3650,14 +3650,14 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
 
                  <div className="p-6 bg-red-500/5 border border-red-500/10 rounded-2xl space-y-4">
                     <p className="text-sm text-foreground/70 leading-relaxed">
-                       This utility will scan <b>Events</b>, <b>TV Channels</b>, <b>Discovered Channels</b>, and <b>Portfolio Items</b> for any entries containing the word "Mexico" or "SportyTV" and delete them permanently. Use this if a blocked stream is still appearing due to manual entry or ingestion errors.
+                       This utility will scan <b>Events</b>, <b>TV Channels</b>, <b>Discovered Channels</b>, and <b>Portfolio Items</b> for any entries containing the word "Mexico" or "FideTv" and delete them permanently. Use this if a blocked stream is still appearing due to manual entry or ingestion errors.
                     </p>
                     <button 
                       onClick={async () => {
                         if (!confirm('Are you sure you want to run the global purge? This will delete all entries matching the blocklist keywords.')) return;
                         setLoading(true);
                         try {
-                            const keywords = ['Mexico', 'SportyTV', '™'];
+                            const keywords = ['Mexico', 'FideTv', '™'];
                             for (const kw of keywords) {
                               const pattern = `%${kw}%`;
                               await supabase.from('events').delete().ilike('title', pattern);

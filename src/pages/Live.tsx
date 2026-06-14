@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactPlayer from 'react-player';
 import { supabase } from '@/lib/supabase';
-import { Event } from '@/types';
+import { Event, EventStatus } from '@/types';
 import LiveChat from '@/components/LiveChat';
 import { BatchChannelImport } from '@/components/BatchChannelImport';
 import { Calendar, Users, Share2, Youtube, ExternalLink, Clock, AlertCircle, Globe, Tv, Film, MonitorPlay, MessageSquare, Play, VolumeX, Volume2, Pause, Settings, Check, Video, Maximize, Minimize, Square, Layout, Heart, HelpCircle, X, Upload } from 'lucide-react';
@@ -82,16 +82,15 @@ export default function Live() {
   }, []);
 
   const customBroadcast = React.useMemo(() => {
+    const ytId = event?.youtube_id && !event.youtube_id.includes('http') && !event.youtube_id.includes('<iframe') ? event.youtube_id : null;
     return {
       id: 'fidetv',
       name: event?.title || 'FideTV Official Broadcast',
       category: 'Official',
-      url: event?.youtube_id 
-        ? (event.youtube_id.includes('http') || event.youtube_id.includes('<iframe') 
-            ? event.youtube_id 
-            : `https://www.youtube.com/watch?v=${event.youtube_id}`)
-        : (event?.stream_url || fallbackStreamUrl),
-      thumbnail: event?.thumbnail_url || fidetvWorldCup,
+      url: ytId 
+        ? `https://www.youtube.com/watch?v=${ytId}`
+        : (event?.youtube_id || event?.stream_url || fallbackStreamUrl),
+      thumbnail: event?.thumbnail_url || (ytId ? `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg` : fidetvWorldCup),
       description: event?.description || 'Watch premium official FideTV broadcasts live and exclusively.',
       isLive: isFideTvLive,
       viewer_count: (ytStats?.viewers ? parseInt(ytStats.viewers) : undefined),
@@ -99,7 +98,7 @@ export default function Live() {
       icon: Tv,
       logo: undefined as string | undefined,
     };
-  }, [event, isFideTvLive, fallbackStreamUrl]);
+  }, [event, isFideTvLive, fallbackStreamUrl, ytStats]);
 
   const allChannels = React.useMemo(() => {
     const dynamic = dbChannels
@@ -134,6 +133,29 @@ export default function Live() {
       });
     
     const merged = [...dynamic];
+
+    // Include active and upcoming events in the channels list
+    const mappedEvents = events
+      .filter(e => e.id !== event?.id) // Don't duplicate the primary broadcast
+      .map(e => {
+        const ytId = e.youtube_id && !e.youtube_id.includes('http') && !e.youtube_id.includes('<iframe') ? e.youtube_id : null;
+        return {
+          id: `event_${e.id}`,
+          name: e.title,
+          category: 'Scheduled',
+          thumbnail: e.thumbnail_url || (ytId ? `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg` : fidetvWorldCup),
+          url: ytId ? `https://www.youtube.com/watch?v=${ytId}` : (e.stream_url || fallbackStreamUrl),
+          icon: e.status === 'live' ? Tv : Calendar,
+          description: e.description,
+          isLive: e.status === 'live',
+          isUpcoming: e.status === 'upcoming',
+          startTime: e.start_time,
+          created_at: e.created_at,
+          originalEvent: e
+        };
+      });
+
+    merged.push(...mappedEvents as any);
 
     if (directStreamUrl) {
       merged.unshift({
@@ -224,7 +246,7 @@ export default function Live() {
     const activeCh = allChannels.find(c => c.id === activeChannelId) || customBroadcast;
     const isEmbed = activeCh?.url?.includes('<iframe');
 
-    const delay = isEmbed ? 200 : 2500;
+    const delay = isEmbed ? 200 : 1200;
 
     checkStreamSignal(activeCh?.url || '');
 
@@ -318,23 +340,28 @@ export default function Live() {
 
     setConnectionStatus('connecting');
 
-    // For HLS/m3u8, try to probe the manifest
+    // For HLS/m3u8, try to probe the manifest via our proxy to avoid CORS
     if (url.toLowerCase().includes('.m3u8')) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
         
-        // We use no-cors to avoid CORS issues if server isn't configured for our domain
-        // It won't give us the 'ok' status but will fail if the server is down
-        await fetch(url, { 
+        // Use our server-side proxy to check if stream is actually reachable
+        const proxyUrl = `/api/proxy-stream?url=${encodeURIComponent(url)}`;
+        
+        const res = await fetch(proxyUrl, { 
           method: 'GET', 
-          mode: 'no-cors',
           signal: controller.signal,
           cache: 'no-cache'
         });
         
         clearTimeout(timeoutId);
-        setConnectionStatus('live');
+        
+        if (res.ok) {
+          setConnectionStatus('live');
+        } else {
+          setConnectionStatus('offline');
+        }
       } catch (err: any) {
         if (err.name === 'AbortError') {
           console.log('[Live] Stream probe aborted');
@@ -365,18 +392,44 @@ export default function Live() {
       .from('events')
       .select('*')
       .or('status.eq.live,status.eq.upcoming')
-      .order('status', { ascending: false }) // live first
       .order('start_time', { ascending: true });
 
     if (eventsData && eventsData.length > 0) {
-      setEvents(eventsData as Event[]);
-      const currentEvent = eventsData.find(e => e.status === 'live') || eventsData[0];
+      // Helper to compute status based on time
+      const computeStatuses = (evs: Event[]) => {
+        const now = new Date().getTime();
+        return evs.map(ev => {
+          const start = new Date(ev.start_time).getTime();
+          const end = start + (4 * 60 * 60 * 1000); // 4 hour window
+          
+          let computedStatus: EventStatus = ev.status;
+          if (now >= start && now < end) {
+            computedStatus = 'live';
+          } else if (now < start) {
+            computedStatus = 'upcoming';
+          } else {
+            computedStatus = 'offline';
+          }
+          return { ...ev, status: computedStatus };
+        }).filter(ev => ev.status !== 'offline');
+      };
+
+      const normalized = computeStatuses(eventsData as Event[]);
+      setEvents(normalized);
+      
+      const currentEvent = normalized.find(e => e.status === 'live') || normalized[0];
       setEvent(currentEvent);
       
-      if (currentEvent.youtube_id) {
+      if (currentEvent?.youtube_id) {
         fetchYouTubeStats(currentEvent.youtube_id).then(setYtStats).catch(console.error);
       }
-      fetchRecentUploads('UC_x5XG1OV2P6uZZ5FSM9Ttw', signal).then(setRecentUploads).catch(console.error);
+      
+      // If the current event has a channel ID, fetch its recent uploads
+      // Use the provided example channel only as a fallback if no other content exists
+      const targetChannelId = currentEvent?.youtube_channel_id || 'UC_x5XG1OV2P6uZZ5FSM9Ttw';
+      fetchRecentUploads(targetChannelId, signal).then(setRecentUploads).catch(err => {
+         if (err.name !== 'AbortError') console.error('Recent uploads fetch failed:', err);
+      });
     } else {
       setEvents([]);
       setEvent(null);
@@ -495,7 +548,55 @@ export default function Live() {
 
     setupRealtime();
 
+    const interval = setInterval(() => {
+      const now = new Date().getTime();
+      let updatedAnyStatus = false;
+
+      setEvents(prevEvents => {
+        const updated = prevEvents.map(ev => {
+          const start = new Date(ev.start_time).getTime();
+          const end = start + (4 * 60 * 60 * 1000);
+          
+          let computedStatus: EventStatus = ev.status;
+          if (now >= start && now < end) {
+             computedStatus = 'live';
+          } else if (now < start) {
+             computedStatus = 'upcoming';
+          } else {
+             computedStatus = 'offline';
+          }
+          
+          if (computedStatus !== ev.status) {
+            updatedAnyStatus = true;
+          }
+          
+          return { ...ev, status: computedStatus };
+        }).filter(ev => ev.status !== 'offline');
+        
+        return updated;
+      });
+
+      // If we are currently watching an event, and its status might have changed,
+      // the fetchLiveEventData isn't called, but the status in 'events' state is updated.
+      // However, the 'event' state itself (the current one) also needs updating to trigger UI changes.
+      setEvent(curr => {
+        if (!curr) return null;
+        const start = new Date(curr.start_time).getTime();
+        const end = start + (4 * 60 * 60 * 1000);
+        let status: EventStatus = curr.status;
+        if (now >= start && now < end) status = 'live';
+        else if (now < start) status = 'upcoming';
+        else status = 'offline';
+        
+        if (status !== curr.status) {
+          return { ...curr, status };
+        }
+        return curr;
+      });
+    }, 15000);
+
     return () => {
+      clearInterval(interval);
       if (fetchControllerRef.current) fetchControllerRef.current.abort();
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
@@ -568,7 +669,7 @@ export default function Live() {
   };
 
   const handleChannelSwitch = (channelId: string, eventObj?: Event | null) => {
-    if (isZapping || !isPlayerReady) return;
+    if (isZapping) return;
     
     setIsZapping(true);
     setIsPlayerReady(false);
@@ -711,24 +812,42 @@ export default function Live() {
                  : "absolute inset-0 w-full h-full scale-100",
                isPiP && isPiPDismissed ? "opacity-0 pointer-events-none" : "opacity-100"
             )}>
-              {/* Zapping / Loading Overlay */}
-            {(isZapping || !isPlayerReady) && !playerError && (
+              {/* Zapping / Loading / Upcoming Overlay */}
+            {(isZapping || !isPlayerReady || (activeChannel as any).isUpcoming) && !playerError && (
               <div className="absolute inset-0 z-[50] flex flex-col items-center justify-center bg-black transition-opacity duration-300 pointer-events-none">
                 <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
-                <div className="relative">
-                  <div className="w-16 h-16 border-2 border-primary/20 border-t-primary rounded-full animate-spin shadow-[0_0_20px_rgba(242,125,38,0.2)]" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-8 h-8 bg-primary/10 rounded-full animate-ping" />
+                
+                {(activeChannel as any).isUpcoming ? (
+                  <div className="relative z-10 flex flex-col items-center justify-center p-8 text-center">
+                    <div className="w-20 h-20 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(242,125,38,0.1)]">
+                      <Calendar className="w-8 h-8 text-primary animate-pulse" />
+                    </div>
+                    <h3 className="text-xl font-display font-black uppercase tracking-tight mb-2 text-white">Coming Soon</h3>
+                    <p className="text-white/50 text-xs max-w-xs mb-4 leading-relaxed font-bold">
+                      {format(new Date((activeChannel as any).startTime), 'MMMM d, yyyy @ HH:mm')}
+                    </p>
+                    <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-primary">
+                      Scheduled Broadcast
+                    </div>
                   </div>
-                </div>
-                <div className="mt-6 flex flex-col items-center">
-                  <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.4em] animate-pulse">Tuning Channel</span>
-                  <div className="flex gap-1 mt-2">
-                    {[1, 2, 3].map(i => (
-                      <div key={i} className="w-1 h-1 bg-primary/40 rounded-full animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
-                    ))}
-                  </div>
-                </div>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <div className="w-16 h-16 border-2 border-primary/20 border-t-primary rounded-full animate-spin shadow-[0_0_20px_rgba(242,125,38,0.2)]" />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-8 h-8 bg-primary/10 rounded-full animate-ping" />
+                      </div>
+                    </div>
+                    <div className="mt-6 flex flex-col items-center">
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.4em] animate-pulse">Tuning Channel</span>
+                      <div className="flex gap-1 mt-2">
+                        {[1, 2, 3].map(i => (
+                          <div key={i} className="w-1 h-1 bg-primary/40 rounded-full animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
             {playerError ? (
@@ -1381,18 +1500,27 @@ export default function Live() {
                                  LIVE
                               </div>
                             )}
+                            {(channel as any).isUpcoming && (
+                              <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-primary rounded text-[7px] font-black uppercase tracking-wider text-white">
+                                 COMING UP
+                              </div>
+                            )}
                           </div>
                           <div className="flex flex-col overflow-hidden min-w-0 pt-0.5">
                              <h4 className="text-xs font-bold text-white line-clamp-2 leading-[1.3] group-hover:text-primary transition-colors">{channel.name}</h4>
                              <div className="flex items-center gap-1.5 mt-1">
-                               <span className="text-[9px] text-white/40 font-bold tracking-tight">{channel.category}</span>
+                               <span className="text-[9px] text-white/40 font-bold tracking-tight">
+                                 {(channel as any).isUpcoming ? format(new Date((channel as any).startTime), 'MMM d, HH:mm') : channel.category}
+                               </span>
                                {isSelected && <div className="w-2 h-2 bg-primary rounded-full" />}
                              </div>
                              <span className="text-[9px] text-white/30 mt-0.5 font-mono flex items-center gap-2">
                                <span>
-                                 {channel.viewer_count 
-                                   ? `${parseInt(channel.viewer_count).toLocaleString()} watching` 
-                                   : 'Recommended'}
+                                 {(channel as any).isUpcoming 
+                                   ? 'Scheduled Broadcast' 
+                                   : (channel.viewer_count 
+                                     ? `${parseInt(channel.viewer_count).toLocaleString()} watching` 
+                                     : 'Recommended')}
                                </span>
                                {channel.like_count > 0 && (
                                  <span className="flex items-center gap-0.5 text-red-500/60">

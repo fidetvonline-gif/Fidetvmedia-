@@ -220,9 +220,9 @@ export class YouTubeIngestionService {
         // Basic validation: must have channel info
         if (!channelId || !channelTitle) continue;
 
-        // Skip blocked content (Simple keywords check)
-        const blocklist = ['SportyTV', 'Mexico', 'South Africa'];
-        if (blocklist.some(kw => videoTitle.toLowerCase().includes(kw.toLowerCase()) || channelTitle.toLowerCase().includes(kw.toLowerCase()))) {
+        // Skip blocked content (Specific title match)
+        const blocklist = ['LIVE | Mexico vs South Africa | FIFA World Cup 2026™ | FideTv'];
+        if (blocklist.some(title => videoTitle.includes(title))) {
            continue;
         }
 

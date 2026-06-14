@@ -6,6 +6,7 @@ export interface Event {
   description: string;
   stream_url?: string;
   youtube_id?: string;
+  youtube_channel_id?: string;
   start_time: string;
   status: EventStatus;
   thumbnail_url?: string;
