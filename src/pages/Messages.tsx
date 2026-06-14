@@ -148,19 +148,26 @@ export default function Messages() {
 
     try {
       setUploading(true);
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('bucket', 'message-attachments');
 
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('message-attachments')
-        .upload(filePath, file);
+      const response = await fetch('/api/storage/upload', {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: formData,
+        credentials: 'include'
+      });
 
-      if (uploadError) throw uploadError;
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(errorData.error || `Server error: ${response.status}`);
+      }
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('message-attachments')
-        .getPublicUrl(filePath);
+      const { publicUrl } = await response.json();
 
       const isImage = file.type.startsWith('image/');
       

@@ -184,24 +184,25 @@ export default function Profile() {
       }
 
       const file = event.target.files[0];
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}-${Math.random()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('bucket', 'avatars');
 
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file);
+      const response = await fetch('/api/storage/upload', {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: formData,
+        credentials: 'include'
+      });
 
-      if (uploadError) {
-        if (uploadError.message.includes('bucket not found')) {
-            throw new Error('Storage bucket "avatars" not found. Please ensure it is created in Supabase (see Section 9 of supabase_schema.sql).');
-        }
-        throw uploadError;
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(errorData.error || `Server error: ${response.status}`);
       }
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
+      const { publicUrl } = await response.json();
 
       const { error: updateError } = await supabase
         .from('profiles')

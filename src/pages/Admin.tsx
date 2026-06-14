@@ -405,25 +405,31 @@ export default function Admin() {
 
   const uploadFileToStorage = async (file: File) => {
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `assets_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
-      const { data, error } = await supabase.storage
-        .from('event-thumbnails')
-        .upload(fileName, file);
-      
-      if (!error && data) {
-        const { data: { publicUrl } } = supabase.storage
-          .from('event-thumbnails')
-          .getPublicUrl(data.path);
-        return publicUrl;
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('bucket', 'event-thumbnails');
+
+      const response = await fetch('/api/storage/upload', {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: formData,
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.publicUrl;
       } else {
-        console.warn("Storage upload err:", error);
+        const text = await response.text();
+        console.warn("Storage upload err:", text);
       }
     } catch (e) {
       console.warn("Storage upload threw:", e);
     }
     
-    // Base64 fallback block
+    // Base64 fallback block as last resort
     return new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => resolve(e.target?.result as string);

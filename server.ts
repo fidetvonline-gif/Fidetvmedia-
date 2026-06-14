@@ -183,14 +183,15 @@ async function startServer() {
       }
       
       const file = req.file;
-      const { bucket = "thumbnails" } = req.body;
+      // Accept bucket from query or body
+      const bucket = req.body.bucket || req.query.bucket || "thumbnails";
       
       if (!file) {
         console.warn("[Storage] No file in request. Body keys:", Object.keys(req.body));
         return res.status(400).json({ error: "No file provided for upload" });
       }
 
-      console.log(`[Storage] Processing upload. File: ${file.originalname}, Size: ${file.size}, Bucket: ${bucket}`);
+      console.log(`[Storage] Processing upload. File: ${file.originalname}, Size: ${file.size}, Bucket: ${bucket}, Mime: ${file.mimetype}`);
 
       // Generate a cleaner filename with extension from mimetype if originalname is generic
       let ext = file.originalname.split('.').pop() || '';
@@ -205,20 +206,20 @@ async function startServer() {
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}${ext ? '.' + ext : ''}`;
       const filePath = `uploads/${fileName}`;
 
-      console.log(`[Storage] Uploading ${file.originalname} to bucket ${bucket} as ${filePath} (${file.mimetype})`);
+      console.log(`[Storage] Uploading to bucket ${bucket} as ${filePath}`);
 
       // 1. Try uploading
       let { error: uploadError } = await adminClient.storage
-        .from(bucket)
+        .from(bucket as string)
         .upload(filePath, file.buffer, {
           contentType: file.mimetype,
           upsert: true
         });
 
-      // 2. If bucket not found, try creating it and retry
-      if (uploadError && uploadError.message?.toLowerCase().includes('bucket not found')) {
+      // 2. If bucket not found or policy error, try creating it and retry
+      if (uploadError && (uploadError.message?.toLowerCase().includes('bucket not found') || uploadError.message?.toLowerCase().includes('not found'))) {
         console.log(`[Storage] Bucket "${bucket}" not found, attempting to auto-create...`);
-        const { error: createError } = await adminClient.storage.createBucket(bucket, {
+        const { error: createError } = await adminClient.storage.createBucket(bucket as string, {
           public: true,
           fileSizeLimit: 10 * 1024 * 1024, // 10MB
         });
@@ -231,7 +232,7 @@ async function startServer() {
         // Retry upload after bucket creation
         console.log(`[Storage] Retrying upload to newly created bucket "${bucket}"...`);
         const retryResult = await adminClient.storage
-          .from(bucket)
+          .from(bucket as string)
           .upload(filePath, file.buffer, {
             contentType: file.mimetype,
             upsert: true
@@ -246,7 +247,7 @@ async function startServer() {
 
       // Fetch the public URL
       const { data: { publicUrl } } = adminClient.storage
-        .from(bucket)
+        .from(bucket as string)
         .getPublicUrl(filePath);
 
       console.log(`[Storage] Upload success. Public URL: ${publicUrl}`);

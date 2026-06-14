@@ -133,23 +133,29 @@ export default function AdminAdManagement() {
 
     setIsUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `ads/${fileName}`;
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('bucket', 'event-thumbnails');
 
-      const { error: uploadError } = await supabase.storage
-        .from('event-thumbnails')
-        .upload(filePath, file);
+      const response = await fetch('/api/storage/upload', {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: formData,
+        credentials: 'include'
+      });
 
-      if (uploadError) throw uploadError;
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(errorData.error || `Server error: ${response.status}`);
+      }
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('event-thumbnails')
-        .getPublicUrl(filePath);
-
+      const { publicUrl } = await response.json();
       setEditingAd(prev => ({ ...prev, image_url: publicUrl }));
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error uploading file:', err);
+      alert('Upload failed: ' + err.message);
     } finally {
       setIsUploading(false);
     }
