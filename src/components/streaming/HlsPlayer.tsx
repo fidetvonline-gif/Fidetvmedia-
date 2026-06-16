@@ -32,7 +32,7 @@ const HlsPlayer: React.FC<HlsPlayerProps> = ({
         maxBufferLength: 30,
         maxMaxBufferLength: 60,
         xhrSetup: (xhr) => {
-          xhr.withCredentials = false;
+          xhr.withCredentials = true;
         }
       });
 

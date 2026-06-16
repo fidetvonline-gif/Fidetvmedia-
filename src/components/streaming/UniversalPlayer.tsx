@@ -118,7 +118,7 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
           />
         ) : stream.type === 'mp4' ? (
           <video 
-            src={stream.url}
+            src={stream.needsProxy ? `/api/proxy-stream?url=${encodeURIComponent(stream.url)}` : stream.url}
             className="w-full h-full object-contain"
             autoPlay={autoPlay}
             muted={effectiveMuted}

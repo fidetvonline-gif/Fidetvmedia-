@@ -390,33 +390,39 @@ async function startServer() {
 
   // 4. HLS/M3U8 Stream Proxy with Manifest Rewriting
   apiRouter.all("/proxy-stream", async (req, res) => {
+    // Enable CORS with dynamic origin for withCredentials support
+    const origin = req.headers.origin || '*';
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', '*');
+    res.setHeader('Access-Control-Expose-Headers', '*');
+
     if (req.method === 'OPTIONS') {
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', '*');
       return res.status(204).end();
     }
 
     const { url, referer } = req.query;
     if (!url) {
-      console.error("[Proxy] No URL provided in request");
-      return res.status(400).send("No URL provided");
+      return res.status(400).send("Proxy error: URL parameter is required");
     }
     
     const streamUrl = url as string;
-    console.log(`[Proxy] Incoming request for: ${streamUrl}`);
     
     try {
-      try {
-        new URL(streamUrl);
-      } catch (e) {
-        console.error(`[Proxy] Invalid URL format: ${streamUrl}`);
-        return res.status(400).send("Invalid stream URL");
+      const urlObj = new URL(streamUrl);
+      const targetOrigin = urlObj.origin;
+      let effectiveReferer = referer as string;
+      
+      if (!effectiveReferer) {
+        if (streamUrl.includes('redbull')) effectiveReferer = 'https://www.redbull.com/';
+        else if (streamUrl.includes('limex')) effectiveReferer = 'https://limex.tv/';
+        else if (streamUrl.includes('linear')) effectiveReferer = 'https://limex.tv/';
+        else effectiveReferer = targetOrigin + '/';
       }
 
-      const targetOrigin = new URL(streamUrl).origin;
-      const effectiveReferer = (referer as string) || (streamUrl.includes('limex') ? 'https://limex.tv/' : targetOrigin);
-
+      console.log(`[Proxy] Fetching: ${streamUrl}`);
+      
       const headers: Record<string, string> = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Referer': effectiveReferer,
@@ -424,8 +430,8 @@ async function startServer() {
         'Accept': '*/*',
         'Accept-Language': 'en-US,en;q=0.9',
         'Cache-Control': 'no-cache',
-        'Accept-Encoding': 'identity',
         'Pragma': 'no-cache',
+        'Accept-Encoding': 'identity'
       };
 
       if (req.headers.range) {
@@ -437,80 +443,72 @@ async function startServer() {
         timeout: 20000,
         responseType: 'stream',
         validateStatus: () => true,
-        maxRedirects: 5
+        maxRedirects: 10
       });
       
       const finalUrl = response.request?.res?.responseUrl || streamUrl;
-      const finalOrigin = new URL(finalUrl).origin;
+      const finalBaseUrl = finalUrl.substring(0, finalUrl.lastIndexOf('/') + 1);
+      const contentType = String(response.headers['content-type'] || '').toLowerCase();
 
       if (response.status >= 400) {
         console.warn(`[Proxy] Upstream ERROR ${response.status} for ${streamUrl}`);
-        return res.status(response.status).send(`Upstream Error ${response.status}`);
+        return res.status(response.status).send(`Upstream Error: ${response.status}`);
       }
 
-      const contentType = String(response.headers['content-type'] || '').toLowerCase();
       const isManifest = contentType.includes('mpegurl') || 
                         contentType.includes('mpeg-url') ||
                         contentType.includes('apple-mpegurl') ||
                         finalUrl.split('?')[0].toLowerCase().endsWith('.m3u8') ||
                         finalUrl.split('?')[0].toLowerCase().endsWith('.m3u');
 
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', '*');
-      res.setHeader('X-Proxy-Source', 'AI-Studio-Bridge');
+      res.setHeader('X-Proxy-Source', 'AI-Studio-Stream-Bridge');
+      res.setHeader('Content-Type', contentType);
 
       if (isManifest) {
-        const chunks: any[] = [];
-        response.data.on('data', (chunk: any) => { chunks.push(chunk); });
+        const chunks: Buffer[] = [];
+        response.data.on('data', (chunk: any) => chunks.push(Buffer.from(chunk)));
         
         response.data.on('end', () => {
-          const buffer = Buffer.concat(chunks);
-          const text = buffer.toString('utf8');
+          const content = Buffer.concat(chunks).toString('utf8');
           
-          if (!text.trim().startsWith('#EXTM3U')) {
-            res.setHeader('Content-Type', contentType);
-            return res.status(200).send(buffer);
+          if (!content.trim().startsWith('#EXTM3U')) {
+            return res.status(200).send(content);
           }
 
-          const baseUrl = finalUrl.substring(0, finalUrl.lastIndexOf('/') + 1);
-          const lines = text.split('\n');
-          const rewrittenLines = [];
-          
-          for (let line of lines) {
+          const lines = content.split('\n');
+          const rewrittenLines = lines.map(line => {
             const trimmed = line.trim();
-            if (!trimmed || trimmed.startsWith('#')) {
-              if (trimmed.includes('URI=')) {
-                line = line.replace(/URI="([^"]*)"/g, (match, p1) => {
-                  try {
-                    const abs = p1.startsWith('http') ? p1 : new URL(p1, baseUrl).href;
-                    return `URI="/api/proxy-stream?url=${encodeURIComponent(abs)}&referer=${encodeURIComponent(effectiveReferer)}"`;
-                  } catch (e) { return match; }
-                });
-              }
-              rewrittenLines.push(line);
-              continue;
+            if (!trimmed) return line;
+
+            if (trimmed.startsWith('#')) {
+              return line.replace(/URI="([^"]*)"/g, (match, p1) => {
+                try {
+                  const abs = p1.startsWith('http') ? p1 : new URL(p1, finalBaseUrl).href;
+                  return `URI="/api/proxy-stream?url=${encodeURIComponent(abs)}&referer=${encodeURIComponent(effectiveReferer)}"`;
+                } catch (e) { return match; }
+              });
             }
             
             try {
-              const absoluteUrl = trimmed.startsWith('http') ? trimmed : new URL(trimmed, baseUrl).href;
-              rewrittenLines.push(`/api/proxy-stream?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(effectiveReferer)}`);
-            } catch (e) { rewrittenLines.push(line); }
-          }
+              const absoluteUrl = trimmed.startsWith('http') ? trimmed : new URL(trimmed, finalBaseUrl).href;
+              return `/api/proxy-stream?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(effectiveReferer)}`;
+            } catch (e) { return line; }
+          });
           
           res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
-          res.status(200).send(rewrittenLines.join('\n'));
+          res.send(rewrittenLines.join('\n'));
         });
       } else {
-        res.status(response.status);
-        res.setHeader('Content-Type', contentType);
         if (response.headers['content-length']) res.setHeader('Content-Length', String(response.headers['content-length']));
         if (response.headers['content-range']) res.setHeader('Content-Range', String(response.headers['content-range']));
+        if (response.headers['accept-ranges']) res.setHeader('Accept-Ranges', String(response.headers['accept-ranges']));
+        
+        res.status(response.status);
         response.data.pipe(res);
       }
     } catch (error: any) {
-      console.error(`[Proxy Failure] ${error.message}`);
-      if (!res.headersSent) res.status(502).send(`Bridge Failure: ${error.message}`);
+      console.error(`[Proxy Error] ${error.message} for ${streamUrl}`);
+      if (!res.headersSent) res.status(502).send(`Stream Bridge Timeout or DNS Failure`);
     }
   });
 
