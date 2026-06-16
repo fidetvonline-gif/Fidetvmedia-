@@ -1,5 +1,5 @@
 {
-  "name": "Fidetvmedia",
+  "name": "FideTV Media",
   "description": "A full digital media platform featuring live streaming, media agency services, and an interactive community hub.",
   "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

@@ -1,0 +1,431 @@
+{
+  "Sports": [
+    {
+      "url": "https://30a-tv.com/feeds/vidaa/golf.m3u8",
+      "name": "30A Golf Kingdom (720p)",
+      "category": "Sports",
+      "logo": "https://i.imgur.com/Lv53nh4.png"
+    },
+    {
+      "url": "https://rnttwmjcin.turknet.ercdn.net/lcpmvefbyo/aspor/aspor.m3u8",
+      "name": "A Spor (1080p)",
+      "category": "Sports",
+      "logo": "https://i.imgur.com/ZhkZzLf.png"
+    },
+    {
+      "url": "https://raycom-accdn-firetv.amagi.tv/playlist.m3u8",
+      "name": "ACCDN (1080p)",
+      "category": "Sports",
+      "logo": "https://i.imgur.com/V6Kaqha.png"
+    },
+    {
+      "url": "https://webstream.multistream.it/memfs/e2cb3629-c1a2-495b-b43a-9eb386f04ed8.m3u8",
+      "name": "ACI Sport TV (1080p)",
+      "category": "Sports",
+      "logo": "https://i.imgur.com/U8cHMOt.png"
+    },
+    {
+      "url": "https://strhls.streamakaci.tv/ortb/ortb2-multi/playlist.m3u8",
+      "name": "ADO TV (720p)",
+      "category": "Sports",
+      "logo": "https://i.imgur.com/pxFamLr.png"
+    },
+    {
+      "url": "https://africa24.vedge.infomaniak.com/livecast/ik:africa24sport/manifest.m3u8",
+      "name": "Africa 24 Sport (1080p)",
+      "category": "Sports",
+      "logo": "https://i0.wp.com/africa24tv.com/wp-content/uploads/2023/12/LOGO-AFRICASPORT-4-HD-sans-fond.png?fit=512%2C107&ssl=1"
+    },
+    {
+      "url": "https://imn-live.esite-lab.com/hls/iraqia-sports-1.m3u8",
+      "name": "Al Iraqia Sport (720p)",
+      "category": "Sports",
+      "logo": "https://i.imgur.com/DrrlxTO.png"
+    },
+    {
+      "url": "https://liveeu-gcp.alkassdigital.net/alkass4-p/main.m3u8",
+      "name": "Alkass Four (1080p)",
+      "category": "Sports",
+      "logo": "https://i.imgur.com/iDL65Wu.png"
+    },
+    {
+      "url": "https://liveeu-gcp.alkassdigital.net/alkass1-p/main.m3u8",
+      "name": "Alkass One (1080p)",
+      "category": "Sports",
+      "logo": "https://i.imgur.com/10mmlha.png"
+    },
+    {
+      "url": "https://liveeu-gcp.alkassdigital.net/shooflive/main.m3u8",
+      "name": "Alkass SHOOF (1080p)",
+      "category": "Sports",
+      "logo": "https://shoof.alkass.net/assets/images/shoof.png"
+    },
+    {
+      "url": "https://liveeu-gcp.alkassdigital.net/shooflive2/main.m3u8",
+      "name": "Alkass SHOOF 2 (1080p)",
+      "category": "Sports",
+      "logo": "https://shoof.alkass.net/assets/images/shoof2.png"
+    },
+    {
+      "url": "https://liveeu-gcp.alkassdigital.net/alkass6-p/main.m3u8",
+      "name": "Alkass Six (1080p)",
+      "category": "Sports",
+      "logo": "https://i.imgur.com/CrPSPSC.png"
+    },
+    {
+      "url": "https://liveeu-gcp.alkassdigital.net/alkass3-p/main.m3u8",
+      "name": "Alkass Three (1080p)",
+      "category": "Sports",
+      "logo": "https://i.imgur.com/d57BdFh.png"
+    },
+    {
+      "url": "https://liveeu-gcp.alkassdigital.net/alkass2-p/main.m3u8",
+      "name": "Alkass Two (1080p)",
+      "category": "Sports",
+      "logo": "https://i.imgur.com/8w61kFX.png"
+    },
+    {
+      "url": "https://nl1.nghk.ai/ArenaFight/index.m3u8",
+      "name": "like Gecko) Chrome/149.0.0.0 Safari/537.3\" group-title=\"Sports\",Arena Fight (1080p)",
+      "category": "Sports",
+      "logo": "https://i.imgur.com/5abTrJU.png"
+    },
+    {
+      "url": "https://nl1.nghk.ai/AS1HRHD/index.m3u8",
+      "name": "like Gecko) Chrome/149.0.0.0 Safari/537.3\" group-title=\"Sports\",Arena Sport 1 (720p)",
+      "category": "Sports",
+      "logo": "https://i.imgur.com/RJrJGbW.png"
+    },
+    {
+      "url": "https://nl1.nghk.ai/AS2HRHD/index.m3u8",
+      "name": "like Gecko) Chrome/149.0.0.0 Safari/537.3\" group-title=\"Sports\",Arena Sport 2 (720p)",
+      "category": "Sports",
+      "logo": "https://i.imgur.com/aqlECBj.png"
+    }
+  ],
+  "Sports (World Cup)": [],
+  "Movies": [
+    {
+      "url": "https://iptv.prosto.tv/ch42/index.m3u8",
+      "name": "like Gecko) Chrome/149.0.0.0 Safari/537.3\" group-title=\"Movies\",4ever Cinema (1080p)",
+      "category": "Movies",
+      "logo": "https://i.imgur.com/vFOgVbG.png"
+    },
+    {
+      "url": "https://30a-tv.com/feeds/pzaz/30atvmovies.m3u8",
+      "name": "30A TV Classic Movies (720p)",
+      "category": "Movies",
+      "logo": "https://babaktv.com/wp-content/uploads/2023/09/30A-Classi-Movies.jpeg"
+    },
+    {
+      "url": "http://176.126.166.43:1935/live/312kino/playlist.m3u8",
+      "name": "312 Кино (406p)",
+      "category": "Movies",
+      "logo": "https://i.ibb.co/3m9LrLj/k7gIibH.png"
+    },
+    {
+      "url": "https://amg01117-amg01117c1-amgplt0029.playout.now3.amagi.tv/playlist/amg01117-amg01117c1-amgplt0029/playlist.m3u8",
+      "name": "&TV International (1080p)",
+      "category": "Movies",
+      "logo": "https://xstreamcp-assets-msp.streamready.in/assets/LIVETV/LIVECHANNEL/LIVETV_LIVETVCHANNEL_SYMANDTV/images/LOGO_HD/LOGO_HD_image.png"
+    },
+    {
+      "url": "https://mediaserver.abnvideos.com/streams/abnbiblemovies.m3u8",
+      "name": "ABN Bible Movies (720p)",
+      "category": "Movies",
+      "logo": "https://i.imgur.com/NCqZdaL.png"
+    },
+    {
+      "url": "http://actionlive.siliconweb.com/actionabr/actiontv/playlist.m3u8",
+      "name": "Action 24 (1080p)",
+      "category": "Movies",
+      "logo": "https://upload.wikimedia.org/wikipedia/commons/8/88/Action24-logo-small.png"
+    },
+    {
+      "url": "https://shd-amg-fast.edgenextcdn.net/tx001/playlist.m3u8",
+      "name": "Aflam (1080p)",
+      "category": "Movies",
+      "logo": "https://i.imgur.com/cTLj7Yt.png"
+    },
+    {
+      "url": "https://afrafhls.wns.live/hls/stream.m3u8",
+      "name": "Afra Film",
+      "category": "Movies",
+      "logo": ""
+    },
+    {
+      "url": "https://streamdot.broadpeak.io/cff02a74da64d145c102a2d012758398/afxpstr/AfriwoodBlockbuster/index.m3u8",
+      "name": "Afriwood Blockbuster (720p)",
+      "category": "Movies",
+      "logo": "https://i.imgur.com/aESdqiB.png"
+    },
+    {
+      "url": "https://livetv.tarangplus.in/alankar-origin/live/playlist.m3u8",
+      "name": "Alankar TV (720p)",
+      "category": "Movies",
+      "logo": "https://xstreamcp-assets-msp.streamready.in/assets/LIVETV/LIVECHANNEL/LIVETV_LIVETVCHANNEL_ALANKAR/images/LOGO_HD/image.png"
+    },
+    {
+      "url": "https://dqi7ayt2o24fn.cloudfront.net/playlist.m3u8",
+      "name": "Alien Nation by DUST (1080p)",
+      "category": "Movies",
+      "logo": "https://i.imgur.com/FxYhME9.png"
+    },
+    {
+      "url": "https://live.15plusmg.ru/memfs/b389173a-df4e-4171-8904-e249893e71eb.m3u8",
+      "name": "alpha Cinema (1080p)",
+      "category": "Movies",
+      "logo": "https://i.imgur.com/146OgfU.png"
+    },
+    {
+      "url": "https://live.15plusmg.ru/memfs/3546fc09-2eba-459d-9a1f-9a2fc39e50bd.m3u8",
+      "name": "alpha Moretime (1080p)",
+      "category": "Movies",
+      "logo": "https://i.imgur.com/ibQfUr7.png"
+    },
+    {
+      "url": "https://dokagents.site/live/amc/mono.m3u8",
+      "name": "like Gecko) Chrome/149.0.0.0 Safari/537.3\" group-title=\"Movies\",AMC Europe",
+      "category": "Movies",
+      "logo": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/AMC_logo_2019.svg/960px-AMC_logo_2019.svg.png"
+    },
+    {
+      "url": "http://31.148.48.15/Amedia_HIT_HD/index.m3u8",
+      "name": "Amedia Hit (720p)",
+      "category": "Movies",
+      "logo": "https://i.imgur.com/a8ZBGBw.png"
+    }
+  ],
+  "Entertainment": [
+    {
+      "url": "https://cdn.freevisiontv.co.za/sttv/smil:1kzn.stream.smil/playlist.m3u8",
+      "name": "1KZN TV (576p)",
+      "category": "Entertainment",
+      "logo": "https://admango.cdn.mangomolo.com/analytics/uploads/188/6544bebaae.jpg"
+    },
+    {
+      "url": "https://bl.rutube.ru/livestream/392b4686b770bae2da6bf5ac4574add5/index.m3u8?e=2068731801&s=tenr-yHXUv1wibfka78s2A&scheme=https",
+      "name": "2x2 (576i)",
+      "category": "Entertainment",
+      "logo": "https://i.imgur.com/fhQFLEl.png"
+    },
+    {
+      "url": "https://iptv.prosto.tv/ch37/tracks-v2a1/mono.m3u8?21yo=0&e=1783680395&id=922996&ip=178.136.40.86&live=1&secret=yamxdzwl&st=OWDBi-vxSZADl0oF8lHHxw",
+      "name": "4ever Theater",
+      "category": "Entertainment",
+      "logo": "https://i.imgur.com/kfngtev.png"
+    },
+    {
+      "url": "https://hls.4utv.live/hls/stream.m3u8",
+      "name": "4U TV (720p)",
+      "category": "Entertainment",
+      "logo": "https://i.imgur.com/PexhKwp.png"
+    },
+    {
+      "url": "http://158.69.124.9:1935/5aabtv/5aabtv/playlist.m3u8",
+      "name": "5AAB TV (720p) [Not 24/7]",
+      "category": "Entertainment",
+      "logo": "https://i.imgur.com/jrGrfof.png"
+    },
+    {
+      "url": "http://cdn6.163189.xyz/163189/8tv",
+      "name": "8TV",
+      "category": "Entertainment",
+      "logo": "https://i.imgur.com/Jkx9W88.png"
+    },
+    {
+      "url": "https://30a-tv.com/sidewalks.m3u8",
+      "name": "30A Sidewalks (720p)",
+      "category": "Entertainment",
+      "logo": "https://i.imgur.com/HSdwqZN.png"
+    },
+    {
+      "url": "https://30a-tv.com/feeds/masters/30atv.m3u8",
+      "name": "30A Television Channel (720p)",
+      "category": "Entertainment",
+      "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTTHiYfIB01K44LIBG81aEGAmDuIWw8MA0f2w&s"
+    },
+    {
+      "url": "https://hls.247box.live/hls/stream.m3u8",
+      "name": "247 Box TV",
+      "category": "Entertainment",
+      "logo": "https://i.imgur.com/t5AUthL.png"
+    },
+    {
+      "url": "http://176.126.166.43:1935/live/312musik/playlist.m3u8",
+      "name": "312 ТВ (406p)",
+      "category": "Entertainment",
+      "logo": "https://i.ibb.co/S6sZvqk/iLSGi6c.png"
+    },
+    {
+      "url": "https://5fc584f3f19c9.streamlock.net/genteopa/videogenteopa/playlist.m3u8",
+      "name": "¡OPA! (1080i) [Geo-blocked]",
+      "category": "Entertainment",
+      "logo": "https://i.imgur.com/300c1ZH.png"
+    },
+    {
+      "url": "https://ml-pull-dvc-myco.io:2096/AAJ_ENTERTAINMENT/index.m3u8",
+      "name": "Aaj Entertainment (1080p)",
+      "category": "Entertainment",
+      "logo": "https://i.imgur.com/WK5Cqap.png"
+    },
+    {
+      "url": "https://mumt03.tangotv.in/Dsly5z3HAAKASHAATH/index.m3u8",
+      "name": "Aakaash Aath (576p)",
+      "category": "Entertainment",
+      "logo": "https://dtil.tmsimg.com/assets/s142510_ld_h15_ab.png?lock=720x540"
+    },
+    {
+      "url": "https://c.mjh.nz/abc-tv-plus.m3u8",
+      "name": "ABC TV Plus (720p)",
+      "category": "Entertainment",
+      "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/0/0f/ABC_TV_Plus_logo_2021.svg/500px-ABC_TV_Plus_logo_2021.svg.png"
+    },
+    {
+      "url": "https://alt-al.otteravision.com/alt/al/al.m3u8",
+      "name": "AfroLandTV (1080p)",
+      "category": "Entertainment",
+      "logo": "https://i.imgur.com/jvnkrEF.png"
+    },
+    {
+      "url": "https://streamtv.intervenhosting.net:3040/hybrid/play.m3u8",
+      "name": "Aguacate TV (1080p)",
+      "category": "Entertainment",
+      "logo": "https://i.ibb.co/wpWBsgf/IMG-20230705-154622.jpg"
+    },
+    {
+      "url": "https://streamunoapp.com:3149/live/alegretvlive.m3u8",
+      "name": "Alegre TV RD (720p) [Not 24/7]",
+      "category": "Entertainment",
+      "logo": "https://i.imgur.com/O6USO8r.png"
+    },
+    {
+      "url": "https://df1zke3zj042m.cloudfront.net/playlist.m3u8",
+      "name": "ALLBLK Gems (720p)",
+      "category": "Entertainment",
+      "logo": "https://i.imgur.com/gnkepQJ.png"
+    },
+    {
+      "url": "https://amc-absolutereality-1-us.plex.wurl.tv/playlist.m3u8",
+      "name": "AMC Absolute Reality",
+      "category": "Entertainment",
+      "logo": "https://i.imgur.com/Gtwk8ic.png"
+    }
+  ],
+  "News": [
+    {
+      "url": "https://2gblive.akamaized.net/hls/live/2033805/2GB/index.m3u8",
+      "name": "2GB Sydney (1080p)",
+      "category": "News",
+      "logo": "https://i.ibb.co/jwM8DFG/2GB-1.png"
+    },
+    {
+      "url": "https://3awlive.akamaized.net/hls/live/2032295/3AW/index.m3u8",
+      "name": "3AW Melbourne (1080p)",
+      "category": "News",
+      "logo": "https://i.imgur.com/Z4MdB0S.png"
+    },
+    {
+      "url": "https://directes-tv-int.3catdirectes.cat/live-origin/canal324-hls/master.m3u8",
+      "name": "3CatInfo (1080p)",
+      "category": "News",
+      "logo": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/3CatInfo_logo.svg/960px-3CatInfo_logo.svg.png"
+    },
+    {
+      "url": "https://cdn-4.pishow.tv/live/1007/master.m3u8",
+      "name": "4TV News (576p)",
+      "category": "News",
+      "logo": "https://jiotvimages.cdn.jio.com/dare_images/images/4_TV.png"
+    },
+    {
+      "url": "https://6prlive.akamaized.net/hls/live/2033806/6PR/index.m3u8",
+      "name": "6PR Perth (1080p)",
+      "category": "News",
+      "logo": "https://i.imgur.com/Q9iCxg1.png"
+    },
+    {
+      "url": "https://cdn-1.pishow.tv/live/232/master.m3u8",
+      "name": "6 TV Telugu (576p)",
+      "category": "News",
+      "logo": "https://i.imgur.com/l3EcRnZ.png"
+    },
+    {
+      "url": "https://mumbai-edge.smartplaytv.in/10TV/index.m3u8",
+      "name": "10 TV (720p)",
+      "category": "News",
+      "logo": "https://xstreamcp-assets-msp.streamready.in/assets/LIVETV/LIVECHANNEL/LIVETV_LIVETVCHANNEL_10TV/images/LOGO_HD/image.png"
+    },
+    {
+      "url": "https://live.x2.co.th/live/13livetv-th.m3u8",
+      "name": "13 Siam Thai (1080p)",
+      "category": "News",
+      "logo": "https://i.imgur.com/FvEp1S2.png"
+    },
+    {
+      "url": "https://panel.host-live.com:19360/cn247tv/cn247tv.m3u8",
+      "name": "24/7 Canal de Noticias",
+      "category": "News",
+      "logo": "https://i.imgur.com/4hDCB1M.png"
+    },
+    {
+      "url": "https://mumt07.tangotv.in/zHjX9OFlTWENTYFOURNEWS/index.m3u8",
+      "name": "24 News (576p)",
+      "category": "News",
+      "logo": "https://sund-images.sunnxt.com/202222/300x300_24News_202222_d63feca0-79ae-47ea-b75a-66c17d456f4c.png"
+    },
+    {
+      "url": "https://streamvideol1.luxnet.ua/news24/smil:news24.stream.smil/playlist.m3u8",
+      "name": "24 Канал (1080p)",
+      "category": "News",
+      "logo": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/24_Group_Ukraine_04.png/960px-24_Group_Ukraine_04.png"
+    },
+    {
+      "url": "https://30a-tv.com/gh.m3u8",
+      "name": "30A Georgia Hollywood Review TV (720p)",
+      "category": "News",
+      "logo": "https://images.axios.com/JiG3RuYBwpU_WZFeU6HHjt03FAU=/111x0:1191x1080/320x320/2023/11/09/1699558891265.jpg"
+    },
+    {
+      "url": "https://30a-tv.com/ln.m3u8",
+      "name": "30A Lionel Nation TV",
+      "category": "News",
+      "logo": "https://m.media-amazon.com/images/I/71dgsQwVcNL.png"
+    },
+    {
+      "url": "https://30a-tv.com/loomer.m3u8",
+      "name": "30A Loomered TV",
+      "category": "News",
+      "logo": "https://cbs12.com/resources/media/0c1ecad8-fb09-4bb2-beaa-fc561dfe624a-small21x9_LoomerStill.jpg?1603419052801"
+    },
+    {
+      "url": "http://92news.vdn.dstreamone.net/92newshd/92hd/playlist.m3u8",
+      "name": "92 News HD (720p)",
+      "category": "News",
+      "logo": "https://i.imgur.com/gp1Ao4s.jpeg"
+    },
+    {
+      "url": "https://cdn-1.pishow.tv/live/1211/master.m3u8",
+      "name": "99TV (720p)",
+      "category": "News",
+      "logo": "https://i.imgur.com/dZA4gel.png"
+    },
+    {
+      "url": "http://85.238.112.40:8810/hls_sec/239.33.16.32-.m3u8",
+      "name": "100% News (576p)",
+      "category": "News",
+      "logo": "https://i.imgur.com/bSXKdK5.png"
+    },
+    {
+      "url": "https://live-vgtrksmotrim.cdnvideo.ru/vgtrksmotrim/smotrim-live-03-srt.smil/playlist.m3u8",
+      "name": "360° Новости (1080p)",
+      "category": "News",
+      "logo": "https://i.imgur.com/YXDeX8q.png"
+    },
+    {
+      "url": "https://turkmedya-live.ercdn.net/tv360/tv360.m3u8",
+      "name": "360 TV (720p) [Not 24/7]",
+      "category": "News",
+      "logo": "https://i.imgur.com/agn47sQ.png"
+    }
+  ]
+}

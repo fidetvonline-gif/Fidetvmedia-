@@ -414,7 +414,7 @@ export default function Community() {
       
       {/* Dynamic Masterclass Spotlight Carousel */}
       <div className="w-full relative rounded-3xl overflow-hidden bg-[#0c0c0c] border border-white/5 p-8 sm:p-12 shadow-[0_24px_60px_rgba(0,0,0,0.8)]">
-        {/* Decorative Grid Mesh & Sporty Lights */}
+        {/* Decorative Grid Mesh & FideTV Lights */}
         <div className="absolute inset-0 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:16px_16px] opacity-10 pointer-events-none" />
         <div className="absolute top-1/2 -left-16 w-92 h-92 bg-primary/15 rounded-full blur-[120px] pointer-events-none animate-pulse" />
         <div className="absolute right-0 bottom-0 w-[450px] h-[450px] bg-[#e0650d]/5 rounded-full blur-[100px] pointer-events-none" />
@@ -556,7 +556,7 @@ export default function Community() {
             )}
           </div>
 
-          {/* Search bar inside Explore with Sporty Border */}
+          {/* Search bar inside Explore with FideTV Border */}
           <div className="relative group">
             <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 group-focus-within:text-primary transition-colors" />
             <input 
@@ -818,7 +818,7 @@ export default function Community() {
         {/* Right Sticky Sidebar Column */}
         <div className="lg:col-span-4 space-y-8 lg:sticky lg:top-24">
           
-          {/* Trends panel with Sporty elements */}
+          {/* Trends panel with FideTV elements */}
           <div className="bg-[#0b0b0b] rounded-2xl p-6 border border-white/5 space-y-5 shadow-xl">
             <h3 className="font-display font-black text-white text-sm uppercase tracking-wide flex items-center space-x-2 border-b border-white/5 pb-3">
               <TrendingUp className="w-4 h-4 text-primary" />

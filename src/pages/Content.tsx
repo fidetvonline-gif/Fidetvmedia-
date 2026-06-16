@@ -6,8 +6,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import ReactPlayer from 'react-player';
 import OptimizedImage from '@/components/OptimizedImage';
-
-import HighPerformancePlayer from '@/components/HighPerformancePlayer';
+import UniversalPlayer from '@/components/streaming/UniversalPlayer';
 
 const Player = ReactPlayer as any;
 
@@ -215,32 +214,19 @@ export default function Content() {
               onClick={e => e.stopPropagation()}
             >
               {playingVideo.youtube_id || playingVideo.stream_url ? (
-                playingVideo.youtube_id ? (
-                  playingVideo.youtube_id.includes('<iframe') ? (
-                     <div className="w-full h-full [&>iframe]:w-full [&>iframe]:h-full" dangerouslySetInnerHTML={{ __html: playingVideo.youtube_id }} />
-                  ) : (
-                    <iframe 
-                      src={playingVideo.youtube_id.includes('http') ? playingVideo.youtube_id : `https://www.youtube.com/embed/${playingVideo.youtube_id}?autoplay=1&modestbranding=1&rel=0`}
-                      className="w-full h-full border-0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    ></iframe>
-                  )
-                ) : playingVideo.stream_url?.toLowerCase().includes('youtube.com') || playingVideo.stream_url?.toLowerCase().includes('youtu.be') ? (
-                  <Player 
-                    url={playingVideo.stream_url}
-                    width="100%"
-                    height="100%"
-                    controls={true}
-                    playing={true}
-                    playsinline={true}
-                  />
-                ) : (
-                  <HighPerformancePlayer 
-                    url={playingVideo.stream_url}
-                    playing={true}
+                playingVideo.youtube_id && !playingVideo.youtube_id.includes('<iframe') ? (
+                  <UniversalPlayer 
+                    channel={{ url: playingVideo.youtube_id, name: playingVideo.title }}
+                    autoPlay={true}
                     muted={false}
-                    controls={true}
+                  />
+                ) : playingVideo.youtube_id?.includes('<iframe') ? (
+                  <div className="w-full h-full [&>iframe]:w-full [&>iframe]:h-full" dangerouslySetInnerHTML={{ __html: playingVideo.youtube_id }} />
+                ) : (
+                  <UniversalPlayer 
+                    channel={{ url: playingVideo.stream_url, name: playingVideo.title }}
+                    autoPlay={true}
+                    muted={false}
                   />
                 )
               ) : (

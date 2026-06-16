@@ -21,6 +21,7 @@ import { format } from 'date-fns';
 import { GoogleGenAI } from "@google/genai";
 import { fetchYouTubeStats, YouTubeStats, fetchPlaylistItems } from '@/services/youtubeService';
 import { DEFAULT_CHANNELS } from '@/constants/channels';
+import { mergeChannels } from '@/lib/channelUtils';
 import AdBanner from '@/components/AdBanner';
 import AdminAdManagement from '@/components/AdminAdManagement';
 import InlineAdsManager from '@/components/InlineAdsManager';
@@ -36,7 +37,7 @@ export default function Admin() {
   const [resettingPasswordUserId, setResettingPasswordUserId] = useState<string | null>(null);
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
-  const [channels, setChannels] = useState<TvChannel[]>([]);
+  const [channels, setChannels] = useState<any[]>([]);
   const [stableChannels, setStableChannels] = useState<any[]>([]);
   const [discoveredChannels, setDiscoveredChannels] = useState<any[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -666,7 +667,10 @@ export default function Admin() {
       }
       return;
     }
-    if (data) setChannels(data);
+    
+    // Merge defaults
+    const dbChannels = data || [];
+    setChannels(mergeChannels(DEFAULT_CHANNELS, dbChannels));
   };
 
   const fetchStableChannels = async () => {

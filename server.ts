@@ -2,11 +2,14 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
+import axios from "axios";
 import { GoogleGenAI } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
 import { ChannelIngestionService } from "./src/services/channelIngestionService";
 import { YouTubeIngestionService } from "./src/services/youtubeIngestionService";
+import { M3UService } from "./src/services/m3uService";
 import multer from "multer";
+import fs from "fs/promises";
 
 dotenv.config();
 
@@ -287,16 +290,6 @@ async function startServer() {
     }
   });
 
-  // Background stats update every 15 minutes
-  setInterval(() => {
-    const admin = getSupabaseAdmin();
-    const key = process.env.YOUTUBE_API_KEY || process.env.GEMINI_API_KEY;
-    if (admin && key) {
-       const service = new YouTubeIngestionService(admin, key);
-       service.updateAllChannelStats().catch(err => console.error("Periodic stats update failed:", err));
-    }
-  }, 15 * 60 * 1000);
-
   apiRouter.get("/youtube/:endpoint", async (req, res) => {
     const { endpoint } = req.params;
     console.log(`[YouTube Proxy] Processing endpoint: ${endpoint}`);
@@ -317,7 +310,11 @@ async function startServer() {
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error(`[YouTube Proxy Error] status: ${response.status}, endpoint: ${endpoint}`, errorData);
+        if (response.status === 403) {
+          console.warn(`[YouTube Proxy Quota/Forbidden] endpoint: ${endpoint}`, JSON.stringify(errorData));
+        } else {
+          console.error(`[YouTube Proxy Error] status: ${response.status}, endpoint: ${endpoint}`, errorData);
+        }
         return res.status(response.status).json(errorData);
       }
       
@@ -347,88 +344,265 @@ async function startServer() {
     }
   });
 
-  // 4. HLS/M3U8 Stream Proxy with Manifest Rewriting
-  apiRouter.get("/proxy-stream", async (req, res) => {
-    const { url, referer } = req.query;
-    if (!url) return res.status(400).send("No URL provided");
+  // 4b. Stream Health Check Proxy
+  apiRouter.get("/stream-health", async (req, res) => {
+    const { url, type } = req.query;
+    if (!url) return res.status(400).json({ valid: false, errorMessage: "No URL" });
     
     try {
-      const streamUrl = url as string;
-      
-      // Basic URL check
-      try {
-        new URL(streamUrl);
-      } catch (e) {
-        return res.status(400).send("Invalid stream URL");
-      }
-
-      console.log(`[Proxy] Fetching: ${streamUrl}`);
-      
-      const response = await fetch(streamUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Referer': (referer as string) || 'https://limex.tv/',
-          'Origin': 'https://limex.tv'
-        },
-        // Set a reasonable timeout for proxy requests
-        signal: AbortSignal.timeout(15000)
-      });
-      
-      if (!response.ok) {
-        console.warn(`[Proxy] Source returned status ${response.status} for ${streamUrl}`);
-        return res.status(response.status).send(`Upstream returned ${response.status}`);
-      }
-
-      const contentType = response.headers.get('Content-Type') || '';
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Content-Type', contentType);
-
-      if (contentType.includes('application/vnd.apple.mpegurl') || contentType.includes('audio/mpegurl') || streamUrl.endsWith('.m3u8')) {
-        // It's a manifest - we must rewrite relative URLs to keep them in the proxy
-        const text = await response.text();
-        const baseUrl = streamUrl.substring(0, streamUrl.lastIndexOf('/') + 1);
+        const streamUrl = url as string;
+        console.log(`[Health] Checking ${streamUrl} (Type: ${type})`);
         
-        const rewrittenText = text.split('\n').map(line => {
-          const trimmed = line.trim();
-          if (!trimmed || trimmed.startsWith('#')) return line;
-          
-          // It's a URI
-          let absoluteUrl = trimmed;
-          try {
-            if (!trimmed.startsWith('http')) {
-              absoluteUrl = new URL(trimmed, baseUrl).href;
+        const response = await axios.head(streamUrl, {
+            timeout: 8000,
+            headers: { 
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': streamUrl
             }
-          } catch (e) {
-            return line;
-          }
-          
-          return `/api/proxy-stream?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(referer as string || 'https://limex.tv/')}`;
-        }).join('\n');
+        });
         
-        res.send(rewrittenText);
-      } else {
-        // It's a segment (.ts) or other binary data - pipe directly
-        const body = await response.arrayBuffer();
-        res.send(Buffer.from(body));
-      }
-    } catch (error: any) {
-      // Handle known error types like ENOTFOUND or timeout
-      if (error.name === 'AbortError') {
-        console.error(`[Proxy Timeout] URL: ${url}`);
-        return res.status(504).send("Stream source timed out");
-      }
-      
-      if (error.code === 'ENOTFOUND' || error.message?.includes('ENOTFOUND')) {
-        // Quietly handle known unreachable streams
-        return res.status(502).send("Stream source domain not found (Source is currently offline)");
-      }
-
-      console.error("[Proxy Unexpected Error]", error.message || error);
-      res.status(502).send("Stream proxy failed to reach destination");
+        const contentType = (response.headers['content-type'] as string) || '';
+        const status = response.status;
+        
+        let valid = status >= 200 && status < 300;
+        let errorMessage = valid ? '' : `HTTP ${status}`;
+        
+        // Basic type validation
+        if (type === 'hls' && !contentType.includes('mpegurl')) valid = false;
+        if (type === 'mp4' && !contentType.includes('video')) valid = false;
+        
+        res.json({
+            valid,
+            httpStatus: status,
+            contentType,
+            errorMessage,
+            lastChecked: new Date().toISOString()
+        });
+    } catch (e: any) {
+        res.json({
+            valid: false,
+            httpStatus: e.response?.status || 0,
+            errorMessage: e.message,
+            lastChecked: new Date().toISOString()
+        });
     }
   });
 
-  // 5. Channel Ingestion System initialization
+  // 4. HLS/M3U8 Stream Proxy with Manifest Rewriting
+  apiRouter.get("/proxy-stream", async (req, res) => {
+    const { url, referer } = req.query;
+    if (!url) {
+      console.error("[Proxy] No URL provided in request");
+      return res.status(400).send("No URL provided");
+    }
+    
+    const streamUrl = url as string;
+    console.log(`[Proxy] Incoming request for: ${streamUrl}`);
+
+    
+    try {
+      try {
+        new URL(streamUrl);
+      } catch (e) {
+        console.error(`[Proxy] Invalid URL format: ${streamUrl}`);
+        return res.status(400).send("Invalid stream URL");
+      }
+
+      const targetOrigin = new URL(streamUrl).origin;
+      const effectiveReferer = (referer as string) || (streamUrl.includes('limex') ? 'https://limex.tv/' : targetOrigin);
+
+      const headers: Record<string, string> = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': effectiveReferer,
+        'Origin': streamUrl.includes('limex') ? 'https://limex.tv' : targetOrigin,
+        'Accept': '*/*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'identity', // Request uncompressed data to simplify manifest rewriting
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'DNT': '1',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'cross-site'
+      };
+
+      if (req.headers.range) {
+        headers['Range'] = String(req.headers.range);
+        console.log(`[Proxy] Forwarding Range header: ${req.headers.range}`);
+      }
+
+      console.log(`[Proxy] Fetching from upstream: ${streamUrl} with Referer: ${effectiveReferer}`);
+      
+      const response = await axios.get(streamUrl, {
+        headers,
+        timeout: 15000, // Reduced from 25s for faster error feedback
+        responseType: 'stream',
+        validateStatus: () => true,
+        maxRedirects: 5
+      });
+      
+      if (response.status >= 400) {
+        console.warn(`[Proxy] Upstream ERROR ${response.status} for ${streamUrl}`);
+        res.setHeader('X-Proxy-Error', `Upstream status ${response.status}`);
+        return res.status(response.status).send(`Upstream Error ${response.status}`);
+      }
+
+      const contentType = String(response.headers['content-type'] || '').toLowerCase();
+      const urlPath = streamUrl.split('?')[0].toLowerCase();
+      
+      // Strict manifest detection to avoid buffering large binary files
+      const isManifest = contentType.includes('mpegurl') || 
+                        contentType.includes('mpeg-url') ||
+                        contentType.includes('apple-mpegurl') ||
+                        urlPath.endsWith('.m3u8') ||
+                        urlPath.endsWith('.m3u');
+
+      // Set broad CORS headers for the client
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', '*');
+      res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Type, X-Proxy-Source');
+      res.setHeader('X-Proxy-Source', 'AI-Studio-Bridge');
+
+      if (isManifest) {
+        console.log(`[Proxy] Manifest detected. Rewriting...`);
+        const chunks: any[] = [];
+        let totalSize = 0;
+        let aborted = false;
+        const MAX_SIZE = 2 * 1024 * 1024; // 2MB limit
+
+        response.data.on('data', (chunk: any) => {
+          if (aborted) return;
+          totalSize += chunk.length;
+          if (totalSize > MAX_SIZE) {
+            console.warn(`[Proxy] Manifest exceeds 2MB limit, piping directly instead.`);
+            aborted = true;
+            res.setHeader('Content-Type', contentType);
+            response.data.pipe(res);
+            return;
+          }
+          chunks.push(chunk);
+        });
+        
+        req.on('close', () => {
+          aborted = true;
+          response.data.destroy();
+        });
+
+        response.data.on('end', () => {
+          if (aborted) return;
+          const buffer = Buffer.concat(chunks);
+          const text = buffer.toString('utf8');
+          
+          if (!text.trim().startsWith('#EXTM3U')) {
+            console.log(`[Proxy] Not an EXTM3U manifest. Piping directly.`);
+            res.setHeader('Content-Type', contentType);
+            res.status(response.status).send(buffer);
+            return;
+          }
+
+          const baseUrl = streamUrl.substring(0, streamUrl.lastIndexOf('/') + 1);
+          const lines = text.split('\n');
+          const rewrittenLines = [];
+          
+          for (let line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('#EXT-X-VERSION') || trimmed.startsWith('#EXT-X-TARGETDURATION')) {
+               rewrittenLines.push(line);
+               continue;
+            }
+            
+            if (trimmed.startsWith('#')) {
+              // Handle URIs in tags
+              if (trimmed.includes('URI=')) {
+                line = line.replace(/URI="([^"]*)"/g, (match, p1) => {
+                  try {
+                    const abs = p1.startsWith('http') ? p1 : new URL(p1, baseUrl).href;
+                    return `URI="/api/proxy-stream?url=${encodeURIComponent(abs)}&referer=${encodeURIComponent(effectiveReferer)}"`;
+                  } catch (e) { return match; }
+                });
+              }
+              rewrittenLines.push(line);
+              continue;
+            }
+            
+            try {
+              const absoluteUrl = trimmed.startsWith('http') ? trimmed : new URL(trimmed, baseUrl).href;
+              rewrittenLines.push(`/api/proxy-stream?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(effectiveReferer)}`);
+            } catch (e) {
+              rewrittenLines.push(line);
+            }
+          }
+          
+          res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+          res.status(200).send(rewrittenLines.join('\n'));
+        });
+        
+        response.data.on('error', (err: any) => {
+          console.error(`[Proxy Stream Error] ${err.message}`);
+          if (!res.headersSent) res.status(502).send("Upstream Failure");
+        });
+      } else {
+        req.on('close', () => { response.data.destroy(); });
+        
+        if (response.status === 206) {
+          res.status(206);
+          if (response.headers['content-range']) res.setHeader('Content-Range', String(response.headers['content-range']));
+        } else {
+          res.status(response.status);
+        }
+        
+        res.setHeader('Content-Type', contentType);
+        if (response.headers['content-length']) res.setHeader('Content-Length', String(response.headers['content-length']));
+        res.setHeader('Cache-Control', 'public, max-age=60'); // Small cache for segments
+        response.data.pipe(res);
+      }
+    } catch (error: any) {
+      console.error(`[Proxy Failure] ${error.message}`);
+      if (error.code === 'ENOTFOUND') {
+        res.setHeader('X-Proxy-Reason', 'DNS_NOT_FOUND');
+        return res.status(404).send("Signal source not found (DNS Error)");
+      }
+      if (!res.headersSent) res.status(502).send(`Bridge Failure: ${error.message}`);
+    }
+  });
+
+  // 5. Signal Bridge Maintenance Task
+  const runSignalBridgeMaintenance = async () => {
+    console.log('[Bridge] Running signal bridge validation and repair...');
+    const admin = getSupabaseAdmin();
+    if (!admin) return;
+
+    try {
+      const { data: channels } = await admin.from('tv_channels').select('*');
+      if (!channels) return;
+
+      let repairCount = 0;
+      for (const ch of channels) {
+        let type = 'unknown';
+        const url = (ch.url || '').toLowerCase();
+        
+        if (url.includes('youtube.com') || url.includes('youtu.be')) type = 'youtube';
+        else if (url.includes('facebook.com') || url.includes('fb.watch')) type = 'facebook';
+        else if (url.includes('vimeo.com')) type = 'vimeo';
+        else if (url.includes('.m3u8') || url.includes('m3u8')) type = 'hls';
+        else if (url.includes('.mp4')) type = 'mp4';
+
+        if (ch.stream_type !== type) {
+          await admin.from('tv_channels').update({ stream_type: type }).eq('id', ch.id);
+          repairCount++;
+        }
+      }
+      console.log(`[Bridge] Maintenance complete. Repaired ${repairCount} records.`);
+    } catch (e) {
+      console.error('[Bridge] Maintenance failure:', e);
+    }
+  };
+
+  // Run maintenance on start
+  runSignalBridgeMaintenance();
+
   const getIngestionService = () => {
     const admin = getSupabaseAdmin();
     if (!admin) return null;
@@ -453,6 +627,16 @@ async function startServer() {
     const service = getYouTubeService();
     if (service) service.runDiscoveryCycle(2).catch(console.error);
   }, 1000 * 60 * 60);
+
+  // Background stats update every 15 minutes
+  setInterval(() => {
+    const admin = getSupabaseAdmin();
+    const key = process.env.YOUTUBE_API_KEY || process.env.GEMINI_API_KEY;
+    if (admin && key) {
+       const service = new YouTubeIngestionService(admin, key);
+       service.updateAllChannelStats().catch(err => console.error("Periodic stats update failed:", err));
+    }
+  }, 15 * 60 * 1000);
 
   // Manual trigger endpoints
   apiRouter.post("/youtube/trigger-discovery", async (req, res) => {
@@ -568,8 +752,7 @@ async function startServer() {
              thumbnail, 
              description,
              is_active: true,
-             youtube_video_id: videoId || undefined,
-             last_verified_at: new Date().toISOString()
+             youtube_video_id: videoId || undefined
           }], { onConflict: 'url' })
           .select();
 
@@ -613,9 +796,111 @@ async function startServer() {
   });
 
   apiRouter.post("/channels/trigger-check", async (req, res) => {
-    const service = getIngestionService();
-    if (service) await service.runHealthChecks();
-    res.json({ message: "Health check cycle triggered" });
+    try {
+      const service = getIngestionService();
+      if (!service) return res.status(503).json({ error: "Ingestion service not available" });
+      
+      await service.runHealthChecks();
+      res.json({ message: "Health check cycle completed on live channels" });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // 6. M3U Node.js Service Endpoint
+  apiRouter.get("/channels", async (req, res) => {
+    try {
+      const { category, country, sourceUrl } = req.query;
+      const dataPath = path.join(process.cwd(), 'src', 'data', 'channels.json');
+      
+      // Ensure directory exists
+      await fs.mkdir(path.dirname(dataPath), { recursive: true });
+
+      let channels: any[] = [];
+      
+      // Try to read existing data first
+      try {
+        const fileContent = await fs.readFile(dataPath, 'utf-8');
+        channels = JSON.parse(fileContent);
+      } catch (e) {
+        console.log("[M3U API] No existing JSON database found. Initializing...");
+      }
+
+      // If sourceUrl provided or database is empty, fetch fresh data
+      if (sourceUrl || channels.length === 0) {
+        const urlToFetch = (sourceUrl as string) || 'https://iptv-org.github.io/iptv/index.m3u';
+        try {
+          channels = await M3UService.fetchAndParse(urlToFetch);
+          await fs.writeFile(dataPath, JSON.stringify(channels, null, 2));
+        } catch (fetchErr: any) {
+          console.error("[M3U API] Default fetch failed:", fetchErr.message);
+          // If we have no channels and fetch failed, return empty instead of 500
+          if (channels.length === 0) return res.json({ total_channels: 0, channels: [] });
+        }
+      }
+
+      // Apply Filtering
+      const filtered = M3UService.filterChannels(channels, {
+        category: category as string,
+        country: country as string
+      });
+
+      res.json({
+        total_channels: filtered.length,
+        channels: filtered.slice(0, 500) // Return top 500 for performance
+      });
+    } catch (err: any) {
+      console.error("[M3U API Error]", err);
+      res.status(500).json({ error: "Failed to process channel request" });
+    }
+  });
+
+  apiRouter.post("/channels/refresh", async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url) return res.status(400).json({ error: "Playlist source URL required" });
+      
+      const channels = await M3UService.fetchAndParse(url);
+      const dataPath = path.join(process.cwd(), 'src', 'data', 'channels.json');
+      
+      await fs.mkdir(path.dirname(dataPath), { recursive: true });
+      await fs.writeFile(dataPath, JSON.stringify(channels, null, 2));
+      
+      res.json({ 
+        success: true, 
+        count: channels.length,
+        message: "Channel database synchronized successfully"
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  apiRouter.post("/channels/import-to-db", async (req, res) => {
+    try {
+      const dataPath = path.join(process.cwd(), 'src', 'data', 'channels.json');
+      const fileContent = await fs.readFile(dataPath, 'utf-8');
+      const channels = JSON.parse(fileContent);
+
+      const supabaseAdmin = getSupabaseAdmin();
+      if (!supabaseAdmin) throw new Error("Supabase Admin not configured");
+
+      const { data, error } = await supabaseAdmin.from('tv_channels').insert(channels.map((c: any) => ({
+        name: c.name,
+        category: c.category,
+        url: c.url,
+        thumbnail: c.logo,
+        description: '',
+        is_active: true
+      })));
+
+      if (error) throw error;
+
+      res.json({ success: true, count: channels.length });
+    } catch (err: any) {
+      console.error("[M3U Import Error]", err);
+      res.status(500).json({ error: err.message });
+    }
   });
 
   // Start health check loop every 5 minutes

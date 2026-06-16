@@ -1,0 +1,714 @@
+[
+  {
+    "name": "1+1 International (576p) [Geo-blocked]",
+    "category": "General",
+    "logo": "https://i.imgur.com/LOY0rtp.png",
+    "country": "",
+    "url": "http://34cb12c24-ottiptv.github.io/iptv/MM4E93NGF5LADZ/4829224/index.m3u8",
+    "id": "a2hx5597"
+  },
+  {
+    "name": "1-2-3 TV (270p)",
+    "category": "Shop",
+    "logo": "https://i.imgur.com/slSUDNX.png",
+    "country": "",
+    "url": "https://123tv-mx1.flex-cdn.net/index.m3u8",
+    "id": "vrnd985g"
+  },
+  {
+    "name": "1Almere TV (720p)",
+    "category": "General",
+    "logo": "https://i.imgur.com/XfkbTrU.png",
+    "country": "",
+    "url": "https://d3472rjicrodic.cloudfront.net/nlpo/clr-nlpo/709d5260/index.m3u8",
+    "id": "ckbtkwew"
+  },
+  {
+    "name": "1KZN TV (576p)",
+    "category": "Entertainment;Family;General",
+    "logo": "https://admango.cdn.mangomolo.com/analytics/uploads/188/6544bebaae.jpg",
+    "country": "",
+    "url": "https://cdn.freevisiontv.co.za/sttv/smil:1kzn.stream.smil/playlist.m3u8",
+    "id": "k4i8h3x1"
+  },
+  {
+    "name": "1TV (720p)",
+    "category": "General",
+    "logo": "https://i.imgur.com/FSkYLPK.png",
+    "country": "",
+    "url": "https://tv.cdn.xsg.ge/gpb-1tv/index.m3u8",
+    "id": "7q0553t8"
+  },
+  {
+    "name": "1Twente TV (1080p)",
+    "category": "General",
+    "logo": "https://i.imgur.com/ftiuNK3.png",
+    "country": "",
+    "url": "https://ms7.mx-cd.net/dtv-11/198-989148/1Twente_TV.smil/chunklist_w954512639_b4292608_slNLD.m3u8",
+    "id": "pas5iuxz"
+  },
+  {
+    "name": "2GB Sydney (1080p)",
+    "category": "News",
+    "logo": "https://i.ibb.co/jwM8DFG/2GB-1.png",
+    "country": "",
+    "url": "https://2gblive.akamaized.net/hls/live/2033805/2GB/index.m3u8",
+    "id": "51apdh4k"
+  },
+  {
+    "name": "2M (1080p)",
+    "category": "General",
+    "logo": "https://i.imgur.com/PJYTfHi.png",
+    "country": "",
+    "url": "https://stream-lb.livemediama.com/2m-tnt/hls/master.m3u8",
+    "id": "97mckjnc"
+  },
+  {
+    "name": "2M Monde (1080p)",
+    "category": "General",
+    "logo": "https://i.imgur.com/MvpntzA.png",
+    "country": "",
+    "url": "https://stream-lb.livemediama.com/2m/hls/master.m3u8",
+    "id": "q5y61jgo"
+  },
+  {
+    "name": "2STV (720p)",
+    "category": "Culture",
+    "logo": "https://i.imgur.com/WByVBZf.png",
+    "country": "",
+    "url": "http://69.64.57.208/2stv/playlist.m3u8",
+    "id": "678csvq4"
+  },
+  {
+    "name": "2TV (720p)",
+    "category": "General",
+    "logo": "https://i.imgur.com/FJBL6zI.png",
+    "country": "",
+    "url": "https://tv.cdn.xsg.ge/gpb-2tv/index.m3u8",
+    "id": "64ls794j"
+  },
+  {
+    "name": "2x2 (576i)",
+    "category": "Entertainment",
+    "logo": "https://i.imgur.com/fhQFLEl.png",
+    "country": "",
+    "url": "https://bl.rutube.ru/livestream/392b4686b770bae2da6bf5ac4574add5/index.m3u8?e=2068731801&s=tenr-yHXUv1wibfka78s2A&scheme=https",
+    "id": "3rely6d7"
+  },
+  {
+    "name": "3ABN Canada (720p)",
+    "category": "Religious",
+    "logo": "https://i.imgur.com/U99CsEc.png",
+    "country": "",
+    "url": "https://3abn.bozztv.com/3abncanada/3ABN/master.m3u8",
+    "id": "f25ncu7l"
+  },
+  {
+    "name": "3ABN Dare To Dream Network",
+    "category": "Religious",
+    "logo": "https://i.imgur.com/oNUpXA9.png",
+    "country": "",
+    "url": "https://3abn.bozztv.com/3abn2/d2d_live/smil:d2d_live.smil/playlist.m3u8",
+    "id": "0iqyaluf"
+  },
+  {
+    "name": "3ABN English",
+    "category": "Religious",
+    "logo": "https://i.imgur.com/bgJQIyW.png",
+    "country": "",
+    "url": "https://3abn.bozztv.com/3abn2/3abn_live/smil:3abn_live.smil/playlist.m3u8",
+    "id": "z5hsit1i"
+  },
+  {
+    "name": "3ABN French",
+    "category": "Religious",
+    "logo": "https://i.imgur.com/B5gsM7m.png",
+    "country": "",
+    "url": "https://3abn.bozztv.com/3abn2/Fre_live/smil:Fre_live.smil/playlist.m3u8",
+    "id": "nx70amws"
+  },
+  {
+    "name": "3ABN International Network",
+    "category": "Religious",
+    "logo": "https://i.imgur.com/IecOZHR.png",
+    "country": "",
+    "url": "https://3abn.bozztv.com/3abn2/Int_live/smil:Int_live.smil/playlist.m3u8",
+    "id": "frwpct7d"
+  },
+  {
+    "name": "3ABN Kids Network",
+    "category": "Animation;Kids;Religious",
+    "logo": "https://i.imgur.com/z3npqO1.png",
+    "country": "",
+    "url": "https://3abn.bozztv.com/3abn2/Kids_live/smil:Kids_live.smil/playlist.m3u8",
+    "id": "f7u2xg1x"
+  },
+  {
+    "name": "3ABN Latino",
+    "category": "Religious",
+    "logo": "https://i.imgur.com/Ugb4AFo.png",
+    "country": "",
+    "url": "https://3abn.bozztv.com/3abn2/Lat_live/smil:Lat_live.smil/playlist.m3u8",
+    "id": "8sp5jyox"
+  },
+  {
+    "name": "3ABN Praise Him Music Network",
+    "category": "Music;Religious",
+    "logo": "https://i.imgur.com/iBcqT8L.png",
+    "country": "",
+    "url": "https://3abn.bozztv.com/3abn1/PraiseHim/smil:PraiseHim.smil/playlist.m3u8",
+    "id": "dmv25ayl"
+  },
+  {
+    "name": "3ABN Proclaim! Network",
+    "category": "Religious",
+    "logo": "https://i.imgur.com/zUMUNhe.png",
+    "country": "",
+    "url": "https://3abn.bozztv.com/3abn2/Pro_live/smil:Pro_live.smil/playlist.m3u8",
+    "id": "j80rijaf"
+  },
+  {
+    "name": "3AW Melbourne (1080p)",
+    "category": "News",
+    "logo": "https://i.imgur.com/Z4MdB0S.png",
+    "country": "",
+    "url": "https://3awlive.akamaized.net/hls/live/2032295/3AW/index.m3u8",
+    "id": "k58fn07w"
+  },
+  {
+    "name": "3Cat Càmeres del temps (1080p)",
+    "category": "Public;Weather",
+    "logo": "https://i.imgur.com/zXy2kbe.png",
+    "country": "",
+    "url": "https://directes-tv-int.3catdirectes.cat/live-content/beauties-hls/master.m3u8",
+    "id": "ubr613ng"
+  },
+  {
+    "name": "3Cat El búnquer (1080p)",
+    "category": "Comedy;Public",
+    "logo": "https://i.imgur.com/wiqdIjd.png",
+    "country": "",
+    "url": "https://fast-tailor.3catdirectes.cat/v1/channel/bunquer/hls.m3u8",
+    "id": "55amcjcf"
+  },
+  {
+    "name": "3Cat Plats bruts (1080p)",
+    "category": "Classic;Comedy;Public;Series",
+    "logo": "https://i.imgur.com/49ZENis.png",
+    "country": "",
+    "url": "https://fast-tailor.3catdirectes.cat/v1/channel/ccma-channel2/hls.m3u8",
+    "id": "s0c1tjxz"
+  },
+  {
+    "name": "3CatInfo (1080p)",
+    "category": "News;Public",
+    "logo": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/3CatInfo_logo.svg/960px-3CatInfo_logo.svg.png",
+    "country": "",
+    "url": "https://directes-tv-int.3catdirectes.cat/live-origin/canal324-hls/master.m3u8",
+    "id": "yzpdd8zt"
+  },
+  {
+    "name": "4E (1080p)",
+    "category": "Religious",
+    "logo": "https://i.imgur.com/Na0UCV7.png",
+    "country": "",
+    "url": "http://eu2.tv4e.gr:554/live/smil:myStream.sdp.smil/playlist.m3u8",
+    "id": "8iuuihsz"
+  },
+  {
+    "name": "like Gecko) Chrome/149.0.0.0 Safari/537.3\" group-title=\"Movies\",4ever Cinema (1080p)",
+    "category": "Movies",
+    "logo": "https://i.imgur.com/vFOgVbG.png",
+    "country": "",
+    "url": "https://iptv.prosto.tv/ch42/index.m3u8",
+    "id": "yw2yf6w1"
+  },
+  {
+    "name": "4ever Drama (1080p)",
+    "category": "Series",
+    "logo": "https://i.imgur.com/CD3vZU6.png",
+    "country": "",
+    "url": "https://iptv.prosto.tv/ch49/index.m3u8",
+    "id": "fhfcjesy"
+  },
+  {
+    "name": "like Gecko) Chrome/149.0.0.0 Safari/537.3\" group-title=\"Music\",4ever Music (1080p)",
+    "category": "Music",
+    "logo": "https://i.imgur.com/UJ5oaeU.png",
+    "country": "",
+    "url": "https://iptv.prosto.tv/ch132/index.m3u8",
+    "id": "fsx6l7g8"
+  },
+  {
+    "name": "4ever Theater",
+    "category": "Entertainment",
+    "logo": "https://i.imgur.com/kfngtev.png",
+    "country": "",
+    "url": "https://iptv.prosto.tv/ch37/tracks-v2a1/mono.m3u8?21yo=0&e=1783680395&id=922996&ip=178.136.40.86&live=1&secret=yamxdzwl&st=OWDBi-vxSZADl0oF8lHHxw",
+    "id": "j0s83607"
+  },
+  {
+    "name": "4 Fun Kids (576i) [[Not 24/7]]",
+    "category": "Kids",
+    "logo": "https://i.imgur.com/2JO5Y8c.png",
+    "country": "",
+    "url": "https://stream.4fun.tv:8889/hls/4fk_high/index.m3u8",
+    "id": "rsa5s3lt"
+  },
+  {
+    "name": "4 Fun TV (576i) [Not 24/7]",
+    "category": "Music",
+    "logo": "https://i.imgur.com/rI1wo2l.png",
+    "country": "",
+    "url": "https://stream.4fun.tv:8888/hls/4f_high/index.m3u8",
+    "id": "qhxy7d94"
+  },
+  {
+    "name": "4K Travel TV (1080p)",
+    "category": "Undefined",
+    "logo": "",
+    "country": "",
+    "url": "https://streams2.sofast.tv/sofastplayout/33c31ac4-51fa-46ae-afd0-0d1fe5e60a80_0_HLS/master.m3u8",
+    "id": "7a37bbes"
+  },
+  {
+    "name": "4 Kurd",
+    "category": "Music",
+    "logo": "https://www.aparatchi.com/images/chanells-logo/4kurd.svg",
+    "country": "",
+    "url": "https://4kuhls.persiana.live/hls/stream.m3u8",
+    "id": "3j39pfob"
+  },
+  {
+    "name": "4TV News (576p)",
+    "category": "News",
+    "logo": "https://jiotvimages.cdn.jio.com/dare_images/images/4_TV.png",
+    "country": "",
+    "url": "https://cdn-4.pishow.tv/live/1007/master.m3u8",
+    "id": "jrt3772j"
+  },
+  {
+    "name": "4U TV (720p)",
+    "category": "Entertainment",
+    "logo": "https://i.imgur.com/PexhKwp.png",
+    "country": "",
+    "url": "https://hls.4utv.live/hls/stream.m3u8",
+    "id": "j29oybk7"
+  },
+  {
+    "name": "4UV (1080p)",
+    "category": "Undefined",
+    "logo": "",
+    "country": "",
+    "url": "https://d3qg1liq0unuxm.cloudfront.net/4UV.m3u8",
+    "id": "wgh5dpo6"
+  },
+  {
+    "name": "5-Minute Craft (1080p)",
+    "category": "Undefined",
+    "logo": "",
+    "country": "",
+    "url": "https://soul-5mincrafteng-rakuten.amagi.tv/playlist.m3u8",
+    "id": "npd9r12z"
+  },
+  {
+    "name": "5AAB TV (720p) [Not 24/7]",
+    "category": "Entertainment",
+    "logo": "https://i.imgur.com/jrGrfof.png",
+    "country": "",
+    "url": "http://158.69.124.9:1935/5aabtv/5aabtv/playlist.m3u8",
+    "id": "9s92pf3f"
+  },
+  {
+    "name": "5TV Corrientes (480p) [Not 24/7]",
+    "category": "General",
+    "logo": "https://i.imgur.com/mSn7ACs.png",
+    "country": "",
+    "url": "http://www.coninfo.net:1935/tvcinco/live1/playlist.m3u8",
+    "id": "tku44fvj"
+  },
+  {
+    "name": "6PR Perth (1080p)",
+    "category": "News",
+    "logo": "https://i.imgur.com/Q9iCxg1.png",
+    "country": "",
+    "url": "https://6prlive.akamaized.net/hls/live/2033806/6PR/index.m3u8",
+    "id": "9ld0eg01"
+  },
+  {
+    "name": "6 TV Telugu (576p)",
+    "category": "News",
+    "logo": "https://i.imgur.com/l3EcRnZ.png",
+    "country": "",
+    "url": "https://cdn-1.pishow.tv/live/232/master.m3u8",
+    "id": "wofapn10"
+  },
+  {
+    "name": "6 Wise Tv (720p)",
+    "category": "Family",
+    "logo": "https://jrlist70.pages.dev/list/wise.png",
+    "country": "",
+    "url": "https://live.enhdtv.com:8081/8150/index.m3u8",
+    "id": "5g2lpo0b"
+  },
+  {
+    "name": "7 RadioVisione (720p)",
+    "category": "Music",
+    "logo": "https://radio7note.com/img/favicon/android-icon-192x192.png",
+    "country": "",
+    "url": "https://stream10.xdevel.com/video1s976543-1932/stream/playlist.m3u8",
+    "id": "s4z3abm2"
+  },
+  {
+    "name": "7S Music (576p)",
+    "category": "Music",
+    "logo": "https://i.imgur.com/zDiIhdN.png",
+    "country": "",
+    "url": "https://mumt03.tangotv.in/Dsly5z3H7SMUSIC/index.m3u8",
+    "id": "wj0jf6bg"
+  },
+  {
+    "name": "7 TeleValencia (576p)",
+    "category": "General",
+    "logo": "https://i.imgur.com/ILfXDRs.png",
+    "country": "",
+    "url": "https://play.cdn.enetres.net/9E9557EFCEBB43A89CEC8FBD3C500247022/028/playlist.m3u8",
+    "id": "tb02q4ru"
+  },
+  {
+    "name": "7TV (576p)",
+    "category": "Undefined",
+    "logo": "https://i.imgur.com/GpCwqUF.png",
+    "country": "",
+    "url": "http://31.148.48.15/7TV/index.m3u8",
+    "id": "em9kpnlg"
+  },
+  {
+    "name": "7 YOU & ME (720p)",
+    "category": "Music",
+    "logo": "https://i.imgur.com/Rte2K3x.png",
+    "country": "",
+    "url": "https://stream10.xdevel.com/video0s977798-2239/stream/playlist.m3u8",
+    "id": "wm0p7ya1"
+  },
+  {
+    "name": "8 La Marina TV (576p)",
+    "category": "General",
+    "logo": "https://i.imgur.com/BTJvvBK.png",
+    "country": "",
+    "url": "https://streaming005.gestec-video.com/hls/canal24.m3u8",
+    "id": "j0xwlrnp"
+  },
+  {
+    "name": "8NTV (1080p)",
+    "category": "General",
+    "logo": "https://i.imgur.com/7ecgGIG.png",
+    "country": "",
+    "url": "https://60417ddeaf0d9.streamlock.net/ntv/videontv/playlist.m3u8",
+    "id": "xscwhyil"
+  },
+  {
+    "name": "8 Out Of 10 Cats (1080p)",
+    "category": "Undefined",
+    "logo": "",
+    "country": "",
+    "url": "https://d1l7vcuh4hn9ei.cloudfront.net/8OutOf10Cats_GB.m3u8",
+    "id": "8pu2stuz"
+  },
+  {
+    "name": "8 Out of 10 Cats (1080p) [Geo-blocked]",
+    "category": "Undefined",
+    "logo": "",
+    "country": "",
+    "url": "https://amg00627-amg00627c37-samsung-au-4294.playouts.now.amagi.tv/playlist/amg00627-banijayfast-8outof10cats-samsungau/playlist.m3u8",
+    "id": "iap4as31"
+  },
+  {
+    "name": "8 Out of 10 Cats (1080p) [Geo-blocked]",
+    "category": "Undefined",
+    "logo": "",
+    "country": "",
+    "url": "https://amg00627-amg00627c37-samsung-nz-4295.playouts.now.amagi.tv/playlist.m3u8",
+    "id": "nn97iu9f"
+  },
+  {
+    "name": "8TV",
+    "category": "Entertainment",
+    "logo": "https://i.imgur.com/Jkx9W88.png",
+    "country": "",
+    "url": "http://cdn6.163189.xyz/163189/8tv",
+    "id": "lnltpo4a"
+  },
+  {
+    "name": "9X Jalwa (1080p)",
+    "category": "Music",
+    "logo": "https://xstreamcp-assets-msp.streamready.in/assets/LIVETV/LIVECHANNEL/LIVETV_LIVETVCHANNEL_9X_JALWA/images/LOGO_HD/image.png",
+    "country": "",
+    "url": "https://b.jsrdn.com/strm/channels/9xjalwa/master.m3u8",
+    "id": "kl1czflq"
+  },
+  {
+    "name": "9XM (1080p)",
+    "category": "Music",
+    "logo": "https://xstreamcp-assets-msp.streamready.in/assets/LIVETV/LIVECHANNEL/LIVETV_LIVETVCHANNEL_9XM/images/LOGO_HD/image.png",
+    "country": "",
+    "url": "https://9xjio.wiseplayout.com/9XM/master.m3u8",
+    "id": "fdkykdri"
+  },
+  {
+    "name": "10 Bold Adelaide (1080p)",
+    "category": "Lifestyle;Relax",
+    "logo": "https://i.imgur.com/2xglh33.png",
+    "country": "",
+    "url": "https://dce3793146fef017.mediapackage.us-west-2.amazonaws.com/out/v1/55cdf73af7894775ba6de8f57482b66a/CMAF_HLS/index.m3u8",
+    "id": "haaupsyl"
+  },
+  {
+    "name": "10 TV (720p)",
+    "category": "News",
+    "logo": "https://xstreamcp-assets-msp.streamready.in/assets/LIVETV/LIVECHANNEL/LIVETV_LIVETVCHANNEL_10TV/images/LOGO_HD/image.png",
+    "country": "",
+    "url": "https://mumbai-edge.smartplaytv.in/10TV/index.m3u8",
+    "id": "wok6m166"
+  },
+  {
+    "name": "12TV Alicante (720p)",
+    "category": "General",
+    "logo": "https://i.imgur.com/VSTgXsh.png",
+    "country": "",
+    "url": "https://cloud.fastchannel.es/mic/manifiest/hls/12tv/12tv.m3u8",
+    "id": "tabcihyt"
+  },
+  {
+    "name": "12 TV Parma (540p) [Not 24/7]",
+    "category": "General",
+    "logo": "https://i.imgur.com/mBYxWOg.png",
+    "country": "",
+    "url": "https://5929b138b139d.streamlock.net/12TVParma/livestream/playlist.m3u8",
+    "id": "nb280wgu"
+  },
+  {
+    "name": "12 канал (1080p)",
+    "category": "General",
+    "logo": "https://i.imgur.com/OA9hm6e.png",
+    "country": "",
+    "url": "https://12channel.bonus-tv.ru/cdn/12channel/playlist.m3u8",
+    "id": "ra2c1wbs"
+  },
+  {
+    "name": "13 Siam Thai (1080p)",
+    "category": "News",
+    "logo": "https://i.imgur.com/FvEp1S2.png",
+    "country": "",
+    "url": "https://live.x2.co.th/live/13livetv-th.m3u8",
+    "id": "vbsv2idt"
+  },
+  {
+    "name": "15+ Music (1080p)",
+    "category": "Music",
+    "logo": "https://i.imgur.com/kj21hwd.png",
+    "country": "",
+    "url": "https://live.15plusmg.ru/memfs/ce3366b1-bf25-4e24-96bb-1adf0d44bd3d.m3u8",
+    "id": "gdcdbc69"
+  },
+  {
+    "name": "15.1 BPB (720p)",
+    "category": "Religious",
+    "logo": "https://i.imgur.com/hyxkJYV.png",
+    "country": "",
+    "url": "https://v2.tustreaming.cl/enlacebpbtv/index.m3u8",
+    "id": "oj03chcb"
+  },
+  {
+    "name": "16tv Budapest (360p)",
+    "category": "General",
+    "logo": "https://i.imgur.com/04fCzHl.png",
+    "country": "",
+    "url": "https://cloudfront44.lexanetwork.com:1344/freerelay/16tv.sdp/playlist.m3u8",
+    "id": "chci0o75"
+  },
+  {
+    "name": "20 Minutes TV (1080p)",
+    "category": "General",
+    "logo": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/20_Minutes_TV_IDF_logo_%282023%29.png/960px-20_Minutes_TV_IDF_logo_%282023%29.png",
+    "country": "",
+    "url": "https://live-20minutestv.digiteka.com/1961167769/index.m3u8",
+    "id": "q4pozic7"
+  },
+  {
+    "name": "21 Jump Street (720p)",
+    "category": "Undefined",
+    "logo": "",
+    "country": "",
+    "url": "https://d1oefjzrirx6fc.cloudfront.net/21_Jump_Street_SONO6.m3u8",
+    "id": "amrwbc63"
+  },
+  {
+    "name": "24/7 Canal de Noticias",
+    "category": "News",
+    "logo": "https://i.imgur.com/4hDCB1M.png",
+    "country": "",
+    "url": "https://panel.host-live.com:19360/cn247tv/cn247tv.m3u8",
+    "id": "3frak74r"
+  },
+  {
+    "name": "24 News (576p)",
+    "category": "News",
+    "logo": "https://sund-images.sunnxt.com/202222/300x300_24News_202222_d63feca0-79ae-47ea-b75a-66c17d456f4c.png",
+    "country": "",
+    "url": "https://mumt07.tangotv.in/zHjX9OFlTWENTYFOURNEWS/index.m3u8",
+    "id": "w4z30z1v"
+  },
+  {
+    "name": "24 Канал (1080p)",
+    "category": "News",
+    "logo": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/24_Group_Ukraine_04.png/960px-24_Group_Ukraine_04.png",
+    "country": "",
+    "url": "https://streamvideol1.luxnet.ua/news24/smil:news24.stream.smil/playlist.m3u8",
+    "id": "t57dofrb"
+  },
+  {
+    "name": "28 kanala",
+    "category": "General",
+    "logo": "https://i.imgur.com/DyvK28q.png",
+    "country": "",
+    "url": "https://streaming.28kanala.eus/hls/z.m3u8",
+    "id": "z7a36gqu"
+  },
+  {
+    "name": "30A Darcizzle Offshore (720p)",
+    "category": "Outdoor",
+    "logo": "https://i.imgur.com/Q4l2uao.png",
+    "country": "",
+    "url": "https://30a-tv.com/darcizzle.m3u8",
+    "id": "jga0q2za"
+  },
+  {
+    "name": "30A Georgia Hollywood Review TV (720p)",
+    "category": "Entertainment;News",
+    "logo": "https://images.axios.com/JiG3RuYBwpU_WZFeU6HHjt03FAU=/111x0:1191x1080/320x320/2023/11/09/1699558891265.jpg",
+    "country": "",
+    "url": "https://30a-tv.com/gh.m3u8",
+    "id": "fhbdv9ku"
+  },
+  {
+    "name": "30A Golf Kingdom (720p)",
+    "category": "Sports",
+    "logo": "https://i.imgur.com/Lv53nh4.png",
+    "country": "",
+    "url": "https://30a-tv.com/feeds/vidaa/golf.m3u8",
+    "id": "h8m5htq8"
+  },
+  {
+    "name": "30A Investment Pitch (720p)",
+    "category": "Business",
+    "logo": "https://i.imgur.com/CKCtZo7.png",
+    "country": "",
+    "url": "https://30a-tv.com/feeds/xodglobal/30atv.m3u8",
+    "id": "an3lucu7"
+  },
+  {
+    "name": "30A Lionel Nation TV",
+    "category": "News",
+    "logo": "https://m.media-amazon.com/images/I/71dgsQwVcNL.png",
+    "country": "",
+    "url": "https://30a-tv.com/ln.m3u8",
+    "id": "i9xihppi"
+  },
+  {
+    "name": "30A Loomered TV",
+    "category": "Documentary;News",
+    "logo": "https://cbs12.com/resources/media/0c1ecad8-fb09-4bb2-beaa-fc561dfe624a-small21x9_LoomerStill.jpg?1603419052801",
+    "country": "",
+    "url": "https://30a-tv.com/loomer.m3u8",
+    "id": "gbgr9hp7"
+  },
+  {
+    "name": "30A Luxe Life Discovered (720p)",
+    "category": "Lifestyle",
+    "logo": "https://m.media-amazon.com/images/I/51FJ5A0mEyL.jpg",
+    "country": "",
+    "url": "https://30a-tv.com/feeds/vidaa/luxelife.m3u8",
+    "id": "at2jnruj"
+  },
+  {
+    "name": "30A Music (720p)",
+    "category": "Music",
+    "logo": "https://i.imgur.com/gNWg9tl.png",
+    "country": "",
+    "url": "https://30a-tv.com/music.m3u8",
+    "id": "fi0jj8ju"
+  },
+  {
+    "name": "30A Ridiculous TV (720p)",
+    "category": "Comedy",
+    "logo": "https://30a.media/wp-content/uploads/2023/08/pzaz-30atv-2-230x366-ridiculous.jpg",
+    "country": "",
+    "url": "https://30a-tv.com/feeds/720p/63.m3u8",
+    "id": "c4u689w9"
+  },
+  {
+    "name": "30A Sidewalks (720p)",
+    "category": "Entertainment",
+    "logo": "https://i.imgur.com/HSdwqZN.png",
+    "country": "",
+    "url": "https://30a-tv.com/sidewalks.m3u8",
+    "id": "ngy3t2ht"
+  },
+  {
+    "name": "30A Television Channel (720p)",
+    "category": "Entertainment",
+    "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTTHiYfIB01K44LIBG81aEGAmDuIWw8MA0f2w&s",
+    "country": "",
+    "url": "https://30a-tv.com/feeds/masters/30atv.m3u8",
+    "id": "i6bfq1m7"
+  },
+  {
+    "name": "30A The Beach Show (720p)",
+    "category": "Shop",
+    "logo": "https://i.imgur.com/0j5Aget.png",
+    "country": "",
+    "url": "https://30a-tv.com/beachy.m3u8",
+    "id": "w06zy5du"
+  },
+  {
+    "name": "30A TV Classic Movies (720p)",
+    "category": "Movies",
+    "logo": "https://babaktv.com/wp-content/uploads/2023/09/30A-Classi-Movies.jpeg",
+    "country": "",
+    "url": "https://30a-tv.com/feeds/pzaz/30atvmovies.m3u8",
+    "id": "t49l0l0c"
+  },
+  {
+    "name": "30A We Love Cars (720p)",
+    "category": "Auto",
+    "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxroqfE_hvEApKMQx03sSYXPeEh4ClaF5QSa8XfRwJW_So3vfSN0CjqzxN30H-qEBswqU&usqp=CAU",
+    "country": "",
+    "url": "https://30a-tv.com/feeds/vidaa/cars.m3u8",
+    "id": "efbd5mpm"
+  },
+  {
+    "name": "31 Kanal",
+    "category": "General",
+    "logo": "https://www.ikegami.co.jp/files/co/news/20250903_kazakhstanChannel31/Channel31_Logo.jpg",
+    "country": "",
+    "url": "https://streams.adapto.kz/hls/live/31kz/main_stream.m3u8",
+    "id": "9yvhd3va"
+  },
+  {
+    "name": "51 Radio TV (480p) [Geo-blocked]",
+    "category": "Music",
+    "logo": "https://www.51news.it/images/loghi/logo_tv_radio_51news.png",
+    "country": "",
+    "url": "http://wms.shared.streamshow.it/canale51/canale51/playlist.m3u8",
+    "id": "s5xrktoi"
+  },
+  {
+    "name": "60 Days In by A&E (720p)",
+    "category": "Undefined",
+    "logo": "",
+    "country": "",
+    "url": "https://d2b8jic9gadlvy.cloudfront.net/v1/aenetworks_60daysin_1/samsungheadend_us/latest/main/hls/playlist.m3u8",
+    "id": "k6if1gdt"
+  }
+]

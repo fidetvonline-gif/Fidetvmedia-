@@ -62,22 +62,31 @@ export const fetchYouTubeStats = async (youtubeId: string): Promise<YouTubeStats
 };
 export const fetchRecentUploads = async (channelId: string, signal?: AbortSignal) => {
   try {
+    // Activities endpoint is often more reliable than search and uses less quota
     const response = await fetch(
-      `${BASE_URL}/search?part=snippet&channelId=${channelId}&order=date&type=video&maxResults=5`,
+      `${BASE_URL}/activities?part=snippet,contentDetails&channelId=${channelId}&maxResults=8`,
       { signal }
     );
     if (!response.ok) {
-      console.warn('YouTube search proxy returned non-ok status:', response.status);
+      console.warn('YouTube activities proxy returned non-ok status:', response.status);
       return [];
     }
     const data = await response.json();
     const items = data.items || [];
     
+    // Transform activities to looks like standard video search items
+    const videos = items
+      .filter((item: any) => item.contentDetails?.upload)
+      .map((item: any) => ({
+        id: { videoId: item.contentDetails.upload.videoId },
+        snippet: item.snippet
+      }));
+
     // Filter out items in blocklist
-    return items.filter((item: any) => {
+    return videos.filter((item: any) => {
       const title = item.snippet?.title || '';
       return !BLOCKLIST.some(block => title.toLowerCase().includes(block.toLowerCase()));
-    });
+    }).slice(0, 5); // Keep top 5
   } catch (error: any) {
     if (error.name === 'AbortError') {
       console.log('Fetch recent uploads aborted');

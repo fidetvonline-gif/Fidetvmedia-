@@ -19,11 +19,14 @@ import Profile from '@/pages/Profile';
 import Spaces from '@/pages/Spaces';
 import Messages from '@/pages/Messages';
 import Admin from '@/pages/Admin';
+import Debug from '@/pages/Debug';
+import SignalDebug from '@/pages/SignalDebug';
 import Partner from '@/pages/Partner';
 import Onboarding from '@/pages/Onboarding';
 import Policies from '@/pages/Policies';
 import DownloadApp from '@/pages/DownloadApp';
 import Advertise from '@/pages/Advertise';
+import BroadcastHub from '@/pages/BroadcastHub';
 import ReloadPrompt from '@/components/ReloadPrompt';
 import InstallPrompt from '@/components/InstallPrompt';
 import MessageNotifier from '@/components/MessageNotifier';
@@ -178,9 +181,12 @@ export default function App() {
             <Route path="/spaces" element={<Spaces />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/debug" element={<Debug />} />
+            <Route path="/signal-debug" element={<SignalDebug />} />
             <Route path="/policies" element={<Policies />} />
             <Route path="/download" element={<DownloadApp />} />
             <Route path="/advertise" element={<Advertise />} />
+            <Route path="/broadcast-hub" element={<BroadcastHub />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Layout>

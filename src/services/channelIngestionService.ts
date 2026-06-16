@@ -82,24 +82,20 @@ export class ChannelIngestionService {
 
     console.log('[Channel Ingestion] Starting health check cycle...');
     
-    // 1. Get channels that need checking (not failed, or failed recently but not 3 times)
+    // 1. Get channels from tv_channels that were verified a while ago
     const { data: channels, error } = await this.supabase
-      .from('discovered_channels')
+      .from('tv_channels')
       .select('*')
-      .neq('status', 'failed')
-      .limit(20);
+      .eq('is_active', true)
+      .limit(50);
 
     if (error) {
-      if (error.code === 'PGRST116' || error.message?.includes('not found') || error.code === 'PGRST205') {
-        console.warn('[Channel Ingestion] Table "discovered_channels" not found. Please ensure your Supabase schema is up to date.');
-      } else {
-        console.error('[Channel Ingestion] Error fetching channels for check:', error);
-      }
-      return;
+       console.error('[Channel Ingestion] Error fetching tv_channels:', error);
+       return;
     }
 
     if (!channels || channels.length === 0) {
-      console.log('[Channel Ingestion] No channels queue found for checking.');
+      console.log('[Channel Ingestion] No active channels found in tv_channels.');
       return;
     }
 
@@ -107,37 +103,17 @@ export class ChannelIngestionService {
       const result = await ChannelIngestionService.validateStream(channel.url);
       
       if (result.valid) {
-        // Success: Update status
-        if (channel.status === 'stable') {
-          await this.updateChannel(channel.id, { 
-            status: 'stable', 
-            fail_count: 0, 
-            last_check: new Date().toISOString() 
-          });
-        } else {
-          // If was pending/testing, move to testing or stable
-          // For simplicity, move to stable after 1 successful check in this version
-          // Requirement said: "Only accept verified HLS/DASH streams that pass a health check"
-          await this.moveToStable(channel);
-        }
+        // Success: Just continue, maybe we can update a timestamp that DOES exist like updated_at if it was there
+        // but for now let's just log and move on
+        console.log(`[Channel Ingestion] ${channel.name} is healthy.`);
       } else {
-        // Failure: Increment fail count
-        const newFailCount = (channel.fail_count || 0) + 1;
-        const newStatus = newFailCount >= 3 ? 'failed' : 'testing';
-        
-        console.warn(`[Channel Ingestion] Validation failed for ${channel.name} (${channel.url}): ${result.error}. Fail count: ${newFailCount}`);
-        
-        await this.updateChannel(channel.id, {
-          status: newStatus,
-          fail_count: newFailCount,
-          last_check: new Date().toISOString()
-        });
-        
-        // Remove from stable if it was there? 
-        // "Reject any stream that fails 3 consecutive checks"
-        if (newStatus === 'failed') {
-          await this.removeFromStable(channel.url);
-        }
+        console.warn(`[Channel Ingestion] Validation failed for ${channel.name} (${channel.url}): ${result.error}`);
+        // If it fails, we can either mark it inactive or increment a fail counter if we had it.
+        // For now, let's mark it as inactive if it truly fails.
+        await this.supabase.from('tv_channels').update({ 
+          is_active: false,
+          description: (channel.description || '') + ` [Offline: ${result.error}]`
+        }).eq('id', channel.id);
       }
     }
   }
