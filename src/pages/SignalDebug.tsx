@@ -126,7 +126,7 @@ export default function SignalDebug() {
                     <h3 className="text-lg font-black leading-tight mb-1">{ch.name}</h3>
                     <div className="flex items-center gap-3">
                       <span className="text-[10px] font-black uppercase tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded">
-                        {type}
+                        {type} {ch.url.startsWith('http://') && '(Proxied)'}
                       </span>
                       <span className="text-[10px] font-mono text-white/20 truncate max-w-[200px]">
                         {ch.url}

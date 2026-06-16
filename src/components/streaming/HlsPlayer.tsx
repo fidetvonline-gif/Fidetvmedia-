@@ -29,6 +29,8 @@ const HlsPlayer: React.FC<HlsPlayerProps> = ({
     if (Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 60,
         xhrSetup: (xhr) => {
           xhr.withCredentials = false;
         }
@@ -39,22 +41,31 @@ const HlsPlayer: React.FC<HlsPlayerProps> = ({
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        console.log('[HlsPlayer] Manifest parsed successfully');
         onReady?.();
         if (autoPlay) {
-          video.play().catch(err => console.warn('[HlsPlayer] Autoplay prevented:', err));
+          video.play().catch(err => {
+            console.warn('[HlsPlayer] Autoplay prevented:', err);
+            // If autoplay failed, we don't necessarily want to call onError, 
+            // the user might just need to click play.
+          });
         }
       });
 
       hls.on(Hls.Events.ERROR, (event, data) => {
+        console.warn(`[HlsPlayer] Error: ${data.details}`, data);
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
+              console.log('[HlsPlayer] Fatal network error, trying to recover...');
               hls.startLoad();
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
+              console.log('[HlsPlayer] Fatal media error, trying to recover...');
               hls.recoverMediaError();
               break;
             default:
+              console.error('[HlsPlayer] Fatal error, giving up.');
               onError?.(data);
               hls.destroy();
               break;

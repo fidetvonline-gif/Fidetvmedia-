@@ -389,7 +389,14 @@ async function startServer() {
   });
 
   // 4. HLS/M3U8 Stream Proxy with Manifest Rewriting
-  apiRouter.get("/proxy-stream", async (req, res) => {
+  apiRouter.all("/proxy-stream", async (req, res) => {
+    if (req.method === 'OPTIONS') {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', '*');
+      return res.status(204).end();
+    }
+
     const { url, referer } = req.query;
     if (!url) {
       console.error("[Proxy] No URL provided in request");
@@ -398,7 +405,6 @@ async function startServer() {
     
     const streamUrl = url as string;
     console.log(`[Proxy] Incoming request for: ${streamUrl}`);
-
     
     try {
       try {
@@ -414,106 +420,66 @@ async function startServer() {
       const headers: Record<string, string> = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Referer': effectiveReferer,
-        'Origin': streamUrl.includes('limex') ? 'https://limex.tv' : targetOrigin,
+        'Origin': (streamUrl.includes('limex') || streamUrl.includes('linear')) ? 'https://limex.tv' : targetOrigin,
         'Accept': '*/*',
         'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'identity', // Request uncompressed data to simplify manifest rewriting
         'Cache-Control': 'no-cache',
+        'Accept-Encoding': 'identity',
         'Pragma': 'no-cache',
-        'DNT': '1',
-        'Sec-Fetch-Dest': 'empty',
-        'Sec-Fetch-Mode': 'cors',
-        'Sec-Fetch-Site': 'cross-site'
       };
 
       if (req.headers.range) {
         headers['Range'] = String(req.headers.range);
-        console.log(`[Proxy] Forwarding Range header: ${req.headers.range}`);
       }
 
-      console.log(`[Proxy] Fetching from upstream: ${streamUrl} with Referer: ${effectiveReferer}`);
-      
       const response = await axios.get(streamUrl, {
         headers,
-        timeout: 15000, // Reduced from 25s for faster error feedback
+        timeout: 20000,
         responseType: 'stream',
         validateStatus: () => true,
         maxRedirects: 5
       });
       
+      const finalUrl = response.request?.res?.responseUrl || streamUrl;
+      const finalOrigin = new URL(finalUrl).origin;
+
       if (response.status >= 400) {
         console.warn(`[Proxy] Upstream ERROR ${response.status} for ${streamUrl}`);
-        res.setHeader('X-Proxy-Error', `Upstream status ${response.status}`);
         return res.status(response.status).send(`Upstream Error ${response.status}`);
       }
 
       const contentType = String(response.headers['content-type'] || '').toLowerCase();
-      const urlPath = streamUrl.split('?')[0].toLowerCase();
-      
-      // Strict manifest detection to avoid buffering large binary files
       const isManifest = contentType.includes('mpegurl') || 
                         contentType.includes('mpeg-url') ||
                         contentType.includes('apple-mpegurl') ||
-                        urlPath.endsWith('.m3u8') ||
-                        urlPath.endsWith('.m3u');
+                        finalUrl.split('?')[0].toLowerCase().endsWith('.m3u8') ||
+                        finalUrl.split('?')[0].toLowerCase().endsWith('.m3u');
 
-      // Set broad CORS headers for the client
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', '*');
-      res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Type, X-Proxy-Source');
       res.setHeader('X-Proxy-Source', 'AI-Studio-Bridge');
 
       if (isManifest) {
-        console.log(`[Proxy] Manifest detected. Rewriting...`);
         const chunks: any[] = [];
-        let totalSize = 0;
-        let aborted = false;
-        const MAX_SIZE = 2 * 1024 * 1024; // 2MB limit
-
-        response.data.on('data', (chunk: any) => {
-          if (aborted) return;
-          totalSize += chunk.length;
-          if (totalSize > MAX_SIZE) {
-            console.warn(`[Proxy] Manifest exceeds 2MB limit, piping directly instead.`);
-            aborted = true;
-            res.setHeader('Content-Type', contentType);
-            response.data.pipe(res);
-            return;
-          }
-          chunks.push(chunk);
-        });
+        response.data.on('data', (chunk: any) => { chunks.push(chunk); });
         
-        req.on('close', () => {
-          aborted = true;
-          response.data.destroy();
-        });
-
         response.data.on('end', () => {
-          if (aborted) return;
           const buffer = Buffer.concat(chunks);
           const text = buffer.toString('utf8');
           
           if (!text.trim().startsWith('#EXTM3U')) {
-            console.log(`[Proxy] Not an EXTM3U manifest. Piping directly.`);
             res.setHeader('Content-Type', contentType);
-            res.status(response.status).send(buffer);
-            return;
+            return res.status(200).send(buffer);
           }
 
-          const baseUrl = streamUrl.substring(0, streamUrl.lastIndexOf('/') + 1);
+          const baseUrl = finalUrl.substring(0, finalUrl.lastIndexOf('/') + 1);
           const lines = text.split('\n');
           const rewrittenLines = [];
           
           for (let line of lines) {
             const trimmed = line.trim();
-            if (!trimmed || trimmed.startsWith('#EXT-X-VERSION') || trimmed.startsWith('#EXT-X-TARGETDURATION')) {
-               rewrittenLines.push(line);
-               continue;
-            }
-            
-            if (trimmed.startsWith('#')) {
-              // Handle URIs in tags
+            if (!trimmed || trimmed.startsWith('#')) {
               if (trimmed.includes('URI=')) {
                 line = line.replace(/URI="([^"]*)"/g, (match, p1) => {
                   try {
@@ -529,44 +495,25 @@ async function startServer() {
             try {
               const absoluteUrl = trimmed.startsWith('http') ? trimmed : new URL(trimmed, baseUrl).href;
               rewrittenLines.push(`/api/proxy-stream?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(effectiveReferer)}`);
-            } catch (e) {
-              rewrittenLines.push(line);
-            }
+            } catch (e) { rewrittenLines.push(line); }
           }
           
           res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
-          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
           res.status(200).send(rewrittenLines.join('\n'));
         });
-        
-        response.data.on('error', (err: any) => {
-          console.error(`[Proxy Stream Error] ${err.message}`);
-          if (!res.headersSent) res.status(502).send("Upstream Failure");
-        });
       } else {
-        req.on('close', () => { response.data.destroy(); });
-        
-        if (response.status === 206) {
-          res.status(206);
-          if (response.headers['content-range']) res.setHeader('Content-Range', String(response.headers['content-range']));
-        } else {
-          res.status(response.status);
-        }
-        
+        res.status(response.status);
         res.setHeader('Content-Type', contentType);
         if (response.headers['content-length']) res.setHeader('Content-Length', String(response.headers['content-length']));
-        res.setHeader('Cache-Control', 'public, max-age=60'); // Small cache for segments
+        if (response.headers['content-range']) res.setHeader('Content-Range', String(response.headers['content-range']));
         response.data.pipe(res);
       }
     } catch (error: any) {
       console.error(`[Proxy Failure] ${error.message}`);
-      if (error.code === 'ENOTFOUND') {
-        res.setHeader('X-Proxy-Reason', 'DNS_NOT_FOUND');
-        return res.status(404).send("Signal source not found (DNS Error)");
-      }
       if (!res.headersSent) res.status(502).send(`Bridge Failure: ${error.message}`);
     }
   });
+
 
   // 5. Signal Bridge Maintenance Task
   const runSignalBridgeMaintenance = async () => {

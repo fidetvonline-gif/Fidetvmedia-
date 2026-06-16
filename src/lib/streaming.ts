@@ -54,6 +54,9 @@ export class UniversalStreamService {
     const url = type === 'youtube' ? extractYoutubeUrl(channel.url) : channel.url;
     const provider = this.getProviderName(channel.url, type);
     
+    const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+    const isHttpStream = url.startsWith('http://');
+    
     return {
       id: channel.id || 'temp-' + Math.random(),
       name: channel.name || 'Unknown Channel',
@@ -61,7 +64,7 @@ export class UniversalStreamService {
       type,
       provider,
       isLive: channel.is_live ?? true,
-      needsProxy: type === 'hls' || type === 'mpeg-ts'
+      needsProxy: type === 'hls' || type === 'mpeg-ts' || (isHttps && isHttpStream)
     };
   }
 
