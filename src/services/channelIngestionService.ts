@@ -1,6 +1,7 @@
 
 import { Parser } from 'm3u8-parser';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { M3UService, M3UChannel } from './m3uService';
 
 export interface ChannelStream {
   id?: string;
@@ -17,6 +18,80 @@ export class ChannelIngestionService {
 
   constructor(supabase: SupabaseClient) {
     this.supabase = supabase;
+  }
+
+  /**
+   * Import channels from an M3U URL with Smart Filtering and Duplicate Detection
+   */
+  async importFromM3U(url: string, options: { dryRun?: boolean; validateAll?: boolean } = {}) {
+    console.log(`[Channel Ingestion] Starting smart import from: ${url}`);
+    
+    try {
+      // 1. Fetch and Parse
+      const rawChannels = await M3UService.fetchAndParse(url);
+      
+      // 2. Smart Filter (The Strategy)
+      const filteredChannels = M3UService.smartFilter(rawChannels);
+      console.log(`[Channel Ingestion] Strategy filtered: ${rawChannels.length} -> ${filteredChannels.length}`);
+
+      if (options.dryRun) {
+        return filteredChannels;
+      }
+
+      // 3. Batch Check existing to avoid duplicates by Name or URL
+      // We already have UNIQUE(url) in DB, but we want to avoid name dupes too for that "Premium" feel.
+      const { data: existing } = await this.supabase
+        .from('tv_channels')
+        .select('name, url');
+      
+      const existingUrls = new Set(existing?.map(c => c.url) || []);
+      const existingNames = new Set(existing?.map(c => c.name.toLowerCase()) || []);
+
+      const toInsert: any[] = [];
+      
+      for (const ch of filteredChannels) {
+        if (existingUrls.has(ch.url)) continue;
+        if (existingNames.has(ch.name.toLowerCase())) continue;
+
+        // 4. Optional Stream Validation (Slow for huge lists, use sparingly)
+        if (options.validateAll) {
+          const check = await ChannelIngestionService.validateStream(ch.url);
+          if (!check.valid) {
+            console.log(`[Channel Ingestion] Skipping broken stream: ${ch.name}`);
+            continue;
+          }
+        }
+
+        toInsert.push({
+          name: ch.name,
+          url: ch.url,
+          category: ch.category || 'General',
+          thumbnail: ch.logo,
+          description: `Imported from ${url} (Country: ${ch.country})`,
+          is_active: true
+        });
+
+        // Add to sets to avoid duplicates WITHIN the same batch
+        existingUrls.add(ch.url);
+        existingNames.add(ch.name.toLowerCase());
+      }
+
+      console.log(`[Channel Ingestion] Finalizing import: ${toInsert.length} new unique channels.`);
+
+      if (toInsert.length > 0) {
+        // Upsert by chunks of 50 to avoid payload limits
+        for (let i = 0; i < toInsert.length; i += 50) {
+          const chunk = toInsert.slice(i, i + 50);
+          const { error } = await this.supabase.from('tv_channels').insert(chunk);
+          if (error) console.error(`[Channel Ingestion] Error inserting chunk:`, error.message);
+        }
+      }
+
+      return { total: rawChannels.length, filtered: filteredChannels.length, inserted: toInsert.length };
+    } catch (err: any) {
+      console.error(`[Channel Ingestion] Fatal import error:`, err.message);
+      throw err;
+    }
   }
 
   /**
@@ -71,48 +146,63 @@ export class ChannelIngestionService {
     }
   }
 
-  /**
+   /**
    * Runs health checks on discovered channels
    */
-  async runHealthChecks() {
+  async runHealthChecks(batchSize: number = 50) {
     if (!this.supabase) {
       console.warn('[Channel Ingestion] Supabase Admin client not initialized. Skipping health checks.');
       return;
     }
 
-    console.log('[Channel Ingestion] Starting health check cycle...');
+    console.log(`[Channel Ingestion] Starting health check cycle (Batch: ${batchSize})...`);
     
-    // 1. Get channels from tv_channels that were verified a while ago
-    const { data: channels, error } = await this.supabase
+    // 1. Get channels from tv_channels that haven't been checked recently or are failed
+    // We alternate between checking active channels to keep them fresh
+    // and inactive ones to see if they came back online.
+    const checkInactive = Math.random() > 0.8; 
+
+    let query = this.supabase
       .from('tv_channels')
-      .select('*')
-      .eq('is_active', true)
-      .limit(50);
+      .select('*');
+    
+    if (checkInactive) {
+      query = query.eq('is_active', false).limit(batchSize);
+    } else {
+      query = query.eq('is_active', true).order('last_verified', { ascending: true }).limit(batchSize);
+    }
+
+    const { data: channels, error } = await query;
 
     if (error) {
-       console.error('[Channel Ingestion] Error fetching tv_channels:', error);
+       console.error('[Channel Ingestion] Error fetching tv_channels for health check:', error);
        return;
     }
 
     if (!channels || channels.length === 0) {
-      console.log('[Channel Ingestion] No active channels found in tv_channels.');
+      console.log('[Channel Ingestion] No suitable channels found for health check cycle.');
       return;
     }
+
+    console.log(`[Channel Ingestion] Checking ${channels.length} channels (${checkInactive ? 'Inactive' : 'Active'})...`);
 
     for (const channel of channels) {
       const result = await ChannelIngestionService.validateStream(channel.url);
       
       if (result.valid) {
-        // Success: Just continue, maybe we can update a timestamp that DOES exist like updated_at if it was there
-        // but for now let's just log and move on
-        console.log(`[Channel Ingestion] ${channel.name} is healthy.`);
+        console.log(`[Channel Ingestion] ${channel.name} is HEALTHY.`);
+        await this.supabase.from('tv_channels').update({ 
+          is_active: true,
+          last_verified: new Date().toISOString()
+        }).eq('id', channel.id);
       } else {
-        console.warn(`[Channel Ingestion] Validation failed for ${channel.name} (${channel.url}): ${result.error}`);
-        // If it fails, we can either mark it inactive or increment a fail counter if we had it.
-        // For now, let's mark it as inactive if it truly fails.
+        console.warn(`[Channel Ingestion] ! FAILED: ${channel.name} (${result.error})`);
+        // If it was already inactive, just update the error message
+        // If it was active, mark it inactive
         await this.supabase.from('tv_channels').update({ 
           is_active: false,
-          description: (channel.description || '') + ` [Offline: ${result.error}]`
+          description: (channel.description || '').split(' [Offline:')[0] + ` [Offline: ${result.error}]`,
+          last_verified: new Date().toISOString()
         }).eq('id', channel.id);
       }
     }

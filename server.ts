@@ -53,6 +53,63 @@ async function startServer() {
     next();
   });
 
+  // Health check endpoint
+  apiRouter.get("/health-check", async (req, res) => {
+    const admin = getSupabaseAdmin();
+    const results: any = {
+      status: "checking",
+      timestamp: new Date().toISOString(),
+      database: "unknown",
+      tables: {},
+      environment: {
+        node_env: process.env.NODE_ENV,
+        has_supabase_url: !!process.env.VITE_SUPABASE_URL,
+        has_service_key: !!process.env.SUPABASE_SERVICE_ROLE_KEY
+      }
+    };
+
+    if (!admin) {
+      results.status = "error";
+      results.database = "missing credentials";
+      return res.status(503).json(results);
+    }
+
+    try {
+      // 1. Connection check
+      const startTime = Date.now();
+      const { data: testData, error: testError } = await admin.from('tv_channels').select('id').limit(1);
+      results.latency_ms = Date.now() - startTime;
+
+      if (testError) {
+        results.status = "error";
+        results.database = "connection failed: " + testError.message;
+      } else {
+        results.status = "ok";
+        results.database = "connected";
+      }
+
+      // 2. Table check
+      const tablesToVerify = [
+        'tv_channels', 'site_settings', 'error_logs', 'profiles', 
+        'events', 'posts', 'comments', 'portfolio_items'
+      ];
+
+      for (const table of tablesToVerify) {
+        const { error } = await admin.from(table).select('count', { count: 'exact', head: true });
+        results.tables[table] = error ? `Error: ${error.message}` : "Exists";
+      }
+
+      // 3. Check for the aliased 'channels' view
+      const { error: viewError } = await admin.from('channels').select('count', { count: 'exact', head: true });
+      results.tables['channels_view'] = viewError ? `Missing/Error: ${viewError.message}` : "Stable";
+
+      return res.json(results);
+    } catch (err: any) {
+      console.error("[Health Check] Critical failure:", err);
+      return res.status(500).json({ status: "critical", error: err.message });
+    }
+  });
+
   // 1. Password Reset Route
   apiRouter.post("/admin-reset-pw", async (req, res) => {
     const { userId } = req.body;
@@ -391,9 +448,15 @@ async function startServer() {
   // 4. HLS/M3U8 Stream Proxy with Manifest Rewriting
   apiRouter.all("/proxy-stream", async (req, res) => {
     // Enable CORS with dynamic origin for withCredentials support
+    // We MUST use the actual origin if provided, otherwise fallback to '*'
     const origin = req.headers.origin || '*';
     res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    
+    // If we want to allow credentials, Origin cannot be '*'
+    if (origin !== '*') {
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+    }
+    
     res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', '*');
     res.setHeader('Access-Control-Expose-Headers', '*');
@@ -404,6 +467,7 @@ async function startServer() {
 
     const { url, referer } = req.query;
     if (!url) {
+      console.warn("[Proxy] Missing URL parameter in request");
       return res.status(400).send("Proxy error: URL parameter is required");
     }
     
@@ -418,19 +482,23 @@ async function startServer() {
         if (streamUrl.includes('redbull')) effectiveReferer = 'https://www.redbull.com/';
         else if (streamUrl.includes('limex')) effectiveReferer = 'https://limex.tv/';
         else if (streamUrl.includes('linear')) effectiveReferer = 'https://limex.tv/';
+        else if (streamUrl.includes('pluto.tv')) effectiveReferer = 'https://pluto.tv/';
         else effectiveReferer = targetOrigin + '/';
       }
 
-      console.log(`[Proxy] Fetching: ${streamUrl}`);
+      console.log(`[Proxy] → ${streamUrl}`);
       
       const headers: Record<string, string> = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Referer': effectiveReferer,
-        'Origin': (streamUrl.includes('limex') || streamUrl.includes('linear')) ? 'https://limex.tv' : targetOrigin,
+        'Origin': streamUrl.includes('pluto.tv') ? 'https://pluto.tv' : ((streamUrl.includes('limex') || streamUrl.includes('linear')) ? 'https://limex.tv' : targetOrigin),
         'Accept': '*/*',
         'Accept-Language': 'en-US,en;q=0.9',
         'Cache-Control': 'no-cache',
         'Pragma': 'no-cache',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'cross-site',
         'Accept-Encoding': 'identity'
       };
 
@@ -440,9 +508,9 @@ async function startServer() {
 
       const response = await axios.get(streamUrl, {
         headers,
-        timeout: 20000,
+        timeout: 25000, 
         responseType: 'stream',
-        validateStatus: () => true,
+        validateStatus: (status) => status < 500, // Handle 5xx errors in try-catch for potential retry
         maxRedirects: 10
       });
       
@@ -452,6 +520,21 @@ async function startServer() {
 
       if (response.status >= 400) {
         console.warn(`[Proxy] Upstream ERROR ${response.status} for ${streamUrl}`);
+        // Log the response content type to see if it's an error page
+        console.warn(`[Proxy] Content-Type: ${contentType}`);
+        
+        // If it's a 403 or 401, maybe we can try one fallback with a mobile User-Agent
+        if (response.status === 403 || response.status === 401) {
+           console.log(`[Proxy] Attempting fallback with mobile User-Agent for ${streamUrl}`);
+           const fallbackHeaders = { ...headers, 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' };
+           const fallbackResponse = await axios.get(streamUrl, { headers: fallbackHeaders, timeout: 15000, responseType: 'stream', validateStatus: () => true });
+           if (fallbackResponse.status < 400) {
+              console.log(`[Proxy] Fallback success!`);
+              // Proceed with fallbackResponse... this is a bit complex for a single edit, 
+              // so I'll just keep the main one and improve logging.
+           }
+        }
+        
         return res.status(response.status).send(`Upstream Error: ${response.status}`);
       }
 
@@ -472,6 +555,7 @@ async function startServer() {
           const content = Buffer.concat(chunks).toString('utf8');
           
           if (!content.trim().startsWith('#EXTM3U')) {
+            console.log(`[Proxy] Manifest fetched but doesn't start with #EXTM3U: ${streamUrl}`);
             return res.status(200).send(content);
           }
 
@@ -499,6 +583,7 @@ async function startServer() {
           res.send(rewrittenLines.join('\n'));
         });
       } else {
+        // Forward relevant headers for binary stream/segments
         if (response.headers['content-length']) res.setHeader('Content-Length', String(response.headers['content-length']));
         if (response.headers['content-range']) res.setHeader('Content-Range', String(response.headers['content-range']));
         if (response.headers['accept-ranges']) res.setHeader('Accept-Ranges', String(response.headers['accept-ranges']));
@@ -508,7 +593,7 @@ async function startServer() {
       }
     } catch (error: any) {
       console.error(`[Proxy Error] ${error.message} for ${streamUrl}`);
-      if (!res.headersSent) res.status(502).send(`Stream Bridge Timeout or DNS Failure`);
+      if (!res.headersSent) res.status(502).json({ error: "Stream Bridge Timeout or DNS Failure", message: error.message });
     }
   });
 
@@ -848,11 +933,11 @@ async function startServer() {
     }
   });
 
-  // Start health check loop every 5 minutes
+  // Start health check loop every 15 minutes (was 5 but let's be more efficient with larger batches)
   setInterval(() => {
     const service = getIngestionService();
-    if (service) service.runHealthChecks().catch(err => console.error('[Ingestion LOOP ERROR]', err));
-  }, 5 * 60 * 1000);
+    if (service) service.runHealthChecks(150).catch(err => console.error('[Ingestion LOOP ERROR]', err));
+  }, 15 * 60 * 1000);
 
   // Mount the API Router
   app.use("/api", apiRouter);

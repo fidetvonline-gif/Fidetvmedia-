@@ -1,47 +1,42 @@
 #!/bin/bash
 
-# FideTV M3U Ingest Utility
-# Description: Automated M3U downloader, parser, and stream validator
+# FideTV Smart Ingestion Orchestrator
+# This script triggers the cleanup and ingestion process from priority sources.
 
-SOURCE_URL=${1:-"https://iptv-org.github.io/iptv/index.m3u"}
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-INGEST_SCRIPT="./scripts/ingest_m3u.ts"
+set -e
 
-# Colors for logging
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
+# Priority Source Links (IPTV-ORG)
+SOURCES=(
+  "https://iptv-org.github.io/iptv/countries/ng.m3u"
+  "https://iptv-org.github.io/iptv/categories/sports.m3u"
+  "https://iptv-org.github.io/iptv/categories/movies.m3u"
+  "https://iptv-org.github.io/iptv/categories/entertainment.m3u"
+  "https://iptv-org.github.io/iptv/categories/news.m3u"
+  "https://iptv-org.github.io/iptv/categories/documentary.m3u"
+  "https://iptv-org.github.io/iptv/categories/religious.m3u"
+  "https://iptv-org.github.io/iptv/languages/eng.m3u"
+  "https://i.mjh.nz/PlutoTV/us.m3u8"
+  "https://i.mjh.nz/SamsungTVPlus/us.m3u8"
+  "https://i.mjh.nz/Plex/us.m3u8"
+)
 
-echo -e "${BLUE}=======================================${NC}"
-echo -e "${BLUE}       FideTV Ingest Agent             ${NC}"
-echo -e "${BLUE}=======================================${NC}"
+echo ">>> [FideTV] Starting Smart Ingestion Orchestrator <<<"
 
-# Check for Node.js / npx
-if ! command -v npx &> /dev/null
-then
-    echo -e "${RED}Error: npx not found. Ensure Node.js is installed.${NC}"
-    exit 1
-fi
+# 1. Update Ingestion Logic
+echo ">>> [1/3] Running Smart Ingestion Sequence..."
 
-# Check if script exists
-if [ ! -f "$INGEST_SCRIPT" ]; then
-    echo -e "${RED}Error: Ingestion logic $INGEST_SCRIPT not found.${NC}"
-    exit 1
-fi
+for URL in "${SOURCES[@]}"
+do
+  echo ">>> Aggregating from: $URL"
+  npx tsx scripts/ingest_m3u_v2.ts "$URL"
+done
 
-echo -e "${BLUE}[1/2]${NC} Initializing ingestion for: ${SOURCE_URL}"
+# 2. Cleanup & Optimization
+echo ">>> [2/3] Pruning existing low-quality channels and duplicates..."
+npx tsx scripts/cleanup_channels.ts
 
-# Run the ingestion script
-npx tsx $INGEST_SCRIPT "$SOURCE_URL"
+# 3. Final Health Check
+echo ">>> [3/3] Running final health checks on database..."
+npx tsx scripts/run_health_checks.ts
 
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}Ingestion completed successfully.${NC}"
-    echo -e "${GREEN}Database updated in src/data/channels.json${NC}"
-    echo -e "${GREEN}Logs available in ingestion.log${NC}"
-else
-    echo -e "${RED}Ingestion failed. Check ingestion.log for details.${NC}"
-    exit 1
-fi
-
-echo -e "${BLUE}=======================================${NC}"
+echo ">>> [FideTV] Ingestion Cycle Complete. <<<"

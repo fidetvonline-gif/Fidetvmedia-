@@ -12,21 +12,21 @@ interface UniversalPlayerProps {
   channel: any;
   autoPlay?: boolean;
   muted?: boolean;
+  onError?: (error: string) => void;
 }
 
 const UniversalPlayer: React.FC<UniversalPlayerProps> = ({ 
   channel, 
   autoPlay = true, 
-  muted = false 
+  muted = false,
+  onError
 }) => {
   const [stream, setStream] = useState<NormalizedStream | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
+  const [failCount, setFailCount] = useState(0);
   
-  // Enforce muted if autoplay is on, to prevent browser block
-  const effectiveMuted = autoPlay ? true : muted;
-
   useEffect(() => {
     if (!channel) {
         console.log('[Universal Player] No channel channel data passed');
@@ -38,6 +38,7 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
     setStream(normalized);
     setLoading(true);
     setError(null);
+    setFailCount(0); // Reset for new channel
     
     console.log(`[Universal Player] Normalized stream:`, normalized);
   }, [channel, retryKey]);
@@ -45,12 +46,22 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
   const handleReady = () => {
     console.log(`[Universal Player] Playback ready for: ${stream?.name}`);
     setLoading(false);
+    setFailCount(0);
   };
 
   const handleError = (e: any) => {
     console.error(`[Universal Player] Playback error:`, e);
-    setError('Failed to load stream. Please try again or check your connection.');
+    const msg = 'Failed to load stream. This might be due to geographical restrictions or server timeout.';
+    setError(msg);
     setLoading(false);
+    
+    const newFailCount = failCount + 1;
+    setFailCount(newFailCount);
+    
+    // Auto-notify parent if it fails immediately or after a retry
+    if (newFailCount >= 1 && onError) {
+      setTimeout(() => onError(msg), 3000); // Give user a moment to see the error
+    }
   };
 
   if (!stream) return null;
@@ -99,7 +110,7 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
             width="100%"
             height="100%"
             playing={autoPlay}
-            muted={effectiveMuted}
+            muted={muted}
             controls={true}
             onReady={handleReady}
             onError={handleError}
@@ -112,7 +123,7 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
           <HlsPlayer 
             src={stream.needsProxy ? `/api/proxy-stream?url=${encodeURIComponent(stream.url)}` : stream.url}
             autoPlay={autoPlay}
-            muted={effectiveMuted}
+            muted={muted}
             onReady={handleReady}
             onError={handleError}
           />
@@ -121,8 +132,9 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
             src={stream.needsProxy ? `/api/proxy-stream?url=${encodeURIComponent(stream.url)}` : stream.url}
             className="w-full h-full object-contain"
             autoPlay={autoPlay}
-            muted={effectiveMuted}
+            muted={muted}
             controls
+            preload="auto"
             onCanPlay={handleReady}
             onError={handleError}
           />
@@ -131,13 +143,6 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
             UNKNOWN STREAM FORMAT
           </div>
         )}
-      </div>
-
-      {/* Debug Overlay (Visible in dev or through specific trigger) */}
-      <div className="absolute top-4 left-4 p-2 bg-black/60 rounded text-[10px] font-mono text-primary opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30">
-        ID: {stream.id}<br/>
-        TYPE: {stream.type.toUpperCase()}<br/>
-        PROVIDER: {stream.provider.toUpperCase()}
       </div>
     </div>
   );

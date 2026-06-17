@@ -12,16 +12,37 @@ export interface M3UChannel {
 
 export class M3UService {
   /**
+   * High Priority Countries based on Strategy
+   */
+  private static readonly HIGH_PRIORITY_COUNTRIES = [
+    'NG', 'ZA', 'KE', 'GH', 'US', 'GB', 'CA', 'AU', 'FR', 'DE'
+  ];
+
+  private static normalizeCategory(name: string, category: string, country: string): string {
+    const n = name.toLowerCase();
+    const c = category.toLowerCase();
+    
+    if (country === 'NG') return 'Nigerian TV';
+    if (n.includes('football') || n.includes('soccer')) return 'Football';
+    if (c.includes('sport') || n.includes('sport')) return 'Sports';
+    if (c.includes('movie') || n.includes('movie')) return 'Movies';
+    if (c.includes('news') || n.includes('news')) return 'News';
+    if (c.includes('religious') || n.includes('bible') || n.includes('god')) return 'Religious';
+    if (c.includes('entertainment') || c.includes('general')) return 'Entertainment';
+    
+    return 'Entertainment'; // Default
+  }
+
+  /**
    * Fetches an M3U playlist and parses it.
-   * Utilizes m3u8-parser for structure and regex for IPTV-specific tags.
    */
   static async fetchAndParse(url: string): Promise<M3UChannel[]> {
     try {
       console.log(`[M3U Service] Fetching playlist from: ${url}`);
       const response = await axios.get(url, { 
-        timeout: 15000,
+        timeout: 25000,
         headers: {
-          'User-Agent': 'FideTV-M3U-Parser/1.0'
+          'User-Agent': 'FideTV-M3U-Parser/1.1'
         }
       });
       
@@ -30,14 +51,9 @@ export class M3UService {
         throw new Error('Received non-string content from M3U source');
       }
 
-      // Initialize m3u8-parser
       const parser = new Parser();
       parser.push(content);
       parser.end();
-
-      // Note: m3u8-parser is great for HLS but sometimes ignores custom IPTV tags (EXTINF attributes).
-      // We'll use the raw content with regex for the rich metadata extraction 
-      // while acknowledging the library usage requirement.
       
       const channels: M3UChannel[] = [];
       const lines = content.split('\n');
@@ -47,18 +63,21 @@ export class M3UService {
         const line = lines[i].trim();
         
         if (line.startsWith('#EXTINF:')) {
-          // Extraction of IPTV tags (tvg-id, tvg-logo, group-title, etc.)
           const logoMatch = line.match(/tvg-logo="([^"]*)"/);
           const groupMatch = line.match(/group-title="([^"]*)"/);
           const nameMatch = line.match(/,(.*)$/);
           const countryMatch = line.match(/tvg-country="([^"]*)"/);
           const idMatch = line.match(/tvg-id="([^"]*)"/);
 
+          const name = nameMatch ? nameMatch[1].trim() : (idMatch ? idMatch[1] : 'Unknown Channel');
+          const category = groupMatch ? groupMatch[1].trim() : 'General';
+          const country = countryMatch ? countryMatch[1].toUpperCase() : '';
+
           currentInfo = {
-            name: nameMatch ? nameMatch[1].trim() : (idMatch ? idMatch[1] : 'Unknown Channel'),
-            category: groupMatch ? groupMatch[1].trim() : 'General',
+            name,
+            category: this.normalizeCategory(name, category, country),
             logo: logoMatch ? logoMatch[1] : '',
-            country: countryMatch ? countryMatch[1] : ''
+            country
           };
         } else if ((line.startsWith('http') || line.startsWith('rtmp') || line.startsWith('mmsh')) && currentInfo) {
           channels.push({
@@ -70,7 +89,7 @@ export class M3UService {
         }
       }
 
-      console.log(`[M3U Service] Successfully ingested ${channels.length} channels using m3u8-parser architecture`);
+      console.log(`[M3U Service] Raw ingested: ${channels.length} channels`);
       return channels;
     } catch (error: any) {
       console.error('[M3U Service] Ingestion error:', error.message);
@@ -79,12 +98,81 @@ export class M3UService {
   }
 
   /**
+   * Smart Filter based on Fide TV Premium Strategy
+   */
+  static smartFilter(channels: M3UChannel[]): M3UChannel[] {
+    return channels.filter(channel => {
+      const name = channel.name.toLowerCase();
+      const cat = channel.category.toLowerCase();
+      const country = channel.country.toUpperCase();
+
+      // 1. HARD REJECTION: Missing data & Blocked streams
+      // Relaxed logo check: if (!channel.logo) return false;
+      if (!channel.name || channel.name === 'Unknown Channel') return false;
+      
+      const blockedKeywords = [
+        'blocked', 'restricted', 'offline', 'dead', 'location only', 
+        'country only', 'n/a', 'token', 'expired', 'session'
+      ];
+      if (blockedKeywords.some(k => name.includes(k) || cat.includes(k))) {
+        console.log(`[M3U Service] Rejecting restricted channel: ${channel.name}`);
+        return false;
+      }
+
+      // 2. INDIAN CHANNEL LOGIC
+      if (country === 'IN') {
+        const keepKeywords = ['news', 'sports', 'movies', 'international', 'english', 'hd'];
+        const rejectKeywords = ['tamil', 'telugu', 'bengali', 'marathi', 'kannada', 'hindi', 'punjabi'];
+        
+        const hasKeep = keepKeywords.some(k => name.includes(k));
+        const hasReject = rejectKeywords.some(k => name.includes(k));
+        
+        // Only keep Indian channels that are specifically English/News/Sports/HD 
+        // AND not primarily regional language feeds
+        if (hasReject && !name.includes('english')) return false;
+        if (!hasKeep && !hasReject) return false; // Generic local indian channels
+      }
+
+      // 3. SPECIFIC PRIORITY FILTERS
+      // Religious Filters
+      if (cat.includes('religious') || name.includes('daystar') || name.includes('tbn') || name.includes('ewtn') || name.includes('hope channel')) {
+        return true;
+      }
+
+      // Sports Priorities
+      if (cat.includes('sport') || name.includes('fifa+') || name.includes('red bull') || name.includes('sportsgrid')) {
+        return true;
+      }
+
+      // News Priorities
+      if (cat.includes('news') || name.includes('bbc') || name.includes('cnn') || name.includes('al jazeera') || name.includes('france 24') || name.includes('bloomberg')) {
+        return true;
+      }
+
+      // Music & Kids
+      if (cat.includes('music') || cat.includes('kids') || name.includes('mtv') || name.includes('nickelodeon') || name.includes('disney')) {
+        return true;
+      }
+
+      // 4. GENERAL HIGH PRIORITY COUNTRIES
+      if (this.HIGH_PRIORITY_COUNTRIES.includes(country)) return true;
+
+      // 5. GLOBAL BRANDS
+      const globalKeywords = ['pluto tv', 'plex', 'filmrise', 'rakuten', 'tv movie', 'documentary', 'wild'];
+      if (globalKeywords.some(k => name.includes(k) || cat.includes(k))) return true;
+
+      // If it doesn't match priority countries or global keywords, deprioritize
+      return false;
+    });
+  }
+
+  /**
    * Filters a list of channels based on provided criteria.
    */
   static filterChannels(channels: M3UChannel[], filters: { category?: string; country?: string }): M3UChannel[] {
     return channels.filter(channel => {
       const matchCategory = !filters.category || channel.category.toLowerCase().includes(filters.category.toLowerCase());
-      const matchCountry = !filters.country || channel.country.toLowerCase() === filters.country.toLowerCase();
+      const matchCountry = !filters.country || (channel.country && channel.country.toLowerCase() === filters.country.toLowerCase());
       return matchCategory && matchCountry;
     });
   }

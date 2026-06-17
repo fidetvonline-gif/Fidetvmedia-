@@ -29,47 +29,58 @@ const HlsPlayer: React.FC<HlsPlayerProps> = ({
     if (Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
-        maxBufferLength: 30,
-        maxMaxBufferLength: 60,
-        xhrSetup: (xhr) => {
-          xhr.withCredentials = true;
+        maxBufferLength: 10, // Reduced from 30 for faster start
+        maxMaxBufferLength: 20,
+        initialLiveManifestSize: 1, // Start playing as soon as 1 segment is found
+        manifestLoadingMaxRetry: 2,
+        levelLoadingMaxRetry: 2,
+        fragLoadingMaxRetry: 2,
+        // Public proxied streams don't need credentials, and it often causes CORS issues
+        xhrSetup: (xhr, url) => {
+          // console.log(`[HlsPlayer] Fetching: ${url}`);
         }
       });
 
       hlsRef.current = hls;
+      console.log(`[HlsPlayer] Loading Source: ${src}`);
       hls.loadSource(src);
       hls.attachMedia(video);
 
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        console.log('[HlsPlayer] Manifest parsed successfully');
+      hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+        console.log(`[HlsPlayer] Manifest parsed successfully, levels found: ${data.levels?.length}`);
         onReady?.();
         if (autoPlay) {
           video.play().catch(err => {
             console.warn('[HlsPlayer] Autoplay prevented:', err);
-            // If autoplay failed, we don't necessarily want to call onError, 
-            // the user might just need to click play.
           });
         }
       });
 
+      hls.on(Hls.Events.FRAG_LOADED, (event, data) => {
+        // console.log(`[HlsPlayer] Fragment loaded: ${data.frag.url}`);
+      });
+
       hls.on(Hls.Events.ERROR, (event, data) => {
-        console.warn(`[HlsPlayer] Error: ${data.details}`, data);
         if (data.fatal) {
+          console.error(`[HlsPlayer] FATAL ERROR: ${data.details}`, data);
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              console.log('[HlsPlayer] Fatal network error, trying to recover...');
+              console.log('[HlsPlayer] Fatal network error, trying to recover (startLoad)...');
               hls.startLoad();
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
-              console.log('[HlsPlayer] Fatal media error, trying to recover...');
+              console.log('[HlsPlayer] Fatal media error, trying to recover (recoverMediaError)...');
               hls.recoverMediaError();
               break;
             default:
-              console.error('[HlsPlayer] Fatal error, giving up.');
+              console.error('[HlsPlayer] Unrecoverable fatal error.');
               onError?.(data);
               hls.destroy();
               break;
           }
+        } else {
+          // Only log non-fatal warnings once per type to avoid spamming
+          // console.warn(`[HlsPlayer] Warning: ${data.details}`);
         }
       });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {

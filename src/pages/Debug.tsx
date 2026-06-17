@@ -45,6 +45,27 @@ export default function Debug() {
     { name: 'SportyTV HLS (Limex)', url: 'https://cdn.sh-cdn.com/sh/sportytv_ng/playlist.m3u8', category: 'Live' }
   ];
 
+  const [healthStatus, setHealthStatus] = useState<any>(null);
+  const [checkingHealth, setCheckingHealth] = useState(false);
+
+  const runHealthCheck = async () => {
+    setCheckingHealth(true);
+    addLog('HEALTH', 'Triggering system health check...');
+    try {
+      const resp = await fetch('/api/health-check');
+      const data = await resp.json();
+      setHealthStatus(data);
+      addLog('HEALTH', `System Status: ${data.status.toUpperCase()}`);
+      if (data.status !== 'ok') {
+        addLog('HEALTH_ERROR', `Issue detected in: ${Object.entries(data.tables).filter(([_, v]) => v !== 'Exists' && v !== 'Stable').map(([k]) => k).join(', ')}`);
+      }
+    } catch (err: any) {
+      addLog('HEALTH_ERROR', err.message);
+    } finally {
+      setCheckingHealth(false);
+    }
+  };
+
   const handleSelect = (ch: any) => {
     setSelectedChannel(ch);
     setPlayerError(null);
@@ -79,6 +100,14 @@ export default function Debug() {
             </div>
           </div>
           <div className="flex gap-2">
+             <button 
+               onClick={runHealthCheck}
+               disabled={checkingHealth}
+               className="px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl border border-emerald-500/20 flex items-center gap-2 transition-all text-emerald-500"
+             >
+                <Activity className={cn("w-4 h-4", checkingHealth && "animate-spin")} />
+                System Health
+             </button>
              <button 
                onClick={() => window.location.reload()}
                className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 flex items-center gap-2 transition-all"

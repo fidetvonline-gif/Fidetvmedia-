@@ -48,10 +48,37 @@ export const ChannelManagement = () => {
   };
 
   const fetchChannels = async () => {
-    const { data: dbChannels, error } = await supabase.from('tv_channels').select('*').order('order_index');
+    let allChannels: any[] = [];
+    let rangeStart = 0;
+    const rangeSize = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+        const { data: dbChannels, error } = await supabase
+            .from('tv_channels')
+            .select('*')
+            .order('order_index')
+            .range(rangeStart, rangeStart + rangeSize - 1);
+
+        if (error) {
+            console.error('Error fetching channels:', error);
+            break;
+        }
+
+        if (dbChannels && dbChannels.length > 0) {
+            allChannels = [...allChannels, ...dbChannels];
+            if (dbChannels.length < rangeSize) {
+                hasMore = false;
+            } else {
+                rangeStart += rangeSize;
+            }
+        } else {
+            hasMore = false;
+        }
+    }
     
     // Merge logic to show what the user actually sees in the app
-    const merged = [...(dbChannels || [])];
+    const merged = [...allChannels];
     
     // Add defaults that aren't already represented by URL in DB
     DEFAULT_CHANNELS.forEach(def => {
@@ -60,7 +87,6 @@ export const ChannelManagement = () => {
         merged.push({
           ...def,
           is_default: true,
-          // Map icon object to string if needed, tho ChannelManagement table doesn't show it
         });
       }
     });

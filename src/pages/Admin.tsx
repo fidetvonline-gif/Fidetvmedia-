@@ -659,18 +659,40 @@ export default function Admin() {
   };
 
   const fetchChannels = async () => {
-    const { data, error } = await supabase.from('tv_channels').select('*').order('order_index');
-    if (error) {
-      if (error.message.includes('relation "public.tv_channels" does not exist') || 
-          error.message.includes('Could not find the table \'public.tv_channels\'')) {
-        setDbErrors(prev => ({ ...prev, tv_channels: 'Table missing.' }));
-      }
-      return;
+    let allChannels: any[] = [];
+    let rangeStart = 0;
+    const rangeSize = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+        const { data, error } = await supabase
+            .from('tv_channels')
+            .select('*')
+            .order('order_index')
+            .range(rangeStart, rangeStart + rangeSize - 1);
+        
+        if (error) {
+            if (error.message.includes('relation "public.tv_channels" does not exist') || 
+                error.message.includes('Could not find the table \'public.tv_channels\'')) {
+                setDbErrors(prev => ({ ...prev, tv_channels: 'Table missing.' }));
+            }
+            return;
+        }
+
+        if (data && data.length > 0) {
+            allChannels = [...allChannels, ...data];
+            if (data.length < rangeSize) {
+                hasMore = false;
+            } else {
+                rangeStart += rangeSize;
+            }
+        } else {
+            hasMore = false;
+        }
     }
     
     // Merge defaults
-    const dbChannels = data || [];
-    setChannels(mergeChannels(DEFAULT_CHANNELS, dbChannels));
+    setChannels(mergeChannels(DEFAULT_CHANNELS, allChannels));
   };
 
   const fetchStableChannels = async () => {

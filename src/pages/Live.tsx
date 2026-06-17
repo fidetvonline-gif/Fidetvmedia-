@@ -21,9 +21,13 @@ const formatChannelUrl = (url: string) => {
   return url;
 };
 
+import { preloadManager } from '../lib/preloadManager';
+
 export default function Live() {
   const [dbChannels, setDbChannels] = useState<any[]>([]);
   const [activeChannelId, setActiveChannelId] = useState<string>('');
+  const [failedChannelIds, setFailedChannelIds] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [directStreamUrl, setDirectStreamUrl] = useState<string | null>(null);
@@ -33,33 +37,103 @@ export default function Live() {
   
   useEffect(() => {
     const init = async () => {
+      setLoading(true);
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user?.email === 'fidetvonline@gmail.com') setIsAdmin(true);
+        console.log('[Live] Initializing Signal Bridge...');
+        const { data: { session }, error: authError } = await supabase.auth.getSession();
+        
+        if (authError) {
+          console.error('[Live] Auth state check failed:', authError.message);
+        }
+
+        if (session?.user?.email === 'fidetvonline@gmail.com') {
+          console.log('[Live] Administrator session verified.');
+          setIsAdmin(true);
+        }
+
+        // Fast fetch for first 200 channels to unlock interaction instantly
+        const fetchInitialBatch = async () => {
+          const { data, error } = await supabase
+            .from('tv_channels')
+            .select('*')
+            .order('order_index')
+            .range(0, 199);
+          
+          if (error) throw error;
+          return { data: data || [], error: null };
+        };
 
         const [channelsRes, settingsRes] = await Promise.all([
-          supabase.from('tv_channels').select('*').eq('is_active', true).limit(100),
+          fetchInitialBatch(),
           supabase.from('site_settings').select('*')
         ]);
 
-        if (channelsRes.data && channelsRes.data.length > 0) {
+        if (channelsRes.error) {
+          console.warn('[Live] Primary tv_channels check failed:', channelsRes.error.message);
+        } else if (channelsRes.data && channelsRes.data.length > 0) {
+          console.log(`[Live] Initial batch of ${channelsRes.data.length} channels loaded.`);
           setDbChannels(channelsRes.data);
-          setActiveChannelId(channelsRes.data[0].id);
-        } else if (DEFAULT_CHANNELS.length > 0) {
-          setActiveChannelId(DEFAULT_CHANNELS[0].id);
+          
+          // Predictive Pre-connection: Warm up TLS/DNS for top providers
+          try {
+            const uniqueDomains = new Set<string>();
+            channelsRes.data.slice(0, 30).forEach((c: any) => {
+              if (c.url) {
+                const domain = new URL(c.url).origin;
+                uniqueDomains.add(domain);
+              }
+            });
+            uniqueDomains.forEach(domain => preloadManager.preconnect(domain));
+          } catch (e) {}
+
+          const randomIndex = Math.floor(Math.random() * channelsRes.data.length);
+          setActiveChannelId(selectedChannelIdFromQuery || channelsRes.data[randomIndex].id);
+
+          // Background deep fetch for the rest without blocking
+          (async () => {
+             let allData = [...channelsRes.data];
+             let rangeStart = 200;
+             const rangeSize = 500; // Smaller batches for more frequent non-blocking updates
+             let hasMore = channelsRes.data.length === 200;
+
+             while (hasMore) {
+                const { data, error } = await supabase
+                  .from('tv_channels')
+                  .select('*')
+                  .order('order_index')
+                  .range(rangeStart, rangeStart + rangeSize - 1);
+                
+                if (error || !data || data.length === 0) {
+                   hasMore = false;
+                } else {
+                   allData = [...allData, ...data];
+                   // Only update state every 2 batches to reduce re-renders
+                   if (allData.length % 2000 === 0 || data.length < rangeSize) {
+                     setDbChannels([...allData]);
+                   }
+                   if (data.length < rangeSize) hasMore = false;
+                   rangeStart += rangeSize;
+                }
+             }
+             console.log(`[Live] Background sync complete. Total: ${allData.length} channels.`);
+          })();
         }
 
         if (settingsRes.data) {
           const direct = settingsRes.data.find(s => s.key === 'direct_stream_hls_url')?.value;
           if (direct) setDirectStreamUrl(direct);
         }
-      } catch (err) {
-        console.error('Init failure:', err);
-        if (DEFAULT_CHANNELS.length > 0) setActiveChannelId(DEFAULT_CHANNELS[0].id);
+      } catch (err: any) {
+        console.error('[Live] Signal Initialization Failure:', err);
       } finally {
         setLoading(false);
       }
     };
+    
+    // Parse URL for specific channel deep links
+    const params = new URLSearchParams(window.location.search);
+    const selectedChannelIdFromQuery = params.get('ch');
+    
     init();
   }, []);
 
@@ -82,13 +156,50 @@ export default function Live() {
   }, [dbChannels, directStreamUrl]);
 
   const categories = useMemo(() => {
-    return ['All', ...new Set(allChannels.map(c => c.category))];
+    const cats = new Set(allChannels.map(c => c.category || 'General'));
+    return ['Featured', ...Array.from(cats)].filter(c => c !== 'General');
   }, [allChannels]);
 
-  const filteredChannels = useMemo(() => {
-    if (categoryFilter === 'All') return allChannels;
-    return allChannels.filter(c => c.category === categoryFilter);
-  }, [allChannels, categoryFilter]);
+  const [visibleItemsPerCategory, setVisibleItemsPerCategory] = useState<Record<string, number>>({});
+
+  const filteredChannelsByCategory = useMemo(() => {
+    const grouped: Record<string, any[]> = {};
+    const query = searchQuery.toLowerCase();
+    
+    allChannels.forEach(c => {
+      const nameMatch = c.name.toLowerCase().includes(query);
+      const catMatch = (c.category || 'General').toLowerCase().includes(query);
+      const countryMatch = (c.country || '').toLowerCase().includes(query);
+      
+      if (nameMatch || catMatch || countryMatch) {
+        // Special logic: default channels without a clear category go to 'Featured'
+        let cat = c.category || 'General';
+        
+        // If it's a default channel, move to Featured for prominence
+        const isDefault = DEFAULT_CHANNELS.some(dc => dc.id === c.id);
+        if (isDefault) {
+          cat = 'Featured';
+        }
+
+        if (!grouped[cat]) grouped[cat] = [];
+        grouped[cat].push(c);
+      }
+    });
+
+    return grouped;
+  }, [allChannels, searchQuery]);
+
+  const sortedCategoryKeys = useMemo(() => {
+    const important = ['Featured', 'Football', 'Sports', 'News', 'Movies', 'Entertainment', 'Nigerian TV'];
+    return Object.keys(filteredChannelsByCategory).sort((a, b) => {
+        const aIdx = important.indexOf(a);
+        const bIdx = important.indexOf(b);
+        if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+        if (aIdx !== -1) return -1;
+        if (bIdx !== -1) return 1;
+        return a.localeCompare(b);
+    });
+  }, [filteredChannelsByCategory]);
 
   const activeChannel = useMemo(() => 
     allChannels.find(c => c.id === activeChannelId) || allChannels[0]
@@ -103,6 +214,62 @@ export default function Live() {
       await navigator.clipboard.writeText(window.location.href);
     }
   };
+
+  const playRandomChannel = () => {
+    const playableChannels = allChannels.filter(c => !failedChannelIds.has(c.id));
+    if (playableChannels.length > 0) {
+      const randomIndex = Math.floor(Math.random() * playableChannels.length);
+      setActiveChannelId(playableChannels[randomIndex].id);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (allChannels.length > 0) {
+      // Fallback if somehow everything is marked failed, reset but this shouldn't happen usually
+      const randomIndex = Math.floor(Math.random() * allChannels.length);
+      setActiveChannelId(allChannels[randomIndex].id);
+    }
+  };
+
+  const handleChannelError = (id: string) => {
+    console.log(`[Live] Channel ${id} failed. Tracking for session blacklist.`);
+    setFailedChannelIds(prev => new Set(prev).add(id));
+    
+    // Auto-skip logic with circuit breaker
+    setTimeout(() => {
+      // Only skip if the failed channel is still the active one
+      setActiveChannelId(current => {
+        if (current === id) {
+          const playableChannels = allChannels.filter(c => !failedChannelIds.has(c.id) && c.id !== id);
+          
+          if (playableChannels.length === 0) {
+            console.warn('[Live] All channels in current view failed. Resetting blacklist to try again.');
+            setFailedChannelIds(new Set());
+            return current;
+          }
+          
+          const randomIndex = Math.floor(Math.random() * playableChannels.length);
+          const nextChannel = playableChannels[randomIndex];
+          
+          console.log(`[Live] Auto-skipping to ${nextChannel.name}`);
+          return nextChannel.id;
+        }
+        return current;
+      });
+    }, 2000);
+  };
+
+  const [scrolledPastPlayer, setScrolledPastPlayer] = useState(false);
+  const playerSectionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!playerSectionRef.current) return;
+      const rect = playerSectionRef.current.getBoundingClientRect();
+      // If the player section's bottom is above the top of the viewport (with some buffer)
+      setScrolledPastPlayer(rect.bottom < 100);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   if (loading) {
     return (
@@ -119,9 +286,33 @@ export default function Live() {
   }
 
   return (
-    <div className="flex flex-col w-full min-h-full bg-[#0a0a0f] text-white selection:bg-[#e24b4a] selection:text-white overflow-x-hidden">
+    <div className="flex flex-col w-full min-h-screen bg-[#0a0a0f] text-white selection:bg-[#e24b4a] selection:text-white relative">
+      {/* Mini Player Overlay */}
+      <AnimatePresence>
+        {scrolledPastPlayer && activeChannel && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8, x: 50 }}
+            animate={{ opacity: 1, scale: 1, x: 0 }}
+            exit={{ opacity: 0, scale: 0.8, x: 50 }}
+            className="fixed bottom-8 right-4 md:right-8 w-[280px] md:w-80 aspect-video z-[100] bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/10 ring-4 ring-[#e24b4a]/20"
+          >
+            <div className="absolute top-0 left-0 w-full p-2 bg-gradient-to-b from-black/60 to-transparent z-10">
+              <p className="text-[9px] font-black uppercase tracking-widest text-white/80 truncate px-2">
+                Now Playing: {activeChannel.name}
+              </p>
+            </div>
+            <UniversalPlayer 
+              channel={activeChannel}
+              autoPlay={true}
+              muted={false}
+              className="w-full h-full"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Hero Section */}
-      <section className="relative w-full pt-6 px-6 lg:px-12 flex flex-col gap-6 max-w-[1600px] mx-auto">
+      <section ref={playerSectionRef} className="relative w-full pt-32 px-6 lg:px-12 flex flex-col gap-6 max-w-[1600px] mx-auto">
          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div className="flex flex-col gap-2">
                <div className="flex items-center gap-3">
@@ -133,9 +324,16 @@ export default function Live() {
                      {activeChannel?.name}
                   </h1>
                </div>
-               <p className="text-sm text-white/40 max-w-2xl font-medium">
-                  {activeChannel?.description}
-               </p>
+               <div className="flex items-center gap-3 mt-1">
+                 <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[#e24b4a]">
+                   {activeChannel?.category || 'General'}
+                 </span>
+                 {activeChannel?.country && (
+                   <span className="text-[8px] font-bold uppercase tracking-[0.2em] text-white/40">
+                     • {activeChannel.country}
+                   </span>
+                 )}
+               </div>
             </div>
             <div className="flex items-center gap-3">
                <button onClick={handleShare} className="p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-white/5">
@@ -153,6 +351,10 @@ export default function Live() {
                <UniversalPlayer 
                   key={`${activeChannel.id}-${refreshKey}`}
                   channel={activeChannel} 
+                  muted={scrolledPastPlayer}
+                  onError={(err) => {
+                     handleChannelError(activeChannel.id);
+                  }}
                />
             ) : (
                <div className="w-full aspect-video rounded-[2rem] bg-black border border-white/5 flex flex-col items-center justify-center gap-6 text-white/10">
@@ -213,75 +415,117 @@ export default function Live() {
       </section>
 
       {/* Channel Section */}
-      <section className="px-6 lg:px-12 pb-12 flex flex-col gap-8">
-         <div className="flex flex-col gap-6">
-            <div className="flex items-center justify-between">
-               <h2 className="text-xl font-black uppercase tracking-widest text-white/80">Discover Channels</h2>
-            </div>
-            <div className="flex items-center gap-2 overflow-x-auto pb-4 custom-scrollbar">
-               {categories.map(cat => (
-                  <button
-                    key={cat}
-                    onClick={() => setCategoryFilter(cat)}
-                    className={cn(
-                      "px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 border",
-                      categoryFilter === cat 
-                        ? "bg-[#e24b4a] text-white border-[#e24b4a] shadow-lg shadow-[#e24b4a]/20" 
-                        : "bg-white/5 text-white/40 border-white/5 hover:bg-white/10 hover:text-white"
-                    )}
-                  >
-                     {cat}
-                  </button>
-               ))}
-            </div>
-         </div>
-
-         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {filteredChannels.slice(0, 12).map((channel) => (
-               <motion.button
-                 key={channel.id}
-                 layout
-                 onClick={() => {
-                   setActiveChannelId(channel.id);
-                   window.scrollTo({ top: 0, behavior: 'smooth' });
-                 }}
-                 className={cn(
-                   "group relative flex flex-col bg-white rounded-[2rem] p-4 transition-all duration-500 text-left",
-                   activeChannelId === channel.id ? "ring-4 ring-[#e24b4a]" : "hover:scale-[1.02]"
-                 )}
-               >
-                  <div className="w-full aspect-[16/10] rounded-[1.5rem] overflow-hidden relative mb-4">
-                     <OptimizedImage 
-                       src={channel.thumbnail} 
-                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" 
-                     />
-                     <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
-                     <div className="absolute top-4 left-4">
-                        <div className="px-2.5 py-1 bg-[#e24b4a] rounded-lg flex items-center gap-1.5 shadow-lg">
-                           <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                           <span className="text-[8px] font-black uppercase tracking-widest text-white">Live</span>
-                        </div>
-                     </div>
-                  </div>
-                  
-                  <div className="flex flex-col gap-1 px-2">
-                     <span className="text-[10px] font-black text-[#e24b4a] uppercase tracking-widest opacity-60">
-                        {channel.category}
-                     </span>
-                     <h3 className="text-lg font-black text-[#0a0a0f] leading-tight line-clamp-1">
-                        {channel.name}
-                     </h3>
-                     <p className="text-xs text-[#0a0a0f]/40 font-medium line-clamp-1 mt-1">
-                        {channel.description}
-                     </p>
-                  </div>
-               </motion.button>
+      <section className="px-6 lg:px-12 pb-12 flex flex-col gap-12">
+        <div className="max-w-4xl mx-auto w-full flex flex-col gap-6">
+          <input
+            type="text"
+            placeholder="Search by name, category, or country..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#e24b4a] transition-all"
+          />
+          
+          <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar scroll-smooth">
+            {sortedCategoryKeys.map(cat => (
+              <button
+                key={cat}
+                onClick={() => {
+                  const el = document.getElementById(`cat-${cat.replace(/\s+/g, '-')}`);
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+                className="whitespace-nowrap px-6 py-2.5 rounded-xl bg-white/5 hover:bg-[#e24b4a] text-white/50 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all border border-white/5 active:scale-95 hover:shadow-lg hover:shadow-[#e24b4a]/20"
+              >
+                {cat}
+              </button>
             ))}
-         </div>
+          </div>
+        </div>
+
+         {sortedCategoryKeys.map(category => {
+            const channels = filteredChannelsByCategory[category];
+            const visibleLimit = visibleItemsPerCategory[category] || 12;
+            const shownChannels = channels.slice(0, visibleLimit);
+            const hasMore = channels.length > visibleLimit;
+
+            return (
+              <div 
+                key={category} 
+                id={`cat-${category.replace(/\s+/g, '-')}`} 
+                className="flex flex-col gap-6 scroll-mt-24"
+              >
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-black uppercase tracking-widest text-white/40">{category}</h2>
+                  <span className="text-[10px] font-bold text-white/20">{channels.length} Channels</span>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-6">
+                  {shownChannels.map((channel) => (
+                    <motion.button
+                      key={channel.id}
+                      layout
+                      onClick={() => {
+                        setActiveChannelId(channel.id);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      onMouseEnter={() => {
+                        // Start preloading the stream as soon as user hovers
+                        if (channel.url && (channel.stream_type === 'hls' || !channel.stream_type)) {
+                          preloadManager.preloadStream(channel.url);
+                        }
+                      }}
+                      className={cn(
+                        "group relative flex flex-col bg-white rounded-[2rem] p-4 transition-all duration-500 text-left h-full",
+                        activeChannelId === channel.id ? "ring-4 ring-[#e24b4a]" : "hover:scale-[1.02]"
+                      )}
+                    >
+                      <div className="w-full aspect-[16/10] rounded-[1.5rem] overflow-hidden relative mb-4 flex-shrink-0">
+                        <OptimizedImage 
+                          src={channel.thumbnail || channel.logo} 
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" 
+                        />
+                        <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
+                        <div className="absolute top-4 left-4">
+                            <div className="px-2.5 py-1 bg-[#e24b4a] rounded-lg flex items-center gap-1.5 shadow-lg">
+                              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                              <span className="text-[8px] font-black uppercase tracking-widest text-white">Live</span>
+                            </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-col gap-1 px-2 flex-grow">
+                        <h3 className="text-sm font-black text-[#0a0a0f] leading-tight line-clamp-2">
+                            {channel.name}
+                        </h3>
+                        {channel.country && (
+                          <div className="text-[8px] font-bold text-[#e24b4a] uppercase tracking-widest mt-1">
+                            {channel.country}
+                          </div>
+                        )}
+                      </div>
+                    </motion.button>
+                  ))}
+                </div>
+                
+                {hasMore && (
+                  <div className="flex justify-center mt-4">
+                    <button 
+                      onClick={() => setVisibleItemsPerCategory(prev => ({
+                        ...prev,
+                        [category]: (prev[category] || 12) + 24
+                      }))}
+                      className="px-8 py-3 bg-white/5 hover:bg-white/10 rounded-xl text-white/60 text-[10px] font-black uppercase tracking-widest transition-all border border-white/5"
+                    >
+                      Load More in {category}
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+         })}
       </section>
 
       {/* Chat Section */}
-      <section className="px-6 lg:px-12 pb-20 max-w-[1200px] mx-auto w-full">
+      <section className="px-6 lg:px-12 pb-32 max-w-[1200px] mx-auto w-full relative z-10">
          <div className="flex items-center justify-between mb-8">
             <h2 className="text-2xl font-black text-white tracking-tighter">Global Chat</h2>
             <div className="flex items-center gap-2 px-3 py-1 bg-green-500/10 rounded-lg text-green-500 text-[9px] font-black uppercase tracking-widest">
@@ -289,7 +533,7 @@ export default function Live() {
                Realtime
             </div>
          </div>
-         <div className="h-[600px] w-full bg-white/5 border border-white/5 rounded-[3rem] overflow-hidden backdrop-blur-xl">
+         <div className="h-[600px] w-full bg-white/5 border border-white/5 rounded-[3rem] overflow-hidden backdrop-blur-xl shadow-2xl">
             <LiveChat eventId={`ch_${activeChannelId}`} />
          </div>
       </section>
