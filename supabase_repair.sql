@@ -30,8 +30,11 @@ DROP POLICY IF EXISTS "Public Select tv_channels" ON public.tv_channels;
 DROP POLICY IF EXISTS "Everyone can select tv_channels" ON public.tv_channels;
 DROP POLICY IF EXISTS "TV channels viewable by everyone" ON public.tv_channels;
 DROP POLICY IF EXISTS "Public can view tv_channels" ON public.tv_channels;
+DROP POLICY IF EXISTS "Enable read access for all users" ON public.tv_channels;
+DROP POLICY IF EXISTS "Allow public read" ON public.tv_channels;
 
 -- Create a clean, definitive public access policy
+-- This allows anyone (even non-logged in users) to see the channel list
 CREATE POLICY "Public Select All" ON public.tv_channels FOR SELECT TO anon, authenticated USING (true);
 
 -- Admin policy (INSERT/UPDATE/DELETE)
@@ -75,12 +78,18 @@ DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
 -- 5. GRANTS (CRITICAL FOR SUPABASE REST API)
+-- These commands grant the 'anon' and 'authenticated' roles permission to read from the tables.
+-- Without these, even with a policy, the API will return 401/403 or 0 rows.
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
 GRANT SELECT ON public.tv_channels TO anon, authenticated;
 GRANT SELECT ON public.channels TO anon, authenticated;
 GRANT SELECT ON public.site_settings TO anon, authenticated;
 GRANT SELECT ON public.portfolio_items TO anon, authenticated;
 GRANT SELECT ON public.profiles TO anon, authenticated;
+
+-- Force refresh the 'anon' permissions specifically
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO anon;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO authenticated;
 
 -- Ensure the 'channels' view is viewable by the anon role
 GRANT SELECT ON public.channels TO anon;
