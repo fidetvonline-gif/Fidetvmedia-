@@ -13,6 +13,10 @@ import fs from "fs/promises";
 
 dotenv.config();
 
+const app = express();
+const PORT = 3000;
+const apiRouter = express.Router();
+
 const upload = multer({ 
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
   storage: multer.memoryStorage()
@@ -37,15 +41,12 @@ function getSupabaseAdmin() {
   return _supabaseAdmin;
 }
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
+// Check if we are running in a serverless environment (like Vercel)
+const isVercel = process.env.VERCEL === '1' || !!process.env.VERCEL_URL;
 
+async function initApp() {
   // Middleware
   app.use(express.json());
-
-  // API Router cleanup and organization
-  const apiRouter = express.Router();
 
   // Logging middleware for all API calls
   apiRouter.use((req, res, next) => {
@@ -1008,6 +1009,10 @@ async function startServer() {
     return `I heard your command "${text}". Fide's voice assistant is running in clean offline mode. Add your Gemini API key in Settings > Secrets to activate live AI discussions!`;
   }
 
+  // If we are on Vercel, we finish initialization here. 
+  // The Vercel platform will handle routing and start our Express app as a serverless function.
+  if (isVercel) return;
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -1032,4 +1037,9 @@ async function startServer() {
   });
 }
 
-startServer();
+// Global initialization
+initApp().catch(err => {
+  console.error("Critical failure during app initialization:", err);
+});
+
+export default app;
