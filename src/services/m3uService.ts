@@ -65,11 +65,24 @@ export class M3UService {
         if (line.startsWith('#EXTINF:')) {
           const logoMatch = line.match(/tvg-logo="([^"]*)"/);
           const groupMatch = line.match(/group-title="([^"]*)"/);
-          const nameMatch = line.match(/,(.*)$/);
           const countryMatch = line.match(/tvg-country="([^"]*)"/);
           const idMatch = line.match(/tvg-id="([^"]*)"/);
 
-          const name = nameMatch ? nameMatch[1].trim() : (idMatch ? idMatch[1] : 'Unknown Channel');
+          // Robust name extraction: find the first comma NOT inside quotes
+          let name = '';
+          let inQuotes = false;
+          for (let j = 0; j < line.length; j++) {
+            if (line[j] === '"') inQuotes = !inQuotes;
+            if (line[j] === ',' && !inQuotes) {
+              name = line.substring(j + 1).trim();
+              break;
+            }
+          }
+
+          if (!name) {
+            name = idMatch ? idMatch[1] : 'Unknown Channel';
+          }
+          
           const category = groupMatch ? groupMatch[1].trim() : 'General';
           const country = countryMatch ? countryMatch[1].toUpperCase() : '';
 

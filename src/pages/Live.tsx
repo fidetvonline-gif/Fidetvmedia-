@@ -252,8 +252,35 @@ export default function Live() {
     }
   };
 
-  const handleChannelError = (id: string) => {
+  const handleChannelError = async (id: string) => {
     console.log(`[Live] Channel ${id} failed. Tracking for session blacklist.`);
+    
+    // Explicit Database Diagnostic Check
+    try {
+      console.log(`[Diagnostic] Verifying database access for channel: ${id}...`);
+      const { data, error, status, statusText } = await supabase
+        .from('tv_channels')
+        .select('*')
+        .eq('id', id)
+        .single();
+        
+      if (error) {
+        console.error(`[Diagnostic] Database Error Code: ${error.code}`);
+        console.error(`[Diagnostic] Database Error Details: ${error.message} - ${error.details || 'No details'}`);
+        if (error.code === 'PGRST116' || error.message.includes('row level security')) {
+            console.error('[Diagnostic] Conclusion: Supabase Row Level Security (RLS) is likely blocking access or the row does not exist.');
+        } else {
+            console.error('[Diagnostic] Conclusion: Database query failed, potential connectivity or network issue.');
+        }
+      } else if (data) {
+        console.log(`[Diagnostic] Database Check Passed. Row found for ${id}.`);
+        console.log(`[Diagnostic] Row URL: ${data.url}`);
+        console.log('[Diagnostic] Conclusion: Database is fully accessible. Failure is due to Media Signal Bridge or actual stream failure (e.g. CORS, offline source, HLS parser error).');
+      }
+    } catch (dbErr) {
+       console.error('[Diagnostic] Critical Network or Try/Catch Error while reaching Supabase:', dbErr);
+    }
+
     setFailedChannelIds(prev => new Set(prev).add(id));
     
     // Auto-skip logic with circuit breaker

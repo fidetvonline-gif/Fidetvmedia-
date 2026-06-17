@@ -78,20 +78,29 @@ DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
 -- 5. GRANTS (CRITICAL FOR SUPABASE REST API)
--- These commands grant the 'anon' and 'authenticated' roles permission to read from the tables.
+-- These commands grant the 'anon', 'authenticated', and 'service_role' roles permission to read from the tables.
 -- Without these, even with a policy, the API will return 401/403 or 0 rows.
-GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT USAGE ON SCHEMA public TO anon, authenticated, postgres, service_role;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO service_role;
+
 GRANT SELECT ON public.tv_channels TO anon, authenticated;
 GRANT SELECT ON public.channels TO anon, authenticated;
 GRANT SELECT ON public.site_settings TO anon, authenticated;
 GRANT SELECT ON public.portfolio_items TO anon, authenticated;
 GRANT SELECT ON public.profiles TO anon, authenticated;
 
--- Force refresh the 'anon' permissions specifically
+-- Force refresh the 'anon' and 'service_role' permissions specifically
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO anon;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO service_role;
 
--- Ensure the 'channels' view is viewable by the anon role
-GRANT SELECT ON public.channels TO anon;
+-- Ensure RLS is actually ON and working
+ALTER TABLE public.tv_channels ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
--- Done.
+-- Done. Check if data is visible
+SELECT count(*) as total_channels FROM public.tv_channels;
+SELECT name, is_active FROM public.tv_channels LIMIT 5;

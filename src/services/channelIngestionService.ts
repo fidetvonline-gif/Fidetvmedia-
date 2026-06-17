@@ -175,7 +175,12 @@ export class ChannelIngestionService {
     const { data: channels, error } = await query;
 
     if (error) {
-       console.error('[Channel Ingestion] Error fetching tv_channels for health check:', error);
+       console.error('[Channel Ingestion] Error fetching tv_channels for health check:', {
+         message: error.message,
+         details: error.details,
+         hint: error.hint,
+         code: error.code
+       });
        return;
     }
 

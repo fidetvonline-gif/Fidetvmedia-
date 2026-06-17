@@ -66,7 +66,7 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
     }, 45000);
 
     return () => clearTimeout(watchdog);
-  }, [channel, retryKey]);
+  }, [channel]); // Do NOT depend on retryKey, or else fallback logic overrides are lost!
 
   const handleReady = React.useCallback(() => {
     if (stream) {
@@ -79,6 +79,19 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
 
   const handleError = React.useCallback((e: any) => {
     console.error(`[Universal Player] Playback error:`, e);
+    
+    // Auto-fallback: If direct playback fails (e.g. CORS), try routing through proxy.
+    // If proxy playback fails (e.g. Cloud Run IP blocked), it will hit this again and fail out.
+    if (stream && !stream.needsProxy && failCount === 0) {
+      console.warn(`[Universal Player] Direct playback failed. Attempting to fallback through AI Studio signal bridge proxy...`);
+      setStream({ ...stream, needsProxy: true });
+      setLoading(true);
+      setError(null);
+      setFailCount(1);
+      setRetryKey(k => k + 1);
+      return;
+    }
+    
     const msg = 'Failed to load stream. This might be due to geographical restrictions or server timeout.';
     setError(msg);
     setLoading(false);
@@ -89,7 +102,7 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
     if (onError) {
       setTimeout(() => onError(msg), 3000);
     }
-  }, [onError]);
+  }, [stream, failCount, onError]);
 
   if (!stream) return null;
 
@@ -173,7 +186,7 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
         )}
       </AnimatePresence>
 
-      <div className="w-full h-full">
+      <div key={retryKey} className="w-full h-full">
         {stream.type === 'youtube' || stream.type === 'facebook' || stream.type === 'vimeo' ? (
           <Player
             url={stream.url}
@@ -191,7 +204,7 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
           />
         ) : stream.type === 'hls' || stream.type === 'mpeg-ts' ? (
           <HlsPlayer 
-            src={`/api/proxy-stream?url=${encodeURIComponent(stream.url)}`}
+            src={stream.needsProxy ? `/api/proxy-stream?url=${encodeURIComponent(stream.url)}` : stream.url}
             autoPlay={autoPlay}
             muted={muted}
             onReady={handleReady}

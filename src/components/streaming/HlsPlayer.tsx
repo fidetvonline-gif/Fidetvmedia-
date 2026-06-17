@@ -75,9 +75,11 @@ const HlsPlayer: React.FC<HlsPlayerProps> = ({
           
           // Specific handling for manifest parsing errors (likely invalid content from proxy)
           if (data.details === Hls.ErrorDetails.MANIFEST_PARSING_ERROR || 
-              data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR) {
-             console.error('[HlsPlayer] Critical manifest failure. Channel likely offline.');
-             onErrorRef.current?.("Broadcast data is unparseable or channel is offline.");
+              data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
+              data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT ||
+              data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR) {
+             console.error(`[HlsPlayer] Critical manifest failure (${data.details}). Channel likely offline or blocked.`);
+             onErrorRef.current?.(`Broadcast data is unparseable or channel is offline. (${data.details})`);
              hls.destroy();
              return;
           }
@@ -133,7 +135,6 @@ const HlsPlayer: React.FC<HlsPlayerProps> = ({
       muted={muted}
       controls={controls}
       playsInline
-      crossOrigin="anonymous"
     />
   );
 };

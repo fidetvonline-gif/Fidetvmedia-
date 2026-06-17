@@ -523,9 +523,6 @@ async function initApp() {
                         finalUrl.split('?')[0].toLowerCase().endsWith('.m3u8') ||
                         finalUrl.split('?')[0].toLowerCase().endsWith('.m3u');
 
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', '*');
       res.setHeader('X-Proxy-Source', 'AI-Studio-Stream-Bridge');
       res.setHeader('Content-Type', contentType);
 

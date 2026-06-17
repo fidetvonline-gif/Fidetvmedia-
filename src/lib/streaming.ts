@@ -57,6 +57,12 @@ export class UniversalStreamService {
     const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
     const isHttpStream = url.startsWith('http://');
     
+    // Many CDNs block Google Cloud IPs. Forcing all HLS streams through our proxy causes "Failed to load stream" for users on production 
+    // because the server's IP is banned, while dev environment (localhost/local IP) works.
+    // Solution: Only proxy if it's Mixed Content (HTTP on HTTPS) or explicitly failing CORS.
+    // We let HTTPS streams attempt direct playback first from the client's own IP.
+    let needsProxy = isHttps && isHttpStream;
+    
     return {
       id: channel.id || 'temp-' + Math.random(),
       name: channel.name || 'Unknown Channel',
@@ -64,7 +70,7 @@ export class UniversalStreamService {
       type,
       provider,
       isLive: channel.is_live ?? true,
-      needsProxy: type === 'hls' || type === 'mpeg-ts' || (isHttps && isHttpStream)
+      needsProxy
     };
   }
 
