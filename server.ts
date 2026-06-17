@@ -549,14 +549,45 @@ async function startServer() {
 
       if (isManifest) {
         const chunks: Buffer[] = [];
-        response.data.on('data', (chunk: any) => chunks.push(Buffer.from(chunk)));
+        let totalSize = 0;
+        const MAX_MANIFEST_SIZE = 2 * 1024 * 1024; // 2MB limit for manifest buffering
         
+        const timeout = setTimeout(() => {
+          if (!res.headersSent) {
+             console.error(`[Proxy] Timeout buffering manifest for ${streamUrl}`);
+             res.status(504).send("Gateway Timeout: Manifest buffering stuck");
+             response.data.destroy();
+          }
+        }, 15000);
+
+        response.data.on('data', (chunk: any) => {
+          totalSize += chunk.length;
+          if (totalSize > MAX_MANIFEST_SIZE) {
+            console.warn(`[Proxy] Manifest too large, aborting buffering: ${streamUrl}`);
+            response.data.destroy();
+            if (!res.headersSent) res.status(502).send("Manifest too large");
+            return;
+          }
+          chunks.push(Buffer.from(chunk));
+        });
+        
+        response.data.on('error', (err: any) => {
+          clearTimeout(timeout);
+          console.error(`[Proxy Stream Error] ${err.message} for ${streamUrl}`);
+          if (!res.headersSent) res.status(502).send(`Stream integration error: ${err.message}`);
+        });
+
         response.data.on('end', () => {
+          clearTimeout(timeout);
+          if (res.headersSent) return;
+
           const content = Buffer.concat(chunks).toString('utf8');
           
           if (!content.trim().startsWith('#EXTM3U')) {
             console.log(`[Proxy] Manifest fetched but doesn't start with #EXTM3U: ${streamUrl}`);
-            return res.status(200).send(content);
+            // If it's not a manifest, just send it 
+            res.setHeader('Content-Type', contentType || 'application/octet-stream');
+            return res.send(content);
           }
 
           const lines = content.split('\n');
@@ -565,6 +596,7 @@ async function startServer() {
             if (!trimmed) return line;
 
             if (trimmed.startsWith('#')) {
+              // Rewrite Master Playlist or Alternative Media URIs
               return line.replace(/URI="([^"]*)"/g, (match, p1) => {
                 try {
                   const abs = p1.startsWith('http') ? p1 : new URL(p1, finalBaseUrl).href;
@@ -573,6 +605,7 @@ async function startServer() {
               });
             }
             
+            // Rewrite segment/variant playlist URLs
             try {
               const absoluteUrl = trimmed.startsWith('http') ? trimmed : new URL(trimmed, finalBaseUrl).href;
               return `/api/proxy-stream?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(effectiveReferer)}`;
@@ -583,6 +616,12 @@ async function startServer() {
           res.send(rewrittenLines.join('\n'));
         });
       } else {
+        // Handle binary stream segment error
+        response.data.on('error', (err: any) => {
+          console.error(`[Proxy Segment Error] ${err.message} for ${streamUrl}`);
+          if (!res.headersSent) res.status(502).end();
+        });
+
         // Forward relevant headers for binary stream/segments
         if (response.headers['content-length']) res.setHeader('Content-Length', String(response.headers['content-length']));
         if (response.headers['content-range']) res.setHeader('Content-Range', String(response.headers['content-range']));

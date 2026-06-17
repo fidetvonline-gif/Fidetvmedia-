@@ -1,9 +1,10 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { UniversalStreamService, NormalizedStream } from '../../lib/streaming';
 import HlsPlayer from './HlsPlayer';
 import ReactPlayer from 'react-player';
 import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { cn } from '../../lib/utils';
 
 const Player = ReactPlayer as any;
 import { motion, AnimatePresence } from 'motion/react';
@@ -13,19 +14,24 @@ interface UniversalPlayerProps {
   autoPlay?: boolean;
   muted?: boolean;
   onError?: (error: string) => void;
+  className?: string;
 }
 
 const UniversalPlayer: React.FC<UniversalPlayerProps> = ({ 
   channel, 
   autoPlay = true, 
   muted = false,
-  onError
+  onError,
+  className
 }) => {
   const [stream, setStream] = useState<NormalizedStream | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
   const [failCount, setFailCount] = useState(0);
+  
+  const loadingRef = useRef(loading);
+  useEffect(() => { loadingRef.current = loading; }, [loading]);
   
   useEffect(() => {
     if (!channel) {
@@ -41,6 +47,17 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
     setFailCount(0); // Reset for new channel
     
     console.log(`[Universal Player] Normalized stream:`, normalized);
+
+    // Watchdog timer: If we are still loading after 25 seconds, something is wrong
+    const watchdog = setTimeout(() => {
+      if (loadingRef.current) {
+        console.error(`[Universal Player] Signal Watchdog Timeout for ${channel.name}`);
+        setError('Signal acquisition timed out. The bridge might be struggling with the current stream.');
+        setLoading(false);
+      }
+    }, 25000);
+
+    return () => clearTimeout(watchdog);
   }, [channel, retryKey]);
 
   const handleReady = () => {
@@ -67,7 +84,7 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
   if (!stream) return null;
 
   return (
-    <div className="relative w-full aspect-video bg-black rounded-xl overflow-hidden group">
+    <div className={cn("relative w-full aspect-video bg-black rounded-xl overflow-hidden group", className)}>
       <AnimatePresence>
         {loading && (
           <motion.div 
