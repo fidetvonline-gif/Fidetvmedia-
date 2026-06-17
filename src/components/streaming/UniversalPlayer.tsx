@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { UniversalStreamService, NormalizedStream } from '../../lib/streaming';
 import HlsPlayer from './HlsPlayer';
 import ReactPlayer from 'react-player';
-import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Loader2, AlertCircle, RefreshCw, Database } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 const Player = ReactPlayer as any;
@@ -56,14 +56,14 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
     
     console.log(`[Universal Player] Normalized stream:`, normalized);
 
-    // Watchdog timer: If we are still loading after 12 seconds, something is wrong
+    // Watchdog timer: If we are still loading after 25 seconds, something is wrong
     const watchdog = setTimeout(() => {
       if (loadingRef.current) {
         console.error(`[Universal Player] Signal Watchdog Timeout for ${channel.name}`);
         setError('The broadcast bridge is non-responsive. The signal might be offline or blocked by a firewall.');
         setLoading(false);
       }
-    }, 12000);
+    }, 25000);
 
     return () => clearTimeout(watchdog);
   }, [channel, retryKey]);
@@ -151,13 +151,24 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
             <AlertCircle className="w-12 h-12 text-primary mb-4" />
             <h3 className="text-white text-lg font-black uppercase tracking-wider mb-2">Signal Failure</h3>
             <p className="text-white/60 text-sm max-w-md mb-6">{error}</p>
-            <button 
-              onClick={() => setRetryKey(k => k + 1)}
-              className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-full text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Reconnect Signal
-            </button>
+            
+            <div className="flex flex-wrap justify-center gap-4">
+              <button 
+                onClick={() => setRetryKey(k => k + 1)}
+                className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-full text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Reconnect Signal
+              </button>
+              
+              <a 
+                href="/health"
+                className="flex items-center gap-2 px-6 py-3 bg-white/5 border border-white/10 text-white rounded-full text-xs font-black uppercase tracking-widest hover:bg-white/10 transition-all underline decoration-primary/50 underline-offset-4"
+              >
+                <Database className="w-4 h-4" />
+                Diagnostics
+              </a>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -27,6 +27,7 @@ import Policies from '@/pages/Policies';
 import DownloadApp from '@/pages/DownloadApp';
 import Advertise from '@/pages/Advertise';
 import BroadcastHub from '@/pages/BroadcastHub';
+import Health from '@/pages/Health';
 import ReloadPrompt from '@/components/ReloadPrompt';
 import InstallPrompt from '@/components/InstallPrompt';
 import MessageNotifier from '@/components/MessageNotifier';
@@ -187,6 +188,7 @@ export default function App() {
             <Route path="/download" element={<DownloadApp />} />
             <Route path="/advertise" element={<Advertise />} />
             <Route path="/broadcast-hub" element={<BroadcastHub />} />
+            <Route path="/health" element={<Health />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Layout>

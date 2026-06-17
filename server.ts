@@ -450,17 +450,16 @@ async function initApp() {
   apiRouter.all("/proxy-stream", async (req, res) => {
     // Enable CORS with dynamic origin for withCredentials support
     // We MUST use the actual origin if provided, otherwise fallback to '*'
-    const origin = req.headers.origin || '*';
+  const origin = req.headers.origin || '*';
     res.setHeader('Access-Control-Allow-Origin', origin);
-    
-    // If we want to allow credentials, Origin cannot be '*'
-    if (origin !== '*') {
-      res.setHeader('Access-Control-Allow-Credentials', 'true');
-    }
-    
     res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', '*');
     res.setHeader('Access-Control-Expose-Headers', '*');
+    res.setHeader('Access-Control-Allow-Private-Network', 'true'); // Support for some local dev setups or internal networks
+
+    if (origin !== '*') {
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+    }
 
     if (req.method === 'OPTIONS') {
       return res.status(204).end();
@@ -509,10 +508,10 @@ async function initApp() {
 
       const response = await axios.get(streamUrl, {
         headers,
-        timeout: 10000, 
+        timeout: 28000, // Slightly under Vercel's 30s limit
         responseType: 'stream',
         validateStatus: (status) => status < 500, 
-        maxRedirects: 10
+        maxRedirects: 15
       });
       
       const finalUrl = response.request?.res?.responseUrl || streamUrl;
@@ -538,10 +537,10 @@ async function initApp() {
         const timeout = setTimeout(() => {
           if (!res.headersSent) {
              console.error(`[Proxy] Timeout buffering manifest for ${streamUrl}`);
-             res.status(504).send("Gateway Timeout: Manifest buffering stuck");
+             res.status(504).send("Gateway Timeout: The uplink signal is slow or unresponsive (28s timeout)");
              response.data.destroy();
           }
-        }, 15000);
+        }, 28000);
 
         response.data.on('data', (chunk: any) => {
           totalSize += chunk.length;
@@ -576,16 +575,19 @@ async function initApp() {
           const lines = content.split('\n');
           const rewrittenLines = lines.map(line => {
             const trimmed = line.trim();
-            if (!trimmed || trimmed.startsWith('#EXT')) return line; // Skip tags/meta unless they contain URIs
-
+            if (!trimmed) return line;
+            
+            // Rewrite Master Playlist or Alternative Media URIs (ATTR=uri)
             if (trimmed.startsWith('#')) {
-              // Rewrite Master Playlist or Alternative Media URIs (ATTR=uri)
-              return line.replace(/URI="([^"]*)"/g, (match, p1) => {
-                try {
-                  const abs = p1.startsWith('http') ? p1 : new URL(p1, finalBaseUrl).href;
-                  return `URI="/api/proxy-stream?url=${encodeURIComponent(abs)}&referer=${encodeURIComponent(effectiveReferer)}"`;
-                } catch (e) { return match; }
-              });
+              if (trimmed.includes('URI=')) {
+                return line.replace(/URI="([^"]*)"/g, (match, p1) => {
+                  try {
+                    const abs = p1.startsWith('http') ? p1 : new URL(p1, finalBaseUrl).href;
+                    return `URI="/api/proxy-stream?url=${encodeURIComponent(abs)}&referer=${encodeURIComponent(effectiveReferer)}"`;
+                  } catch (e) { return match; }
+                });
+              }
+              return line;
             }
             
             // Rewrite segment/variant playlist URLs (Lines that are just URLs)
@@ -969,7 +971,7 @@ async function initApp() {
     if (service) service.runHealthChecks(150).catch(err => console.error('[Ingestion LOOP ERROR]', err));
   }, 15 * 60 * 1000);
 
-  // Mount the API Router
+  // Fast mount for serverless environments
   app.use("/api", apiRouter);
 
   // Helper utilities for real-time Voice Assistant fallback and key validation
