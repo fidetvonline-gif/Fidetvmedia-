@@ -53,20 +53,22 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
     }
 
     setLoading(true);
-    
     console.log(`[Universal Player] Normalized stream:`, normalized);
+  }, [channel]);
+
+  // Separate watchdog effect to ensure it resets on retry/fallback
+  useEffect(() => {
+    if (!loading) return;
 
     // Watchdog timer: If we are still loading after 45 seconds, something is wrong
     const watchdog = setTimeout(() => {
-      if (loadingRef.current) {
-        console.error(`[Universal Player] Signal Watchdog Timeout for ${channel.name}`);
-        setError('The broadcast bridge is timing out. The signal provider might be experiencing heavy load or high latency. Try reconnecting in a moment.');
-        setLoading(false);
-      }
+      console.error(`[Universal Player] Signal Watchdog Timeout`);
+      setError('Signal acquisition timed out. The bridge might be struggling with the current stream.');
+      setLoading(false);
     }, 45000);
 
     return () => clearTimeout(watchdog);
-  }, [channel]); // Do NOT depend on retryKey, or else fallback logic overrides are lost!
+  }, [loading, retryKey]);
 
   const handleReady = React.useCallback(() => {
     if (stream) {
