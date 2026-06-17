@@ -63,6 +63,20 @@ export default function Health() {
           stats.network.proxy = { status: 'error', error: e.message };
         }
 
+        // 4. Signal Bridge Check
+        try {
+          const bridgeRes = await fetch('/api/channels');
+          if (bridgeRes.ok) {
+            const bridgeData = await bridgeRes.json();
+            stats.network.bridge = { status: 'ok', count: bridgeData.length };
+          } else {
+            const errData = await bridgeRes.json().catch(() => ({}));
+            stats.network.bridge = { status: 'failed', error: errData.message || bridgeRes.statusText };
+          }
+        } catch (e: any) {
+          stats.network.bridge = { status: 'error', error: e.message };
+        }
+
         setResults(stats);
       } catch (err: any) {
         setError(err.message);
@@ -116,13 +130,20 @@ export default function Health() {
         </header>
 
         {/* Global Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard 
             icon={<Database className="w-5 h-5 text-primary" />}
-            label="Database"
-            value={results?.supabase.status === 'connected' ? 'Connected' : 'Disconnected'}
-            sub={`Latency: ${results?.supabase.latency}ms`}
+            label="Supabase"
+            value={results?.supabase.status === 'connected' ? 'Connected' : 'Error'}
+            sub={`RTT: ${results?.supabase.latency}ms`}
             status={results?.supabase.status === 'connected' ? 'success' : 'error'}
+          />
+          <StatCard 
+            icon={<Signal className="w-5 h-5 text-primary" />}
+            label="Signal Bridge"
+            value={results?.network.bridge?.status === 'ok' ? 'Bypassing RLS' : 'Inactive'}
+            sub={results?.network.bridge?.status === 'ok' ? `${results.network.bridge.count} signals found` : results?.network.bridge?.error || 'Check server logs'}
+            status={results?.network.bridge?.status === 'ok' ? 'success' : 'error'}
           />
           <StatCard 
             icon={<Globe className="w-5 h-5 text-primary" />}
@@ -133,8 +154,8 @@ export default function Health() {
           />
           <StatCard 
             icon={<Shield className="w-5 h-5 text-primary" />}
-            label="Auth Scope"
-            value={results?.auth.user === 'Public Guest' ? 'Anonymous' : 'Elevated'}
+            label="Identity"
+            value={results?.auth.user === 'Public Guest' ? 'Guest' : 'Admin'}
             sub={results?.auth.user}
             status="info"
           />

@@ -25,6 +25,7 @@ ALTER TABLE public.tv_channels ENABLE ROW LEVEL SECURITY;
 
 -- 2. POLICIES FOR TV_CHANNELS
 -- Drop existing to avoid conflicts
+DROP POLICY IF EXISTS "Public Select All" ON public.tv_channels;
 DROP POLICY IF EXISTS "Public Select tv_channels" ON public.tv_channels;
 DROP POLICY IF EXISTS "Everyone can select tv_channels" ON public.tv_channels;
 DROP POLICY IF EXISTS "TV channels viewable by everyone" ON public.tv_channels;
@@ -34,6 +35,7 @@ DROP POLICY IF EXISTS "Public can view tv_channels" ON public.tv_channels;
 CREATE POLICY "Public Select All" ON public.tv_channels FOR SELECT TO anon, authenticated USING (true);
 
 -- Admin policy (INSERT/UPDATE/DELETE)
+DROP POLICY IF EXISTS "Admin All Access" ON public.tv_channels;
 DROP POLICY IF EXISTS "Admin All tv_channels" ON public.tv_channels;
 DROP POLICY IF EXISTS "Only admin can manage TV channels" ON public.tv_channels;
 CREATE POLICY "Admin All Access" ON public.tv_channels FOR ALL 

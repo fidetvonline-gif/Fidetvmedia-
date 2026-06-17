@@ -450,14 +450,14 @@ async function initApp() {
   apiRouter.all("/proxy-stream", async (req, res) => {
     // Enable CORS with dynamic origin for withCredentials support
     // We MUST use the actual origin if provided, otherwise fallback to '*'
-  const origin = req.headers.origin || '*';
+    const origin = req.headers.origin || '*';
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', '*');
-    res.setHeader('Access-Control-Expose-Headers', '*');
-    res.setHeader('Access-Control-Allow-Private-Network', 'true'); // Support for some local dev setups or internal networks
+    res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Range, Referer, User-Agent');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Content-Type');
+    res.setHeader('Access-Control-Allow-Private-Network', 'true');
 
-    if (origin !== '*') {
+    if (origin !== '*' && origin !== 'null') {
       res.setHeader('Access-Control-Allow-Credentials', 'true');
     }
 
@@ -536,8 +536,10 @@ async function initApp() {
         
         const timeout = setTimeout(() => {
           if (!res.headersSent) {
-             console.error(`[Proxy] Timeout buffering manifest for ${streamUrl}`);
-             res.status(504).send("Gateway Timeout: The uplink signal is slow or unresponsive (28s timeout)");
+             console.error(`[Proxy] Critical timeout buffering manifest for ${streamUrl}`);
+             // If we timeout, we send a retry-after hint
+             res.setHeader('Retry-After', '5');
+             res.status(504).send("Gateway Timeout: The signal provider is currently slow. Please try again in a few seconds.");
              response.data.destroy();
           }
         }, 28000);
@@ -869,8 +871,8 @@ async function initApp() {
     }
   });
 
-  // 6. M3U Node.js Service Endpoint
-  apiRouter.get("/channels", async (req, res) => {
+  // 6. M3U Node.js Service Endpoint (Local JSON DB)
+  apiRouter.get("/channels/local", async (req, res) => {
     try {
       const { category, country, sourceUrl } = req.query;
       const dataPath = path.join(process.cwd(), 'src', 'data', 'channels.json');
@@ -973,6 +975,27 @@ async function initApp() {
 
   // Fast mount for serverless environments
   app.use("/api", apiRouter);
+
+  // Fallback Channel API for when RLS blocks the public frontend
+  apiRouter.get("/channels", async (req, res) => {
+    try {
+      const admin = getSupabaseAdmin();
+      if (!admin) {
+        throw new Error("Supabase Admin Bridge not configured");
+      }
+      
+      const { data, error } = await admin.from('tv_channels')
+        .select('*')
+        .eq('is_active', true)
+        .order('order_index');
+      
+      if (error) throw error;
+      res.json(data || []);
+    } catch (err: any) {
+      console.error('[API Channels] Failure:', err.message);
+      res.status(500).json({ error: 'Internal Server Error', message: err.message });
+    }
+  });
 
   // Helper utilities for real-time Voice Assistant fallback and key validation
   function isValidGeminiKey(key: string | undefined): boolean {

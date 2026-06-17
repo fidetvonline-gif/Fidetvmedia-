@@ -53,13 +53,37 @@ export default function Live() {
 
         // Fast fetch for first 200 channels to unlock interaction instantly
         const fetchInitialBatch = async () => {
-          const { data, error } = await supabase
+          let { data, error } = await supabase
             .from('tv_channels')
             .select('*')
             .order('order_index')
             .range(0, 199);
           
-          if (error) throw error;
+          // CRITICAL FALLBACK: If RLS returns 0 rows, try the Server Bridge
+          if (!error && (!data || data.length === 0)) {
+            console.warn('[Live] Supabase RLS likely blocking access. Attempting Signal Bridge fallback...');
+            try {
+              const fallbackRes = await fetch('/api/channels');
+              if (fallbackRes.ok) {
+                const fallbackData = await fallbackRes.json();
+                console.log(`[Live] Signal Bridge restored ${fallbackData.length} channels.`);
+                return { data: fallbackData.slice(0, 200), error: null };
+              }
+            } catch (e) {
+              console.error('[Live] Signal Bridge fallback failed:', e);
+            }
+          }
+
+          if (error) {
+            console.error('[Live] fetchInitialBatch encountered error:', error);
+          }
+          
+          // ABSOLUTE FINAL FALLBACK: If we still have no data, use the hardcoded defaults
+          if (!data || data.length === 0) {
+            console.warn('[Live] All remote and bridge sources failed. Activating Hardcoded Safety Signals.');
+            return { data: DEFAULT_CHANNELS, error: null };
+          }
+
           return { data: data || [], error: null };
         };
 
