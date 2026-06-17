@@ -56,14 +56,14 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
     
     console.log(`[Universal Player] Normalized stream:`, normalized);
 
-    // Watchdog timer: If we are still loading after 25 seconds, something is wrong
+    // Watchdog timer: If we are still loading after 45 seconds, something is wrong
     const watchdog = setTimeout(() => {
       if (loadingRef.current) {
         console.error(`[Universal Player] Signal Watchdog Timeout for ${channel.name}`);
-        setError('The broadcast bridge is non-responsive. The signal might be offline or blocked by a firewall.');
+        setError('The broadcast bridge is timing out. The signal provider might be experiencing heavy load or high latency. Try reconnecting in a moment.');
         setLoading(false);
       }
-    }, 25000);
+    }, 45000);
 
     return () => clearTimeout(watchdog);
   }, [channel, retryKey]);

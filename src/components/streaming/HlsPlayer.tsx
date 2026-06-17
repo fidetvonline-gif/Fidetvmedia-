@@ -36,12 +36,18 @@ const HlsPlayer: React.FC<HlsPlayerProps> = ({
     if (Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
-        maxBufferLength: 10, // Reduced from 30 for faster start
+        maxBufferLength: 10,
         maxMaxBufferLength: 20,
-        initialLiveManifestSize: 1, // Start playing as soon as 1 segment is found
-        manifestLoadingMaxRetry: 2,
-        levelLoadingMaxRetry: 2,
-        fragLoadingMaxRetry: 2,
+        initialLiveManifestSize: 1,
+        manifestLoadingTimeOut: 30000, // Match server timeout room
+        levelLoadingTimeOut: 30000,
+        fragLoadingTimeOut: 30000,
+        manifestLoadingMaxRetry: 4,
+        levelLoadingMaxRetry: 4,
+        fragLoadingMaxRetry: 4,
+        manifestLoadingRetryDelay: 1000,
+        levelLoadingRetryDelay: 1000,
+        fragLoadingRetryDelay: 1000,
         // Public proxied streams don't need credentials, and it often causes CORS issues
         xhrSetup: (xhr, url) => {
           // console.log(`[HlsPlayer] Fetching: ${url}`);
