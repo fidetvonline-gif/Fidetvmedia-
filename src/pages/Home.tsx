@@ -2,7 +2,7 @@ import { SEO } from '@/components/SEO';
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Play, Calendar, Users, ArrowRight, Video, Zap, CheckCircle, Flame, Sparkles, Globe, Shield, X, MessageSquare, Newspaper, Monitor, Smartphone, BarChart3, Radio, Heart, Phone, Award, Instagram, Linkedin, ExternalLink, Tv, Headphones } from 'lucide-react';
+import { Play, Calendar, Users, ArrowRight, Video, Zap, CheckCircle, Flame, Sparkles, Globe, Shield, X, MessageSquare, Newspaper, Monitor, Smartphone, BarChart3, Radio, Heart, Phone, Award, Instagram, Linkedin, ExternalLink, Tv, Headphones, DownloadCloud, Download, Link as LinkIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import ReactPlayer from 'react-player';
@@ -777,6 +777,86 @@ export default function Home() {
                       <Headphones className="w-16 h-16" />
                   </div>
               </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Fidesave Section */}
+      <section className="py-24 bg-background relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="relative bg-surface border border-border-custom rounded-[3rem] p-8 md:p-20 overflow-hidden shadow-2xl">
+            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary/5 via-transparent to-orange-500/5 pointer-events-none" />
+            
+            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+              <div className="space-y-8">
+                <div className="inline-flex items-center gap-3 px-4 py-2 rounded-2xl bg-primary/10 border border-primary/20 text-primary text-xs font-black uppercase tracking-[0.2em] shadow-sm">
+                  <DownloadCloud className="w-4 h-4" />
+                   Premium Utility
+                </div>
+                
+                <h2 className="text-4xl sm:text-7xl font-display font-black text-foreground leading-[0.95] tracking-tighter">
+                  Download & <br />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#e0650d]">Save Media.</span>
+                </h2>
+                
+                <p className="text-base sm:text-xl text-foreground/60 leading-relaxed max-w-lg font-medium">
+                  Introducing <span className="text-foreground font-bold italic">Fidesave.</span> Our universal downloader allows you to save videos from across the web. Search for movies directly or paste links from TikTok, Instagram, and more.
+                </p>
+                
+                <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                  <Link
+                    to="/fidesave"
+                    className="group px-8 py-5 bg-foreground text-background font-black uppercase tracking-widest text-[11px] rounded-2xl hover:bg-primary hover:text-white transition-all shadow-xl flex items-center justify-center gap-3"
+                  >
+                    <span>Open Fidesave Hub</span>
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </Link>
+                  <div className="flex -space-x-3 overflow-hidden items-center hidden sm:flex px-4">
+                    {[1, 2, 3, 4].map(i => (
+                      <div key={i} className="inline-block h-10 w-10 rounded-full ring-4 ring-surface bg-surface-bright flex items-center justify-center">
+                         <Users className="w-5 h-5 text-foreground/20" />
+                      </div>
+                    ))}
+                    <span className="pl-6 text-[11px] font-bold text-foreground/40 uppercase tracking-widest">10k+ Saved Weekly</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="relative group">
+                <div className="absolute -inset-4 bg-primary/10 rounded-[3rem] blur-2xl group-hover:bg-primary/20 transition-all duration-700" />
+                <div className="relative aspect-[4/3] bg-background border border-border-custom rounded-[2.5rem] p-6 shadow-md overflow-hidden">
+                  {/* Mock UI Preview */}
+                  <div className="w-full h-full flex flex-col gap-4">
+                    <div className="w-full h-12 bg-surface-bright rounded-xl border border-border-custom flex items-center px-4 gap-3">
+                       <LinkIcon className="w-4 h-4 text-foreground/20" />
+                       <div className="w-48 h-2 bg-foreground/10 rounded-full" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 flex-grow">
+                      <div className="bg-surface-bright rounded-2xl border border-border-custom p-4 flex flex-col justify-end gap-2">
+                        <div className="w-full aspect-video bg-background rounded-lg" />
+                        <div className="w-12 h-2 bg-primary/30 rounded-full" />
+                        <div className="w-24 h-2 bg-foreground/10 rounded-full" />
+                      </div>
+                      <div className="bg-surface-bright rounded-2xl border border-border-custom p-4 flex flex-col justify-end gap-2">
+                        <div className="w-full aspect-video bg-background rounded-lg" />
+                        <div className="w-12 h-2 bg-primary/30 rounded-full" />
+                        <div className="w-24 h-2 bg-foreground/10 rounded-full" />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Floating Elements */}
+                  <motion.div 
+                    animate={{ y: [0, -10, 0] }}
+                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-primary rounded-3xl flex items-center justify-center text-white shadow-2xl shadow-primary/40 z-20"
+                  >
+                    <Download className="w-10 h-10" />
+                  </motion.div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>

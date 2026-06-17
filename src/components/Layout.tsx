@@ -184,10 +184,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { name: 'Community', path: '/community', icon: Users, id: 'nav-community' },
     { name: 'Spaces', path: '/spaces', icon: Headset },
     { name: 'Services', path: '/services', icon: Briefcase },
+    { name: 'Fidesave', path: '/fidesave', icon: DownloadCloud },
     { name: 'Advertise', path: '/advertise', icon: Megaphone },
     { name: 'About', path: '/about', icon: Info },
     { name: 'Contact', path: '/contact', icon: Mail },
-    { name: 'Messages', path: '/messages', icon: Mail },
   ];
 
   if (isAdmin) {
@@ -411,6 +411,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   <li><Link to="/live" className="hover:text-primary transition-colors">Live Events</Link></li>
                   <li><Link to="/content" className="hover:text-primary transition-colors">Content Hub</Link></li>
                   <li><Link to="/news" className="hover:text-primary transition-colors">FideTV Blog</Link></li>
+                  <li><Link to="/fidesave" className="hover:text-primary transition-colors">Fidesave Downloader</Link></li>
                   <li><Link to="/advertise" className="hover:text-primary transition-colors">Advertise with Us</Link></li>
                   <li><Link to="/community" className="hover:text-primary transition-colors">Community Hub</Link></li>
                   <li><Link to="/portfolio" className="hover:text-primary transition-colors">Production Portfolio</Link></li>

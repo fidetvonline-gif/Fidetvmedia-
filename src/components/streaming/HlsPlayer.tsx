@@ -69,6 +69,9 @@ const HlsPlayer: React.FC<HlsPlayerProps> = ({
         }
       });
 
+      let networkErrorCount = 0;
+      let mediaErrorCount = 0;
+
       hls.on(Hls.Events.ERROR, (event, data) => {
         if (data.fatal) {
           console.error(`[HlsPlayer] FATAL ERROR: ${data.details}`, data);
@@ -86,12 +89,26 @@ const HlsPlayer: React.FC<HlsPlayerProps> = ({
 
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              console.log('[HlsPlayer] Fatal network error, trying to recover (startLoad)...');
-              hls.startLoad();
+              networkErrorCount++;
+              if (networkErrorCount <= 1) {
+                console.log('[HlsPlayer] Fatal network error, trying to recover once...');
+                hls.startLoad();
+              } else {
+                console.error('[HlsPlayer] Network error recovery exhausted.');
+                onErrorRef.current?.(data);
+                hls.destroy();
+              }
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
-              console.log('[HlsPlayer] Fatal media error, trying to recover (recoverMediaError)...');
-              hls.recoverMediaError();
+              mediaErrorCount++;
+              if (mediaErrorCount <= 1) {
+                console.log('[HlsPlayer] Fatal media error, trying to recover once...');
+                hls.recoverMediaError();
+              } else {
+                console.error('[HlsPlayer] Media error recovery exhausted.');
+                onErrorRef.current?.(data);
+                hls.destroy();
+              }
               break;
             default:
               console.error('[HlsPlayer] Unrecoverable fatal error.');
