@@ -21,6 +21,13 @@ const HlsPlayer: React.FC<HlsPlayerProps> = ({
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const onReadyRef = useRef(onReady);
+  const onErrorRef = useRef(onError);
+
+  useEffect(() => {
+    onReadyRef.current = onReady;
+    onErrorRef.current = onError;
+  }, [onReady, onError]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -48,7 +55,7 @@ const HlsPlayer: React.FC<HlsPlayerProps> = ({
 
       hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
         console.log(`[HlsPlayer] Manifest parsed successfully, levels found: ${data.levels?.length}`);
-        onReady?.();
+        onReadyRef.current?.();
         if (autoPlay) {
           video.play().catch(err => {
             console.warn('[HlsPlayer] Autoplay prevented:', err);
@@ -56,13 +63,19 @@ const HlsPlayer: React.FC<HlsPlayerProps> = ({
         }
       });
 
-      hls.on(Hls.Events.FRAG_LOADED, (event, data) => {
-        // console.log(`[HlsPlayer] Fragment loaded: ${data.frag.url}`);
-      });
-
       hls.on(Hls.Events.ERROR, (event, data) => {
         if (data.fatal) {
           console.error(`[HlsPlayer] FATAL ERROR: ${data.details}`, data);
+          
+          // Specific handling for manifest parsing errors (likely invalid content from proxy)
+          if (data.details === Hls.ErrorDetails.MANIFEST_PARSING_ERROR || 
+              data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR) {
+             console.error('[HlsPlayer] Critical manifest failure. Channel likely offline.');
+             onErrorRef.current?.("Broadcast data is unparseable or channel is offline.");
+             hls.destroy();
+             return;
+          }
+
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
               console.log('[HlsPlayer] Fatal network error, trying to recover (startLoad)...');
@@ -74,24 +87,29 @@ const HlsPlayer: React.FC<HlsPlayerProps> = ({
               break;
             default:
               console.error('[HlsPlayer] Unrecoverable fatal error.');
-              onError?.(data);
+              onErrorRef.current?.(data);
               hls.destroy();
               break;
           }
-        } else {
-          // Only log non-fatal warnings once per type to avoid spamming
-          // console.warn(`[HlsPlayer] Warning: ${data.details}`);
         }
       });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = src;
-      video.addEventListener('loadedmetadata', () => {
-        onReady?.();
+      const readyHandler = () => {
+        onReadyRef.current?.();
         if (autoPlay) video.play();
-      });
-      video.addEventListener('error', (e) => onError?.(e));
+      };
+      const errorHandler = (e: any) => onErrorRef.current?.(e);
+
+      video.addEventListener('loadedmetadata', readyHandler);
+      video.addEventListener('error', errorHandler);
+      
+      return () => {
+        video.removeEventListener('loadedmetadata', readyHandler);
+        video.removeEventListener('error', errorHandler);
+      };
     } else {
-      onError?.(new Error('HLS not supported in this browser'));
+      onErrorRef.current?.(new Error('HLS not supported in this browser'));
     }
 
     return () => {

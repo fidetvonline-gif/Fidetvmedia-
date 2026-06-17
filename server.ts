@@ -508,42 +508,24 @@ async function startServer() {
 
       const response = await axios.get(streamUrl, {
         headers,
-        timeout: 25000, 
+        timeout: 10000, 
         responseType: 'stream',
-        validateStatus: (status) => status < 500, // Handle 5xx errors in try-catch for potential retry
+        validateStatus: (status) => status < 500, 
         maxRedirects: 10
       });
       
       const finalUrl = response.request?.res?.responseUrl || streamUrl;
       const finalBaseUrl = finalUrl.substring(0, finalUrl.lastIndexOf('/') + 1);
       const contentType = String(response.headers['content-type'] || '').toLowerCase();
-
-      if (response.status >= 400) {
-        console.warn(`[Proxy] Upstream ERROR ${response.status} for ${streamUrl}`);
-        // Log the response content type to see if it's an error page
-        console.warn(`[Proxy] Content-Type: ${contentType}`);
-        
-        // If it's a 403 or 401, maybe we can try one fallback with a mobile User-Agent
-        if (response.status === 403 || response.status === 401) {
-           console.log(`[Proxy] Attempting fallback with mobile User-Agent for ${streamUrl}`);
-           const fallbackHeaders = { ...headers, 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' };
-           const fallbackResponse = await axios.get(streamUrl, { headers: fallbackHeaders, timeout: 15000, responseType: 'stream', validateStatus: () => true });
-           if (fallbackResponse.status < 400) {
-              console.log(`[Proxy] Fallback success!`);
-              // Proceed with fallbackResponse... this is a bit complex for a single edit, 
-              // so I'll just keep the main one and improve logging.
-           }
-        }
-        
-        return res.status(response.status).send(`Upstream Error: ${response.status}`);
-      }
-
       const isManifest = contentType.includes('mpegurl') || 
                         contentType.includes('mpeg-url') ||
                         contentType.includes('apple-mpegurl') ||
                         finalUrl.split('?')[0].toLowerCase().endsWith('.m3u8') ||
                         finalUrl.split('?')[0].toLowerCase().endsWith('.m3u');
 
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', '*');
       res.setHeader('X-Proxy-Source', 'AI-Studio-Stream-Bridge');
       res.setHeader('Content-Type', contentType);
 
@@ -593,10 +575,10 @@ async function startServer() {
           const lines = content.split('\n');
           const rewrittenLines = lines.map(line => {
             const trimmed = line.trim();
-            if (!trimmed) return line;
+            if (!trimmed || trimmed.startsWith('#EXT')) return line; // Skip tags/meta unless they contain URIs
 
             if (trimmed.startsWith('#')) {
-              // Rewrite Master Playlist or Alternative Media URIs
+              // Rewrite Master Playlist or Alternative Media URIs (ATTR=uri)
               return line.replace(/URI="([^"]*)"/g, (match, p1) => {
                 try {
                   const abs = p1.startsWith('http') ? p1 : new URL(p1, finalBaseUrl).href;
@@ -605,7 +587,7 @@ async function startServer() {
               });
             }
             
-            // Rewrite segment/variant playlist URLs
+            // Rewrite segment/variant playlist URLs (Lines that are just URLs)
             try {
               const absoluteUrl = trimmed.startsWith('http') ? trimmed : new URL(trimmed, finalBaseUrl).href;
               return `/api/proxy-stream?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(effectiveReferer)}`;
@@ -631,8 +613,16 @@ async function startServer() {
         response.data.pipe(res);
       }
     } catch (error: any) {
-      console.error(`[Proxy Error] ${error.message} for ${streamUrl}`);
-      if (!res.headersSent) res.status(502).json({ error: "Stream Bridge Timeout or DNS Failure", message: error.message });
+      const isDnsError = error.code === 'ENOTFOUND' || error.code === 'EAI_AGAIN';
+      const isTimeout = error.code === 'ECONNABORTED' || error.message.includes('timeout');
+      
+      console.error(`[Proxy Error] ${error.code || 'UNKNOWN'}: ${error.message} for ${streamUrl}`);
+      
+      if (!res.headersSent) {
+        const statusCode = isDnsError ? 404 : 502;
+        const message = isDnsError ? "Broadcast domain not found (DNS Failure)" : (isTimeout ? "Connect Timeout" : error.message);
+        res.status(statusCode).send(`Switchboard Error: ${message}`);
+      }
     }
   });
 

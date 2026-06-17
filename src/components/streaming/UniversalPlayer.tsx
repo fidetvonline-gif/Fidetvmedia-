@@ -42,44 +42,54 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
     console.log(`[Universal Player] Loading Channel: ${channel.name} (${channel.url})`);
     const normalized = UniversalStreamService.normalize(channel);
     setStream(normalized);
-    setLoading(true);
     setError(null);
     setFailCount(0); // Reset for new channel
+
+    // If format is completely unknown, don't stay in loading state forever
+    if (normalized.type === 'unknown') {
+      setLoading(false);
+      setError('Unknown signal format. The bridge does not support this broadcast type.');
+      return;
+    }
+
+    setLoading(true);
     
     console.log(`[Universal Player] Normalized stream:`, normalized);
 
-    // Watchdog timer: If we are still loading after 25 seconds, something is wrong
+    // Watchdog timer: If we are still loading after 12 seconds, something is wrong
     const watchdog = setTimeout(() => {
       if (loadingRef.current) {
         console.error(`[Universal Player] Signal Watchdog Timeout for ${channel.name}`);
-        setError('Signal acquisition timed out. The bridge might be struggling with the current stream.');
+        setError('The broadcast bridge is non-responsive. The signal might be offline or blocked by a firewall.');
         setLoading(false);
       }
-    }, 25000);
+    }, 12000);
 
     return () => clearTimeout(watchdog);
   }, [channel, retryKey]);
 
-  const handleReady = () => {
-    console.log(`[Universal Player] Playback ready for: ${stream?.name}`);
+  const handleReady = React.useCallback(() => {
+    if (stream) {
+      console.log(`[Universal Player] Playback ready for: ${stream.name}`);
+    }
     setLoading(false);
+    setError(null);
     setFailCount(0);
-  };
+  }, [stream]);
 
-  const handleError = (e: any) => {
+  const handleError = React.useCallback((e: any) => {
     console.error(`[Universal Player] Playback error:`, e);
     const msg = 'Failed to load stream. This might be due to geographical restrictions or server timeout.';
     setError(msg);
     setLoading(false);
     
-    const newFailCount = failCount + 1;
-    setFailCount(newFailCount);
+    setFailCount(prev => prev + 1);
     
-    // Auto-notify parent if it fails immediately or after a retry
-    if (newFailCount >= 1 && onError) {
-      setTimeout(() => onError(msg), 3000); // Give user a moment to see the error
+    // Auto-notify parent if it fails
+    if (onError) {
+      setTimeout(() => onError(msg), 3000);
     }
-  };
+  }, [onError]);
 
   if (!stream) return null;
 
@@ -97,6 +107,38 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
             <p className="text-white/60 text-xs font-black uppercase tracking-widest animate-pulse">
               Initializing Signal Bridge...
             </p>
+            
+            {/* Show a forced skip/retry after 10s of loading */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 5 }}
+              className="mt-6 flex flex-col items-center gap-2"
+            >
+              <p className="text-white/30 text-[9px] uppercase tracking-tighter mb-2">Signal acquisition is taking longer than usual</p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setRetryKey(k => k + 1);
+                  }}
+                  className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-white/60 text-[9px] font-black uppercase tracking-widest border border-white/5 transition-all"
+                >
+                  Force Refresh
+                </button>
+                {onError && (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onError("User initiated signal skip");
+                    }}
+                    className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-white/60 text-[9px] font-black uppercase tracking-widest border border-white/5 transition-all text-[#e24b4a]"
+                  >
+                    Skip Signal
+                  </button>
+                )}
+              </div>
+            </motion.div>
           </motion.div>
         )}
 
@@ -138,7 +180,7 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
           />
         ) : stream.type === 'hls' || stream.type === 'mpeg-ts' ? (
           <HlsPlayer 
-            src={stream.needsProxy ? `/api/proxy-stream?url=${encodeURIComponent(stream.url)}` : stream.url}
+            src={`/api/proxy-stream?url=${encodeURIComponent(stream.url)}`}
             autoPlay={autoPlay}
             muted={muted}
             onReady={handleReady}
