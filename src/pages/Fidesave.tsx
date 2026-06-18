@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useNavigate } from 'react-router-dom';
 
 export default function Fidesave() {
-  const [activeTab, setActiveTab] = useState<'download' | 'search'>('download');
+  const [activeTab, setActiveTab] = useState<'download' | 'search' | 'engine'>('download');
   const [url, setUrl] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -150,6 +150,15 @@ export default function Fidesave() {
             <Search size={16} />
             Search
           </button>
+          <button
+            onClick={() => { setActiveTab('engine'); setError(''); }}
+            className={`flex-1 py-3 px-4 rounded-[0.9rem] flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-widest transition-all z-10 ${
+              activeTab === 'engine' ? 'bg-primary text-white shadow-lg' : 'text-foreground/50 hover:text-foreground'
+            }`}
+          >
+            <PlayCircle size={16} />
+            Web Engine
+          </button>
         </div>
 
         {/* Tab Content: Download */}
@@ -257,7 +266,7 @@ export default function Fidesave() {
                 )}
               </AnimatePresence>
             </motion.div>
-          ) : (
+          ) : activeTab === 'search' ? (
             <motion.div 
               key="tab-search"
               initial={{ opacity: 0, x: 20 }}
@@ -290,51 +299,47 @@ export default function Fidesave() {
               </div>
 
               {/* Movie Results Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {searchResults.map((movie, idx) => (
                   <motion.div
                     key={movie.id}
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.1 }}
-                    className="bg-surface border border-border-custom rounded-[2.5rem] overflow-hidden group hover:border-primary/30 transition-all flex flex-col sm:flex-row shadow-sm hover:shadow-xl"
+                    transition={{ delay: idx * 0.05 }}
+                    className="bg-surface border border-border-custom rounded-[2.5rem] overflow-hidden group hover:border-primary/30 transition-all flex flex-col shadow-sm hover:shadow-xl"
                   >
-                    <div className="w-full sm:w-2/5 aspect-[4/5] relative overflow-hidden">
-                      <img src={movie.poster || movie.thumbnail} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={movie.title} />
+                    <div className="relative aspect-[2/3] overflow-hidden">
+                      <img src={movie.poster} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={movie.title} />
                       <div className="absolute top-4 left-4 bg-background/80 backdrop-blur-md px-2.5 py-1.5 rounded-xl text-[10px] font-black text-primary flex items-center gap-1.5 border border-border-custom">
                         <Star size={12} className="fill-current" /> {movie.rating}
                       </div>
-                    </div>
-                    <div className="flex-1 p-8 flex flex-col justify-between">
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-3">
-                          <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{movie.year}</span>
-                          <span className="w-1 h-1 rounded-full bg-foreground/20" />
-                          <span className="text-[10px] font-bold text-foreground/40 uppercase flex items-center gap-2"> <Clock size={12}/> {movie.duration}</span>
-                        </div>
-                        <h4 className="text-2xl font-display font-black text-foreground leading-tight group-hover:text-primary transition-colors tracking-tight">{movie.title}</h4>
-                        <div className="flex items-center gap-2 text-[10px] font-black text-foreground/30 uppercase tracking-widest">
-                          <ShieldCheck size={12} className="text-primary" /> Verified {movie.platform || 'Source'}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6">
+                        <div className="text-white text-[10px] font-bold uppercase tracking-widest bg-primary px-3 py-1.5 rounded-lg shadow-lg">
+                          {movie.duration}
                         </div>
                       </div>
+                    </div>
+                    <div className="p-6 flex flex-col flex-1">
+                      <div className="flex-1 space-y-2 mb-6">
+                        <div className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{movie.year}</div>
+                        <h4 className="text-xl font-display font-black text-foreground leading-tight group-hover:text-primary transition-colors tracking-tight line-clamp-2">{movie.title}</h4>
+                      </div>
                       
-                      <div className="flex flex-col gap-3 mt-6">
+                      <div className="flex flex-col gap-2">
                         <button 
-                          onClick={() => {
-                            setActiveTab('download');
-                            // Use a placeholder or set the URL to trigger the search UI flow
-                            setUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ'); 
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                          }}
-                          className="w-full py-4 bg-primary text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] flex items-center justify-center gap-2"
+                          onClick={() => window.open(movie.downloadUrl, '_blank')}
+                          className="w-full py-4 bg-primary text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
                         >
-                          <Video size={14} /> Fetch Links
+                          <Download size={14} /> Download Now
                         </button>
                         <button 
-                          onClick={() => downloadDirectly('https://file-examples.com/wp-content/storage/2017/04/file_example_MP4_1920_18MG.mp4', movie.title)}
+                          onClick={() => {
+                            setActiveTab('engine');
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
                           className="w-full py-4 bg-surface-bright hover:bg-foreground hover:text-background text-foreground text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl border border-border-custom transition-all flex items-center justify-center gap-2"
                         >
-                          <Download size={14} /> Fast Download
+                          <PlayCircle size={14} /> Full Info
                         </button>
                       </div>
                     </div>
@@ -348,6 +353,47 @@ export default function Fidesave() {
                   <p className="text-foreground/40 font-bold uppercase tracking-widest text-xs italic">No movies found for "{searchQuery}"</p>
                 </div>
               )}
+            </motion.div>
+          ) : (
+            <motion.div
+              key="tab-engine"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full"
+            >
+              <div className="bg-surface border border-border-custom rounded-[3rem] overflow-hidden shadow-2xl">
+                <div className="bg-surface-bright p-6 border-b border-border-custom flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                      <ShieldCheck size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-display font-black text-foreground tracking-tight">Fide Web Engine</h3>
+                      <p className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest">Powered by videodownloader.site</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => window.open('https://videodownloader.site/', '_blank')}
+                      className="px-4 py-2 bg-foreground text-background rounded-lg text-[10px] font-bold uppercase tracking-widest hover:opacity-80"
+                    >
+                      Open Original
+                    </button>
+                  </div>
+                </div>
+                <div className="relative aspect-video md:h-[700px] bg-background">
+                  <iframe 
+                    src="https://videodownloader.site/" 
+                    className="w-full h-full border-none"
+                    title="External Downloader Engine"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  />
+                  <div className="absolute bottom-6 right-6 bg-primary text-white p-4 rounded-2xl shadow-xl max-w-xs animate-bounce">
+                    <p className="text-xs font-bold leading-snug">Use this web engine if our internal search fails to find your movie.</p>
+                  </div>
+                </div>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

@@ -97,16 +97,81 @@ async function initApp() {
     }
   });
 
-  // Video Downloader search endpoint - Using Gemini to provide real external movie meta
+  // Video Downloader search endpoint - Using TMDB for real movie/TV data
   apiRouter.get("/video-search", async (req, res) => {
     try {
       const { q } = req.query;
       if (!q) return res.status(400).json({ error: 'Search query is required' });
 
       const query = (q as string);
+      const tmdbKey = process.env.TMDB_API_KEY;
       
-      const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY || '');
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      if (tmdbKey) {
+        try {
+          const tmdbRes = await axios.get(`https://api.themoviedb.org/3/search/multi`, {
+            params: {
+              api_key: tmdbKey,
+              query: query,
+              language: 'en-US',
+              page: 1,
+              include_adult: false
+            },
+            timeout: 8000
+          });
+
+          if (tmdbRes.data && tmdbRes.data.results) {
+            const movieResults = tmdbRes.data.results
+              .filter((item: any) => item.media_type === 'movie' || item.media_type === 'tv')
+              .map((m: any) => {
+                const title = m.title || m.name;
+                const releaseYear = (m.release_date || m.first_air_date || '').split('-')[0];
+                return {
+                  id: `tmdb_${m.id}`,
+                  title: title,
+                  year: releaseYear,
+                  rating: m.vote_average ? m.vote_average.toFixed(1) : 'N/A',
+                  poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : 'https://images.unsplash.com/photo-1485099667858-394460167664?w=800',
+                  duration: m.media_type === 'movie' ? 'Movie' : 'TV Series',
+                  platform: 'FideCloud HD',
+                  downloadUrl: `https://videodownloader.site/en?q=${encodeURIComponent(title)}`
+                };
+              });
+            return res.json(movieResults);
+          }
+        } catch (e: any) {
+          console.warn("[Search TMDB Error]", e.message);
+        }
+      }
+
+      // Fallback to YTS if TMDB fails or key is missing
+      try {
+        const ytsRes = await axios.get(`https://yts.mx/api/v2/list_movies.json`, {
+          params: { query_term: query, limit: 12, sort_by: 'download_count' },
+          timeout: 8000
+        });
+
+        if (ytsRes.data && ytsRes.data.data && ytsRes.data.data.movies) {
+          const movieResults = ytsRes.data.data.movies.map((m: any) => ({
+            id: `yts_${m.id}`,
+            title: m.title_long || m.title,
+            year: m.year?.toString(),
+            rating: m.rating?.toString(),
+            poster: m.large_cover_image || m.medium_cover_image,
+            duration: `${m.runtime || '120'}m`,
+            platform: 'FideCloud HD',
+            downloadUrl: `https://videodownloader.site/en?q=${encodeURIComponent(m.title)}`
+          }));
+          return res.json(movieResults);
+        }
+      } catch (e: any) {
+        console.warn("[Search YTS Error]", e.message);
+      }
+
+      // Fallback to Gemini if YTS fails or has no results
+      const ai = new GoogleGenAI({
+        apiKey: process.env.GEMINI_API_KEY || '',
+        httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+      });
 
       const prompt = `Search for movies and TV shows matching the query: "${query}". 
       Return a JSON array of up to 5 objects. 
@@ -122,8 +187,11 @@ async function initApp() {
       Respond ONLY with the JSON array, no markdown markers.`;
 
       try {
-        const result = await model.generateContent(prompt);
-        const text = result.response.text().replace(/```json|```/g, "").trim();
+        const result = await ai.models.generateContent({
+          model: "gemini-3.5-flash",
+          contents: [{ role: 'user', parts: [{ text: prompt }] }]
+        });
+        const text = result.text.replace(/```json|```/g, "").trim();
         const movieResults = JSON.parse(text);
         return res.json(movieResults);
       } catch (aiErr) {
@@ -206,8 +274,6 @@ async function initApp() {
       };
 
       try {
-        // Cobalt v10+ recommends using the root endpoint or specific instance URLs
-        // The /api/json endpoint was specific to v7 which is now shut down.
         const cobaltRes = await axios.post('https://api.cobalt.tools/', {
           url: url,
           videoQuality: '720',
@@ -218,7 +284,8 @@ async function initApp() {
           headers: {
             ...headers,
             'User-Agent': 'FideTv-Downloader/1.0',
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            'Referer': 'https://cobalt.tools/'
           }, 
           timeout: 20000 
         });
@@ -226,7 +293,21 @@ async function initApp() {
         if (cobaltRes.data) {
           // Cobalt v10 status results: 'error', 'redirect', 'stream', 'picker'
           if (cobaltRes.data.status === 'error') {
-            return res.status(400).json({ error: cobaltRes.data.text || 'Cobalt service returned an error.' });
+            return res.status(400).json({ 
+              error: cobaltRes.data.text || 'Cobalt service returned an error.',
+              code: 'COBALT_ERROR'
+            });
+          }
+
+          // Handle 'redirect' (some sites redirect directly to file)
+          if (cobaltRes.data.status === 'redirect') {
+            return res.json({
+              title: 'Redirect Result',
+              videoUrl: cobaltRes.data.url,
+              audioUrl: null,
+              thumbnail: null,
+              platform: 'Direct Redirect'
+            });
           }
 
           // Handle 'picker' type (galleries/multiple items)
