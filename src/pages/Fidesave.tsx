@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Link as LinkIcon, Loader2, Video, FileAudio, AlertCircle, PlayCircle, ShieldCheck, Search, Film, Star, Clock, Info } from 'lucide-react';
+import { Download, Loader2, Video, AlertCircle, PlayCircle, ShieldCheck, Search, Film, Star, Clock, Info, ExternalLink, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '@/lib/supabase';
 import { useNavigate } from 'react-router-dom';
 
 export default function Fidesave() {
-  const [activeTab, setActiveTab] = useState<'download' | 'search' | 'engine'>('download');
-  const [url, setUrl] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [error, setError] = useState('');
   const [user, setUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  
+  // Link fetching states
+  const [fetchingLinksFor, setFetchingLinksFor] = useState<string | null>(null);
+  const [movieLinks, setMovieLinks] = useState<Record<string, any>>({});
+  
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -29,32 +31,6 @@ export default function Fidesave() {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  const handleDownload = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!url) return;
-    
-    setLoading(true);
-    setError('');
-    setResult(null);
-
-    try {
-      const res = await fetch('/api/video-downloader', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
-      });
-      
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to fetch video details.');
-      
-      setResult(data);
-    } catch (err: any) {
-      setError(err.message || 'An error occurred. Please make sure the URL is valid and public.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery) return;
@@ -62,6 +38,7 @@ export default function Fidesave() {
     setLoading(true);
     setError('');
     setSearchResults([]);
+    setMovieLinks({}); // Reset previous links
 
     try {
       const res = await fetch(`/api/video-search?q=${encodeURIComponent(searchQuery)}`);
@@ -72,6 +49,21 @@ export default function Fidesave() {
       setError('Search failed. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFetchLinks = async (movie: any) => {
+    setFetchingLinksFor(movie.id);
+    try {
+      const res = await fetch(`/api/movie-download-options?title=${encodeURIComponent(movie.title)}&year=${movie.year}`);
+      const data = await res.json();
+      if (res.ok) {
+        setMovieLinks(prev => ({ ...prev, [movie.id]: data.links }));
+      }
+    } catch (err) {
+      console.error("Failed to fetch links", err);
+    } finally {
+      setFetchingLinksFor(null);
     }
   };
 
@@ -130,273 +122,128 @@ export default function Fidesave() {
           </p>
         </div>
 
-        {/* Tabs Control */}
-        <div className="flex bg-surface border border-border-custom p-1.5 rounded-2xl mb-12 max-w-sm mx-auto relative overflow-hidden shadow-sm">
-          <button
-            onClick={() => { setActiveTab('download'); setResult(null); setError(''); }}
-            className={`flex-1 py-3 px-4 rounded-[0.9rem] flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-widest transition-all z-10 ${
-              activeTab === 'download' ? 'bg-primary text-white shadow-lg' : 'text-foreground/50 hover:text-foreground'
-            }`}
-          >
-            <LinkIcon size={16} />
-            Link
-          </button>
-          <button
-            onClick={() => { setActiveTab('search'); setSearchResults([]); setError(''); }}
-            className={`flex-1 py-3 px-4 rounded-[0.9rem] flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-widest transition-all z-10 ${
-              activeTab === 'search' ? 'bg-primary text-white shadow-lg' : 'text-foreground/50 hover:text-foreground'
-            }`}
-          >
-            <Search size={16} />
-            Search
-          </button>
-          <button
-            onClick={() => { setActiveTab('engine'); setError(''); }}
-            className={`flex-1 py-3 px-4 rounded-[0.9rem] flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-widest transition-all z-10 ${
-              activeTab === 'engine' ? 'bg-primary text-white shadow-lg' : 'text-foreground/50 hover:text-foreground'
-            }`}
-          >
-            <PlayCircle size={16} />
-            Web Engine
-          </button>
-        </div>
 
-        {/* Tab Content: Download */}
-        <AnimatePresence mode="wait">
-          {activeTab === 'download' ? (
-            <motion.div 
-              key="tab-download"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="space-y-6"
-            >
-              <div className="bg-surface-bright border border-border-custom rounded-[2.5rem] p-2 shadow-xl overflow-hidden focus-within:border-primary/50 transition-colors">
-                <form onSubmit={handleDownload} className="flex flex-col md:flex-row gap-2">
-                  <div className="relative flex-1 flex items-center">
-                    <LinkIcon className="absolute left-6 text-foreground/30" size={20} />
-                    <input
-                      type="url"
-                      required
-                      value={url}
-                      onChange={(e) => setUrl(e.target.value)}
-                      placeholder="Paste TikTok, IG, or YouTube link here..."
-                      className="w-full bg-transparent text-foreground placeholder-foreground/30 py-6 pl-14 pr-6 rounded-2xl outline-none transition-all font-mono text-sm md:text-base border-none"
-                    />
+
+        <div className="space-y-10">
+          <div className="bg-surface-bright border border-border-custom rounded-[2.5rem] p-2 shadow-xl focus-within:border-primary/50 transition-colors">
+            <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-2">
+              <div className="relative flex-1 flex items-center">
+                <Search className="absolute left-6 text-foreground/30" size={20} />
+                <input
+                  type="text"
+                  required
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search for movies to download..."
+                  className="w-full bg-transparent text-foreground placeholder-foreground/30 py-6 pl-14 pr-6 rounded-2xl outline-none transition-all font-sans font-medium text-sm md:text-base border-none"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading || !searchQuery}
+                className="bg-foreground text-background hover:opacity-90 px-10 py-6 rounded-2xl font-black uppercase tracking-widest text-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-xl hover:scale-[1.02] active:scale-[0.98]"
+              >
+                {loading ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
+                <span>Search Movies</span>
+              </button>
+            </form>
+          </div>
+
+          {/* Movie Results Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {searchResults.map((movie, idx) => (
+              <motion.div
+                key={movie.id}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.05 }}
+                className="bg-surface border border-border-custom rounded-[2.5rem] overflow-hidden group hover:border-primary/30 transition-all flex flex-col shadow-sm hover:shadow-xl"
+              >
+                <div className="relative aspect-[2/3] overflow-hidden">
+                  <img src={movie.poster} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={movie.title} />
+                  <div className="absolute top-4 left-4 bg-background/80 backdrop-blur-md px-2.5 py-1.5 rounded-xl text-[10px] font-black text-primary flex items-center gap-1.5 border border-border-custom">
+                    <Star size={12} className="fill-current" /> {movie.rating}
                   </div>
-                  <button
-                    type="submit"
-                    disabled={loading || !url}
-                    className="bg-primary hover:opacity-90 text-white px-10 py-6 rounded-2xl font-black uppercase tracking-widest text-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98]"
-                  >
-                    {loading ? <Loader2 className="animate-spin" size={18} /> : <Download size={18} />}
-                    <span>Fetch Media</span>
-                  </button>
-                </form>
-              </div>
-
-              <div className="flex flex-wrap justify-center gap-4 text-[10px] font-black uppercase tracking-widest text-foreground/40">
-                <span className="flex items-center gap-1.5"><ShieldCheck size={14} className="text-primary"/> TikTok</span>
-                <span className="flex items-center gap-1.5"><ShieldCheck size={14} className="text-primary"/> Instagram</span>
-                <span className="flex items-center gap-1.5"><ShieldCheck size={14} className="text-primary"/> Facebook</span>
-                <span className="flex items-center gap-1.5"><ShieldCheck size={14} className="text-primary"/> X (Twitter)</span>
-              </div>
-
-              {/* Results Area for Download */}
-              <AnimatePresence>
-                {result && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="mt-8 bg-surface border border-border-custom rounded-[2.5rem] p-6 md:p-10 shadow-2xl relative overflow-hidden"
-                  >
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-[80px] pointer-events-none" />
-                    
-                    <div className="flex flex-col md:flex-row gap-10 relative z-10">
-                      <div className="w-full md:w-2/5 aspect-video md:aspect-[3/4] bg-background rounded-3xl overflow-hidden relative group border border-border-custom">
-                        {result.thumbnail ? (
-                          <img src={result.thumbnail} className="w-full h-full object-cover" alt="Video preview" />
-                        ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center text-foreground/20">
-                            <PlayCircle size={64} className="mb-4 opacity-50" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6">
+                    <div className="text-white text-[10px] font-bold uppercase tracking-widest bg-primary px-3 py-1.5 rounded-lg shadow-lg">
+                      {movie.duration}
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6 flex flex-col flex-1">
+                  <div className="flex-1 space-y-2 mb-6">
+                    <div className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{movie.year}</div>
+                    <h4 className="text-xl font-display font-black text-foreground leading-tight group-hover:text-primary transition-colors tracking-tight line-clamp-2">{movie.title}</h4>
+                  </div>
+                  
+                  <div className="flex flex-col gap-2 min-h-[60px] justify-end">
+                    <AnimatePresence mode="wait">
+                      {movieLinks[movie.id] ? (
+                        <motion.div 
+                          key="links"
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="space-y-2 pb-2"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                             <span className="text-[10px] font-black text-foreground/40 uppercase tracking-widest">Select Quality</span>
+                             <button onClick={() => setMovieLinks(prev => {
+                               const next = {...prev};
+                               delete next[movie.id];
+                               return next;
+                             })} className="text-foreground/40 hover:text-primary">
+                               <X size={14} />
+                             </button>
                           </div>
-                        )}
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Download size={64} className="text-white" />
-                        </div>
-                      </div>
-
-                      <div className="flex-1 flex flex-col justify-center">
-                        <div className="flex items-center gap-3 mb-4">
-                          <span className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest">
-                            {result.platform || 'Online Media'}
-                          </span>
-                          <span className="text-foreground/40 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
-                             <Clock size={12} /> {result.duration || 'N/A'}
-                          </span>
-                        </div>
-                        <h3 className="text-3xl sm:text-4xl font-display font-black text-foreground mb-4 line-clamp-3 leading-tight tracking-tight">
-                          {result.title || 'Media Ready for Download'}
-                        </h3>
-                        
-                        <div className="flex flex-col sm:flex-row gap-4 mt-6">
-                          {result.videoUrl && (
-                            <button 
-                              onClick={() => downloadDirectly(result.videoUrl, result.title || 'Video')}
-                              className="bg-primary hover:opacity-90 text-white px-8 py-5 rounded-2xl font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-3 shadow-lg shadow-primary/20 hover:scale-105 active:scale-95"
-                            >
-                              <Video size={18} />
-                              Download Video
-                            </button>
-                          )}
-                          {result.audioUrl && (
-                            <button 
-                              onClick={() => downloadDirectly(result.audioUrl, (result.title || 'Audio') + '_audio')}
-                              className="bg-surface-bright border border-border-custom hover:bg-surface text-foreground px-8 py-5 rounded-2xl font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-3 hover:scale-105 active:scale-95"
-                            >
-                              <FileAudio size={18} />
-                              Audio (MP3)
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          ) : activeTab === 'search' ? (
-            <motion.div 
-              key="tab-search"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-10"
-            >
-              <div className="bg-surface-bright border border-border-custom rounded-[2.5rem] p-2 shadow-xl focus-within:border-primary/50 transition-colors">
-                <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-2">
-                  <div className="relative flex-1 flex items-center">
-                    <Search className="absolute left-6 text-foreground/30" size={20} />
-                    <input
-                      type="text"
-                      required
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search for movies to download..."
-                      className="w-full bg-transparent text-foreground placeholder-foreground/30 py-6 pl-14 pr-6 rounded-2xl outline-none transition-all font-sans font-medium text-sm md:text-base border-none"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={loading || !searchQuery}
-                    className="bg-foreground text-background hover:opacity-90 px-10 py-6 rounded-2xl font-black uppercase tracking-widest text-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-xl hover:scale-[1.02] active:scale-[0.98]"
-                  >
-                    {loading ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
-                    <span>Search Movies</span>
-                  </button>
-                </form>
-              </div>
-
-              {/* Movie Results Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {searchResults.map((movie, idx) => (
-                  <motion.div
-                    key={movie.id}
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                    className="bg-surface border border-border-custom rounded-[2.5rem] overflow-hidden group hover:border-primary/30 transition-all flex flex-col shadow-sm hover:shadow-xl"
-                  >
-                    <div className="relative aspect-[2/3] overflow-hidden">
-                      <img src={movie.poster} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={movie.title} />
-                      <div className="absolute top-4 left-4 bg-background/80 backdrop-blur-md px-2.5 py-1.5 rounded-xl text-[10px] font-black text-primary flex items-center gap-1.5 border border-border-custom">
-                        <Star size={12} className="fill-current" /> {movie.rating}
-                      </div>
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6">
-                        <div className="text-white text-[10px] font-bold uppercase tracking-widest bg-primary px-3 py-1.5 rounded-lg shadow-lg">
-                          {movie.duration}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="p-6 flex flex-col flex-1">
-                      <div className="flex-1 space-y-2 mb-6">
-                        <div className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{movie.year}</div>
-                        <h4 className="text-xl font-display font-black text-foreground leading-tight group-hover:text-primary transition-colors tracking-tight line-clamp-2">{movie.title}</h4>
-                      </div>
-                      
-                      <div className="flex flex-col gap-2">
-                        <button 
-                          onClick={() => window.open(movie.downloadUrl, '_blank')}
-                          className="w-full py-4 bg-primary text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+                          <div className="grid grid-cols-2 gap-2">
+                            {movieLinks[movie.id].map((link: any, lIdx: number) => (
+                              <button
+                                key={lIdx}
+                                onClick={() => link.magnet ? window.location.href = link.magnet : window.open(link.url, '_blank')}
+                                className="py-2.5 px-3 bg-surface-bright border border-border-custom hover:border-primary/50 rounded-xl text-[10px] font-bold text-foreground flex items-center justify-between transition-all group/link"
+                              >
+                                <span className="uppercase">{link.quality}</span>
+                                {link.magnet ? <Download size={12} className="text-primary group-hover/link:scale-110 transition-transform" /> : <ExternalLink size={12} className="text-primary group-hover/link:scale-110 transition-transform" /> }
+                              </button>
+                            ))}
+                          </div>
+                        </motion.div>
+                      ) : (
+                        <motion.button 
+                          key="action"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          disabled={fetchingLinksFor === movie.id}
+                          onClick={() => handleFetchLinks(movie)}
+                          className="w-full py-4 bg-primary text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-wait flex items-center justify-center gap-2"
                         >
-                          <Download size={14} /> Download Now
-                        </button>
-                        <button 
-                          onClick={() => {
-                            setActiveTab('engine');
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                          }}
-                          className="w-full py-4 bg-surface-bright hover:bg-foreground hover:text-background text-foreground text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl border border-border-custom transition-all flex items-center justify-center gap-2"
-                        >
-                          <PlayCircle size={14} /> Full Info
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
+                          {fetchingLinksFor === movie.id ? (
+                            <>
+                              <Loader2 className="animate-spin" size={14} />
+                              <span>Searching Sources...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Download size={14} /> 
+                              <span>Download Now</span>
+                            </>
+                          )}
+                        </motion.button>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
 
-              {searchQuery && !loading && searchResults.length === 0 && (
-                <div className="text-center py-24 bg-surface-bright/30 border border-dashed border-border-custom rounded-[3rem]">
-                  <Film className="w-16 h-16 text-foreground/10 mx-auto mb-6" />
-                  <p className="text-foreground/40 font-bold uppercase tracking-widest text-xs italic">No movies found for "{searchQuery}"</p>
-                </div>
-              )}
-            </motion.div>
-          ) : (
-            <motion.div
-              key="tab-engine"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full"
-            >
-              <div className="bg-surface border border-border-custom rounded-[3rem] overflow-hidden shadow-2xl">
-                <div className="bg-surface-bright p-6 border-b border-border-custom flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                      <ShieldCheck size={20} />
-                    </div>
-                    <div>
-                      <h3 className="font-display font-black text-foreground tracking-tight">Fide Web Engine</h3>
-                      <p className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest">Powered by videodownloader.site</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => window.open('https://videodownloader.site/', '_blank')}
-                      className="px-4 py-2 bg-foreground text-background rounded-lg text-[10px] font-bold uppercase tracking-widest hover:opacity-80"
-                    >
-                      Open Original
-                    </button>
-                  </div>
-                </div>
-                <div className="relative aspect-video md:h-[700px] bg-background">
-                  <iframe 
-                    src="https://videodownloader.site/" 
-                    className="w-full h-full border-none"
-                    title="External Downloader Engine"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  />
-                  <div className="absolute bottom-6 right-6 bg-primary text-white p-4 rounded-2xl shadow-xl max-w-xs animate-bounce">
-                    <p className="text-xs font-bold leading-snug">Use this web engine if our internal search fails to find your movie.</p>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
+          {searchQuery && !loading && searchResults.length === 0 && (
+            <div className="text-center py-24 bg-surface-bright/30 border border-dashed border-border-custom rounded-[3rem]">
+              <Film className="w-16 h-16 text-foreground/10 mx-auto mb-6" />
+              <p className="text-foreground/40 font-bold uppercase tracking-widest text-xs italic">No movies found for "{searchQuery}"</p>
+            </div>
           )}
-        </AnimatePresence>
+        </div>
 
         {/* Requirements Section */}
         <div className="mt-24 bg-surface-bright/50 border border-border-custom rounded-[3rem] p-8 md:p-12">

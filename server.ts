@@ -132,8 +132,7 @@ async function initApp() {
                   rating: m.vote_average ? m.vote_average.toFixed(1) : 'N/A',
                   poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : 'https://images.unsplash.com/photo-1485099667858-394460167664?w=800',
                   duration: m.media_type === 'movie' ? 'Movie' : 'TV Series',
-                  platform: 'FideCloud HD',
-                  downloadUrl: `https://videodownloader.site/en?q=${encodeURIComponent(title)}`
+                  platform: m.media_type === 'movie' ? 'FideCloud HD' : 'Fide TV'
                 };
               });
             return res.json(movieResults);
@@ -158,8 +157,7 @@ async function initApp() {
             rating: m.rating?.toString(),
             poster: m.large_cover_image || m.medium_cover_image,
             duration: `${m.runtime || '120'}m`,
-            platform: 'FideCloud HD',
-            downloadUrl: `https://videodownloader.site/en?q=${encodeURIComponent(m.title)}`
+            platform: 'FideCloud HD'
           }));
           return res.json(movieResults);
         }
@@ -214,6 +212,51 @@ async function initApp() {
     }
   });
 
+  // Movie Download Options Endpoint - Fetches real direct links/magnets
+  apiRouter.get("/movie-download-options", async (req, res) => {
+    try {
+      const { title, year } = req.query;
+      if (!title) return res.status(400).json({ error: "Movie title is required" });
+
+      console.log(`[Fetch Download Links] Searching for: ${title} (${year || "any year"})`);
+
+      try {
+        const ytsRes = await axios.get("https://yts.mx/api/v2/list_movies.json", {
+          params: { query_term: title, limit: 5 },
+          timeout: 8000
+        });
+
+        if (ytsRes.data && ytsRes.data.data && ytsRes.data.data.movies) {
+          const movies = ytsRes.data.data.movies;
+          const bestMatch = movies.find((m: any) => m.year?.toString() === year || !year) || movies[0];
+
+          if (bestMatch && bestMatch.torrents) {
+            const links = bestMatch.torrents.map((t: any) => ({
+              quality: t.quality,
+              type: t.type,
+              size: t.size,
+              url: t.url,
+              magnet: `magnet:?xt=urn:btih:${t.hash}&dn=${encodeURIComponent(bestMatch.title)}&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://open.demonii.com:1337/announce`,
+              source: "YTS"
+            }));
+            return res.json({ title: bestMatch.title, links });
+          }
+        }
+      } catch (ytsErr: any) {
+        console.warn("[YTS Fetch Error]", ytsErr.message);
+      }
+
+      return res.json({ 
+        title: title as string, 
+        links: [
+          { quality: "Search HD", type: "web", size: "N/A", url: `https://www.google.com/search?q=${encodeURIComponent(title as string)}+movie+download+free`, source: "Web" }
+        ] 
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Video download proxy to force "Save As" (direct to device)
   apiRouter.get("/video-download-proxy", async (req, res) => {
     const { url, filename } = req.query;
@@ -256,98 +299,6 @@ async function initApp() {
       if (!res.headersSent) {
         res.status(502).send("The file provider denied the proxy request or the link expired.");
       }
-    }
-  });
-
-  // Video Downloader endpoint
-  apiRouter.post("/video-downloader", async (req, res) => {
-    try {
-      const { url } = req.body;
-      if (!url) {
-        return res.status(400).json({ error: 'URL is required' });
-      }
-
-      // Set headers required by cobalt
-      const headers = {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      };
-
-      try {
-        const cobaltRes = await axios.post('https://api.cobalt.tools/', {
-          url: url,
-          videoQuality: '720',
-          audioFormat: 'mp3',
-          filenameStyle: 'nerdy',
-          downloadMode: 'auto'
-        }, { 
-          headers: {
-            ...headers,
-            'User-Agent': 'FideTv-Downloader/1.0',
-            'Accept': 'application/json',
-            'Referer': 'https://cobalt.tools/'
-          }, 
-          timeout: 20000 
-        });
-        
-        if (cobaltRes.data) {
-          // Cobalt v10 status results: 'error', 'redirect', 'stream', 'picker'
-          if (cobaltRes.data.status === 'error') {
-            return res.status(400).json({ 
-              error: cobaltRes.data.text || 'Cobalt service returned an error.',
-              code: 'COBALT_ERROR'
-            });
-          }
-
-          // Handle 'redirect' (some sites redirect directly to file)
-          if (cobaltRes.data.status === 'redirect') {
-            return res.json({
-              title: 'Redirect Result',
-              videoUrl: cobaltRes.data.url,
-              audioUrl: null,
-              thumbnail: null,
-              platform: 'Direct Redirect'
-            });
-          }
-
-          // Handle 'picker' type (galleries/multiple items)
-          if (cobaltRes.data.status === 'picker' && cobaltRes.data.picker && cobaltRes.data.picker.length > 0) {
-            const firstItem = cobaltRes.data.picker[0];
-            return res.json({
-              title: cobaltRes.data.text || firstItem.text || 'Gallery Media',
-              videoUrl: firstItem.url,
-              audioUrl: null,
-              thumbnail: firstItem.thumb,
-              platform: cobaltRes.data.service || 'Social Media Gallery'
-            });
-          }
-
-          const streamUrl = cobaltRes.data.url;
-          if (!streamUrl) {
-            return res.status(500).json({ error: 'No download URL found in the service response.' });
-          }
-
-          return res.json({
-            title: cobaltRes.data.text || cobaltRes.data.filename || 'Video Downloader Result',
-            videoUrl: streamUrl,
-            audioUrl: cobaltRes.data.pickerType === 'audio' ? streamUrl : null,
-            thumbnail: cobaltRes.data.thumbnail,
-            platform: cobaltRes.data.service || 'Social Media'
-          });
-        }
-      } catch (err: any) {
-        if (err.response && err.response.data) {
-          console.error('[VideoDownloader] Cobalt API Error Detail:', JSON.stringify(err.response.data));
-        }
-        console.error('[VideoDownloader] Cobalt API error:', err.message);
-        return res.status(500).json({ 
-          error: 'Could not fetch video. It might be private, unsupported, or the service is temporarily down.' 
-        });
-      }
-
-      return res.status(500).json({ error: 'Unexpected error getting video download URL.' });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message || 'Internal server error' });
     }
   });
 
@@ -1272,10 +1223,6 @@ async function initApp() {
     }
     return `I heard your command "${text}". Fide's voice assistant is running in clean offline mode. Add your Gemini API key in Settings > Secrets to activate live AI discussions!`;
   }
-
-  // If we are on Vercel, we finish initialization here. 
-  // The Vercel platform will handle routing and start our Express app as a serverless function.
-  if (isVercel) return;
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
