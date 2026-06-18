@@ -8,6 +8,7 @@ export interface M3UChannel {
   category: string;
   logo: string;
   country: string;
+  tvgId?: string;
 }
 
 export class M3UService {
@@ -85,12 +86,14 @@ export class M3UService {
           
           const category = groupMatch ? groupMatch[1].trim() : 'General';
           const country = countryMatch ? countryMatch[1].toUpperCase() : '';
+          const tvgId = idMatch ? idMatch[1] : undefined;
 
           currentInfo = {
             name,
             category: this.normalizeCategory(name, category, country),
             logo: logoMatch ? logoMatch[1] : '',
-            country
+            country,
+            tvgId
           };
         } else if ((line.startsWith('http') || line.startsWith('rtmp') || line.startsWith('mmsh')) && currentInfo) {
           channels.push({

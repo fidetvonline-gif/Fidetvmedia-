@@ -45,8 +45,46 @@ function getSupabaseAdmin() {
 const isVercel = process.env.VERCEL === '1' || !!process.env.VERCEL_URL;
 
 async function initApp() {
-  // Middleware
-  app.use(express.json());
+  // Store the last automation report
+  let lastAutomationReport: any = { status: "No cycle run yet" };
+
+  // Database Setup
+  const supabase = getSupabaseAdmin();
+  const ingestService = supabase ? new ChannelIngestionService(supabase) : null;
+
+  // Background Automation Task (Every 15 minutes)
+  if (ingestService) {
+    console.log("[Background] Starting 15-minute automation scheduler...");
+    
+    // Import new M3U sources once on startup
+    const newSources = [
+      'https://iptv-org.github.io/iptv/countries/ng.m3u',
+      'https://iptv-org.github.io/iptv/categories/movies.m3u',
+      'https://iptv-org.github.io/iptv/categories/sports.m3u',
+      'https://iptv-org.github.io/iptv/categories/entertainment.m3u',
+      'https://iptv-org.github.io/iptv/index.m3u'
+    ];
+    
+    setTimeout(async () => {
+        console.log("[Background] Running initial M3U ingestion for new sources...");
+        for (const source of newSources) {
+            try {
+                await ingestService.importFromM3U(source, { validateAll: true });
+            } catch (e) {
+                console.error(`[Background] Failed to ingest ${source}:`, e);
+            }
+        }
+        
+        console.log("[Background] Running initial automation cycle...");
+        lastAutomationReport = await ingestService.runFullAutomation();
+    }, 30000);
+
+    // Schedule periodic runs
+    setInterval(async () => {
+      console.log("[Background] Running scheduled automation cycle...");
+      lastAutomationReport = await ingestService.runFullAutomation();
+    }, 15 * 60 * 1000);
+  }
 
   // Logging middleware for all API calls
   apiRouter.use((req, res, next) => {
@@ -209,6 +247,64 @@ async function initApp() {
       }
     } catch (err: any) {
       res.status(500).json({ error: 'Search service temporarily unavailable.' });
+    }
+  });
+
+  apiRouter.post("/video-downloader", async (req, res) => {
+    const { url } = req.body;
+    if (!url) return res.status(400).json({ error: "URL is required" });
+
+    try {
+      console.log(`[Save] Processing request for: ${url}`);
+      // Using Cobalt API for social media downloading
+      const cobaltRes = await fetch('https://api.cobalt.tools/api/json', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          url,
+          vQuality: '1080',
+          aFormat: 'mp3',
+          isAudioOnly: false,
+          isNoTTWatermark: true,
+          downloadMode: 'auto'
+        })
+      });
+
+      const data = await cobaltRes.json() as any;
+      console.log(`[Save] Cobalt response status: ${cobaltRes.status}`);
+
+      if (data.status === 'error' || data.status === 'rate-limit') {
+        throw new Error(data.text || 'Downloader service is temporarily busy. Please try again.');
+      }
+
+      if (data.status === 'redirect' || data.status === 'stream' || data.status === 'success') {
+        return res.json({
+          title: data.filename || 'Downloaded Media',
+          videoUrl: data.url,
+          audioUrl: data.url,
+          thumbnail: '',
+          platform: new URL(url).hostname.replace('www.', '').split('.')[0],
+          duration: 'N/A'
+        });
+      }
+
+      if (data.status === 'picker') {
+        // Handle galleries (pick first item)
+        const item = data.picker[0];
+        return res.json({
+          title: 'Media Gallery Item',
+          videoUrl: item.url,
+          platform: new URL(url).hostname.replace('www.', '').split('.')[0]
+        });
+      }
+
+      throw new Error('Unsupported or private media. Try another link.');
+    } catch (err: any) {
+      console.error("[Save] Error:", err.message);
+      res.status(500).json({ error: err.message || "Failed to process video link" });
     }
   });
 
@@ -593,47 +689,31 @@ async function initApp() {
     }
   });
 
-  // 4b. Stream Health Check Proxy
+  // 4b. Stream Health Check (Advanced)
   apiRouter.get("/stream-health", async (req, res) => {
-    const { url, type } = req.query;
+    const { url } = req.query;
     if (!url) return res.status(400).json({ valid: false, errorMessage: "No URL" });
     
-    try {
-        const streamUrl = url as string;
-        console.log(`[Health] Checking ${streamUrl} (Type: ${type})`);
-        
-        const response = await axios.head(streamUrl, {
-            timeout: 8000,
-            headers: { 
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Referer': streamUrl
-            }
-        });
-        
-        const contentType = (response.headers['content-type'] as string) || '';
-        const status = response.status;
-        
-        let valid = status >= 200 && status < 300;
-        let errorMessage = valid ? '' : `HTTP ${status}`;
-        
-        // Basic type validation
-        if (type === 'hls' && !contentType.includes('mpegurl')) valid = false;
-        if (type === 'mp4' && !contentType.includes('video')) valid = false;
-        
-        res.json({
-            valid,
-            httpStatus: status,
-            contentType,
-            errorMessage,
-            lastChecked: new Date().toISOString()
-        });
-    } catch (e: any) {
-        res.json({
-            valid: false,
-            httpStatus: e.response?.status || 0,
-            errorMessage: e.message,
-            lastChecked: new Date().toISOString()
-        });
+    const result = await ChannelIngestionService.validateStream(url as string);
+    res.json({
+        ...result,
+        lastChecked: new Date().toISOString()
+    });
+  });
+
+  // 4c. Automation Report
+  apiRouter.get("/automation-report", (req, res) => {
+    res.json(lastAutomationReport);
+  });
+
+  // 4d. Manual Automation Trigger
+  apiRouter.post("/trigger-automation", async (req, res) => {
+    if (ingestService) {
+      console.log("[Background] Triggering manual automation cycle...");
+      lastAutomationReport = await ingestService.runFullAutomation();
+      res.json({ message: "Automation cycle completed", report: lastAutomationReport });
+    } else {
+      res.status(500).json({ error: "Service not initialized" });
     }
   });
 
@@ -1236,10 +1316,18 @@ async function initApp() {
     
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
+    // In bundle (dist/server.cjs), __dirname is dist/
+    const distPath = path.resolve(__dirname || process.cwd(), '');
+    console.log(`[Production] Serving static files from: ${distPath}`);
     app.use(express.static(distPath));
+    
+    // Catch-all for SPA
     app.get('*all', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      // If API route not found, return 404 json
+      if (req.path.startsWith('/api')) {
+        return res.status(404).json({ error: "API route not found" });
+      }
+      res.sendFile(path.resolve(distPath, 'index.html'));
     });
   }
 

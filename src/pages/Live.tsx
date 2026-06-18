@@ -56,6 +56,7 @@ export default function Live() {
           let { data, error } = await supabase
             .from('tv_channels')
             .select('*')
+            .eq('is_active', true)
             .order('order_index')
             .range(0, 199);
           
@@ -124,6 +125,7 @@ export default function Live() {
                 const { data, error } = await supabase
                   .from('tv_channels')
                   .select('*')
+                  .eq('is_active', true)
                   .order('order_index')
                   .range(rangeStart, rangeStart + rangeSize - 1);
                 

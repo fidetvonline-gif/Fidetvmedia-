@@ -11,12 +11,17 @@ export class YouTubeIngestionService {
   private supabase: SupabaseClient;
   private apiKey: string;
   private searchQueries = [
-    // NEWS & POLITICS
+    // NIGERIA & AFRICA
+    'NTA live', 'Channels TV live', 'TVC News live', 'Arise News live',
+    'AIT live', 'Silverbird TV live', 'Wazobia TV live', 'RSTV live',
+    'Lagos Television live', 'Liberty TV live', 'Plus TV Africa live',
+
+    // INTERNATIONAL NEWS
+    'BBC News live', 'CNN International live', 'Al Jazeera English live', 
+    'France 24 English live', 'DW English live', 'Bloomberg Television live',
+
+    // NEWS & POLITICS (EXISTING)
     'live news', '24/7 live TV', 'breaking news live', 'live TV stream',
-    'NTA live', 'Channels TV live', 'Arise News live', 'BBC live',
-    'CNN live', 'Al Jazeera live', 'Sky News live', 'ABC News live',
-    'France 24 live', 'DW News live', 'CCTV live', 'Russia Today live',
-    'TVC News live', 'AIT live', 'Plus TV Africa live', 'Africa 24 live',
     
     // MUSIC & ENTERTAINMENT
     'lofi hip hop radio live', '24/7 music live', 'live concert stream',
