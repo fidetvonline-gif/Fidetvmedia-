@@ -138,6 +138,7 @@ async function initApp() {
   // Video Downloader search endpoint - Using TMDB for real movie/TV data
   apiRouter.get("/video-search", async (req, res) => {
     try {
+      console.log(`[FideSave] Search requested: ${req.query.q}`);
       const { q } = req.query;
       if (!q) return res.status(400).json({ error: 'Search query is required' });
 
@@ -173,15 +174,17 @@ async function initApp() {
                   platform: m.media_type === 'movie' ? 'FideCloud HD' : 'Fide TV'
                 };
               });
+            console.log(`[FideSave] TMDB search successful, found ${movieResults.length} items`);
             return res.json(movieResults);
           }
         } catch (e: any) {
-          console.warn("[Search TMDB Error]", e.message);
+          console.warn("[FideSave-Search] TMDB Error:", e.message);
         }
       }
 
       // Fallback to YTS if TMDB fails or key is missing
       try {
+        console.log(`[FideSave-Search] Falling back to YTS for: ${query}`);
         const ytsRes = await axios.get(`https://yts.mx/api/v2/list_movies.json`, {
           params: { query_term: query, limit: 12, sort_by: 'download_count' },
           timeout: 8000
@@ -197,13 +200,15 @@ async function initApp() {
             duration: `${m.runtime || '120'}m`,
             platform: 'FideCloud HD'
           }));
+          console.log(`[FideSave] YTS search successful, found ${movieResults.length} items`);
           return res.json(movieResults);
         }
       } catch (e: any) {
-        console.warn("[Search YTS Error]", e.message);
+        console.warn("[FideSave-Search] YTS Error:", e.message);
       }
 
       // Fallback to Gemini if YTS fails or has no results
+      console.log(`[FideSave-Search] Falling back to AI for: ${query}`);
       const ai = new GoogleGenAI({
         apiKey: process.env.GEMINI_API_KEY || '',
         httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
@@ -252,6 +257,7 @@ async function initApp() {
 
   apiRouter.post("/video-downloader", async (req, res) => {
     const { url } = req.body;
+    console.log(`[FideSave] Downloader requested for: ${url}`);
     if (!url) return res.status(400).json({ error: "URL is required" });
 
     try {
@@ -277,10 +283,12 @@ async function initApp() {
       console.log(`[Save] Cobalt response status: ${cobaltRes.status}`);
 
       if (data.status === 'error' || data.status === 'rate-limit') {
+        console.error(`[FideSave] Cobalt error: ${data.text}`);
         throw new Error(data.text || 'Downloader service is temporarily busy. Please try again.');
       }
 
       if (data.status === 'redirect' || data.status === 'stream' || data.status === 'success') {
+        console.log(`[FideSave] Cobalt success for: ${data.filename}`);
         return res.json({
           title: data.filename || 'Downloaded Media',
           videoUrl: data.url,
@@ -292,6 +300,7 @@ async function initApp() {
       }
 
       if (data.status === 'picker') {
+        console.log(`[FideSave] Cobalt picker returned for: ${url}`);
         // Handle galleries (pick first item)
         const item = data.picker[0];
         return res.json({
@@ -303,7 +312,7 @@ async function initApp() {
 
       throw new Error('Unsupported or private media. Try another link.');
     } catch (err: any) {
-      console.error("[Save] Error:", err.message);
+      console.error("[FideSave] Downloader error:", err.message);
       res.status(500).json({ error: err.message || "Failed to process video link" });
     }
   });
@@ -312,6 +321,7 @@ async function initApp() {
   apiRouter.get("/movie-download-options", async (req, res) => {
     try {
       const { title, year } = req.query;
+      console.log(`[FideSave] Download links requested for: ${title} (${year})`);
       if (!title) return res.status(400).json({ error: "Movie title is required" });
 
       console.log(`[Fetch Download Links] Searching for: ${title} (${year || "any year"})`);
@@ -327,6 +337,7 @@ async function initApp() {
           const bestMatch = movies.find((m: any) => m.year?.toString() === year || !year) || movies[0];
 
           if (bestMatch && bestMatch.torrents) {
+            console.log(`[FideSave] YTS found best match: ${bestMatch.title}`);
             const links = bestMatch.torrents.map((t: any) => ({
               quality: t.quality,
               type: t.type,
@@ -339,9 +350,10 @@ async function initApp() {
           }
         }
       } catch (ytsErr: any) {
-        console.warn("[YTS Fetch Error]", ytsErr.message);
+        console.warn("[FideSave-FetchLinks] YTS Error:", ytsErr.message);
       }
 
+      console.log(`[FideSave] Falling back to Google Search for: ${title}`);
       return res.json({ 
         title: title as string, 
         links: [
