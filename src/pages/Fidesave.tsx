@@ -88,9 +88,11 @@ export default function Fidesave() {
       const data = await res.json();
       if (res.ok) {
         setMovieLinks(prev => ({ ...prev, [movie.id]: data.links }));
+      } else {
+        console.error("Failed to fetch links", data);
       }
     } catch (err) {
-      console.error("Failed to fetch links", err);
+      console.error("Failed to fetch links catch", err);
     } finally {
       setFetchingLinksFor(null);
     }

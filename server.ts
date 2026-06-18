@@ -143,6 +143,7 @@ async function initApp() {
       if (!q) return res.status(400).json({ error: 'Search query is required' });
 
       const query = (q as string);
+      console.log(`[FideSave] Running TMDB search for: ${query}`);
       const tmdbKey = process.env.TMDB_API_KEY;
       
       if (tmdbKey) {
@@ -178,7 +179,7 @@ async function initApp() {
             return res.json(movieResults);
           }
         } catch (e: any) {
-          console.warn("[FideSave-Search] TMDB Error:", e.message);
+          console.error("[FideSave-Search] TMDB Critical Error:", e.message);
         }
       }
 
@@ -204,7 +205,7 @@ async function initApp() {
           return res.json(movieResults);
         }
       } catch (e: any) {
-        console.warn("[FideSave-Search] YTS Error:", e.message);
+        console.error("[FideSave-Search] YTS Critical Error:", e.message);
       }
 
       // Fallback to Gemini if YTS fails or has no results
@@ -236,7 +237,7 @@ async function initApp() {
         const movieResults = JSON.parse(text);
         return res.json(movieResults);
       } catch (aiErr) {
-        console.error("[Search AI Error]", aiErr);
+        console.error("[FideSave-Search] AI Critical Error:", aiErr);
         // Fallback to minimal results if AI fails
         return res.json([
           { 
@@ -251,9 +252,11 @@ async function initApp() {
         ]);
       }
     } catch (err: any) {
+      console.error("[FideSave-Search] General Critical Error:", err);
       res.status(500).json({ error: 'Search service temporarily unavailable.' });
     }
   });
+
 
   apiRouter.post("/video-downloader", async (req, res) => {
     const { url } = req.body;

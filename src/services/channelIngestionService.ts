@@ -54,7 +54,7 @@ export class ChannelIngestionService {
         const existingChannel = urlMap.get(ch.url) || nameMap.get(ch.name.toLowerCase()) || (ch.tvgId ? epgMap.get(ch.tvgId) : undefined);
         
         if (existingChannel) {
-          console.log(`[Channel Ingestion] Updating existing channel: ${ch.name}`);
+          // console.log(`[Channel Ingestion] Updating existing channel: ${ch.name}`);
           // Update
           await this.supabase.from('tv_channels').update({
             name: ch.name,
@@ -154,16 +154,31 @@ export class ChannelIngestionService {
             const segmentUrl = firstSegment.startsWith('http') ? firstSegment : segmentBase + firstSegment;
             const segCheck = await fetch(segmentUrl, { 
               method: 'HEAD', 
-              signal: AbortSignal.timeout(5000),
+              signal: AbortSignal.timeout(3000), // Reduced timeout
               headers: { 'User-Agent': 'Mozilla/5.0' }
             });
             if (!segCheck.ok) return { valid: false, error: `Media segment unreachable: ${segCheck.status}` };
           } catch (e) {
             // Segment checking might fail due to strict CORS or relative paths, but M3U8 was readable
-            console.warn(`[Health] Segment check failed for ${url}, but manifest is valid.`);
+          }
+        } else if (hasPlaylists) {
+           // If it's a multi-variant manifest, check if at least one variant is reachable
+          const firstVariant = manifest.playlists[0].uri;
+          try {
+            const base = url.substring(0, url.lastIndexOf('/') + 1);
+            const variantUrl = firstVariant.startsWith('http') ? firstVariant : base + firstVariant;
+            const variantCheck = await fetch(variantUrl, { 
+              method: 'HEAD', 
+              signal: AbortSignal.timeout(3000), // Reduced timeout
+              headers: { 'User-Agent': 'Mozilla/5.0' }
+            });
+            if (!variantCheck.ok) return { valid: false, error: `Variant manifest unreachable: ${variantCheck.status}` };
+          } catch (e) {
+            // Variant segment check might fail, but let's try to parse the variant manifest too? 
+            // Too slow for bulk check.
           }
         }
-
+        
         return { 
           valid: true, 
           metadata: { 
@@ -221,27 +236,36 @@ export class ChannelIngestionService {
 
     try {
       // 1. DUPLICATE REMOVAL
-      // Detect duplicates by URL first
+      // Detect duplicates by URL, TVG-ID, or Name
       const { data: allChannels } = await this.supabase
         .from('tv_channels')
-        .select('id, name, url, category');
+        .select('id, name, url, category, epg_id');
 
       if (allChannels) {
         const seenUrls = new Map<string, string>();
-        const toArchiveDupes: string[] = [];
+        const seenIds = new Map<string, string>(); // TVG ID
+        const seenNames = new Map<string, string>(); // Name
+        const toArchiveDupes = new Set<string>();
 
         for (const ch of allChannels) {
-          if (seenUrls.has(ch.url)) {
-            toArchiveDupes.push(ch.id);
+          let isDup = false;
+          if (ch.url && seenUrls.has(ch.url)) isDup = true;
+          if (ch.epg_id && seenIds.has(ch.epg_id)) isDup = true;
+          if (ch.name && seenNames.has(ch.name.toLowerCase())) isDup = true;
+
+          if (isDup) {
+            toArchiveDupes.add(ch.id);
             report.duplicatesRemoved++;
           } else {
-            seenUrls.set(ch.url, ch.id);
+            if (ch.url) seenUrls.set(ch.url, ch.id);
+            if (ch.epg_id) seenIds.set(ch.epg_id, ch.id);
+            if (ch.name) seenNames.set(ch.name.toLowerCase(), ch.id);
           }
         }
 
-        if (toArchiveDupes.length > 0) {
-          console.log(`[Automation] Archiving ${toArchiveDupes.length} duplicate channels...`);
-          await this.archiveChannels(toArchiveDupes, 'Duplicate URL detected');
+        if (toArchiveDupes.size > 0) {
+          console.log(`[Automation] Archiving ${toArchiveDupes.size} duplicate channels...`);
+          await this.archiveChannels(Array.from(toArchiveDupes), 'Duplicate detected (URL/ID/Name)');
         }
       }
 

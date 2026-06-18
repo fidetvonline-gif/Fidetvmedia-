@@ -29,7 +29,7 @@ async function run() {
 
   try {
     const result = await service.importFromM3U(SOURCE_URL, {
-      validateAll: false // We skip technical validation during bulk import for speed, let health checks handle it
+      validateAll: true // Enable validation to skip offline or broken streams
     }) as any;
     
     console.log(`[Ingest V2] Success! Total: ${result.total}, Filtered: ${result.filtered}, Inserted: ${result.inserted}`);

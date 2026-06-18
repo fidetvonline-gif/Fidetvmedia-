@@ -21,6 +21,13 @@ export default function Content() {
     fetchContent();
   }, []);
 
+  const formatYtUrl = (val: string) => {
+    if (!val) return val;
+    // If it's a 11-char ID, make it a URL
+    if (/^[a-zA-Z0-9_-]{11}$/.test(val)) return `https://www.youtube.com/watch?v=${val}`;
+    return val;
+  };
+
   const fetchContent = async () => {
     setLoading(true);
     const { data: eventsData } = await supabase
@@ -32,14 +39,6 @@ export default function Content() {
       .from('portfolio_items')
       .select('*')
       .order('created_at', { ascending: false });
-
-    const extractYtId = (idOrUrl: string | null) => {
-      if (!idOrUrl) return null;
-      if (idOrUrl.includes('youtube.com/watch?v=')) return idOrUrl.split('v=')[1]?.split('&')[0];
-      if (idOrUrl.includes('youtu.be/')) return idOrUrl.split('youtu.be/')[1]?.split('?')[0];
-      if (idOrUrl.includes('http')) return null;
-      return idOrUrl;
-    };
 
     const formattedEvents = eventsData ? eventsData.map((ev) => {
       const ytId = extractYtId(ev.youtube_id);
@@ -216,7 +215,7 @@ export default function Content() {
               {playingVideo.youtube_id || playingVideo.stream_url ? (
                 playingVideo.youtube_id && !playingVideo.youtube_id.includes('<iframe') ? (
                   <UniversalPlayer 
-                    channel={{ url: playingVideo.youtube_id, name: playingVideo.title }}
+                    channel={{ url: formatYtUrl(playingVideo.youtube_id), name: playingVideo.title }}
                     autoPlay={true}
                     muted={false}
                   />

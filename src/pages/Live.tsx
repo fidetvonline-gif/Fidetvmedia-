@@ -57,6 +57,7 @@ export default function Live() {
             .from('tv_channels')
             .select('*')
             .eq('is_active', true)
+            .eq('status', 'online')
             .order('order_index')
             .range(0, 199);
           
@@ -183,7 +184,7 @@ export default function Live() {
 
   const categories = useMemo(() => {
     const cats = new Set(allChannels.map(c => c.category || 'General'));
-    return ['Featured', ...Array.from(cats)].filter(c => c !== 'General');
+    return ['Featured', ...Array.from(cats)];
   }, [allChannels]);
 
   const [visibleItemsPerCategory, setVisibleItemsPerCategory] = useState<Record<string, number>>({});
@@ -194,12 +195,12 @@ export default function Live() {
     
     allChannels.forEach(c => {
       const nameMatch = c.name.toLowerCase().includes(query);
-      const catMatch = (c.category || 'General').toLowerCase().includes(query);
+      const catMatch = (c.category || 'Live Channels').toLowerCase().includes(query);
       const countryMatch = (c.country || '').toLowerCase().includes(query);
       
       if (nameMatch || catMatch || countryMatch) {
         // Special logic: default channels without a clear category go to 'Featured'
-        let cat = c.category || 'General';
+        let cat = c.category || 'Live Channels';
         
         // If it's a default channel, move to Featured for prominence
         const isDefault = DEFAULT_CHANNELS.some(dc => dc.id === c.id);

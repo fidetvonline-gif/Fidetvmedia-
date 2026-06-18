@@ -7,17 +7,9 @@ set -e
 
 # Priority Source Links (IPTV-ORG)
 SOURCES=(
-  "https://iptv-org.github.io/iptv/countries/ng.m3u"
-  "https://iptv-org.github.io/iptv/categories/sports.m3u"
   "https://iptv-org.github.io/iptv/categories/movies.m3u"
   "https://iptv-org.github.io/iptv/categories/entertainment.m3u"
-  "https://iptv-org.github.io/iptv/categories/news.m3u"
-  "https://iptv-org.github.io/iptv/categories/documentary.m3u"
-  "https://iptv-org.github.io/iptv/categories/religious.m3u"
   "https://iptv-org.github.io/iptv/languages/eng.m3u"
-  "https://i.mjh.nz/PlutoTV/us.m3u8"
-  "https://i.mjh.nz/SamsungTVPlus/us.m3u8"
-  "https://i.mjh.nz/Plex/us.m3u8"
 )
 
 echo ">>> [FideTV] Starting Smart Ingestion Orchestrator <<<"

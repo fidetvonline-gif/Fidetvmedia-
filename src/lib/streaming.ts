@@ -20,7 +20,7 @@ export const detectStreamType = (url: string): StreamType => {
   }
   const lowerUrl = url.toLowerCase();
   
-  if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) {
+  if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be') || /^[a-zA-Z0-9_-]{11}$/.test(url)) {
       console.log(`[Streaming] Type Detected: YouTube for ${url}`);
       return 'youtube';
   }
