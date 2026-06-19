@@ -6,6 +6,8 @@ import ReactPlayer from 'react-player';
 import { Loader2, AlertCircle, RefreshCw, Database } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
+import { YouTubeEmbed } from './../YouTubeEmbed';
+
 const Player = ReactPlayer as any;
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -61,6 +63,11 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
     if (!loading) return;
 
     // Watchdog timer: If we are still loading after 45 seconds, something is wrong
+    // (Bypass watchdog for youtube/facebook/vimeo since they use external players which have their own state management)
+    if (stream?.type === 'youtube' || stream?.type === 'facebook' || stream?.type === 'vimeo') {
+      return;
+    }
+
     const watchdog = setTimeout(() => {
       console.error(`[Universal Player] Signal Watchdog Timeout`);
       setError('Signal acquisition timed out. The bridge might be struggling with the current stream.');
@@ -105,6 +112,27 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
       setTimeout(() => onError(msg), 3000);
     }
   }, [stream, failCount, onError]);
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !stream || stream.type !== 'mp4') return;
+
+    if (autoPlay) {
+      video.play().catch(err => {
+        if (err.name !== 'AbortError') {
+          console.warn('[UniversalPlayer] MP4 playback error:', err);
+        }
+      });
+    }
+
+    return () => {
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+    };
+  }, [stream, autoPlay]);
 
   if (!stream) return null;
 
@@ -189,7 +217,16 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
       </AnimatePresence>
 
       <div key={retryKey} className="w-full h-full">
-        {stream.type === 'youtube' || stream.type === 'facebook' || stream.type === 'vimeo' ? (
+        {stream.type === 'youtube' ? (
+          <YouTubeEmbed 
+            videoId={stream.url} 
+            autoPlay={autoPlay} 
+            muted={muted}
+            className="w-full h-full" 
+            onReady={handleReady}
+            onError={handleError}
+          />
+        ) : stream.type === 'facebook' || stream.type === 'vimeo' ? (
           <Player
             url={stream.url}
             width="100%"
@@ -214,14 +251,15 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
           />
         ) : stream.type === 'mp4' ? (
           <video 
+            ref={videoRef}
             src={stream.needsProxy ? `/api/proxy-stream?url=${encodeURIComponent(stream.url)}` : stream.url}
             className="w-full h-full object-contain"
-            autoPlay={autoPlay}
             muted={muted}
             controls
             preload="auto"
             onCanPlay={handleReady}
             onError={handleError}
+            playsInline
           />
         ) : (
           <div className="flex items-center justify-center h-full text-white/40 font-mono text-sm">

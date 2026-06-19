@@ -7,6 +7,7 @@ import ReactPlayer from 'react-player';
 import { supabase } from '@/lib/supabase';
 import { Service } from '@/types';
 import FAQ from '@/components/FAQ';
+import { YouTubeEmbed } from '@/components/YouTubeEmbed';
 
 const Player = ReactPlayer as any;
 
@@ -237,12 +238,7 @@ export default function Services() {
                 <X className="w-6 h-6" />
               </button>
               {showreelUrl.includes('youtube.com') || showreelUrl.includes('youtu.be') ? (
-                <iframe 
-                  src={showreelUrl.includes('embed') ? showreelUrl : `https://www.youtube.com/embed/${showreelUrl.split('v=')[1] || showreelUrl.split('/').pop()}?autoplay=1&modestbranding=1`}
-                  className="w-full h-full border-0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                ></iframe>
+                <YouTubeEmbed videoId={showreelUrl} autoPlay={true} className="w-full h-full" />
               ) : (
                 <Player
                   url={showreelUrl}

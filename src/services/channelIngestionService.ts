@@ -86,9 +86,9 @@ export class ChannelIngestionService {
         });
 
         // Add to sets to avoid duplicates WITHIN the same batch
-        urlMap.set(ch.url, { id: 'pending' });
-        nameMap.set(ch.name.toLowerCase(), { id: 'pending' });
-        if (ch.tvgId) epgMap.set(ch.tvgId, { id: 'pending' });
+        urlMap.set(ch.url, { id: 'pending' } as any);
+        nameMap.set(ch.name.toLowerCase(), { id: 'pending' } as any);
+        if (ch.tvgId) epgMap.set(ch.tvgId, { id: 'pending' } as any);
       }
 
       console.log(`[Channel Ingestion] Finalizing import: ${toInsert.length} new unique channels.`);

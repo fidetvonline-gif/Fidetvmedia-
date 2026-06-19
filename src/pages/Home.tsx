@@ -14,6 +14,7 @@ import { DEFAULT_CHANNELS } from '@/constants/channels';
 import UniversalPlayer from '@/components/streaming/UniversalPlayer';
 import LiveEventBanner from '@/components/LiveEventBanner';
 import DisplayInlineAds from '@/components/DisplayInlineAds';
+import { YouTubeEmbed } from '@/components/YouTubeEmbed';
 
 import { ReferralLeaderboard } from '@/components/ReferralLeaderboard';
 
@@ -350,14 +351,12 @@ export default function Home() {
               >
                 <X className="w-5 h-5" />
               </button>
-              {playingVideo?.youtube_id && !playingVideo.youtube_id.includes('<iframe') ? (
-                <UniversalPlayer 
-                  channel={{ url: playingVideo.youtube_id, name: playingVideo.title }}
+              {playingVideo?.youtube_id ? (
+                <YouTubeEmbed 
+                  videoId={playingVideo.youtube_id}
                   autoPlay={true}
-                  muted={false}
+                  className="w-full h-full"
                 />
-              ) : playingVideo?.youtube_id?.includes('<iframe') ? (
-                <div className="w-full h-full [&>iframe]:w-full [&>iframe]:h-full" dangerouslySetInnerHTML={{ __html: playingVideo.youtube_id }} />
               ) : (
                 <UniversalPlayer 
                   channel={{ url: playingVideo?.video_url, name: playingVideo?.title }}

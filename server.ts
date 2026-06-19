@@ -10,11 +10,30 @@ import { YouTubeIngestionService } from "./src/services/youtubeIngestionService"
 import { M3UService } from "./src/services/m3uService";
 import multer from "multer";
 import fs from "fs/promises";
+import rateLimit from "express-rate-limit";
 
 dotenv.config();
 
 const app = express();
 const PORT = 3000;
+
+// Apply basic rate limiting
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 1000, // Limit each IP to 1000 requests per `window`
+  message: "Too many requests from this IP, please try again after 15 minutes",
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 100, // Limit each IP to 100 uploads per hour
+  message: "Too many uploads from this IP, please try again later",
+});
+
+app.use("/api/", apiLimiter);
+
 const apiRouter = express.Router();
 
 const upload = multer({ 
@@ -87,6 +106,7 @@ async function initApp() {
   }
 
   // Logging middleware for all API calls
+  apiRouter.use(express.json());
   apiRouter.use((req, res, next) => {
     console.log(`[API Router] ${req.method} ${req.url}`);
     next();
@@ -258,65 +278,37 @@ async function initApp() {
   });
 
 
-  apiRouter.post("/video-downloader", async (req, res) => {
+  apiRouter.post("/video-downloader", async (req, res, next) => {
     const { url } = req.body;
     console.log(`[FideSave] Downloader requested for: ${url}`);
     if (!url) return res.status(400).json({ error: "URL is required" });
 
     try {
+      if (url.includes('youtube.com') || url.includes('youtu.be')) {
+        const ytdlModule = await import('@distube/ytdl-core');
+        const ytdl = ytdlModule.default || ytdlModule;
+        if (!ytdl.validateURL(url)) {
+           return res.status(400).json({ error: "Invalid YouTube URL" });
+        }
+        console.log(`[Save] Processing via ytdl-core for: ${url}`);
+        const info = await ytdl.getInfo(url);
+        const format = ytdl.chooseFormat(info.formats, { quality: 'highest' });
+        
+        return res.json({
+          title: info.videoDetails.title || 'YouTube Video',
+          videoUrl: format.url,
+          audioUrl: format.url,
+          thumbnail: info.videoDetails.thumbnails[0]?.url || '',
+          platform: 'YouTube',
+          duration: `${Math.floor(Number(info.videoDetails.lengthSeconds) / 60)}m`
+        });
+      }
+
       console.log(`[Save] Processing request for: ${url}`);
-      // Using Cobalt API for social media downloading
-      const cobaltRes = await fetch('https://api.cobalt.tools/api/json', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          url,
-          vQuality: '1080',
-          aFormat: 'mp3',
-          isAudioOnly: false,
-          isNoTTWatermark: true,
-          downloadMode: 'auto'
-        })
-      });
-
-      const data = await cobaltRes.json() as any;
-      console.log(`[Save] Cobalt response status: ${cobaltRes.status}`);
-
-      if (data.status === 'error' || data.status === 'rate-limit') {
-        console.error(`[FideSave] Cobalt error: ${data.text}`);
-        throw new Error(data.text || 'Downloader service is temporarily busy. Please try again.');
-      }
-
-      if (data.status === 'redirect' || data.status === 'stream' || data.status === 'success') {
-        console.log(`[FideSave] Cobalt success for: ${data.filename}`);
-        return res.json({
-          title: data.filename || 'Downloaded Media',
-          videoUrl: data.url,
-          audioUrl: data.url,
-          thumbnail: '',
-          platform: new URL(url).hostname.replace('www.', '').split('.')[0],
-          duration: 'N/A'
-        });
-      }
-
-      if (data.status === 'picker') {
-        console.log(`[FideSave] Cobalt picker returned for: ${url}`);
-        // Handle galleries (pick first item)
-        const item = data.picker[0];
-        return res.json({
-          title: 'Media Gallery Item',
-          videoUrl: item.url,
-          platform: new URL(url).hostname.replace('www.', '').split('.')[0]
-        });
-      }
-
-      throw new Error('Unsupported or private media. Try another link.');
-    } catch (err: any) {
-      console.error("[FideSave] Downloader error:", err.message);
-      res.status(500).json({ error: err.message || "Failed to process video link" });
+      return res.status(400).json({ error: "Only YouTube URLs are supported by the downloader currently." });
+    } catch (error: any) {
+      console.error("[FideSave] Downloader error:", error.message);
+      res.status(500).json({ error: "Downloader service is temporarily busy. Please try again." });
     }
   });
 
@@ -526,7 +518,7 @@ async function initApp() {
   });
 
   // 3. Storage Upload Proxy (Auto-creates buckets if needed)
-  apiRouter.post("/storage/upload", (req, res, next) => {
+  apiRouter.post("/storage/upload", uploadLimiter, (req, res, next) => {
     upload.single('file')(req, res, (err) => {
       if (err instanceof multer.MulterError) {
         console.error(`[Storage Multer Error] ${err.message}`);
@@ -1042,6 +1034,38 @@ async function initApp() {
       }
 
       res.json({ success: true, updatedCount, totalChannels: channels.length, errors });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  apiRouter.post("/youtube/ingest-channel", async (req, res) => {
+    try {
+      const { channelId, category } = req.body;
+      if (!channelId) return res.status(400).json({ error: "channelId is required" });
+      
+      const adminClient = getSupabaseAdmin();
+      const apiKey = process.env.YOUTUBE_API_KEY || process.env.GEMINI_API_KEY;
+      if (!adminClient || !apiKey) throw new Error("Server not configured correctly");
+
+      const service = new YouTubeIngestionService(adminClient, apiKey);
+      const results = await service.ingestVideosFromChannel(channelId, category || 'General Content');
+      res.json({ success: true, count: results.length, videos: results });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  apiRouter.get("/youtube/content", async (req, res) => {
+    try {
+      const adminClient = getSupabaseAdmin();
+      const apiKey = process.env.YOUTUBE_API_KEY || process.env.GEMINI_API_KEY;
+      if (!adminClient || !apiKey) throw new Error("Server not configured correctly");
+
+      const service = new YouTubeIngestionService(adminClient, apiKey);
+      // UCnYRsis2rkO8401trlHM7aA is @fidetvmedia
+      const videos = await service.getFormattedVideosForChannel('UCnYRsis2rkO8401trlHM7aA');
+      res.json(videos);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

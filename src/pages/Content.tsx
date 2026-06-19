@@ -8,6 +8,8 @@ import ReactPlayer from 'react-player';
 import OptimizedImage from '@/components/OptimizedImage';
 import UniversalPlayer from '@/components/streaming/UniversalPlayer';
 
+import { YouTubeEmbed } from '@/components/YouTubeEmbed';
+
 const Player = ReactPlayer as any;
 
 export default function Content() {
@@ -21,6 +23,13 @@ export default function Content() {
     fetchContent();
   }, []);
 
+  const extractYtId = (url: string) => {
+    if (!url) return '';
+    const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[7].length === 11) ? match[7] : '';
+  };
+
   const formatYtUrl = (val: string) => {
     if (!val) return val;
     // If it's a 11-char ID, make it a URL
@@ -30,49 +39,67 @@ export default function Content() {
 
   const fetchContent = async () => {
     setLoading(true);
-    const { data: eventsData } = await supabase
-      .from('events')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      // Fetch from our new YouTube API endpoint
+      const ytResponse = await fetch('/api/youtube/content');
+      const ytVideos = await ytResponse.json();
+      
+      const { data: portfolioData } = await supabase
+        .from('portfolio_items')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    const { data: portfolioData } = await supabase
-      .from('portfolio_items')
-      .select('*')
-      .order('created_at', { ascending: false });
+      const formattedPortfolio = portfolioData ? portfolioData.map((item) => {
+        const ytId = extractYtId(item.youtube_id);
+        return {
+          id: item.id,
+          title: item.title,
+          category: item.category || 'General Content',
+          image: item.image_url,
+          type: 'video',
+          youtube_id: ytId || item.youtube_id,
+          stream_url: item.video_url,
+          description: item.description
+        };
+      }) : [];
 
-    const formattedEvents = eventsData ? eventsData.map((ev) => {
-      const ytId = extractYtId(ev.youtube_id);
-      return {
-        id: ev.id,
-        title: ev.title,
-        category: 'Live Events',
-        image: ev.thumbnail_url,
-        type: 'video',
-        youtube_id: ytId || ev.youtube_id, // keep original as fallback for URL
-        stream_url: ev.stream_url,
-        description: ev.description
-      };
-    }) : [];
+      // Combine and filter out duplicates (by youtube_id)
+      const allContentMap = new Map();
+      
+      ytVideos.forEach((yt: any) => {
+        allContentMap.set(yt.youtube_id, yt);
+      });
+      
+      formattedPortfolio.forEach(p => {
+        if (!allContentMap.has(p.youtube_id)) {
+          allContentMap.set(p.youtube_id, p);
+        }
+      });
 
-    const formattedPortfolio = portfolioData ? portfolioData.map((item) => {
-      const ytId = extractYtId(item.youtube_id);
-      return {
+      setDbContent(Array.from(allContentMap.values()));
+    } catch (err) {
+      console.error("Error fetching content:", err);
+      // Fallback to DB only
+      const { data: portfolioData } = await supabase
+        .from('portfolio_items')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      setDbContent(portfolioData ? portfolioData.map(item => ({
         id: item.id,
         title: item.title,
         category: item.category || 'General Content',
         image: item.image_url,
         type: 'video',
-        youtube_id: ytId || item.youtube_id,
+        youtube_id: extractYtId(item.youtube_id) || item.youtube_id,
         stream_url: item.video_url,
         description: item.description
-      };
-    }) : [];
-
-    setDbContent([...formattedPortfolio, ...formattedEvents]);
+      })) : []);
+    }
     setLoading(false);
   };
 
-  const categories = ['all', 'Campus Matters', 'Love Affairs', 'Live Events', 'Commercial', 'Corporate', 'Interviews'];
+  const categories = ['all', 'Campus Matters', 'Love Affairs', 'Live Events', 'Commercial', 'Corporate', 'Interviews', 'General Content'];
 
   const filteredContent = dbContent.filter(item => {
     const matchesFilter = filter === 'all' || item.category === filter;
@@ -213,14 +240,12 @@ export default function Content() {
               onClick={e => e.stopPropagation()}
             >
               {playingVideo.youtube_id || playingVideo.stream_url ? (
-                playingVideo.youtube_id && !playingVideo.youtube_id.includes('<iframe') ? (
-                  <UniversalPlayer 
-                    channel={{ url: formatYtUrl(playingVideo.youtube_id), name: playingVideo.title }}
+                playingVideo.youtube_id ? (
+                  <YouTubeEmbed 
+                    videoId={playingVideo.youtube_id}
                     autoPlay={true}
-                    muted={false}
+                    className="w-full h-full"
                   />
-                ) : playingVideo.youtube_id?.includes('<iframe') ? (
-                  <div className="w-full h-full [&>iframe]:w-full [&>iframe]:h-full" dangerouslySetInnerHTML={{ __html: playingVideo.youtube_id }} />
                 ) : (
                   <UniversalPlayer 
                     channel={{ url: playingVideo.stream_url, name: playingVideo.title }}

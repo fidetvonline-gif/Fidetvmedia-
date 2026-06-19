@@ -122,7 +122,13 @@ const HlsPlayer: React.FC<HlsPlayerProps> = ({
       video.src = src;
       const readyHandler = () => {
         onReadyRef.current?.();
-        if (autoPlay) video.play();
+        if (autoPlay) {
+          video.play().catch(err => {
+            if (err.name !== 'AbortError') {
+              console.warn('[HlsPlayer] Native playback error:', err);
+            }
+          });
+        }
       };
       const errorHandler = (e: any) => onErrorRef.current?.(e);
 
