@@ -15,6 +15,7 @@ import rateLimit from "express-rate-limit";
 dotenv.config();
 
 const app = express();
+app.set("trust proxy", 1);
 const PORT = 3000;
 
 // Apply basic rate limiting
@@ -75,28 +76,42 @@ async function initApp() {
   if (ingestService) {
     console.log("[Background] Starting 15-minute automation scheduler...");
     
-    // Import new M3U sources once on startup
-    const newSources = [
-      'https://iptv-org.github.io/iptv/countries/ng.m3u',
-      'https://iptv-org.github.io/iptv/categories/movies.m3u',
-      'https://iptv-org.github.io/iptv/categories/sports.m3u',
-      'https://iptv-org.github.io/iptv/categories/entertainment.m3u',
-      'https://iptv-org.github.io/iptv/index.m3u'
+    // Massive Ingestion: Import from high-quality sources based on user priorities
+    const expansionSources = [
+      // Major International & English
+      { name: 'Global Index', url: 'https://iptv-org.github.io/iptv/index.m3u' },
+      { name: 'English Entertainment', url: 'https://iptv-org.github.io/iptv/languages/eng.m3u' },
+      
+      // High Priority Countries
+      { name: 'Nigeria', url: 'https://iptv-org.github.io/iptv/countries/ng.m3u' },
+      { name: 'India', url: 'https://iptv-org.github.io/iptv/countries/in.m3u' },
+      { name: 'Philippines', url: 'https://iptv-org.github.io/iptv/countries/ph.m3u' },
+      { name: 'USA', url: 'https://iptv-org.github.io/iptv/countries/us.m3u' },
+      { name: 'UK', url: 'https://iptv-org.github.io/iptv/countries/uk.m3u' },
+      
+      // Category Specific
+      { name: 'Movies', url: 'https://iptv-org.github.io/iptv/categories/movies.m3u' },
+      { name: 'News', url: 'https://iptv-org.github.io/iptv/categories/news.m3u' },
+      { name: 'Sports', url: 'https://iptv-org.github.io/iptv/categories/sports.m3u' },
+      { name: 'Kids', url: 'https://iptv-org.github.io/iptv/categories/kids.m3u' },
+      { name: 'Documentary', url: 'https://iptv-org.github.io/iptv/categories/documentary.m3u' },
+      { name: 'Music', url: 'https://iptv-org.github.io/iptv/categories/music.m3u' },
+      { name: 'Religious', url: 'https://iptv-org.github.io/iptv/categories/religious.m3u' }
     ];
     
     setTimeout(async () => {
-        console.log("[Background] Running initial M3U ingestion for new sources...");
-        for (const source of newSources) {
+        console.log("[Background] Starting Massive Database Expansion Cycle...");
+        for (const source of expansionSources) {
             try {
-                await ingestService.importFromM3U(source, { validateAll: true });
+                await ingestService.importFromM3U(source.url, { validateAll: true });
             } catch (e) {
-                console.error(`[Background] Failed to ingest ${source}:`, e);
+                console.error(`[Background] Expansion failed for ${source.name}:`, e);
             }
         }
         
-        console.log("[Background] Running initial automation cycle...");
+        console.log("[Background] Running initial database optimization & health check...");
         lastAutomationReport = await ingestService.runFullAutomation();
-    }, 30000);
+    }, 60000);
 
     // Schedule periodic runs
     setInterval(async () => {
@@ -155,19 +170,19 @@ async function initApp() {
     }
   });
 
-  // Video Downloader search endpoint - Using TMDB for real movie/TV data
+  // Video Downloader search endpoint - Using TMDB for real movie/TV data with enhanced diagnostics
   apiRouter.get("/video-search", async (req, res) => {
     try {
-      console.log(`[FideSave] Search requested: ${req.query.q}`);
       const { q } = req.query;
       if (!q) return res.status(400).json({ error: 'Search query is required' });
 
       const query = (q as string);
-      console.log(`[FideSave] Running TMDB search for: ${query}`);
-      const tmdbKey = process.env.TMDB_API_KEY;
+      console.log(`[FideSave-Search] Query: "${query}"`);
       
-      if (tmdbKey) {
+      const tmdbKey = process.env.TMDB_API_KEY;
+      if (tmdbKey && tmdbKey !== "YOUR_TMDB_API_KEY") {
         try {
+          console.log(`[FideSave-Search] Calling TMDB Multi-Search...`);
           const tmdbRes = await axios.get(`https://api.themoviedb.org/3/search/multi`, {
             params: {
               api_key: tmdbKey,
@@ -176,10 +191,10 @@ async function initApp() {
               page: 1,
               include_adult: false
             },
-            timeout: 8000
+            timeout: 10000
           });
 
-          if (tmdbRes.data && tmdbRes.data.results) {
+          if (tmdbRes.data && tmdbRes.data.results && tmdbRes.data.results.length > 0) {
             const movieResults = tmdbRes.data.results
               .filter((item: any) => item.media_type === 'movie' || item.media_type === 'tv')
               .map((m: any) => {
@@ -195,20 +210,21 @@ async function initApp() {
                   platform: m.media_type === 'movie' ? 'FideCloud HD' : 'Fide TV'
                 };
               });
-            console.log(`[FideSave] TMDB search successful, found ${movieResults.length} items`);
+            console.log(`[FideSave-Search] TMDB Success: Found ${movieResults.length} items`);
             return res.json(movieResults);
           }
+           console.log(`[FideSave-Search] TMDB returned no matches for: "${query}"`);
         } catch (e: any) {
-          console.error("[FideSave-Search] TMDB Critical Error:", e.message);
+          console.error("[FideSave-Search] TMDB API Error:", e.message, e.response?.data || "");
         }
       }
 
-      // Fallback to YTS if TMDB fails or key is missing
+      // Fallback 1: YTS
       try {
-        console.log(`[FideSave-Search] Falling back to YTS for: ${query}`);
+        console.log(`[FideSave-Search] Attempting YTS fallback...`);
         const ytsRes = await axios.get(`https://yts.mx/api/v2/list_movies.json`, {
           params: { query_term: query, limit: 12, sort_by: 'download_count' },
-          timeout: 8000
+          timeout: 10000
         });
 
         if (ytsRes.data && ytsRes.data.data && ytsRes.data.data.movies) {
@@ -221,76 +237,53 @@ async function initApp() {
             duration: `${m.runtime || '120'}m`,
             platform: 'FideCloud HD'
           }));
-          console.log(`[FideSave] YTS search successful, found ${movieResults.length} items`);
+          console.log(`[FideSave-Search] YTS Success: Found ${movieResults.length} items`);
           return res.json(movieResults);
         }
       } catch (e: any) {
-        console.error("[FideSave-Search] YTS Critical Error:", e.message);
+        console.error("[FideSave-Search] YTS API Error:", e.message);
       }
 
-      // Fallback to Gemini if YTS fails or has no results
-      console.log(`[FideSave-Search] Falling back to AI for: ${query}`);
-      const ai = new GoogleGenAI({
-        apiKey: process.env.GEMINI_API_KEY || '',
-        httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
-      });
-
-      const prompt = `Search for movies and TV shows matching the query: "${query}". 
-      Return a JSON array of up to 5 objects. 
-      Each object must have these exact properties:
-      id (string, unique),
-      title (string),
-      year (string),
-      rating (string, e.g. "8.5"),
-      poster (string, a relevant Unsplash movie poster URL or dynamic placeholder),
-      duration (string, e.g. "2h 15m"),
-      platform (string, e.g. "FideCloud", "Premium")
-      
-      Respond ONLY with the JSON array, no markdown markers.`;
-
+      // Fallback 2: Gemini AI
+      console.log(`[FideSave-Search] Attempting AI search fallback...`);
       try {
+        const aiKey = process.env.GEMINI_API_KEY;
+        if (!aiKey) throw new Error("GEMINI_API_KEY missing");
+
+        const ai = new GoogleGenAI({ apiKey: aiKey });
+        const prompt = `Search for movies and TV shows matching query: "${query}". Return JSON array of up to 6 objects with: id, title, year, rating, poster (Unsplash URL), duration, platform. Respond ONLY with JSON.`;
+
         const result = await ai.models.generateContent({
-          model: "gemini-3.5-flash",
-          contents: [{ role: 'user', parts: [{ text: prompt }] }]
+          model: "gemini-1.5-flash",
+          contents: [{ parts: [{ text: prompt }] }]
         });
-        const text = result.text.replace(/```json|```/g, "").trim();
-        const movieResults = JSON.parse(text);
-        return res.json(movieResults);
-      } catch (aiErr) {
-        console.error("[FideSave-Search] AI Critical Error:", aiErr);
-        // Fallback to minimal results if AI fails
-        return res.json([
-          { 
-            id: 'mv_fallback_' + Date.now(), 
-            title: query + ' (Direct Search Result)', 
-            year: '2024', 
-            rating: '7.0', 
-            poster: 'https://images.unsplash.com/photo-1485099667858-394460167664?w=800', 
-            duration: 'Variable', 
-            platform: 'Universal' 
-          }
-        ]);
+
+        const text = result.text.trim().replace(/```json|```/g, "").trim();
+        return res.json(JSON.parse(text));
+      } catch (aiErr: any) {
+        console.error("[FideSave-Search] AI Error:", aiErr.message);
+        return res.json([{ id: 'fb', title: query + ' (Direct Result)', year: '2024', rating: '8.0' }]);
       }
     } catch (err: any) {
-      console.error("[FideSave-Search] General Critical Error:", err);
-      res.status(500).json({ error: 'Search service temporarily unavailable.' });
+      console.error("[FideSave-Search] Final Error:", err);
+      res.status(500).json({ error: 'Search failed' });
     }
   });
 
 
-  apiRouter.post("/video-downloader", async (req, res, next) => {
+  apiRouter.post("/video-downloader", async (req, res) => {
     const { url } = req.body;
-    console.log(`[FideSave] Downloader requested for: ${url}`);
+    console.log(`[FideSave] Universal Downloader requested: ${url}`);
     if (!url) return res.status(400).json({ error: "URL is required" });
 
     try {
+      // 1. YouTube Handler
       if (url.includes('youtube.com') || url.includes('youtu.be')) {
         const ytdlModule = await import('@distube/ytdl-core');
         const ytdl = ytdlModule.default || ytdlModule;
-        if (!ytdl.validateURL(url)) {
-           return res.status(400).json({ error: "Invalid YouTube URL" });
-        }
-        console.log(`[Save] Processing via ytdl-core for: ${url}`);
+        if (!ytdl.validateURL(url)) return res.status(400).json({ error: "Invalid YouTube URL" });
+        
+        console.log(`[FideSave] Processing YouTube via ytdl-core: ${url}`);
         const info = await ytdl.getInfo(url);
         const format = ytdl.chooseFormat(info.formats, { quality: 'highest' });
         
@@ -304,11 +297,83 @@ async function initApp() {
         });
       }
 
-      console.log(`[Save] Processing request for: ${url}`);
-      return res.status(400).json({ error: "Only YouTube URLs are supported by the downloader currently." });
+      // 2. TikTok Handler (Via TikWM Public API)
+      if (url.includes('tiktok.com')) {
+        console.log("[FideSave] Fetching TikTok metadata via TikWM...");
+        try {
+          const tikRes = await axios.get(`https://www.tikwm.com/api/`, {
+            params: { url: url, hd: 1 },
+            timeout: 10000
+          });
+
+          if (tikRes.data && tikRes.data.data) {
+            const d = tikRes.data.data;
+            return res.json({
+              title: d.title || 'TikTok Video',
+              videoUrl: d.play || d.hdplay,
+              audioUrl: d.music || '',
+              thumbnail: d.cover || '',
+              platform: 'TikTok',
+              duration: d.duration ? `${d.duration}s` : 'N/A'
+            });
+          }
+        } catch (tikErr: any) {
+          console.error("[FideSave] TikTok API Error:", tikErr.message);
+        }
+        throw new Error("Unable to fetch data from TikTok. Is the video public?");
+      }
+
+      // 3. Instagram / Facebook / X (Twitter) Handlers
+      if (url.includes('instagram.com') || url.includes('facebook.com') || url.includes('x.com') || url.includes('twitter.com')) {
+        console.log(`[FideSave] Fetching ${url} via Universal Parser...`);
+        
+        try {
+           // Using a reliable public API for multi-platform media extraction
+           // If SnapAny or similar generic tools are down, we'll try a fallback mechanism
+           const mediaRes = await axios.get(`https://api.vppandora.com/api/get_data`, {
+              params: { url: url },
+              timeout: 15000
+           });
+
+           if (mediaRes.data && mediaRes.data.data) {
+              const d = mediaRes.data.data;
+              return res.json({
+                title: d.title || 'Social Media Media',
+                videoUrl: d.video_url || d.media_url || d.url,
+                audioUrl: d.audio_url || d.video_url,
+                thumbnail: d.thumbnail || d.poster || '',
+                platform: url.includes('instagram') ? 'Instagram' : url.includes('facebook') ? 'Facebook' : 'X (Twitter)',
+                duration: 'N/A'
+              });
+           }
+        } catch (e: any) {
+          console.error("[FideSave] Universal Parser Error:", e.message);
+        }
+
+        // Fallback for Instagram specifically using a public direct link extractor
+        if (url.includes('instagram.com')) {
+           try {
+              const igRes = await axios.get(`https://igdownloader.app/api/extract`, { params: { url } }).catch(() => null);
+              if (igRes?.data?.url) {
+                 return res.json({
+                    title: 'Instagram Post',
+                    videoUrl: igRes.data.url,
+                    audioUrl: igRes.data.url,
+                    thumbnail: '',
+                    platform: 'Instagram',
+                    duration: 'N/A'
+                 });
+              }
+           } catch (e) {}
+        }
+        
+        throw new Error(`The link parser for ${url.includes('instagram') ? 'Instagram' : url.includes('facebook') ? 'Facebook' : 'X'} is currently busy. Please try again or ensure the link is public.`);
+      }
+
+      return res.status(400).json({ error: "Unsupported platform. We currently support YouTube, TikTok, Instagram, Facebook, and X." });
     } catch (error: any) {
       console.error("[FideSave] Downloader error:", error.message);
-      res.status(500).json({ error: "Downloader service is temporarily busy. Please try again." });
+      res.status(500).json({ error: error.message || "The downloader service is temporarily unavailable. Please try again later." });
     }
   });
 
@@ -637,6 +702,21 @@ async function initApp() {
       if (metadata.description) metadata.description = metadata.description.replace(/SportyTV/gi, 'FideTv');
       
       res.json(metadata);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  apiRouter.get("/youtube/content", async (req, res) => {
+    try {
+      const adminClient = getSupabaseAdmin();
+      const apiKey = process.env.YOUTUBE_API_KEY || process.env.GEMINI_API_KEY;
+      if (!adminClient || !apiKey) throw new Error("Server not configured correctly");
+
+      const service = new YouTubeIngestionService(adminClient, apiKey);
+      // UCnYRsis2rkO8401trlHM7aA is @fidetvmedia
+      const videos = await service.getFormattedVideosForChannel('UCnYRsis2rkO8401trlHM7aA');
+      res.json(videos);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -1056,20 +1136,6 @@ async function initApp() {
     }
   });
 
-  apiRouter.get("/youtube/content", async (req, res) => {
-    try {
-      const adminClient = getSupabaseAdmin();
-      const apiKey = process.env.YOUTUBE_API_KEY || process.env.GEMINI_API_KEY;
-      if (!adminClient || !apiKey) throw new Error("Server not configured correctly");
-
-      const service = new YouTubeIngestionService(adminClient, apiKey);
-      // UCnYRsis2rkO8401trlHM7aA is @fidetvmedia
-      const videos = await service.getFormattedVideosForChannel('UCnYRsis2rkO8401trlHM7aA');
-      res.json(videos);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
 
   apiRouter.get("/youtube/discovery-report", async (req, res) => {
     try {
@@ -1164,6 +1230,46 @@ async function initApp() {
       res.json(data || []);
     } catch (err: any) {
       console.error('[API discovered channels error]', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  apiRouter.post("/channels/massive-expansion", async (req, res) => {
+    try {
+      const service = getIngestionService();
+      if (!service) return res.status(503).json({ error: "Ingestion service not available" });
+      
+      const expansionSources = [
+        { name: 'Global Index', url: 'https://iptv-org.github.io/iptv/index.m3u' },
+        { name: 'English Entertainment', url: 'https://iptv-org.github.io/iptv/languages/eng.m3u' },
+        { name: 'Nigeria', url: 'https://iptv-org.github.io/iptv/countries/ng.m3u' },
+        { name: 'India', url: 'https://iptv-org.github.io/iptv/countries/in.m3u' },
+        { name: 'Philippines', url: 'https://iptv-org.github.io/iptv/countries/ph.m3u' },
+        { name: 'USA', url: 'https://iptv-org.github.io/iptv/countries/us.m3u' },
+        { name: 'UK', url: 'https://iptv-org.github.io/iptv/countries/uk.m3u' },
+        { name: 'Movies', url: 'https://iptv-org.github.io/iptv/categories/movies.m3u' },
+        { name: 'News', url: 'https://iptv-org.github.io/iptv/categories/news.m3u' },
+        { name: 'Sports', url: 'https://iptv-org.github.io/iptv/categories/sports.m3u' },
+        { name: 'Kids', url: 'https://iptv-org.github.io/iptv/categories/kids.m3u' },
+        { name: 'Documentary', url: 'https://iptv-org.github.io/iptv/categories/documentary.m3u' },
+        { name: 'Music', url: 'https://iptv-org.github.io/iptv/categories/music.m3u' },
+        { name: 'Religious', url: 'https://iptv-org.github.io/iptv/categories/religious.m3u' }
+      ];
+
+      // run in background to avoid timeout
+      (async () => {
+        for (const source of expansionSources) {
+          try {
+            await service.importFromM3U(source.url, { validateAll: true });
+          } catch (e) {
+            console.error(`[Background Expansion] Failed for ${source.name}:`, e);
+          }
+        }
+        await service.runFullAutomation();
+      })();
+
+      res.json({ message: "Massive expansion cycle started in background. Sourcing from 14+ international providers." });
+    } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
   });

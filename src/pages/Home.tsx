@@ -14,7 +14,7 @@ import { DEFAULT_CHANNELS } from '@/constants/channels';
 import UniversalPlayer from '@/components/streaming/UniversalPlayer';
 import LiveEventBanner from '@/components/LiveEventBanner';
 import DisplayInlineAds from '@/components/DisplayInlineAds';
-import { YouTubeEmbed } from '@/components/YouTubeEmbed';
+import { YouTubeVideoPlayer } from '@/components/YouTubeVideoPlayer';
 
 import { ReferralLeaderboard } from '@/components/ReferralLeaderboard';
 
@@ -352,7 +352,7 @@ export default function Home() {
                 <X className="w-5 h-5" />
               </button>
               {playingVideo?.youtube_id ? (
-                <YouTubeEmbed 
+                <YouTubeVideoPlayer 
                   videoId={playingVideo.youtube_id}
                   autoPlay={true}
                   className="w-full h-full"

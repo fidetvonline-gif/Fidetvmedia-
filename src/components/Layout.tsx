@@ -375,7 +375,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         )}
       </AnimatePresence>
 
-      <main className={cn("flex-grow pt-[144px] lg:pt-[144px]", location.pathname === '/live' && "pt-[80px] lg:pt-[80px]")}>
+      <main className={cn("flex-grow pt-[88px] lg:pt-[88px]", location.pathname === '/live' && "pt-[80px] lg:pt-[80px]")}>
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}

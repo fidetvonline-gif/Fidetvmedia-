@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Play, CheckCircle, XCircle, RefreshCcw, Plus, Activity, Zap, Youtube, Clock, History } from 'lucide-react';
+import { Play, CheckCircle, XCircle, RefreshCcw, Plus, Activity, Zap, Youtube, Clock, History, Globe } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface DiscoveredChannel {
@@ -20,6 +20,7 @@ export const ChannelIngestionManager = () => {
   const [checking, setChecking] = useState(false);
   const [discoveryReport, setDiscoveryReport] = useState<any>(null);
   const [triggeringDiscovery, setTriggeringDiscovery] = useState(false);
+  const [triggeringExpansion, setTriggeringExpansion] = useState(false);
 
   useEffect(() => {
     fetchDiscoveredChannels();
@@ -61,6 +62,29 @@ export const ChannelIngestionManager = () => {
       alert('Discovery failed. Check server logs.');
     } finally {
       setTriggeringDiscovery(false);
+    }
+  };
+
+  const triggerExpansion = async () => {
+    if (!confirm('This will trigger a massive background scan of 14+ international M3U sources. It may take several minutes to complete in the background. Continue?')) return;
+    
+    setTriggeringExpansion(true);
+    try {
+      const response = await fetch('/api/channels/massive-expansion', { 
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest' 
+        },
+        credentials: 'include'
+      });
+      const data = await response.json();
+      alert(data.message || 'Massive expansion initiated!');
+    } catch (err) {
+      console.error('Expansion trigger error:', err);
+      alert('Expansion trigger failed.');
+    } finally {
+      setTriggeringExpansion(false);
     }
   };
 
@@ -162,6 +186,15 @@ export const ChannelIngestionManager = () => {
             >
               <Zap className={cn("w-3.5 h-3.5", triggeringDiscovery && "animate-pulse")} />
               Deep Mass Discovery
+            </button>
+            <button
+              onClick={triggerExpansion}
+              disabled={triggeringExpansion}
+              className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-all shadow-lg active:scale-95 disabled:opacity-50"
+              title="Crawl 14+ high-priority international M3U sources"
+            >
+              <Globe className={cn("w-3.5 h-3.5", triggeringExpansion && "animate-pulse")} />
+              Massive Source Extraction
             </button>
           </div>
         </div>

@@ -46,10 +46,10 @@ export default function Fidesave() {
     try {
       const res = await fetch(`/api/video-search?q=${encodeURIComponent(searchQuery)}`);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Search failed');
+      if (!res.ok) throw new Error(data.error || data.details || 'Search failed');
       setSearchResults(data);
     } catch (err: any) {
-      setError('Search failed. Please try again.');
+      setError(err.message || 'Search failed. Please try again later.');
     } finally {
       setLoading(false);
     }

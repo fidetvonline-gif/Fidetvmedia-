@@ -8,7 +8,13 @@ export interface M3UChannel {
   category: string;
   logo: string;
   country: string;
+  language: string;
+  website: string;
+  source: string;
+  stream_type: string;
+  resolution: string;
   tvgId?: string;
+  last_checked?: string;
 }
 
 export class M3UService {
@@ -19,33 +25,43 @@ export class M3UService {
     'NG', 'ZA', 'KE', 'GH', 'US', 'GB', 'CA', 'AU', 'FR', 'DE'
   ];
 
-  private static normalizeCategory(name: string, category: string, country: string): string {
+  private static normalizeCategory(name: string, groupTitle: string, country: string): string {
     const n = name.toLowerCase();
+    const g = groupTitle ? groupTitle.toLowerCase() : '';
+    const combined = `${n} ${g}`;
     
-    if (n.includes('action')) return 'Action';
-    if (n.includes('comedy')) return 'Comedy';
-    if (n.includes('drama')) return 'Drama';
-    if (n.includes('crime')) return 'Crime';
-    if (n.includes('horror')) return 'Horror';
-    if (n.includes('family') || n.includes('kids')) return 'Family';
-    if (n.includes('classic')) return 'Classics';
-    if (n.includes('sci-fi') || n.includes('science')) return 'Sci-Fi';
-    if (n.includes('thriller')) return 'Thriller';
-    if (n.includes('romance')) return 'Romance';
+    if (combined.includes('movie') || combined.includes('cinema') || combined.includes('film')) return 'Movies';
+    if (combined.includes('news')) return 'News';
+    if (combined.includes('sport')) return 'Sports';
+    if (combined.includes('kids') || combined.includes('cartoon') || combined.includes('animation')) return 'Kids';
+    if (combined.includes('music')) return 'Music';
+    if (combined.includes('religious') || combined.includes('christian') || combined.includes('islamic') || combined.includes('catholic') || combined.includes('gospel')) return 'Religious';
+    if (combined.includes('doc')) return 'Documentary';
+    if (combined.includes('lifestyle') || combined.includes('fashion') || combined.includes('travel')) return 'Lifestyle';
+    if (combined.includes('action')) return 'Movies / Action';
+    if (combined.includes('comedy')) return 'Comedy';
+    if (combined.includes('drama')) return 'Drama';
+    if (combined.includes('entertainment')) return 'Entertainment';
     
-    return 'Entertainment'; // Default
+    // Country specific overrides
+    if (country === 'NG') return 'Nigerian';
+    if (country === 'IN' && (combined.includes('movie') || combined.includes('cinema'))) return 'Indian Movies';
+    if (country === 'IN') return 'Indian';
+    if (country === 'PH') return 'Philippines';
+    
+    return 'General'; // Default
   }
 
   /**
    * Fetches an M3U playlist and parses it.
    */
-  static async fetchAndParse(url: string): Promise<M3UChannel[]> {
+  static async fetchAndParse(url: string, sourceName: string = 'External M3U'): Promise<M3UChannel[]> {
     try {
       console.log(`[M3U Service] Fetching playlist from: ${url}`);
       const response = await axios.get(url, { 
-        timeout: 25000,
+        timeout: 30000,
         headers: {
-          'User-Agent': 'FideTV-M3U-Parser/1.1'
+          'User-Agent': 'FideTV-M3U-Parser/1.2'
         }
       });
       
@@ -54,10 +70,6 @@ export class M3UService {
         throw new Error('Received non-string content from M3U source');
       }
 
-      const parser = new Parser();
-      parser.push(content);
-      parser.end();
-      
       const channels: M3UChannel[] = [];
       const lines = content.split('\n');
       let currentInfo: any = null;
@@ -70,48 +82,57 @@ export class M3UService {
           const groupMatch = line.match(/group-title="([^"]*)"/);
           const countryMatch = line.match(/tvg-country="([^"]*)"/);
           const idMatch = line.match(/tvg-id="([^"]*)"/);
+          const languageMatch = line.match(/tvg-language="([^"]*)"/);
 
-          // Robust name extraction: find the first comma NOT inside quotes
+          // Robust name extraction
           let name = '';
-          let inQuotes = false;
-          for (let j = 0; j < line.length; j++) {
-            if (line[j] === '"') inQuotes = !inQuotes;
-            if (line[j] === ',' && !inQuotes) {
-              name = line.substring(j + 1).trim();
-              break;
-            }
+          const commaIndex = line.lastIndexOf(',');
+          if (commaIndex !== -1) {
+            name = line.substring(commaIndex + 1).trim();
           }
 
           if (!name) {
             name = idMatch ? idMatch[1] : 'Unknown Channel';
           }
           
-          const category = groupMatch ? groupMatch[1].trim() : 'General';
+          const groupTitle = groupMatch ? groupMatch[1].trim() : '';
           const country = countryMatch ? countryMatch[1].toUpperCase() : '';
-          const tvgId = idMatch ? idMatch[1] : undefined;
-
+          
           currentInfo = {
             name,
-            category: this.normalizeCategory(name, category, country),
+            category: this.normalizeCategory(name, groupTitle, country),
             logo: logoMatch ? logoMatch[1] : '',
             country,
-            tvgId
+            language: languageMatch ? languageMatch[1] : 'Unknown',
+            website: '',
+            source: sourceName,
+            stream_type: '', // Will be detected
+            resolution: 'Unknown',
+            tvgId: idMatch ? idMatch[1] : undefined,
+            last_checked: new Date().toISOString()
           };
-        } else if ((line.startsWith('http') || line.startsWith('rtmp') || line.startsWith('mmsh')) && currentInfo) {
+        } else if (line.startsWith('http') && currentInfo) {
+          // Detect stream type
+          let st = 'HLS';
+          if (line.includes('.mpd')) st = 'DASH';
+          else if (line.includes('.mp4')) st = 'MP4';
+          else if (line.includes('youtube.com') || line.includes('youtu.be')) st = 'YouTube Live';
+
           channels.push({
             id: Math.random().toString(36).substring(2, 11),
             url: line,
-            ...currentInfo
+            ...currentInfo,
+            stream_type: st
           });
           currentInfo = null;
         }
       }
 
-      console.log(`[M3U Service] Raw ingested: ${channels.length} channels`);
+      console.log(`[M3U Service] Successfully parsed ${channels.length} channels from ${sourceName}`);
       return channels;
     } catch (error: any) {
-      console.error('[M3U Service] Ingestion error:', error.message);
-      throw new Error(`M3U Parsing Failed: ${error.message}`);
+      console.error(`[M3U Service] Ingestion error for ${sourceName}:`, error.message);
+      return [];
     }
   }
 

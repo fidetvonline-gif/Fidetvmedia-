@@ -6,7 +6,7 @@ import ReactPlayer from 'react-player';
 import { Loader2, AlertCircle, RefreshCw, Database } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
-import { YouTubeEmbed } from './../YouTubeEmbed';
+import { YouTubeVideoPlayer } from './../YouTubeVideoPlayer';
 
 const Player = ReactPlayer as any;
 import { motion, AnimatePresence } from 'motion/react';
@@ -218,7 +218,7 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
 
       <div key={retryKey} className="w-full h-full">
         {stream.type === 'youtube' ? (
-          <YouTubeEmbed 
+          <YouTubeVideoPlayer 
             videoId={stream.url} 
             autoPlay={autoPlay} 
             muted={muted}
@@ -237,7 +237,7 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
             onReady={handleReady}
             onError={handleError}
             config={{
-              youtube: { playerVars: { origin: typeof window !== 'undefined' ? window.location.origin : '' } },
+              youtube: { playerVars: {} },
               facebook: { attributes: { crossOrigin: 'anonymous' } }
             } as any}
           />

@@ -8,7 +8,7 @@ import ReactPlayer from 'react-player';
 import OptimizedImage from '@/components/OptimizedImage';
 import UniversalPlayer from '@/components/streaming/UniversalPlayer';
 
-import { YouTubeEmbed } from '@/components/YouTubeEmbed';
+import { YouTubeVideoPlayer } from '@/components/YouTubeVideoPlayer';
 
 const Player = ReactPlayer as any;
 
@@ -18,6 +18,8 @@ export default function Content() {
   const [dbContent, setDbContent] = useState<any[]>([]);
   const [playingVideo, setPlayingVideo] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [lastError, setLastError] = useState<string | null>(null);
+  const [showDebug, setShowDebug] = useState(false);
 
   useEffect(() => {
     fetchContent();
@@ -42,7 +44,12 @@ export default function Content() {
     try {
       // Fetch from our new YouTube API endpoint
       const ytResponse = await fetch('/api/youtube/content');
-      const ytVideos = await ytResponse.json();
+      let ytVideos = await ytResponse.json();
+      
+      if (!Array.isArray(ytVideos)) {
+        console.error("YouTube API returned non-array:", ytVideos);
+        ytVideos = [];
+      }
       
       const { data: portfolioData } = await supabase
         .from('portfolio_items')
@@ -110,8 +117,22 @@ export default function Content() {
 
   return (
     <div className="min-h-screen bg-background pb-40">
+      <style>{`
+        .yt-grid-container {
+          margin-top: 1rem !important;
+          margin-bottom: 2rem !important;
+        }
+        .yt-grid-list {
+          gap: 1.5rem !important;
+        }
+        @media (min-width: 640px) {
+          .yt-grid-list {
+            row-gap: 2rem !important;
+          }
+        }
+      `}</style>
       {/* Search & Filter Header */}
-      <section className="pt-24 pb-12 border-b border-border-custom">
+      <section className="pb-4 border-b border-border-custom px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
             <div className="space-y-4">
@@ -159,7 +180,7 @@ export default function Content() {
       </section>
 
       {/* Grid */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 yt-grid-container">
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
             {[1, 2, 3, 4, 5, 6].map(i => (
@@ -167,7 +188,7 @@ export default function Content() {
             ))}
           </div>
         ) : filteredContent.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 sm:gap-x-12 sm:gap-y-24">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-x-6 sm:gap-y-8 yt-grid-list">
             <AnimatePresence mode="popLayout">
               {filteredContent.map((item) => (
                 <motion.div
@@ -178,7 +199,7 @@ export default function Content() {
                   exit={{ opacity: 0, scale: 0.9 }}
                   className="group"
                 >
-                  <div className="relative aspect-[4/5] rounded-[3rem] overflow-hidden bg-surface mb-8 border border-border-custom shadow-lg">
+                  <div className="relative aspect-[4/5] rounded-[3rem] overflow-hidden bg-surface mb-4 border border-border-custom shadow-lg">
                     <OptimizedImage 
                       src={item.image} 
                       alt={item.title} 
@@ -241,10 +262,14 @@ export default function Content() {
             >
               {playingVideo.youtube_id || playingVideo.stream_url ? (
                 playingVideo.youtube_id ? (
-                  <YouTubeEmbed 
+                  <YouTubeVideoPlayer 
                     videoId={playingVideo.youtube_id}
                     autoPlay={true}
                     className="w-full h-full"
+                    onError={(msg) => {
+                      setLastError(msg);
+                      console.log("[Content Debug] Captured Error:", msg);
+                    }}
                   />
                 ) : (
                   <UniversalPlayer 
@@ -268,6 +293,62 @@ export default function Content() {
                   className="w-14 h-14 bg-white hover:bg-primary text-black hover:text-white rounded-full flex items-center justify-center transition-all shadow-2xl pointer-events-auto scale-110 active:scale-95"
                 >
                   <Play className="w-6 h-6 rotate-45" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Debug Info Overlay */}
+      <AnimatePresence>
+        {lastError && (
+          <motion.div
+            initial={{ opacity: 0, y: 100 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 100 }}
+            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[3000] max-w-sm w-full"
+          >
+            <div className="bg-surface/95 backdrop-blur-xl border border-primary/20 rounded-3xl p-6 shadow-2xl flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Debug Interface</span>
+                </div>
+                <button 
+                  onClick={() => setLastError(null)}
+                  className="text-foreground/40 hover:text-foreground p-1 transition-colors"
+                >
+                  <Play className="w-4 h-4 rotate-45" />
+                </button>
+              </div>
+              
+              <div className="space-y-1">
+                <p className="text-[10px] text-foreground/40 font-black uppercase tracking-widest">Last Playback Failure</p>
+                <div className="bg-black/40 rounded-xl p-3 border border-white/5">
+                  <code className="text-primary-bright font-mono text-[11px] leading-relaxed break-words">
+                    {lastError}
+                  </code>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => {
+                    const videoId = playingVideo?.youtube_id;
+                    if (videoId) {
+                      window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
+                    }
+                  }}
+                  className="flex-grow py-2 bg-surface-bright rounded-lg text-[9px] font-black uppercase tracking-widest text-foreground/60 hover:text-foreground transition-colors border border-border-custom"
+                >
+                  Verify Source
+                </button>
+                <button 
+                  onClick={() => setLastError(null)}
+                  className="flex-grow py-2 bg-primary rounded-lg text-[9px] font-black uppercase tracking-widest text-white transition-colors shadow-lg shadow-primary/20"
+                >
+                  Dismiss
                 </button>
               </div>
             </div>

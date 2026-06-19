@@ -35,7 +35,12 @@ async function cleanup() {
       url: ch.url,
       category: ch.category || '',
       logo: ch.thumbnail || '',
-      country: '' // We don't have country in DB record directly often, maybe from description
+      country: '',
+      language: '',
+      website: '',
+      source: 'Database',
+      stream_type: 'HLS',
+      resolution: 'Auto'
     };
 
     // Try to extract country if we stored it in the description
