@@ -61,7 +61,8 @@ export class ChannelIngestionService {
             category: ch.category || 'General',
             thumbnail: ch.logo,
             epg_id: ch.tvgId,
-            is_active: true
+            is_active: true,
+            status: 'online'
           }).eq('id', existingChannel.id);
           continue;
         }
@@ -82,7 +83,8 @@ export class ChannelIngestionService {
           thumbnail: ch.logo,
           epg_id: ch.tvgId,
           description: `Imported from ${url} (Country: ${ch.country})`,
-          is_active: true
+          is_active: true,
+          status: 'online'
         });
 
         // Add to sets to avoid duplicates WITHIN the same batch

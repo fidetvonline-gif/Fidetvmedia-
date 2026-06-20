@@ -51,19 +51,18 @@ export default function Live() {
           setIsAdmin(true);
         }
 
-        // Fast fetch for first 200 channels to unlock interaction instantly
+        // Fast fetch for first batch to unlock interaction instantly
         const fetchInitialBatch = async () => {
           let { data, error } = await supabase
             .from('tv_channels')
             .select('*')
             .eq('is_active', true)
-            .eq('status', 'online')
             .order('order_index')
             .range(0, 199);
           
-          // CRITICAL FALLBACK: If RLS returns 0 rows, try the Server Bridge
-          if (!error && (!data || data.length === 0)) {
-            console.warn('[Live] Supabase RLS likely blocking access. Attempting Signal Bridge fallback...');
+          // CRITICAL FALLBACK: If RLS returns 0 rows or error, try the Server Bridge
+          if (error || !data || data.length === 0) {
+            console.warn('[Live] Supabase access restricted or empty. Attempting Signal Bridge fallback...');
             try {
               const fallbackRes = await fetch('/api/channels');
               if (fallbackRes.ok) {

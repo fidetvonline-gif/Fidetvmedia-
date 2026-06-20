@@ -101,7 +101,7 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
       return;
     }
     
-    const msg = 'Failed to load stream. This might be due to geographical restrictions or server timeout.';
+    const msg = typeof e === 'string' ? e : (e?.message || 'Signal acquisition failed. This might be due to geographical restrictions or temporary downtime.');
     setError(msg);
     setLoading(false);
     
@@ -109,7 +109,7 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
     
     // Auto-notify parent if it fails
     if (onError) {
-      setTimeout(() => onError(msg), 3000);
+      onError(msg);
     }
   }, [stream, failCount, onError]);
 

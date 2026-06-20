@@ -297,6 +297,40 @@ async function initApp() {
         });
       }
 
+      // 1.5. M3U Playlist Handler
+      if (url.endsWith('.m3u') || url.endsWith('.m3u8')) {
+        console.log(`[FideSave] Parsing M3U playlist: ${url}`);
+        return res.json({
+            title: 'M3U Playlist',
+            videoUrl: url,
+            audioUrl: '',
+            thumbnail: '',
+            platform: 'M3U',
+            duration: 'N/A',
+            type: 'playlist'
+        });
+      }
+
+      // 1.6. Direct Media Handler
+      try {
+          const headRes = await axios.head(url, { timeout: 5000 });
+          const contentType = headRes.headers['content-type'] || '';
+          if (contentType.startsWith('video/') || contentType.startsWith('audio/')) {
+              console.log(`[FideSave] Direct media file detected: ${url}`);
+              return res.json({
+                title: 'Direct Media File',
+                videoUrl: url,
+                audioUrl: '',
+                thumbnail: '',
+                platform: 'Direct',
+                duration: 'N/A',
+                type: 'direct'
+              });
+          }
+      } catch (e) {
+          console.log(`[FideSave] Direct URL check failed, skipping: ${url}`);
+      }
+
       // 2. TikTok Handler (Via TikWM Public API)
       if (url.includes('tiktok.com')) {
         console.log("[FideSave] Fetching TikTok metadata via TikWM...");
@@ -879,23 +913,26 @@ async function initApp() {
       const isManifest = contentType.includes('mpegurl') || 
                         contentType.includes('mpeg-url') ||
                         contentType.includes('apple-mpegurl') ||
+                        contentType.includes('video/mp2t') || // Sometimes mistakenly used for manifests
                         finalUrl.split('?')[0].toLowerCase().endsWith('.m3u8') ||
                         finalUrl.split('?')[0].toLowerCase().endsWith('.m3u');
 
       res.setHeader('X-Proxy-Source', 'AI-Studio-Stream-Bridge');
       res.setHeader('Content-Type', contentType);
 
-      if (isManifest) {
+      // We should check the actual content for M3U structure if it's a text-like format
+      const isTextLike = contentType.includes('text/') || contentType.includes('json') || contentType.includes('application/octet-stream') || isManifest;
+
+      if (isTextLike) {
         const chunks: Buffer[] = [];
         let totalSize = 0;
-        const MAX_MANIFEST_SIZE = 2 * 1024 * 1024; // 2MB limit for manifest buffering
+        const MAX_MANIFEST_SIZE = 4 * 1024 * 1024; // 4MB limit for manifest buffering
         
         const timeout = setTimeout(() => {
           if (!res.headersSent) {
              console.error(`[Proxy] Critical timeout buffering manifest for ${streamUrl}`);
-             // If we timeout, we send a retry-after hint
              res.setHeader('Retry-After', '5');
-             res.status(504).send("Gateway Timeout: The signal provider is currently slow. Please try again in a few seconds.");
+             res.status(504).send("Signal provider timeout");
              response.data.destroy();
           }
         }, 28000);
@@ -903,9 +940,14 @@ async function initApp() {
         response.data.on('data', (chunk: any) => {
           totalSize += chunk.length;
           if (totalSize > MAX_MANIFEST_SIZE) {
-            console.warn(`[Proxy] Manifest too large, aborting buffering: ${streamUrl}`);
-            response.data.destroy();
-            if (!res.headersSent) res.status(502).send("Manifest too large");
+            console.warn(`[Proxy] Manifest too large, switching to pass-through: ${streamUrl}`);
+            // If it's too big, it's likely a stream segment, not a manifest
+            if (!res.headersSent) {
+               res.status(response.status);
+               // Send the buffered chunks first
+               res.write(Buffer.concat(chunks));
+               response.data.pipe(res);
+            }
             return;
           }
           chunks.push(Buffer.from(chunk));
@@ -914,22 +956,23 @@ async function initApp() {
         response.data.on('error', (err: any) => {
           clearTimeout(timeout);
           console.error(`[Proxy Stream Error] ${err.message} for ${streamUrl}`);
-          if (!res.headersSent) res.status(502).send(`Stream integration error: ${err.message}`);
+          if (!res.headersSent) res.status(502).send(`Switchboard error: ${err.message}`);
         });
 
         response.data.on('end', () => {
           clearTimeout(timeout);
           if (res.headersSent) return;
 
-          const content = Buffer.concat(chunks).toString('utf8');
+          const buffer = Buffer.concat(chunks);
+          const content = buffer.toString('utf8');
           
           if (!content.trim().startsWith('#EXTM3U')) {
-            console.log(`[Proxy] Manifest fetched but doesn't start with #EXTM3U: ${streamUrl}`);
-            // If it's not a manifest, just send it 
+            // Not a manifest, just send as-is
             res.setHeader('Content-Type', contentType || 'application/octet-stream');
-            return res.send(content);
+            return res.send(buffer);
           }
 
+          console.log(`[Proxy] Rewriting Manifest: ${finalUrl}`);
           const appHostUrl = `${req.protocol}://${req.get('host')}`;
           const lines = content.split('\n');
           const rewrittenLines = lines.map(line => {
@@ -938,11 +981,16 @@ async function initApp() {
             
             // Rewrite Master Playlist or Alternative Media URIs (ATTR=uri)
             if (trimmed.startsWith('#')) {
+              // EXT-X-KEY:METHOD=AES-128,URI="...",IV=...
+              // EXT-X-MAP:URI="..."
+              // EXT-X-MEDIA:TYPE=AUDIO,URI="..."
               if (trimmed.includes('URI=')) {
-                return line.replace(/URI="([^"]*)"/g, (match, p1) => {
+                return line.replace(/URI="?([^",\s]*)"?/g, (match, p1) => {
                   try {
                     const abs = p1.startsWith('http') ? p1 : new URL(p1, finalBaseUrl).href;
-                    return `URI="${appHostUrl}/api/proxy-stream?url=${encodeURIComponent(abs)}&referer=${encodeURIComponent(effectiveReferer)}"`;
+                    const proxiedUrl = `${appHostUrl}/api/proxy-stream?url=${encodeURIComponent(abs)}&referer=${encodeURIComponent(effectiveReferer)}`;
+                    // Keep quotes if original had them or if URL has special chars
+                    return match.startsWith('URI="') ? `URI="${proxiedUrl}"` : `URI=${proxiedUrl}`;
                   } catch (e) { return match; }
                 });
               }
@@ -951,6 +999,9 @@ async function initApp() {
             
             // Rewrite segment/variant playlist URLs (Lines that are just URLs)
             try {
+              // Skip external/absolute URLs that are already proxied or shouldn't be
+              if (trimmed.includes('/api/proxy-stream')) return line;
+              
               const absoluteUrl = trimmed.startsWith('http') ? trimmed : new URL(trimmed, finalBaseUrl).href;
               return `${appHostUrl}/api/proxy-stream?url=${encodeURIComponent(absoluteUrl)}&referer=${encodeURIComponent(effectiveReferer)}`;
             } catch (e) { return line; }
@@ -1402,7 +1453,8 @@ async function initApp() {
       const { data, error } = await admin.from('tv_channels')
         .select('*')
         .eq('is_active', true)
-        .order('order_index');
+        .order('order_index')
+        .limit(1000);
       
       if (error) throw error;
       res.json(data || []);

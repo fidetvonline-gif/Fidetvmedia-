@@ -71,18 +71,28 @@ const HlsPlayer: React.FC<HlsPlayerProps> = ({
 
       let networkErrorCount = 0;
       let mediaErrorCount = 0;
+      let manifestErrorCount = 0;
 
       hls.on(Hls.Events.ERROR, (event, data) => {
         if (data.fatal) {
           console.error(`[HlsPlayer] FATAL ERROR: ${data.details}`, data);
           
-          // Specific handling for manifest parsing errors (likely invalid content from proxy)
-          if (data.details === Hls.ErrorDetails.MANIFEST_PARSING_ERROR || 
-              data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
-              data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT ||
-              data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR) {
-             console.error(`[HlsPlayer] Critical manifest failure (${data.details}). Channel likely offline or blocked.`);
-             onErrorRef.current?.(`Broadcast data is unparseable or channel is offline. (${data.details})`);
+          // Specific handling for manifest loading errors
+          if (data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
+              data.details === Hls.ErrorDetails.MANIFEST_PARSING_ERROR ||
+              data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT) {
+            
+            manifestErrorCount++;
+            if (manifestErrorCount <= 2) {
+              console.log(`[HlsPlayer] Manifest error (${data.details}), retrying (${manifestErrorCount}/2)...`);
+              setTimeout(() => {
+                hls.loadSource(src);
+              }, 2000);
+              return;
+            }
+
+             console.error(`[HlsPlayer] Critical manifest failure (${data.details}). Signal may be offline or protected.`);
+             onErrorRef.current?.(`Broadcast data unparseable or signal offline. (${data.details})`);
              hls.destroy();
              return;
           }
@@ -90,31 +100,36 @@ const HlsPlayer: React.FC<HlsPlayerProps> = ({
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
               networkErrorCount++;
-              if (networkErrorCount <= 1) {
-                console.log('[HlsPlayer] Fatal network error, trying to recover once...');
+              if (networkErrorCount <= 3) {
+                console.log(`[HlsPlayer] Fatal network error (${data.details}), retrying (${networkErrorCount}/3)...`);
                 hls.startLoad();
               } else {
                 console.error('[HlsPlayer] Network error recovery exhausted.');
-                onErrorRef.current?.(data);
+                onErrorRef.current?.(`Signal network failure: ${data.details}`);
                 hls.destroy();
               }
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
               mediaErrorCount++;
-              if (mediaErrorCount <= 1) {
-                console.log('[HlsPlayer] Fatal media error, trying to recover once...');
+              if (mediaErrorCount <= 2) {
+                console.log(`[HlsPlayer] Fatal media error (${data.details}), attempting recovery (${mediaErrorCount}/2)...`);
                 hls.recoverMediaError();
               } else {
                 console.error('[HlsPlayer] Media error recovery exhausted.');
-                onErrorRef.current?.(data);
+                onErrorRef.current?.(`Signal decode failure: ${data.details}`);
                 hls.destroy();
               }
               break;
             default:
-              console.error('[HlsPlayer] Unrecoverable fatal error.');
-              onErrorRef.current?.(data);
+              console.error(`[HlsPlayer] Unrecoverable fatal error: ${data.details}`);
+              onErrorRef.current?.(`Unrecoverable signal error: ${data.details}`);
               hls.destroy();
               break;
+          }
+        } else {
+          // Non-fatal errors
+          if (data.details === Hls.ErrorDetails.LEVEL_LOAD_ERROR || data.details === Hls.ErrorDetails.FRAG_LOAD_ERROR) {
+            console.warn(`[HlsPlayer] Non-fatal load error: ${data.details}`);
           }
         }
       });
