@@ -191,10 +191,40 @@ export default function Admin() {
   const [playlistIdInput, setPlaylistIdInput] = useState('PL-6S90yUuZeKxMmO4C63nxIHWSjQtIi2d');
 
   useEffect(() => {
-    checkAdmin();
-    fetchData();
-    fetchCertificates();
+    const init = async () => {
+      try {
+        await checkAdmin();
+        await fetchData();
+        await fetchCertificates();
+      } catch (err) {
+        console.error("[Admin] Initialization failed:", err);
+      }
+    };
+    init();
   }, [activeTab]);
+
+  const GlobalTableErrors = () => {
+    const errorKeys = Object.keys(dbErrors);
+    if (errorKeys.length === 0) return null;
+    return (
+      <div className="mb-8 p-6 bg-red-500/10 border border-red-500/20 rounded-3xl animate-pulse">
+        <div className="flex items-center gap-3 text-red-500 mb-2">
+          <ShieldAlert className="w-5 h-5" />
+          <h3 className="font-display font-black uppercase text-sm tracking-widest">Database Infrastructure Warning</h3>
+        </div>
+        <p className="text-[10px] text-foreground/60 italic mb-4">
+          Some specialized features are offline because their database tables are missing. Admin functions may be restricted.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {errorKeys.map(k => (
+            <span key={k} className="px-3 py-1 bg-red-500/20 text-red-500 text-[9px] font-mono rounded-full border border-red-500/20">
+              {k}: {dbErrors[k]}
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -266,44 +296,53 @@ export default function Admin() {
 
   const fetchData = async () => {
     setLoading(true);
-    if (activeTab === 'overview') {
-      await Promise.all([
-        fetchEvents(),
-        fetchNews(),
-        fetchCommunities(),
-        fetchProfiles(),
-        fetchBookings(),
-        fetchSupportChats(),
-        fetchCommunityStats(),
-        fetchPortfolio(),
-        fetchChannels(),
-        fetchStableChannels(),
-        fetchDiscoveredChannels(),
-        fetchServices(),
-        fetchSiteSettings(),
-        fetchAdUnits(),
-        fetchVisits(),
-        fetchVisitTrends()
-      ]);
+    try {
+      if (activeTab === 'overview') {
+        const promises = [
+          fetchEvents(),
+          fetchNews(),
+          fetchCommunities(),
+          fetchProfiles(),
+          fetchBookings(),
+          fetchSupportChats(),
+          fetchCommunityStats(),
+          fetchPortfolio(),
+          fetchChannels(),
+          fetchStableChannels(),
+          fetchDiscoveredChannels(),
+          fetchServices(),
+          fetchSiteSettings(),
+          fetchAdUnits(),
+          fetchVisits(),
+          fetchVisitTrends()
+        ];
+        
+        // Use allSettled to ensure one table failing doesn't break the entire dashboard
+        await Promise.allSettled(promises);
+      } else {
+        if (activeTab === 'events') await fetchEvents();
+        if (activeTab === 'news') await fetchNews();
+        if (activeTab === 'communities') await fetchCommunities();
+        if (activeTab === 'bookings') await fetchBookings();
+        if (activeTab === 'partnerships') {
+          await Promise.allSettled([fetchBookings(), fetchProfiles()]);
+        }
+        if (activeTab === 'users') await fetchProfiles();
+        if (activeTab === 'support') await fetchSupportChats();
+        if (activeTab === 'portfolio') await fetchPortfolio();
+        if (activeTab === 'channels') {
+          await Promise.allSettled([fetchChannels(), fetchStableChannels()]);
+        }
+        if (activeTab === 'ingestion') await fetchDiscoveredChannels();
+        if (activeTab === 'services') await fetchServices();
+        if (activeTab === 'site') await fetchSiteSettings();
+        if (activeTab === 'ads') await fetchAdUnits();
+      }
+    } catch (err) {
+      console.error("[Admin] Critical failure in fetchData:", err);
+    } finally {
+      setLoading(false);
     }
-    if (activeTab === 'events') await fetchEvents();
-    if (activeTab === 'news') await fetchNews();
-    if (activeTab === 'communities') await fetchCommunities();
-    if (activeTab === 'bookings') await fetchBookings();
-    if (activeTab === 'partnerships') {
-      await Promise.all([fetchBookings(), fetchProfiles()]);
-    }
-    if (activeTab === 'users') await fetchProfiles();
-    if (activeTab === 'support') await fetchSupportChats();
-    if (activeTab === 'portfolio') await fetchPortfolio();
-    if (activeTab === 'channels') {
-      await Promise.all([fetchChannels(), fetchStableChannels()]);
-    }
-    if (activeTab === 'ingestion') await fetchDiscoveredChannels();
-    if (activeTab === 'services') await fetchServices();
-    if (activeTab === 'site') await fetchSiteSettings();
-    if (activeTab === 'ads') await fetchAdUnits();
-    setLoading(false);
   };
 
   const fetchAdUnits = async () => {
@@ -1404,6 +1443,7 @@ export default function Admin() {
 
        {/* Content Rendering */}
        <div className="space-y-12">
+          <GlobalTableErrors />
           {activeTab !== 'overview' && <AdBanner placement="Admin Dashboard Top" className="mb-4" />}
           {activeTab === 'site' && (
             <div className="space-y-12">
@@ -1436,8 +1476,9 @@ CREATE POLICY "Admin view visits" ON public.site_visits FOR SELECT USING (auth.j
 DROP POLICY IF EXISTS "Only admin can manage news" ON public.news;
 DROP POLICY IF EXISTS "Admin and Bloggers can manage news" ON public.news;
 
--- Add role column to profiles if it doesn't exist
+-- Add role and status columns to profiles if they don't exist
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
 
 -- Create dynamic access policy allowing bloggers to manage news
 CREATE POLICY "Admin and Bloggers can manage news" ON public.news FOR ALL USING (

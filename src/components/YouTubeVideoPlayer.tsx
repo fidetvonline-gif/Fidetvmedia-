@@ -1,10 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import ReactPlayer from 'react-player';
-import { AlertCircle, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { motion, AnimatePresence } from 'motion/react';
-
-const Player = ReactPlayer as any;
 
 interface YouTubeVideoPlayerProps {
   videoId: string; // can be id, full url, or iframe string
@@ -23,7 +18,13 @@ export const YouTubeVideoPlayer: React.FC<YouTubeVideoPlayerProps> = ({
   onError, 
   className 
 }) => {
-  const [error, setError] = useState<string | null>(null);
+  const [origin, setOrigin] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setOrigin(window.location.origin);
+    }
+  }, []);
 
   const getEmbedId = (idOrUrl: string) => {
     if (!idOrUrl) return '';
@@ -42,16 +43,31 @@ export const YouTubeVideoPlayer: React.FC<YouTubeVideoPlayerProps> = ({
   
   if (!finalId) return <div className={cn("flex items-center justify-center w-full aspect-video bg-black rounded-xl text-white", className)}>Invalid Video</div>;
 
+  // Use standard youtube.com for best compatibility and bypass complexity that causes Error 153
+  const getEmbedUrl = () => {
+    const params = new URLSearchParams();
+    params.set('rel', '0');
+    params.set('modestbranding', '1');
+    if (autoPlay) params.set('autoplay', '1');
+    if (muted) params.set('mute', '1');
+    
+    // We explicitly OMIT enablejsapi and origin to avoid the most common causes of Error 153 
+    // when hosted in nested iframes (like AI Studio preview).
+    return `https://www.youtube-nocookie.com/embed/${finalId}?${params.toString()}`;
+  };
+
   return (
-    <div className={cn("relative w-full aspect-video bg-black rounded-xl overflow-hidden", className)}>
+    <div className={cn("relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl", className)}>
         <iframe 
             width="100%" 
             height="100%" 
-            src={`https://www.youtube-nocookie.com/embed/${finalId}?rel=0&modestbranding=1${autoPlay ? '&autoplay=1' : ''}`}
+            src={getEmbedUrl()}
             frameBorder="0" 
             allowFullScreen 
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            referrerPolicy="no-referrer-when-downgrade"
             title="YouTube video player"
+            className="w-full h-full"
         ></iframe>
     </div>
   );

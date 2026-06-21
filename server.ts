@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import cors from "cors";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import axios from "axios";
@@ -15,6 +16,7 @@ import rateLimit from "express-rate-limit";
 dotenv.config();
 
 const app = express();
+app.use(cors());
 app.set("trust proxy", 1);
 const PORT = 3000;
 
@@ -34,6 +36,19 @@ const uploadLimiter = rateLimit({
 });
 
 app.use("/api/", apiLimiter);
+
+// Global Security Headers Middleware
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  // Allow the app to be embedded in iframes for the AI Studio preview
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  
+  // Content Security Policy: Allow YouTube, Google Fonts, and internal assets
+  // Added frame-ancestors 'self' https://ai.studio https://*.google.com to allow embedding in preview
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.youtube.com https://s.ytimg.com https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://js.stripe.com; connect-src 'self' https://*.supabase.co https://*.googleapis.com wss://*.supabase.co; frame-ancestors 'self' https://*.google.com https://ai.studio;");
+  next();
+});
 
 const apiRouter = express.Router();
 
@@ -170,290 +185,381 @@ async function initApp() {
     }
   });
 
+  // Unified middleware to validate access permissions, ensuring users and admins have equal access based on 'profiles' table
+  const validateLinkAccess = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: "Missing authorization header. Please log in." });
+    }
+    
+    const token = authHeader.split(" ")[1];
+    if (!token) return res.status(401).json({ error: "Invalid authorization header format." });
+
+    const adminClient = getSupabaseAdmin();
+    if (!adminClient) return res.status(500).json({ error: "Database configuration error." });
+
+    try {
+      const { data: { user }, error: authError } = await adminClient.auth.getUser(token);
+      if (authError || !user) throw new Error(authError?.message || "Invalid session.");
+
+      const { data: profile, error: profileError } = await adminClient
+         .from('profiles')
+         .select('id, role, status')
+         .eq('id', user.id)
+         .maybeSingle();
+      
+      // Relaxed Profile Check: Only check status if profile exists. 
+      // This helps new users who might not have a profile record yet despite having an auth session.
+      if (profile && (profile.status === 'suspended' || profile.status === 'blocked')) {
+         throw new Error("Your account is currently restricted from accessing this feature.");
+      }
+
+      // attach profile or null
+      (req as any).userProfile = profile || { id: user.id, role: 'user' };
+      next();
+    } catch (e: any) {
+      console.error("[AuthMiddleware] Error:", e.message);
+      return res.status(403).json({ error: "Access restricted: " + e.message });
+    }
+  };
+
   // Video Downloader search endpoint - Using TMDB for real movie/TV data with enhanced diagnostics
-  apiRouter.get("/video-search", async (req, res) => {
+  apiRouter.get("/video-search", validateLinkAccess, async (req, res) => {
     try {
       const { q } = req.query;
       if (!q) return res.status(400).json({ error: 'Search query is required' });
 
       const query = (q as string);
-      console.log(`[FideSave-Search] Query: "${query}"`);
+      console.log(`[Universal-Search] Query: "${query}"`);
       
+      const allResults: any[] = [];
+
+    try {
+      const ruhendModule = await import("ruhend-scraper");
+      const ruhend = (ruhendModule as any).default || ruhendModule;
+      
+      const ytSearchMethod = (ruhend as any).ytsearch || ((ruhend as any).search && (ruhend as any).search.youtube);
+      if (ytSearchMethod) {
+        console.log(`[Search] Querying YouTube for: ${query}`);
+        const ytResults = await ytSearchMethod(query + " movie");
+        
+        if (ytResults && Array.isArray(ytResults)) {
+          console.log(`[Search] YouTube found ${ytResults.length} items`);
+          ytResults.slice(0, 12).forEach((v: any) => {
+            const vid = typeof v.id === 'object' ? (v.id.videoId || v.id.id) : (v.id || v.videoId);
+            if (vid && v.title) {
+                allResults.push({
+                  id: `yt_${vid}`,
+                  title: v.title,
+                  year: v.publishedTime || v.ago || 'New',
+                  rating: '4.8',
+                  poster: v.thumbnail || v.image || (v.thumbnails && v.thumbnails[0]?.url) || 'https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?w=800',
+                  duration: v.duration || v.timestamp || 'N/A',
+                  platform: 'YouTube',
+                  link: v.url || `https://www.youtube.com/watch?v=${vid}`
+                });
+            }
+          });
+        } else {
+            console.warn("[Search] YouTube search returned non-array result:", typeof ytResults);
+        }
+      }
+    } catch (e: any) {
+      console.error("[Search] YouTube Hub Critical Failure:", e.message);
+    }
+
+      // 2. TMDB Search (Metadata for movies)
       const tmdbKey = process.env.TMDB_API_KEY;
       if (tmdbKey && tmdbKey !== "YOUR_TMDB_API_KEY") {
         try {
-          console.log(`[FideSave-Search] Calling TMDB Multi-Search...`);
-          const tmdbRes = await axios.get(`https://api.themoviedb.org/3/search/multi`, {
-            params: {
-              api_key: tmdbKey,
-              query: query,
-              language: 'en-US',
-              page: 1,
-              include_adult: false
-            },
-            timeout: 10000
+          const tmdbRes = await axios.get(`https://api.themoviedb.org/3/search/movie`, {
+            params: { api_key: tmdbKey, query },
+            timeout: 5000
           });
-
-          if (tmdbRes.data && tmdbRes.data.results && tmdbRes.data.results.length > 0) {
-            const movieResults = tmdbRes.data.results
-              .filter((item: any) => item.media_type === 'movie' || item.media_type === 'tv')
-              .map((m: any) => {
-                const title = m.title || m.name;
-                const releaseYear = (m.release_date || m.first_air_date || '').split('-')[0];
-                return {
+          if (tmdbRes.data?.results) {
+            tmdbRes.data.results.slice(0, 6).forEach((m: any) => {
+              if (!allResults.find(r => r.title.toLowerCase() === (m.title||'').toLowerCase())) {
+                allResults.push({
                   id: `tmdb_${m.id}`,
-                  title: title,
-                  year: releaseYear,
-                  rating: m.vote_average ? m.vote_average.toFixed(1) : 'N/A',
+                  title: m.title,
+                  year: (m.release_date || '').split('-')[0],
+                  rating: m.vote_average?.toFixed(1) || 'N/A',
                   poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : 'https://images.unsplash.com/photo-1485099667858-394460167664?w=800',
-                  duration: m.media_type === 'movie' ? 'Movie' : 'TV Series',
-                  platform: m.media_type === 'movie' ? 'FideCloud HD' : 'Fide TV'
-                };
-              });
-            console.log(`[FideSave-Search] TMDB Success: Found ${movieResults.length} items`);
-            return res.json(movieResults);
+                  duration: 'Movie',
+                  platform: 'FideCloud',
+                  link: `https://www.themoviedb.org/movie/${m.id}`
+                });
+              }
+            });
           }
-           console.log(`[FideSave-Search] TMDB returned no matches for: "${query}"`);
-        } catch (e: any) {
-          console.error("[FideSave-Search] TMDB API Error:", e.message, e.response?.data || "");
-        }
+        } catch (e: any) {}
       }
 
-      // Fallback 1: YTS
+      // 3. YTS Fallback
       try {
-        console.log(`[FideSave-Search] Attempting YTS fallback...`);
         const ytsRes = await axios.get(`https://yts.mx/api/v2/list_movies.json`, {
-          params: { query_term: query, limit: 12, sort_by: 'download_count' },
-          timeout: 10000
+          params: { query_term: query, limit: 6 },
+          timeout: 5000
         });
-
-        if (ytsRes.data && ytsRes.data.data && ytsRes.data.data.movies) {
-          const movieResults = ytsRes.data.data.movies.map((m: any) => ({
-            id: `yts_${m.id}`,
-            title: m.title_long || m.title,
-            year: m.year?.toString(),
-            rating: m.rating?.toString(),
-            poster: m.large_cover_image || m.medium_cover_image,
-            duration: `${m.runtime || '120'}m`,
-            platform: 'FideCloud HD'
-          }));
-          console.log(`[FideSave-Search] YTS Success: Found ${movieResults.length} items`);
-          return res.json(movieResults);
+        if (ytsRes.data?.data?.movies) {
+          ytsRes.data.data.movies.forEach((m: any) => {
+            if (!allResults.find(r => r.title.toLowerCase() === m.title.toLowerCase())) {
+              allResults.push({
+                id: `yts_${m.id}`,
+                title: m.title_long || m.title,
+                year: m.year?.toString(),
+                rating: m.rating?.toString(),
+                poster: m.medium_cover_image,
+                duration: `${m.runtime || '120'}m`,
+                platform: 'FideCloud HD'
+              });
+            }
+          });
         }
-      } catch (e: any) {
-        console.error("[FideSave-Search] YTS API Error:", e.message);
-      }
+      } catch (e) {}
 
-      // Fallback 2: Gemini AI
-      console.log(`[FideSave-Search] Attempting AI search fallback...`);
-      try {
-        const aiKey = process.env.GEMINI_API_KEY;
-        if (!aiKey) throw new Error("GEMINI_API_KEY missing");
-
-        const ai = new GoogleGenAI({ apiKey: aiKey });
-        const prompt = `Search for movies and TV shows matching query: "${query}". Return JSON array of up to 6 objects with: id, title, year, rating, poster (Unsplash URL), duration, platform. Respond ONLY with JSON.`;
-
-        const result = await ai.models.generateContent({
-          model: "gemini-1.5-flash",
-          contents: [{ parts: [{ text: prompt }] }]
-        });
-
-        const text = result.text.trim().replace(/```json|```/g, "").trim();
-        return res.json(JSON.parse(text));
-      } catch (aiErr: any) {
-        console.error("[FideSave-Search] AI Error:", aiErr.message);
-        return res.json([{ id: 'fb', title: query + ' (Direct Result)', year: '2024', rating: '8.0' }]);
-      }
+      return res.json(allResults.slice(0, 20));
     } catch (err: any) {
-      console.error("[FideSave-Search] Final Error:", err);
-      res.status(500).json({ error: 'Search failed' });
+      console.error("[Search] Critical Hub Error:", err.message);
+      res.status(500).json({ error: 'Universal Search Hub failed' });
     }
   });
 
 
-  apiRouter.post("/video-downloader", async (req, res) => {
+  apiRouter.post("/video-downloader", validateLinkAccess, async (req, res) => {
     const { url } = req.body;
-    console.log(`[FideSave] Universal Downloader requested: ${url}`);
     if (!url) return res.status(400).json({ error: "URL is required" });
+
+    // Normalize URL
+    let workingUrl = url.trim();
+    if (workingUrl.includes('web.facebook.com')) workingUrl = workingUrl.replace('web.facebook.com', 'www.facebook.com');
+    if (workingUrl.includes('facebook.com/share/r/')) {
+        // These are Reels share links, try to normalize if possible, though scrapers might handle them
+        console.log(`[FideSave] Detected Facebook Reel Share: ${workingUrl}`);
+    }
+    if (workingUrl.includes('fb.watch')) workingUrl = workingUrl.replace('fb.watch/', 'facebook.com/watch/?v=');
+
+    console.log(`[FideSave] Universal Downloader requested: ${workingUrl}`);
+
+    // Initial metadata extraction (Universal Meta)
+    let universalMeta = {
+      title: 'Media Ready for Download',
+      thumbnail: 'https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?w=800',
+      platform: 'Media Link',
+      duration: 'N/A'
+    };
+
+    try {
+      const pageRes = await axios.get(workingUrl, { 
+        headers: { 
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
+        }, 
+        timeout: 4000,
+        validateStatus: (status) => status < 500 // Don't throw on 4xx for metadata
+      });
+      
+      if (pageRes.status === 200) {
+          const $ = await import("cheerio").then(m => m.load(pageRes.data));
+          universalMeta.title = $('meta[property="og:title"]').attr('content') || $('title').text() || universalMeta.title;
+          universalMeta.thumbnail = $('meta[property="og:image"]').attr('content') || universalMeta.thumbnail;
+          
+          const domainMatch = workingUrl.match(/https?:\/\/(?:www\.)?([^\/.]+)/);
+          if (domainMatch) universalMeta.platform = domainMatch[1].charAt(0).toUpperCase() + domainMatch[1].slice(1);
+      }
+    } catch (e) {
+      console.log(`[FideSave] Universal meta fetch failed (safe skip): ${workingUrl}`);
+    }
 
     try {
       // 1. YouTube Handler
-      if (url.includes('youtube.com') || url.includes('youtu.be')) {
+      if (workingUrl.includes('youtube.com') || workingUrl.includes('youtu.be')) {
         const ytdlModule = await import('@distube/ytdl-core');
         const ytdl = ytdlModule.default || ytdlModule;
-        if (!ytdl.validateURL(url)) return res.status(400).json({ error: "Invalid YouTube URL" });
+        if (!ytdl.validateURL(workingUrl)) return res.status(400).json({ error: "Invalid YouTube URL" });
         
-        console.log(`[FideSave] Processing YouTube via ytdl-core: ${url}`);
-        const info = await ytdl.getInfo(url);
-        const format = ytdl.chooseFormat(info.formats, { quality: 'highest' });
+        console.log(`[FideSave] Processing YouTube: ${workingUrl}`);
+        const info = await ytdl.getInfo(workingUrl);
+        
+        let format = ytdl.chooseFormat(info.formats, { quality: 'highestvideo', filter: 'videoandaudio' });
+        if (!format) format = ytdl.chooseFormat(info.formats, { quality: 'highest' });
         
         return res.json({
-          title: info.videoDetails.title || 'YouTube Video',
+          ...universalMeta,
+          title: info.videoDetails.title || universalMeta.title,
           videoUrl: format.url,
           audioUrl: format.url,
-          thumbnail: info.videoDetails.thumbnails[0]?.url || '',
+          thumbnail: info.videoDetails.thumbnails[info.videoDetails.thumbnails.length - 1]?.url || universalMeta.thumbnail,
           platform: 'YouTube',
-          duration: `${Math.floor(Number(info.videoDetails.lengthSeconds) / 60)}m`
+          duration: `${Math.floor(Number(info.videoDetails.lengthSeconds) / 60)}m`,
+          type: 'youtube'
         });
       }
 
       // 1.5. M3U Playlist Handler
-      if (url.endsWith('.m3u') || url.endsWith('.m3u8')) {
-        console.log(`[FideSave] Parsing M3U playlist: ${url}`);
+      if (workingUrl.endsWith('.m3u') || workingUrl.endsWith('.m3u8') || workingUrl.includes('.m3u8?')) {
         return res.json({
-            title: 'M3U Playlist',
-            videoUrl: url,
-            audioUrl: '',
-            thumbnail: '',
-            platform: 'M3U',
-            duration: 'N/A',
+            ...universalMeta,
+            videoUrl: workingUrl,
             type: 'playlist'
         });
       }
 
-      // 1.6. Direct Media Handler
-      try {
-          const headRes = await axios.head(url, { timeout: 5000 });
-          const contentType = headRes.headers['content-type'] || '';
-          if (contentType.startsWith('video/') || contentType.startsWith('audio/')) {
-              console.log(`[FideSave] Direct media file detected: ${url}`);
-              return res.json({
-                title: 'Direct Media File',
-                videoUrl: url,
-                audioUrl: '',
-                thumbnail: '',
-                platform: 'Direct',
-                duration: 'N/A',
-                type: 'direct'
-              });
-          }
-      } catch (e) {
-          console.log(`[FideSave] Direct URL check failed, skipping: ${url}`);
-      }
-
-      // 2. TikTok Handler (Via TikWM Public API)
-      if (url.includes('tiktok.com')) {
-        console.log("[FideSave] Fetching TikTok metadata via TikWM...");
+    // 2. Specialized Scrapers Fallback (TikTok, IG, FB, X, Threads, Capcut, Snapchat)
+      if (workingUrl.includes('tiktok.com') || workingUrl.includes('instagram.com') || workingUrl.includes('facebook.com') || workingUrl.includes('twitter.com') || workingUrl.includes('x.com') || workingUrl.includes('fb.watch') || workingUrl.includes('threads.net') || workingUrl.includes('capcut.com') || workingUrl.includes('snapchat.com')) {
         try {
-          const tikRes = await axios.get(`https://www.tikwm.com/api/`, {
-            params: { url: url, hd: 1 },
-            timeout: 10000
-          });
+          const ruhendMod = await import("ruhend-scraper");
+          const ruhend = (ruhendMod as any).default || ruhendMod;
+          
+          const btchMod = await import("btch-downloader");
+          const btch = (btchMod as any).default || btchMod;
+          
+          let data: any = null;
+          if (workingUrl.includes('tiktok.com')) data = await (ruhend.ttdl || ruhend.tiktok)(workingUrl);
+          else if (workingUrl.includes('instagram.com')) data = await (ruhend.igdl || ruhend.instagram)(workingUrl);
+          else if (workingUrl.includes('facebook.com') || workingUrl.includes('fb.watch')) data = await (ruhend.fbdl || ruhend.facebook)(workingUrl);
+          else if (workingUrl.includes('twitter.com') || workingUrl.includes('x.com')) data = await (ruhend.twitter || (btch && btch.twitter))(workingUrl);
+          else if (workingUrl.includes('threads.net')) data = await (ruhend.threads)(workingUrl);
+          else if (workingUrl.includes('capcut.com')) data = await (ruhend.capcut)(workingUrl);
+          else if (workingUrl.includes('snapchat.com')) data = await (ruhend.snapchat)(workingUrl);
 
-          if (tikRes.data && tikRes.data.data) {
-            const d = tikRes.data.data;
-            return res.json({
-              title: d.title || 'TikTok Video',
-              videoUrl: d.play || d.hdplay,
-              audioUrl: d.music || '',
-              thumbnail: d.cover || '',
-              platform: 'TikTok',
-              duration: d.duration ? `${d.duration}s` : 'N/A'
-            });
+          // If ruhend failed, try btch as fallback for specific ones
+          if (!data && btch) {
+             if (workingUrl.includes('tiktok.com') && btch.tiktok) data = await btch.tiktok(workingUrl);
+             else if (workingUrl.includes('instagram.com') && btch.igdl) data = await btch.igdl(workingUrl);
+             else if (workingUrl.includes('facebook.com') && btch.facebook) data = await btch.facebook(workingUrl);
           }
-        } catch (tikErr: any) {
-          console.error("[FideSave] TikTok API Error:", tikErr.message);
-        }
-        throw new Error("Unable to fetch data from TikTok. Is the video public?");
-      }
 
-      // 3. Instagram / Facebook / X (Twitter) Handlers
-      if (url.includes('instagram.com') || url.includes('facebook.com') || url.includes('x.com') || url.includes('twitter.com')) {
-        console.log(`[FideSave] Fetching ${url} via Universal Parser...`);
-        
-        try {
-           // Using a reliable public API for multi-platform media extraction
-           // If SnapAny or similar generic tools are down, we'll try a fallback mechanism
-           const mediaRes = await axios.get(`https://api.vppandora.com/api/get_data`, {
-              params: { url: url },
-              timeout: 15000
-           });
-
-           if (mediaRes.data && mediaRes.data.data) {
-              const d = mediaRes.data.data;
-              return res.json({
-                title: d.title || 'Social Media Media',
-                videoUrl: d.video_url || d.media_url || d.url,
-                audioUrl: d.audio_url || d.video_url,
-                thumbnail: d.thumbnail || d.poster || '',
-                platform: url.includes('instagram') ? 'Instagram' : url.includes('facebook') ? 'Facebook' : 'X (Twitter)',
-                duration: 'N/A'
-              });
-           }
+          if (data && (data.url || data.video || data.link || data.result)) {
+            const finalUrl = data.url || data.video || data.link || (data.result && Array.isArray(data.result) ? (data.result[0]?.url || data.result[0]) : data.result);
+            if (finalUrl && typeof finalUrl === 'string' && finalUrl.startsWith('http')) {
+                return res.json({
+                  ...universalMeta,
+                  title: data.title || universalMeta.title,
+                  videoUrl: finalUrl,
+                  audioUrl: data.audio || data.mp3 || '',
+                  thumbnail: data.thumbnail || data.cover || universalMeta.thumbnail,
+                  platform: universalMeta.platform.toUpperCase()
+                });
+            }
+          }
         } catch (e: any) {
-          console.error("[FideSave] Universal Parser Error:", e.message);
+          console.error("[Universal-Downloader] Scraper Error:", e.message);
         }
-
-        // Fallback for Instagram specifically using a public direct link extractor
-        if (url.includes('instagram.com')) {
-           try {
-              const igRes = await axios.get(`https://igdownloader.app/api/extract`, { params: { url } }).catch(() => null);
-              if (igRes?.data?.url) {
-                 return res.json({
-                    title: 'Instagram Post',
-                    videoUrl: igRes.data.url,
-                    audioUrl: igRes.data.url,
-                    thumbnail: '',
-                    platform: 'Instagram',
-                    duration: 'N/A'
-                 });
-              }
-           } catch (e) {}
-        }
-        
-        throw new Error(`The link parser for ${url.includes('instagram') ? 'Instagram' : url.includes('facebook') ? 'Facebook' : 'X'} is currently busy. Please try again or ensure the link is public.`);
       }
 
-      return res.status(400).json({ error: "Unsupported platform. We currently support YouTube, TikTok, Instagram, Facebook, and X." });
+      // 3. Final Universal Fallback - Advanced Metadata and Source Discovery
+      try {
+        console.log(`[Universal-Downloader] Deep scraping: ${workingUrl}`);
+        const pageRes = await axios.get(workingUrl, { 
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36' }, 
+            timeout: 6000,
+            validateStatus: (status) => status < 500
+        });
+        
+        if (pageRes.status === 200) {
+            const $ = await import("cheerio").then(m => m.load(pageRes.data));
+            
+            // Comprehensive selector list for video sources
+            const videoSrc = 
+                $('meta[property="og:video:secure_url"]').attr('content') ||
+                $('meta[property="og:video"]').attr('content') ||
+                $('meta[name="twitter:player:stream"]').attr('content') ||
+                $('video source').attr('src') || 
+                $('video').attr('src') ||
+                $('source[type="video/mp4"]').attr('src');
+    
+            if (videoSrc) {
+               const absoluteUrl = videoSrc.startsWith('http') ? videoSrc : new URL(videoSrc, workingUrl).href;
+               return res.json({
+                 ...universalMeta,
+                 videoUrl: absoluteUrl,
+                 type: 'direct',
+                 note: 'Discovered via universal deep-scrape'
+               });
+            }
+        }
+      } catch (e: any) {
+          console.error("[Universal-Downloader] Deep scrape failure:", e.message);
+      }
+
+      // Return what we have for metadata but flag it as missing direct stream if we couldn't find one
+      return res.json({
+        ...universalMeta,
+        videoUrl: null, // Don't return original URL as videoUrl to prevent invalid proxying
+        originalUrl: workingUrl,
+        error: "Direct download links not found. Content may be private or restricted by provider."
+      });
     } catch (error: any) {
       console.error("[FideSave] Downloader error:", error.message);
-      res.status(500).json({ error: error.message || "The downloader service is temporarily unavailable. Please try again later." });
+      res.status(500).json({ error: error.message || "Failed to parse link." });
     }
   });
 
   // Movie Download Options Endpoint - Fetches real direct links/magnets
-  apiRouter.get("/movie-download-options", async (req, res) => {
+  apiRouter.get("/movie-download-options", validateLinkAccess, async (req, res) => {
     try {
       const { title, year } = req.query;
-      console.log(`[FideSave] Download links requested for: ${title} (${year})`);
+      console.log(`[Universal-Fetch] links for: ${title} (${year})`);
       if (!title) return res.status(400).json({ error: "Movie title is required" });
 
-      console.log(`[Fetch Download Links] Searching for: ${title} (${year || "any year"})`);
+      const links: any[] = [];
 
+      // 1. Try YTS (Quality First)
       try {
         const ytsRes = await axios.get("https://yts.mx/api/v2/list_movies.json", {
-          params: { query_term: title, limit: 5 },
-          timeout: 8000
+          params: { query_term: title, limit: 1 },
+          timeout: 5000
         });
 
-        if (ytsRes.data && ytsRes.data.data && ytsRes.data.data.movies) {
-          const movies = ytsRes.data.data.movies;
-          const bestMatch = movies.find((m: any) => m.year?.toString() === year || !year) || movies[0];
-
-          if (bestMatch && bestMatch.torrents) {
-            console.log(`[FideSave] YTS found best match: ${bestMatch.title}`);
-            const links = bestMatch.torrents.map((t: any) => ({
-              quality: t.quality,
-              type: t.type,
-              size: t.size,
-              url: t.url,
-              magnet: `magnet:?xt=urn:btih:${t.hash}&dn=${encodeURIComponent(bestMatch.title)}&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://open.demonii.com:1337/announce`,
-              source: "YTS"
-            }));
-            return res.json({ title: bestMatch.title, links });
+        if (ytsRes.data?.data?.movies) {
+          const m = ytsRes.data.data.movies[0];
+          if (m?.torrents) {
+            m.torrents.forEach((t: any) => {
+              links.push({
+                quality: `${t.quality} HD`,
+                type: t.type,
+                size: t.size,
+                url: t.url,
+                magnet: `magnet:?xt=urn:btih:${t.hash}&dn=${encodeURIComponent(m.title)}&tr=udp://tracker.opentrackr.org:1337/announce`,
+                source: "FideCloud P2P"
+              });
+            });
           }
         }
-      } catch (ytsErr: any) {
-        console.warn("[FideSave-FetchLinks] YTS Error:", ytsErr.message);
+      } catch (e) {}
+
+      // 2. Try Universal Scrapers (YouTube/Social)
+      try {
+        const ruhend: any = await import("ruhend-scraper");
+        if (ruhend.search && ruhend.search.youtube) {
+          const ytResults = await ruhend.search.youtube(`${title} full movie`);
+          if (ytResults && Array.isArray(ytResults)) {
+            ytResults.slice(0, 3).forEach((vid: any) => {
+              links.push({
+                quality: "Direct DL",
+                type: "stream",
+                size: "Variable",
+                url: vid.url,
+                source: "Social",
+                note: vid.title
+              });
+            });
+          }
+        }
+      } catch (e) {}
+
+      if (links.length === 0) {
+        links.push({ 
+           quality: "External Link", 
+           type: "web", 
+           size: "N/A", 
+           url: `https://www.google.com/search?q=${encodeURIComponent(title as string)}+download+free`, 
+           source: "Web" 
+        });
       }
 
-      console.log(`[FideSave] Falling back to Google Search for: ${title}`);
-      return res.json({ 
-        title: title as string, 
-        links: [
-          { quality: "Search HD", type: "web", size: "N/A", url: `https://www.google.com/search?q=${encodeURIComponent(title as string)}+movie+download+free`, source: "Web" }
-        ] 
-      });
+      return res.json({ title: title as string, links });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -466,6 +572,10 @@ async function initApp() {
 
     try {
       console.log(`[Download Proxy] Initiating download for: ${url}`);
+      
+      const targetUrl = new URL(url as string);
+      const referer = targetUrl.origin;
+
       const response = await axios({
         method: 'get',
         url: url as string,
@@ -473,8 +583,24 @@ async function initApp() {
         timeout: 120000, 
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-        }
+          'Referer': referer,
+          'Accept': '*/*',
+          'Range': req.headers.range as string || undefined
+        },
+        validateStatus: (status) => status < 500 
       });
+
+      if (response.status >= 400) {
+        console.error(`[Download Proxy Error] Source returned ${response.status}: ${url}`);
+        return res.status(response.status).send(`The source file could not be accessed (Error ${response.status}).`);
+      }
+
+      // Safety check: Don't stream HTML content
+      const contentType = (response.headers as any)['content-type'] || '';
+      if (contentType.includes('text/html')) {
+        console.error(`[Download Proxy Error] Refused to stream HTML: ${url}`);
+        return res.status(415).send("The link provided points to a webpage, not a direct media file.");
+      }
 
       const cleanFilename = (filename as string || `fidesave-${Date.now()}.mp4`).replace(/[^a-zA-Z0-9.\-_]/g, '_');
       
@@ -482,10 +608,10 @@ async function initApp() {
       res.setHeader('Content-Disposition', `attachment; filename="${cleanFilename}"`);
       
       // Fixed type issues with cast to any for Axios headers
-      const contentType = (response.headers as any)['content-type'] || 'application/octet-stream';
+      const actualContentType = (response.headers as any)['content-type'] || 'application/octet-stream';
       const contentLength = (response.headers as any)['content-length'];
       
-      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Type', actualContentType);
       if (contentLength) {
         res.setHeader('Content-Length', contentLength);
       }
@@ -1457,7 +1583,7 @@ async function initApp() {
         .limit(1000);
       
       if (error) throw error;
-      res.json(data || []);
+      res.json({ channels: data || [] });
     } catch (err: any) {
       console.error('[API Channels] Failure:', err.message);
       res.status(500).json({ error: 'Internal Server Error', message: err.message });

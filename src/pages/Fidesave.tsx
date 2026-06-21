@@ -4,6 +4,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '@/lib/supabase';
 import { useNavigate } from 'react-router-dom';
 
+import { YouTubeVideoPlayer } from '@/components/YouTubeVideoPlayer';
+import UniversalPlayer from '@/components/streaming/UniversalPlayer';
+
 export default function Fidesave() {
   const [activeTab, setActiveTab] = useState<'search' | 'download'>('search');
   const [url, setUrl] = useState('');
@@ -44,7 +47,14 @@ export default function Fidesave() {
     setMovieLinks({}); // Reset previous links
 
     try {
-      const res = await fetch(`/api/video-search?q=${encodeURIComponent(searchQuery)}`);
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = session?.access_token ? {
+        'Authorization': `Bearer ${session.access_token}`
+      } : {};
+
+      const res = await fetch(`/api/video-search?q=${encodeURIComponent(searchQuery)}`, {
+        headers
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || data.details || 'Search failed');
       setSearchResults(data);
@@ -64,9 +74,13 @@ export default function Fidesave() {
     setResult(null);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch('/api/video-downloader', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+        },
         body: JSON.stringify({ url })
       });
       
@@ -84,7 +98,14 @@ export default function Fidesave() {
   const handleFetchLinks = async (movie: any) => {
     setFetchingLinksFor(movie.id);
     try {
-      const res = await fetch(`/api/movie-download-options?title=${encodeURIComponent(movie.title)}&year=${movie.year}`);
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = session?.access_token ? {
+        'Authorization': `Bearer ${session.access_token}`
+      } : {};
+
+      const res = await fetch(`/api/movie-download-options?title=${encodeURIComponent(movie.title)}&year=${movie.year}`, {
+        headers
+      });
       const data = await res.json();
       if (res.ok) {
         setMovieLinks(prev => ({ ...prev, [movie.id]: data.links }));
@@ -99,10 +120,17 @@ export default function Fidesave() {
   };
 
   const downloadDirectly = (url: string, title: string) => {
-    const filename = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.mp4`;
+    let extension = 'mp4';
+    if (url.includes('.m3u8')) extension = 'm3u8';
+    else if (url.includes('.m3u')) extension = 'm3u';
+    else if (url.includes('.mp3')) extension = 'mp3';
+    
+    const filename = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.${extension}`;
     const proxyUrl = `/api/video-download-proxy?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
     window.location.href = proxyUrl;
   };
+
+  const [previewing, setPreviewing] = useState(false);
 
   if (authLoading) {
     return (
@@ -149,7 +177,7 @@ export default function Fidesave() {
             Fide<span className="text-primary">save</span>
           </h1>
           <p className="text-lg text-foreground/60 max-w-xl mx-auto font-medium">
-            Discover and download high-quality media instantly. Safe, secure, and always free for our community.
+            Universal Media Inbox. Search for any movie or paste any social media link to download instantly.
           </p>
         </div>
 
@@ -161,8 +189,8 @@ export default function Fidesave() {
               activeTab === 'search' ? 'bg-primary text-white shadow-lg' : 'text-foreground/50 hover:text-foreground'
             }`}
           >
-            <Search size={16} />
-            Search
+            <Film size={16} />
+            Universal Search
           </button>
           <button
             onClick={() => { setActiveTab('download'); setResult(null); setError(''); }}
@@ -171,7 +199,7 @@ export default function Fidesave() {
             }`}
           >
             <LinkIcon size={16} />
-            Link
+            Any Link
           </button>
         </div>
 
@@ -258,10 +286,26 @@ export default function Fidesave() {
                                 {movieLinks[movie.id].map((link: any, lIdx: number) => (
                                   <button
                                     key={lIdx}
-                                    onClick={() => link.magnet ? window.location.href = link.magnet : window.open(link.url, '_blank')}
+                                    onClick={() => {
+                                      if (link.magnet) {
+                                        window.location.href = link.magnet;
+                                      } else if (link.source === "YouTube / Social" || link.source === "Social") {
+                                        // Trigger the direct downloader for this social link
+                                        setActiveTab('download');
+                                        setUrl(link.url);
+                                        // We can't easily auto-submit but we can guide the user
+                                        setResult(null);
+                                        setError('Click "Fetch Media" to finalize the download for this source.');
+                                      } else {
+                                        window.open(link.url, '_blank');
+                                      }
+                                    }}
                                     className="py-2.5 px-3 bg-surface-bright border border-border-custom hover:border-primary/50 rounded-xl text-[10px] font-bold text-foreground flex items-center justify-between transition-all group/link"
                                   >
-                                    <span className="uppercase">{link.quality}</span>
+                                    <div className="flex flex-col items-start">
+                                      <span className="uppercase text-[8px] opacity-40">{link.source}</span>
+                                      <span className="uppercase">{link.quality}</span>
+                                    </div>
                                     {link.magnet ? <Download size={12} className="text-primary group-hover/link:scale-110 transition-transform" /> : <ExternalLink size={12} className="text-primary group-hover/link:scale-110 transition-transform" /> }
                                   </button>
                                 ))}
@@ -359,11 +403,13 @@ export default function Fidesave() {
                           <img src={result.thumbnail} className="w-full h-full object-cover" alt="Video preview" />
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center text-foreground/20">
-                            <PlayCircle size={64} className="mb-4 opacity-50" />
+                            {result.type === 'youtube' ? <Video size={64} className="mb-4 opacity-50" /> : <PlayCircle size={64} className="mb-4 opacity-50" />}
                           </div>
                         )}
                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Download size={64} className="text-white" />
+                          <button onClick={() => setPreviewing(true)} className="w-16 h-16 bg-primary rounded-full flex items-center justify-center shadow-2xl hover:scale-110 transition-transform">
+                            <PlayCircle size={32} className="text-white" />
+                          </button>
                         </div>
                       </div>
 
@@ -382,15 +428,24 @@ export default function Fidesave() {
                         
                         <div className="flex flex-col sm:flex-row gap-4 mt-6">
                           {result.videoUrl && (
-                            <button 
-                              onClick={() => downloadDirectly(result.videoUrl, result.title || 'Video')}
-                              className="bg-primary hover:opacity-90 text-white px-8 py-5 rounded-2xl font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-3 shadow-lg shadow-primary/20 hover:scale-105 active:scale-95"
-                            >
-                              <Video size={18} />
-                              Download Video
-                            </button>
+                            <div className="flex flex-col gap-2 flex-1">
+                              <button 
+                                onClick={() => downloadDirectly(result.videoUrl, result.title || 'Video')}
+                                className="w-full bg-primary hover:opacity-90 text-white px-8 py-5 rounded-2xl font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-3 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95"
+                              >
+                                <Video size={18} />
+                                {result.type === 'playlist' ? 'Download M3U' : 'Download Video'}
+                              </button>
+                              <button 
+                                onClick={() => setPreviewing(true)}
+                                className="w-full bg-surface-bright border border-border-custom hover:bg-surface text-foreground px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-[9px] transition-all flex items-center justify-center gap-2"
+                              >
+                                <PlayCircle size={14} />
+                                Preview Stream
+                              </button>
+                            </div>
                           )}
-                          {result.audioUrl && (
+                          {result.audioUrl && result.type !== 'playlist' && (
                             <button 
                               onClick={() => downloadDirectly(result.audioUrl, (result.title || 'Audio') + '_audio')}
                               className="bg-surface-bright border border-border-custom hover:bg-surface text-foreground px-8 py-5 rounded-2xl font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-3 hover:scale-105 active:scale-95"
@@ -405,6 +460,47 @@ export default function Fidesave() {
                   </motion.div>
                 )}
               </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Preview Modal */}
+        <AnimatePresence>
+          {previewing && result && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[5000] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4"
+              onClick={() => setPreviewing(false)}
+            >
+              <div 
+                className="w-full max-w-5xl aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl relative"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="absolute top-4 right-4 z-10">
+                  <button 
+                    onClick={() => setPreviewing(false)}
+                    className="w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {result.type === 'youtube' ? (
+                  <YouTubeVideoPlayer
+                    videoId={url}
+                    autoPlay={true}
+                    className="w-full h-full"
+                  />
+                ) : (
+                  <UniversalPlayer
+                    channel={{ url: result.videoUrl, name: result.title }}
+                    autoPlay={true}
+                    className="w-full h-full"
+                  />
+                )}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
