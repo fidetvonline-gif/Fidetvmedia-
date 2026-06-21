@@ -200,11 +200,22 @@ async function initApp() {
     const token = authHeader.split(" ")[1];
     if (!token || token === "undefined") return next();
 
-    if (!adminClient) return next();
+    if (!adminClient) {
+      console.warn("[AuthMiddleware] Skipping profile check - Supabase Admin connection unavailable.");
+      return next();
+    }
 
     try {
-      const { data: { user }, error: authError } = await adminClient.auth.getUser(token);
-      if (authError || !user) return next();
+      // Add timeout to auth check to prevent hanging
+      const authPromise = adminClient.auth.getUser(token);
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Auth timeout")), 5000));
+      
+      const { data: { user }, error: authError } = await (Promise.race([authPromise, timeoutPromise]) as any);
+      
+      if (authError || !user) {
+         console.warn("[AuthMiddleware] Session invalid or expired.");
+         return next();
+      }
 
       const { data: profile } = await adminClient
          .from('profiles')
@@ -229,17 +240,18 @@ async function initApp() {
       const { q } = req.query;
       if (!q) return res.status(400).json({ error: 'Search query is required' });
 
-      const query = (q as string);
+      const query = (q as string).trim();
       const userProfile = (req as any).userProfile || { id: 'guest', role: 'guest' };
       console.log(`[Universal-Search] Query: "${query}" | From: ${userProfile.id} (${userProfile.role})`);
       
       const allResults: any[] = [];
+      const diagnostics: any[] = [];
       const axiosConfig = {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
           'Accept': 'application/json'
         },
-        timeout: 8000
+        timeout: 10000
       };
 
     try {
@@ -276,7 +288,7 @@ async function initApp() {
 
       // 2. TMDB Search (Metadata for movies)
       const tmdbKey = process.env.TMDB_API_KEY;
-      if (tmdbKey && tmdbKey !== "YOUR_TMDB_API_KEY") {
+      if (tmdbKey && tmdbKey !== "YOUR_TMDB_API_KEY" && tmdbKey.trim().length > 5) {
         try {
           const tmdbRes = await axios.get(`https://api.themoviedb.org/3/search/movie`, {
             ...axiosConfig,
@@ -284,16 +296,16 @@ async function initApp() {
           });
           if (tmdbRes.data?.results) {
             console.log(`[Search] TMDB found ${tmdbRes.data.results.length} results`);
-            tmdbRes.data.results.slice(0, 8).forEach((m: any) => {
+            tmdbRes.data.results.slice(0, 15).forEach((m: any) => {
               if (!allResults.find(r => r.title.toLowerCase() === (m.title||'').toLowerCase())) {
                 allResults.push({
                   id: `tmdb_${m.id}`,
                   title: m.title,
-                  year: (m.release_date || '').split('-')[0],
+                  year: (m.release_date || '').split('-')[0] || 'TBA',
                   rating: m.vote_average?.toFixed(1) || 'N/A',
                   poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : 'https://images.unsplash.com/photo-1485099667858-394460167664?w=800',
                   duration: 'Movie',
-                  platform: 'FideCloud',
+                  platform: 'TMDB Registry',
                   link: `https://www.themoviedb.org/movie/${m.id}`
                 });
               }
@@ -301,8 +313,10 @@ async function initApp() {
           }
         } catch (e: any) {
           console.error("[Search] TMDB API Error:", e.message);
+          diagnostics.push(`TMDB API: ${e.message}`);
         }
       } else {
+        diagnostics.push("TMDB_API_KEY is missing or invalid in environment.");
         console.warn("[Search] TMDB_API_KEY is missing or default.");
       }
 
@@ -332,8 +346,17 @@ async function initApp() {
         console.error("[Search] YTS API Error:", e.message);
       }
 
-      console.log(`[Universal-Search] Total aggregated results for "${query}": ${allResults.length}`);
-      return res.json(allResults.slice(0, 24));
+      console.log(`[Universal-Search] Total unique results for "${query}": ${allResults.length}`);
+      
+      if (allResults.length === 0) {
+          return res.json({ 
+            results: [], 
+            diagnostics,
+            debug: { has_tmdb: !!process.env.TMDB_API_KEY, query } 
+          });
+      }
+
+      return res.json(allResults.slice(0, 32));
     } catch (err: any) {
       console.error("[Search] Critical Hub Error:", err.message);
       res.status(500).json({ error: 'Universal Search Hub failed' });
@@ -412,39 +435,66 @@ async function initApp() {
             type: 'youtube'
           });
         } catch (ytErr: any) {
-          console.warn(`[FideSave] YouTube ytdl failed: ${ytErr.message}`);
+          console.warn(`[FideSave] YouTube Initial Attempt Failed: ${ytErr.message}`);
           
-          // Fallback to Ruhend Scraper for YouTube
-          if (ytErr.message.includes('bot') || ytErr.message.includes('sign in')) {
-            try {
-              console.log("[FideSave] Attempting Ruhend YouTube fallback...");
-              const ruhendMod = await import("ruhend-scraper");
-              const ruhend = (ruhendMod as any).default || ruhendMod;
-              
-              if (ruhend.ytmp4) {
-                 const data = await ruhend.ytmp4(workingUrl);
-                 if (data && (data.url || data.video || data.link)) {
-                    // Try to extract video ID from url if possible
-                    let vid = '';
-                    const match = workingUrl.match(/(?:v=|embed\/|youtu\.be\/|\/v\/|watch\?v=|^)([a-zA-Z0-9_-]{11})(?:[?&]|$)/);
-                    if (match) vid = match[1];
+          // Primary Fallback: Ruhend Scraper
+          try {
+            console.log("[FideSave] YouTube Fallback 1: Ruhend Scraper...");
+            const ruhendMod = await import("ruhend-scraper");
+            const ruhend = (ruhendMod as any).default || ruhendMod;
+            
+            if (ruhend.ytmp4) {
+               const data = await ruhend.ytmp4(workingUrl);
+               if (data && (data.url || data.video || data.link)) {
+                  let vid = '';
+                  const match = workingUrl.match(/(?:v=|embed\/|youtu\.be\/|\/v\/|watch\?v=|^)([a-zA-Z0-9_-]{11})(?:[?&]|$)/);
+                  if (match) vid = match[1];
 
-                    return res.json({
-                      ...universalMeta,
-                      title: data.title || universalMeta.title,
-                      videoUrl: data.url || data.video || data.link,
-                      videoId: vid,
-                      audioUrl: data.audio || data.mp3 || '',
-                      thumbnail: data.thumbnail || universalMeta.thumbnail,
-                      platform: 'YouTube (Fallback)',
-                      type: 'youtube'
-                    });
-                 }
-              }
-            } catch (ruhendErr: any) {
-              console.error("[FideSave] YouTube Ruhend fallback failed:", ruhendErr.message);
+                  return res.json({
+                    ...universalMeta,
+                    title: data.title || universalMeta.title,
+                    videoUrl: data.url || data.video || data.link,
+                    videoId: vid,
+                    audioUrl: data.audio || data.mp3 || '',
+                    thumbnail: data.thumbnail || universalMeta.thumbnail,
+                    platform: 'YouTube (Mirror 1)',
+                    type: 'youtube'
+                  });
+               }
             }
+          } catch (ruhendErr: any) {
+            console.warn("[FideSave] YouTube Ruhend fallback failed:", ruhendErr.message);
           }
+
+          // Secondary Fallback: Btch Downloader
+          try {
+            console.log("[FideSave] YouTube Fallback 2: Btch Downloader...");
+            const btchMod = await import("btch-downloader");
+            const btch = (btchMod as any).default || btchMod;
+            
+            if (btch.youtube) {
+              const data = await btch.youtube(workingUrl);
+              if (data && (data.url || data.video || data.link)) {
+                return res.json({
+                  ...universalMeta,
+                  title: data.title || universalMeta.title,
+                  videoUrl: data.url || data.video || data.link,
+                  audioUrl: data.mp3 || data.audio || '',
+                  platform: 'YouTube (Mirror 2)',
+                  type: 'youtube'
+                });
+              }
+            }
+          } catch (btchErr: any) {
+            console.warn("[FideSave] YouTube Btch fallback failed:", btchErr.message);
+          }
+
+          // Final response if all fallbacks fail
+          return res.status(403).json({ 
+            error: "YouTube has restricted access from our current server region. " + 
+                   "To protect against bots, YouTube often requires a direct sign-in. " +
+                   "Please try again or use another source." 
+          });
         }
       }
 

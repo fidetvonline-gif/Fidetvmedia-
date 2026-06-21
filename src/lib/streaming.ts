@@ -78,6 +78,7 @@ export class UniversalStreamService {
     if (type === 'youtube') return 'YouTube';
     if (type === 'facebook') return 'Facebook';
     if (type === 'vimeo') return 'Vimeo';
+    if (!url) return 'Direct';
     if (url.includes('limex')) return 'Limex';
     if (url.includes('amagi')) return 'Amagi';
     if (url.includes('wurl')) return 'Wurl';

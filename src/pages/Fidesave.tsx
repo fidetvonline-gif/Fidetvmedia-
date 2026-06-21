@@ -57,7 +57,17 @@ export default function Fidesave() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || data.details || 'Search failed');
-      setSearchResults(data);
+      
+      if (Array.isArray(data)) {
+        setSearchResults(data);
+      } else if (data.results) {
+        setSearchResults(data.results);
+        if (data.diagnostics && data.diagnostics.length > 0) {
+           console.warn("Search diagnostics:", data.diagnostics);
+        }
+      } else {
+        setSearchResults([]);
+      }
     } catch (err: any) {
       setError(err.message || 'Search failed. Please try again later.');
     } finally {
@@ -123,6 +133,10 @@ export default function Fidesave() {
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
 
   const handleSaveToCloud = async (mediaUrl: string, title: string) => {
+    if (!mediaUrl) {
+      setError('No valid media URL found to save.');
+      return;
+    }
     setSavingToCloud(true);
     setSaveSuccess(null);
     setError('');
@@ -131,8 +145,8 @@ export default function Fidesave() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Please sign in to save media to your cloud.');
 
-      const extension = mediaUrl.includes('.mp3') ? 'mp3' : 'mp4';
-      const filename = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.${extension}`;
+      const extension = (mediaUrl || '').includes('.mp3') ? 'mp3' : 'mp4';
+      const filename = `${(title || 'video').replace(/[^a-z0-9]/gi, '_').toLowerCase()}.${extension}`;
 
       const res = await fetch('/api/storage/upload-from-url', {
         method: 'POST',
@@ -262,7 +276,8 @@ export default function Fidesave() {
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.05 }}
-                    className="bg-surface border border-border-custom rounded-[2.5rem] overflow-hidden group hover:border-primary/30 transition-all flex flex-col shadow-sm hover:shadow-xl"
+                    onClick={() => !movieLinks[movie.id] && handleFetchLinks(movie)}
+                    className={`bg-surface border border-border-custom rounded-[2.5rem] overflow-hidden group hover:border-primary/30 transition-all flex flex-col shadow-sm hover:shadow-xl cursor-pointer ${fetchingLinksFor === movie.id ? 'opacity-80 scale-[0.98]' : ''}`}
                   >
                     <div className="relative aspect-[2/3] overflow-hidden">
                       <img src={movie.poster} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={movie.title} />
@@ -311,9 +326,12 @@ export default function Fidesave() {
                                         // Trigger the direct downloader for this social link
                                         setActiveTab('download');
                                         setUrl(link.url);
-                                        // We can't easily auto-submit but we can guide the user
+                                        // Auto-trigger fetch
+                                        setTimeout(() => {
+                                           const fetchBtn = document.querySelector('button[type="submit"]') as HTMLButtonElement;
+                                           if (fetchBtn) fetchBtn.click();
+                                        }, 100);
                                         setResult(null);
-                                        setError('Click "Fetch Media" to finalize the download for this source.');
                                       } else {
                                         window.open(link.url, '_blank');
                                       }
@@ -345,8 +363,8 @@ export default function Fidesave() {
                                 </>
                               ) : (
                                 <>
-                                  <Download size={14} /> 
-                                  <span>Download Now</span>
+                                  {movie.platform === 'YouTube' ? <PlayCircle size={14} /> : <Download size={14} />} 
+                                  <span>{movie.platform === 'YouTube' ? 'Watch / Download' : 'Download Now'}</span>
                                 </>
                               )}
                             </motion.button>
