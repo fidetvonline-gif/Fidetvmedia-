@@ -311,8 +311,14 @@ export default function Fidesave() {
                     </div>
                     <div className="p-6 flex flex-col flex-1">
                       <div className="flex-1 space-y-2 mb-6">
-                        <div className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{movie.year}</div>
+                        <div className="flex justify-between items-center">
+                          <div className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{movie.year}</div>
+                          {movie.internal_available && (
+                            <div className="text-[8px] font-black text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-md uppercase tracking-wider border border-emerald-500/20">In Library</div>
+                          )}
+                        </div>
                         <h4 className="text-xl font-display font-black text-foreground leading-tight group-hover:text-primary transition-colors tracking-tight line-clamp-2">{movie.title}</h4>
+                        <div className="text-[9px] font-bold text-foreground/30 uppercase tracking-widest">{movie.platform}</div>
                       </div>
                       
                       <div className="flex flex-col gap-2 min-h-[60px] justify-end">
@@ -325,46 +331,57 @@ export default function Fidesave() {
                               className="space-y-2 pb-2"
                             >
                               <div className="flex items-center justify-between mb-2">
-                                 <span className="text-[10px] font-black text-foreground/40 uppercase tracking-widest">Select Quality</span>
-                                 <button onClick={() => setMovieLinks(prev => {
-                                   const next = {...prev};
-                                   delete next[movie.id];
-                                   return next;
-                                 })} className="text-foreground/40 hover:text-primary">
+                                 <span className="text-[10px] font-black text-foreground/40 uppercase tracking-widest">
+                                   {movieLinks[movie.id].length > 0 ? "Select Quality" : "Availability"}
+                                 </span>
+                                 <button onClick={(e) => {
+                                   e.stopPropagation();
+                                   setMovieLinks(prev => {
+                                     const next = {...prev};
+                                     delete next[movie.id];
+                                     return next;
+                                   });
+                                 }} className="text-foreground/40 hover:text-primary">
                                    <X size={14} />
                                  </button>
                               </div>
-                              <div className="grid grid-cols-2 gap-2">
-                                {movieLinks[movie.id].map((link: any, lIdx: number) => (
-                                  <button
-                                    key={lIdx}
-                                    onClick={() => {
-                                      if (link.magnet) {
-                                        window.location.href = link.magnet;
-                                      } else if (link.source === "YouTube / Social" || link.source === "Social") {
-                                        // Trigger the direct downloader for this social link
-                                        setActiveTab('download');
-                                        setUrl(link.url);
-                                        // Auto-trigger fetch
-                                        setTimeout(() => {
-                                           const fetchBtn = document.querySelector('button[type="submit"]') as HTMLButtonElement;
-                                           if (fetchBtn) fetchBtn.click();
-                                        }, 100);
-                                        setResult(null);
-                                      } else {
-                                        window.open(link.url, '_blank');
-                                      }
-                                    }}
-                                    className="py-2.5 px-3 bg-surface-bright border border-border-custom hover:border-primary/50 rounded-xl text-[10px] font-bold text-foreground flex items-center justify-between transition-all group/link"
-                                  >
-                                    <div className="flex flex-col items-start">
-                                      <span className="uppercase text-[8px] opacity-40">{link.source}</span>
-                                      <span className="uppercase">{link.quality}</span>
-                                    </div>
-                                    {link.magnet ? <Download size={12} className="text-primary group-hover/link:scale-110 transition-transform" /> : <ExternalLink size={12} className="text-primary group-hover/link:scale-110 transition-transform" /> }
-                                  </button>
-                                ))}
-                              </div>
+                              {movieLinks[movie.id].length > 0 ? (
+                                <div className="grid grid-cols-1 gap-2">
+                                  {movieLinks[movie.id].map((link: any, lIdx: number) => (
+                                    <button
+                                      key={lIdx}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (link.magnet) {
+                                          window.location.href = link.magnet;
+                                        } else if (link.source === "YouTube / Social" || link.source === "Social") {
+                                          setActiveTab('download');
+                                          setUrl(link.url);
+                                          setTimeout(() => {
+                                             const fetchBtn = document.querySelector('button[type="submit"]') as HTMLButtonElement;
+                                             if (fetchBtn) fetchBtn.click();
+                                          }, 100);
+                                          setResult(null);
+                                        } else {
+                                          window.open(link.url, '_blank');
+                                        }
+                                      }}
+                                      className="py-3 px-4 bg-surface-bright border border-border-custom hover:border-primary/50 rounded-xl text-[10px] font-bold text-foreground flex items-center justify-between transition-all group/link"
+                                    >
+                                      <div className="flex flex-col items-start">
+                                        <span className="uppercase text-[8px] opacity-40">{link.source}</span>
+                                        <span className="uppercase text-primary">{link.quality}</span>
+                                      </div>
+                                      <Download size={14} className="text-foreground/20 group-hover/link:text-primary transition-colors" />
+                                    </button>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="py-4 text-center">
+                                  <p className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest mb-1">Not Available</p>
+                                  <p className="text-[9px] text-foreground/30 italic px-2">This title is not currently in our high-speed inventory.</p>
+                                </div>
+                              )}
                             </motion.div>
                           ) : (
                             <motion.button 
@@ -372,18 +389,21 @@ export default function Fidesave() {
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
                               disabled={fetchingLinksFor === movie.id}
-                              onClick={() => handleFetchLinks(movie)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleFetchLinks(movie);
+                              }}
                               className="w-full py-4 bg-primary text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-wait flex items-center justify-center gap-2"
                             >
                               {fetchingLinksFor === movie.id ? (
                                 <>
                                   <Loader2 className="animate-spin" size={14} />
-                                  <span>Searching Sources...</span>
+                                  <span>Verifying...</span>
                                 </>
                               ) : (
                                 <>
-                                  {movie.platform === 'YouTube' ? <PlayCircle size={14} /> : <Film size={14} />} 
-                                  <span>{movie.platform === 'YouTube' ? 'Watch / Download' : 'Fetch Media Links'}</span>
+                                  <Film size={14} /> 
+                                  <span>{movie.internal_available ? 'Download / Watch' : 'Fetch Media Info'}</span>
                                 </>
                               )}
                             </motion.button>

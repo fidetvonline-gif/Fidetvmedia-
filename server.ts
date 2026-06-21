@@ -234,119 +234,127 @@ async function initApp() {
     }
   };
 
+  // Helper for TMDB API calls
+  const fetchTMDB = async (endpoint: string, params: any = {}) => {
+    const tmdbKey = process.env.TMDB_API_KEY;
+    if (!tmdbKey || tmdbKey === "YOUR_TMDB_API_KEY") {
+      console.warn("[TMDB] API Key missing or default");
+      return null;
+    }
+    try {
+      const response = await axios.get(`https://api.themoviedb.org/3${endpoint}`, {
+        params: { api_key: tmdbKey, ...params },
+        timeout: 10000
+      });
+      return response.data;
+    } catch (e: any) {
+      console.error(`[TMDB Error] ${endpoint}:`, e.message);
+      return null;
+    }
+  };
+
+  // Helper for OMDB fallback
+  const fetchOMDB = async (title: string) => {
+    const omdbKey = process.env.OMDB_API_KEY;
+    if (!omdbKey) return null;
+    try {
+      const response = await axios.get(`https://www.omdbapi.com/`, {
+        params: { apikey: omdbKey, t: title },
+        timeout: 5000
+      });
+      return response.data;
+    } catch (e) {
+      return null;
+    }
+  };
+
   // Video Downloader search endpoint - Using TMDB for real movie/TV data with enhanced diagnostics
   apiRouter.get("/video-search", validateLinkAccess, async (req, res) => {
     try {
       const { q } = req.query;
-      if (!q) return res.status(400).json({ error: 'Search query is required' });
-
-      const query = (q as string).trim();
+      const query = (q as string || '').trim();
       const userProfile = (req as any).userProfile || { id: 'guest', role: 'guest' };
-      console.log(`[Universal-Search] Query: "${query}" | From: ${userProfile.id} (${userProfile.role})`);
+      console.log(`[Universal-Search] Query: "${query || 'Trending'}" | From: ${userProfile.id} (${userProfile.role})`);
       
       const allResults: any[] = [];
       const diagnostics: any[] = [];
-      const axiosConfig = {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-          'Accept': 'application/json'
-        },
-        timeout: 10000
-      };
 
-    try {
-      const ruhendModule = await import("ruhend-scraper");
-      const ruhend = (ruhendModule as any).default || ruhendModule;
-      
-      const ytSearchMethod = (ruhend as any).ytsearch || ((ruhend as any).search && (ruhend as any).search.youtube);
-      if (ytSearchMethod) {
-        console.log(`[Search] Querying YouTube for: ${query}`);
-        const ytResults = await ytSearchMethod(query + " movie");
-        
-        if (ytResults && Array.isArray(ytResults)) {
-          console.log(`[Search] YouTube found ${ytResults.length} items`);
-          ytResults.slice(0, 12).forEach((v: any) => {
-            const vid = typeof v.id === 'object' ? (v.id.videoId || v.id.id) : (v.id || v.videoId);
-            if (vid && v.title) {
-                allResults.push({
-                  id: `yt_${vid}`,
-                  title: v.title,
-                  year: v.publishedTime || v.ago || 'New',
-                  rating: '4.8',
-                  poster: v.thumbnail || v.image || (v.thumbnails && v.thumbnails[0]?.url) || 'https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?w=800',
-                  duration: v.duration || v.timestamp || 'N/A',
-                  platform: 'YouTube',
-                  link: v.url || `https://www.youtube.com/watch?v=${vid}`
-                });
-            }
+      // 1. If no query, get current trending movies
+      if (!query) {
+        const trending = await fetchTMDB('/trending/movie/day', { language: 'en-US' });
+        if (trending?.results) {
+          trending.results.slice(0, 15).forEach((m: any) => {
+            allResults.push({
+              id: `tmdb_${m.id}`,
+              title: m.title || m.original_title,
+              year: (m.release_date || '').split('-')[0] || 'TBA',
+              rating: m.vote_average?.toFixed(1) || 'N/A',
+              poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : 'https://images.unsplash.com/photo-1485099667858-394460167664?w=800',
+              duration: 'Movie',
+              platform: 'FideTV Library'
+            });
           });
         }
-      }
-    } catch (e: any) {
-      console.error("[Search] YouTube Scraper Error:", e.message);
-    }
-
-      // 2. TMDB Search (Metadata for movies)
-      const tmdbKey = process.env.TMDB_API_KEY;
-      if (tmdbKey && tmdbKey !== "YOUR_TMDB_API_KEY" && tmdbKey.trim().length > 5) {
-        try {
-          const tmdbRes = await axios.get(`https://api.themoviedb.org/3/search/movie`, {
-            ...axiosConfig,
-            params: { api_key: tmdbKey, query }
+      } else {
+        // 2. TMDB Search (Primary source)
+        const tmdbRes = await fetchTMDB('/search/movie', { query, language: 'en-US', include_adult: false });
+        if (tmdbRes?.results) {
+          console.log(`[Search] TMDB found ${tmdbRes.results.length} results`);
+          tmdbRes.results.slice(0, 18).forEach((m: any) => {
+            allResults.push({
+              id: `tmdb_${m.id}`,
+              title: m.title,
+              year: (m.release_date || '').split('-')[0] || 'TBA',
+              rating: m.vote_average?.toFixed(1) || 'N/A',
+              poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : 'https://images.unsplash.com/photo-1485099667858-394460167664?w=800',
+              duration: 'Movie',
+              platform: 'TMDB Registry'
+            });
           });
-          if (tmdbRes.data?.results) {
-            console.log(`[Search] TMDB found ${tmdbRes.data.results.length} results`);
-            tmdbRes.data.results.slice(0, 15).forEach((m: any) => {
-              if (!allResults.find(r => r.title.toLowerCase() === (m.title||'').toLowerCase())) {
-                allResults.push({
-                  id: `tmdb_${m.id}`,
-                  title: m.title,
-                  year: (m.release_date || '').split('-')[0] || 'TBA',
-                  rating: m.vote_average?.toFixed(1) || 'N/A',
-                  poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : 'https://images.unsplash.com/photo-1485099667858-394460167664?w=800',
-                  duration: 'Movie',
-                  platform: 'TMDB Registry',
-                  link: `https://www.themoviedb.org/movie/${m.id}`
-                });
+        }
+
+        // 3. Fallback to OMDB
+        if (allResults.length === 0) {
+          const omdb = await fetchOMDB(query);
+          if (omdb && omdb.Response !== 'False') {
+            allResults.push({
+              id: `omdb_${omdb.imdbID}`,
+              title: omdb.Title,
+              year: omdb.Year,
+              rating: omdb.imdbRating,
+              poster: omdb.Poster !== 'N/A' ? omdb.Poster : 'https://images.unsplash.com/photo-1485099667858-394460167664?w=800',
+              duration: 'Movie',
+              platform: 'OMDB Search'
+            });
+          }
+        }
+      }
+
+      // 4. Enrich with internal database status
+      const admin = getSupabaseAdmin();
+      if (admin && allResults.length > 0) {
+        try {
+          const titles = allResults.map(r => r.title);
+          const { data: matches } = await admin
+            .from('portfolio_items')
+            .select('title, video_url, youtube_id')
+            .in('title', titles);
+          
+          if (matches) {
+            allResults.forEach(r => {
+              const matched = matches.find(m => m.title.toLowerCase() === r.title.toLowerCase());
+              if (matched) {
+                r.internal_available = true;
+                r.platform = 'FideCloud HD - Available';
               }
             });
           }
-        } catch (e: any) {
-          console.error("[Search] TMDB API Error:", e.message);
-          diagnostics.push(`TMDB API: ${e.message}`);
+        } catch (enrichErr) {
+          console.warn("[Search Enrichment] Skipping DB check:", enrichErr);
         }
-      } else {
-        diagnostics.push("TMDB_API_KEY is missing or invalid in environment.");
-        console.warn("[Search] TMDB_API_KEY is missing or default.");
       }
 
-      // 3. YTS Fallback
-      try {
-        const ytsRes = await axios.get(`https://yts.mx/api/v2/list_movies.json`, {
-          ...axiosConfig,
-          params: { query_term: query, limit: 8 }
-        });
-        if (ytsRes.data?.data?.movies) {
-          console.log(`[Search] YTS found ${ytsRes.data.data.movies.length} results`);
-          ytsRes.data.data.movies.forEach((m: any) => {
-            if (!allResults.find(r => r.id.includes(m.id.toString()))) {
-              allResults.push({
-                id: `yts_${m.id}`,
-                title: m.title_long || m.title,
-                year: m.year?.toString(),
-                rating: m.rating?.toString(),
-                poster: m.medium_cover_image,
-                duration: `${m.runtime || '120'}m`,
-                platform: 'FideCloud HD'
-              });
-            }
-          });
-        }
-      } catch (e: any) {
-        console.error("[Search] YTS API Error:", e.message);
-      }
-
-      console.log(`[Universal-Search] Total unique results for "${query}": ${allResults.length}`);
+      console.log(`[Universal-Search] Total unique results: ${allResults.length}`);
       
       if (allResults.length === 0) {
           return res.json({ 
@@ -356,10 +364,10 @@ async function initApp() {
           });
       }
 
-      return res.json(allResults.slice(0, 32));
+      return res.json({ results: allResults.slice(0, 32), diagnostics });
     } catch (err: any) {
-      console.error("[Search] Critical Hub Error:", err.message);
-      res.status(500).json({ error: 'Universal Search Hub failed' });
+      console.error("[Search Global Error]", err);
+      res.status(500).json({ error: "Search failed. Please try again later." });
     }
   });
 
@@ -598,72 +606,83 @@ async function initApp() {
     }
   });
 
-  // Movie Download Options Endpoint - Fetches real direct links/magnets
+  // Movie Download Options Endpoint - ONLY Internal Inventory (REBUILT FOR PRODUCTION)
   apiRouter.get("/movie-download-options", validateLinkAccess, async (req, res) => {
     try {
-      const { title, year } = req.query;
-      console.log(`[Universal-Fetch] links for: ${title} (${year})`);
+      const { title, id } = req.query;
       if (!title) return res.status(400).json({ error: "Movie title is required" });
 
+      const admin = getSupabaseAdmin();
       const links: any[] = [];
+      
+      console.log(`[Movie-Inventory] Checking official availability for: ${title} (ID: ${id})`);
 
-      // 1. Try YTS (Quality First)
-      try {
-        const ytsRes = await axios.get("https://yts.mx/api/v2/list_movies.json", {
-          params: { query_term: title, limit: 1 },
-          timeout: 5000
-        });
+      if (admin) {
+        try {
+          // Check portfolio_items for matching title (This is our 'Internal System')
+          const { data: item } = await admin
+            .from('portfolio_items')
+            .select('*')
+            .ilike('title', `${title}`)
+            .maybeSingle();
 
-        if (ytsRes.data?.data?.movies) {
-          const m = ytsRes.data.data.movies[0];
-          if (m?.torrents) {
-            m.torrents.forEach((t: any) => {
+          if (item) {
+            console.log(`[Inventory] Match found: ${item.id}`);
+            
+            // If it's stored in Supabase Storage, generate a secure signed URL
+            if (item.video_url && item.video_url.includes('.supabase.co/storage')) {
+              // Extract bucket and path from URL
+              const urlParts = item.video_url.split('/storage/v1/object/public/')[1];
+              if (urlParts) {
+                const [bucket, ...pathArr] = urlParts.split('/');
+                const path = pathArr.join('/');
+                
+                const { data: signed, error: signErr } = await admin.storage
+                  .from(bucket)
+                  .createSignedUrl(path, 3600); // 1 hour link
+                
+                if (signed?.signedUrl) {
+                  links.push({
+                    quality: "FideTV HD (Official)",
+                    type: "direct",
+                    size: "High Speed",
+                    url: signed.signedUrl,
+                    source: "FideCloud Storage",
+                    note: "Original Source High Bitrate"
+                  });
+                }
+              }
+            } else if (item.video_url) {
+              // Direct external but verified URL
               links.push({
-                quality: `${t.quality} HD`,
-                type: t.type,
-                size: t.size,
-                url: t.url,
-                magnet: `magnet:?xt=urn:btih:${t.hash}&dn=${encodeURIComponent(m.title)}&tr=udp://tracker.opentrackr.org:1337/announce`,
-                source: "FideCloud P2P"
-              });
-            });
-          }
-        }
-      } catch (e) {}
-
-      // 2. Try Universal Scrapers (YouTube/Social)
-      try {
-        const ruhend: any = await import("ruhend-scraper");
-        if (ruhend.search && ruhend.search.youtube) {
-          const ytResults = await ruhend.search.youtube(`${title} full movie`);
-          if (ytResults && Array.isArray(ytResults)) {
-            ytResults.slice(0, 3).forEach((vid: any) => {
-              links.push({
-                quality: "Direct DL",
+                quality: "HD Stream",
                 type: "stream",
                 size: "Variable",
-                url: vid.url,
-                source: "Social",
-                note: vid.title
+                url: item.video_url,
+                source: "External Verified Source"
               });
-            });
+            } else if (item.youtube_id) {
+              links.push({
+                 quality: "Preview / YouTube",
+                 type: "youtube",
+                 size: "Fast",
+                 url: `https://www.youtube.com/watch?v=${item.youtube_id}`,
+                 source: "YouTube Hub"
+              });
+            }
           }
+        } catch (dbErr) {
+          console.error("[Inventory] DB Link Error:", dbErr);
         }
-      } catch (e) {}
-
-      if (links.length === 0) {
-        links.push({ 
-           quality: "External Link", 
-           type: "web", 
-           size: "N/A", 
-           url: `https://www.google.com/search?q=${encodeURIComponent(title as string)}+download+free`, 
-           source: "Web" 
-        });
       }
 
+      // No results from internal inventory = Show "Not Available" in UI
+      // We no longer return the "Social" or "P2P" broken links as requested.
+      
       return res.json({ title: title as string, links });
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      console.error("[Search Inventory Hub Error]", err);
+      res.status(500).json({ error: "Download service error" });
     }
   });
 
