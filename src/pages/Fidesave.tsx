@@ -119,6 +119,41 @@ export default function Fidesave() {
     }
   };
 
+  const [savingToCloud, setSavingToCloud] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+
+  const handleSaveToCloud = async (mediaUrl: string, title: string) => {
+    setSavingToCloud(true);
+    setSaveSuccess(null);
+    setError('');
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Please sign in to save media to your cloud.');
+
+      const extension = mediaUrl.includes('.mp3') ? 'mp3' : 'mp4';
+      const filename = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.${extension}`;
+
+      const res = await fetch('/api/storage/upload-from-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ url: mediaUrl, filename })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save to cloud.');
+
+      setSaveSuccess(data.publicUrl);
+    } catch (err: any) {
+      setError(err.message || 'Failed to save to cloud storage.');
+    } finally {
+      setSavingToCloud(false);
+    }
+  };
+
   const downloadDirectly = (url: string, title: string) => {
     let extension = 'mp4';
     if (url.includes('.m3u8')) extension = 'm3u8';
@@ -419,6 +454,23 @@ export default function Fidesave() {
                                 <Video size={18} />
                                 {result.type === 'playlist' ? 'Download M3U' : 'Download Video'}
                               </button>
+                              
+                              {!saveSuccess ? (
+                                <button 
+                                  onClick={() => handleSaveToCloud(result.videoUrl, result.title || 'Video')}
+                                  disabled={savingToCloud}
+                                  className="w-full bg-surface-bright border border-border-custom hover:bg-surface text-foreground px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-[9px] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                >
+                                  {savingToCloud ? <Loader2 className="animate-spin" size={14} /> : <ShieldCheck size={14} className="text-primary" />}
+                                  {savingToCloud ? 'Saving to Cloud...' : 'Save to My Collection'}
+                                </button>
+                              ) : (
+                                <div className="w-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-[9px] flex items-center justify-center gap-2">
+                                  <ShieldCheck size={14} />
+                                  Saved Successfully
+                                </div>
+                              )}
+
                               <button 
                                 onClick={() => setPreviewing(true)}
                                 className="w-full bg-surface-bright border border-border-custom hover:bg-surface text-foreground px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-[9px] transition-all flex items-center justify-center gap-2"
@@ -472,7 +524,7 @@ export default function Fidesave() {
 
                 {result.type === 'youtube' ? (
                   <YouTubeVideoPlayer
-                    videoId={url}
+                    videoId={result.videoId || result.videoUrl || url}
                     autoPlay={true}
                     className="w-full h-full"
                   />

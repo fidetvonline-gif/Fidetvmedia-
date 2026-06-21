@@ -69,10 +69,10 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
     }
 
     const watchdog = setTimeout(() => {
-      console.error(`[Universal Player] Signal Watchdog Timeout`);
-      setError('Signal acquisition timed out. The bridge might be struggling with the current stream.');
+      console.error(`[Universal Player] Signal Watchdog Timeout for: ${stream.url}`);
+      setError('Signal acquisition is taking too long. This source might be heavily congested or restricted.');
       setLoading(false);
-    }, 45000);
+    }, 60000); // Increased to 60s for better tolerance on slow proxies
 
     return () => clearTimeout(watchdog);
   }, [loading, retryKey]);
@@ -92,13 +92,20 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
     // Auto-fallback: If direct playback fails (e.g. CORS), try routing through proxy.
     // If proxy playback fails (e.g. Cloud Run IP blocked), it will hit this again and fail out.
     if (stream && !stream.needsProxy && failCount === 0) {
-      console.warn(`[Universal Player] Direct playback failed. Attempting to fallback through AI Studio signal bridge proxy...`);
+      console.warn(`[Universal Player] Direct playback failure for ${stream.url}. Switching to Proxy Bridge...`);
       setStream({ ...stream, needsProxy: true });
       setLoading(true);
       setError(null);
       setFailCount(1);
       setRetryKey(k => k + 1);
       return;
+    }
+    
+    // Check for specific common browser errors that are "silent"
+    const isProbablyCors = !stream.needsProxy && (e?.name === 'NotAllowedError' || e?.name === 'SecurityError');
+    if (isProbablyCors && failCount === 0) {
+        handleError('CORS restriction detected. Re-routing through bridge...');
+        return;
     }
     
     const msg = typeof e === 'string' ? e : (e?.message || 'Signal acquisition failed. This might be due to geographical restrictions or temporary downtime.');
@@ -257,6 +264,7 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
             muted={muted}
             controls
             preload="auto"
+            onLoadedMetadata={handleReady}
             onCanPlay={handleReady}
             onError={handleError}
             playsInline

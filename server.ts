@@ -230,9 +230,17 @@ async function initApp() {
       if (!q) return res.status(400).json({ error: 'Search query is required' });
 
       const query = (q as string);
-      console.log(`[Universal-Search] Query: "${query}"`);
+      const userProfile = (req as any).userProfile || { id: 'guest', role: 'guest' };
+      console.log(`[Universal-Search] Query: "${query}" | From: ${userProfile.id} (${userProfile.role})`);
       
       const allResults: any[] = [];
+      const axiosConfig = {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+          'Accept': 'application/json'
+        },
+        timeout: 8000
+      };
 
     try {
       const ruhendModule = await import("ruhend-scraper");
@@ -260,12 +268,10 @@ async function initApp() {
                 });
             }
           });
-        } else {
-            console.warn("[Search] YouTube search returned non-array result:", typeof ytResults);
         }
       }
     } catch (e: any) {
-      console.error("[Search] YouTube Hub Critical Failure:", e.message);
+      console.error("[Search] YouTube Scraper Error:", e.message);
     }
 
       // 2. TMDB Search (Metadata for movies)
@@ -273,11 +279,12 @@ async function initApp() {
       if (tmdbKey && tmdbKey !== "YOUR_TMDB_API_KEY") {
         try {
           const tmdbRes = await axios.get(`https://api.themoviedb.org/3/search/movie`, {
-            params: { api_key: tmdbKey, query },
-            timeout: 5000
+            ...axiosConfig,
+            params: { api_key: tmdbKey, query }
           });
           if (tmdbRes.data?.results) {
-            tmdbRes.data.results.slice(0, 6).forEach((m: any) => {
+            console.log(`[Search] TMDB found ${tmdbRes.data.results.length} results`);
+            tmdbRes.data.results.slice(0, 8).forEach((m: any) => {
               if (!allResults.find(r => r.title.toLowerCase() === (m.title||'').toLowerCase())) {
                 allResults.push({
                   id: `tmdb_${m.id}`,
@@ -292,18 +299,23 @@ async function initApp() {
               }
             });
           }
-        } catch (e: any) {}
+        } catch (e: any) {
+          console.error("[Search] TMDB API Error:", e.message);
+        }
+      } else {
+        console.warn("[Search] TMDB_API_KEY is missing or default.");
       }
 
       // 3. YTS Fallback
       try {
         const ytsRes = await axios.get(`https://yts.mx/api/v2/list_movies.json`, {
-          params: { query_term: query, limit: 6 },
-          timeout: 5000
+          ...axiosConfig,
+          params: { query_term: query, limit: 8 }
         });
         if (ytsRes.data?.data?.movies) {
+          console.log(`[Search] YTS found ${ytsRes.data.data.movies.length} results`);
           ytsRes.data.data.movies.forEach((m: any) => {
-            if (!allResults.find(r => r.title.toLowerCase() === m.title.toLowerCase())) {
+            if (!allResults.find(r => r.id.includes(m.id.toString()))) {
               allResults.push({
                 id: `yts_${m.id}`,
                 title: m.title_long || m.title,
@@ -316,9 +328,12 @@ async function initApp() {
             }
           });
         }
-      } catch (e) {}
+      } catch (e: any) {
+        console.error("[Search] YTS API Error:", e.message);
+      }
 
-      return res.json(allResults.slice(0, 20));
+      console.log(`[Universal-Search] Total aggregated results for "${query}": ${allResults.length}`);
+      return res.json(allResults.slice(0, 24));
     } catch (err: any) {
       console.error("[Search] Critical Hub Error:", err.message);
       res.status(500).json({ error: 'Universal Search Hub failed' });
@@ -374,26 +389,63 @@ async function initApp() {
     try {
       // 1. YouTube Handler
       if (workingUrl.includes('youtube.com') || workingUrl.includes('youtu.be')) {
-        const ytdlModule = await import('@distube/ytdl-core');
-        const ytdl = ytdlModule.default || ytdlModule;
-        if (!ytdl.validateURL(workingUrl)) return res.status(400).json({ error: "Invalid YouTube URL" });
-        
-        console.log(`[FideSave] Processing YouTube: ${workingUrl}`);
-        const info = await ytdl.getInfo(workingUrl);
-        
-        let format = ytdl.chooseFormat(info.formats, { quality: 'highestvideo', filter: 'videoandaudio' });
-        if (!format) format = ytdl.chooseFormat(info.formats, { quality: 'highest' });
-        
-        return res.json({
-          ...universalMeta,
-          title: info.videoDetails.title || universalMeta.title,
-          videoUrl: format.url,
-          audioUrl: format.url,
-          thumbnail: info.videoDetails.thumbnails[info.videoDetails.thumbnails.length - 1]?.url || universalMeta.thumbnail,
-          platform: 'YouTube',
-          duration: `${Math.floor(Number(info.videoDetails.lengthSeconds) / 60)}m`,
-          type: 'youtube'
-        });
+        try {
+          const ytdlModule = await import('@distube/ytdl-core');
+          const ytdl = ytdlModule.default || ytdlModule;
+          if (!ytdl.validateURL(workingUrl)) return res.status(400).json({ error: "Invalid YouTube URL" });
+          
+          console.log(`[FideSave] Processing YouTube: ${workingUrl}`);
+          const info = await ytdl.getInfo(workingUrl);
+          
+          let format = ytdl.chooseFormat(info.formats, { quality: 'highestvideo', filter: 'videoandaudio' });
+          if (!format) format = ytdl.chooseFormat(info.formats, { quality: 'highest' });
+          
+          return res.json({
+            ...universalMeta,
+            title: info.videoDetails.title || universalMeta.title,
+            videoUrl: format.url,
+            videoId: info.videoDetails.videoId,
+            audioUrl: format.url,
+            thumbnail: info.videoDetails.thumbnails[info.videoDetails.thumbnails.length - 1]?.url || universalMeta.thumbnail,
+            platform: 'YouTube',
+            duration: `${Math.floor(Number(info.videoDetails.lengthSeconds) / 60)}m`,
+            type: 'youtube'
+          });
+        } catch (ytErr: any) {
+          console.warn(`[FideSave] YouTube ytdl failed: ${ytErr.message}`);
+          
+          // Fallback to Ruhend Scraper for YouTube
+          if (ytErr.message.includes('bot') || ytErr.message.includes('sign in')) {
+            try {
+              console.log("[FideSave] Attempting Ruhend YouTube fallback...");
+              const ruhendMod = await import("ruhend-scraper");
+              const ruhend = (ruhendMod as any).default || ruhendMod;
+              
+              if (ruhend.ytmp4) {
+                 const data = await ruhend.ytmp4(workingUrl);
+                 if (data && (data.url || data.video || data.link)) {
+                    // Try to extract video ID from url if possible
+                    let vid = '';
+                    const match = workingUrl.match(/(?:v=|embed\/|youtu\.be\/|\/v\/|watch\?v=|^)([a-zA-Z0-9_-]{11})(?:[?&]|$)/);
+                    if (match) vid = match[1];
+
+                    return res.json({
+                      ...universalMeta,
+                      title: data.title || universalMeta.title,
+                      videoUrl: data.url || data.video || data.link,
+                      videoId: vid,
+                      audioUrl: data.audio || data.mp3 || '',
+                      thumbnail: data.thumbnail || universalMeta.thumbnail,
+                      platform: 'YouTube (Fallback)',
+                      type: 'youtube'
+                    });
+                 }
+              }
+            } catch (ruhendErr: any) {
+              console.error("[FideSave] YouTube Ruhend fallback failed:", ruhendErr.message);
+            }
+          }
+        }
       }
 
       // 1.5. M3U Playlist Handler
@@ -565,68 +617,136 @@ async function initApp() {
     }
   });
 
-  // Video download proxy to force "Save As" (direct to device)
+  // Video download proxy with improved Range support and Error handling
   apiRouter.get("/video-download-proxy", async (req, res) => {
     const { url, filename } = req.query;
-    if (!url) return res.status(400).send("URL required");
+    if (!url || typeof url !== 'string') return res.status(400).send("URL required");
 
     try {
       console.log(`[Download Proxy] Initiating download for: ${url}`);
       
-      const targetUrl = new URL(url as string);
+      const targetUrl = new URL(url);
       const referer = targetUrl.origin;
+
+      const axiosHeaders: any = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        'Referer': referer,
+        'Accept': '*/*',
+        'Connection': 'keep-alive'
+      };
+
+      if (req.headers.range) {
+        axiosHeaders['Range'] = req.headers.range;
+      }
 
       const response = await axios({
         method: 'get',
-        url: url as string,
+        url: url,
         responseType: 'stream',
-        timeout: 120000, 
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-          'Referer': referer,
-          'Accept': '*/*',
-          'Range': req.headers.range as string || undefined
-        },
+        timeout: 300000, // 5 minutes for very large video streams
+        headers: axiosHeaders,
+        maxRedirects: 10,
         validateStatus: (status) => status < 500 
       });
 
       if (response.status >= 400) {
         console.error(`[Download Proxy Error] Source returned ${response.status}: ${url}`);
-        return res.status(response.status).send(`The source file could not be accessed (Error ${response.status}).`);
+        return res.status(response.status).send(`The source file could not be accessed (Error ${response.status}). The link might be expired.`);
       }
 
-      // Safety check: Don't stream HTML content
-      const contentType = (response.headers as any)['content-type'] || '';
+      const contentType = (response.headers as any)['content-type'] || 'application/octet-stream';
       if (contentType.includes('text/html')) {
         console.error(`[Download Proxy Error] Refused to stream HTML: ${url}`);
-        return res.status(415).send("The link provided points to a webpage, not a direct media file.");
+        return res.status(415).send("The link points to a webpage, not a direct media file.");
       }
 
       const cleanFilename = (filename as string || `fidesave-${Date.now()}.mp4`).replace(/[^a-zA-Z0-9.\-_]/g, '_');
       
-      // Critical headers for "Save directly to device"
+      // Mirror source status (useful for 206 Partial Content)
+      res.status(response.status);
+
+      // Pass through critical headers
+      const passHeaders = ['content-type', 'content-length', 'content-range', 'accept-ranges', 'last-modified', 'etag'];
+      passHeaders.forEach(h => {
+        if (response.headers[h]) {
+          res.setHeader(h, response.headers[h] as string);
+        }
+      });
+
       res.setHeader('Content-Disposition', `attachment; filename="${cleanFilename}"`);
-      
-      // Fixed type issues with cast to any for Axios headers
-      const actualContentType = (response.headers as any)['content-type'] || 'application/octet-stream';
-      const contentLength = (response.headers as any)['content-length'];
-      
-      res.setHeader('Content-Type', actualContentType);
-      if (contentLength) {
-        res.setHeader('Content-Length', contentLength);
-      }
+      res.setHeader('Cache-Control', 'no-cache');
 
       response.data.on('error', (e: any) => {
         console.error('[Download Proxy Stream Error]', e.message);
-        res.end();
+        if (!res.headersSent) res.status(502).end();
+        else res.end();
       });
 
       response.data.pipe(res);
     } catch (err: any) {
       console.error(`[Download Proxy Error] ${err.message}`);
       if (!res.headersSent) {
-        res.status(502).send("The file provider denied the proxy request or the link expired.");
+        res.status(502).send("Proxy failed: " + err.message);
       }
+    }
+  });
+
+  // New endpoint: Upload from URL directly to Supabase Storage (Server-to-Server)
+  apiRouter.post("/storage/upload-from-url", validateLinkAccess, async (req, res) => {
+    const { url, filename, bucket = "media" } = req.body;
+    if (!url) return res.status(400).json({ error: "Source URL is required" });
+
+    try {
+      const adminClient = getSupabaseAdmin();
+      if (!adminClient) throw new Error("Supabase Admin not configured");
+
+      console.log(`[Storage] Remote Save requested for: ${url}`);
+      
+      // 1. Fetch the remote file
+      const response = await axios({
+        method: 'get',
+        url: url,
+        responseType: 'arraybuffer',
+        timeout: 300000, // 5 minutes
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
+        }
+      });
+
+      const contentType = response.headers['content-type'] || 'application/octet-stream';
+      const buffer = Buffer.from(response.data);
+      
+      // 2. Prepare destination path
+      const ext = filename?.split('.').pop() || 'mp4';
+      const remoteName = `remote-${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
+      const filePath = `saved/${remoteName}`;
+
+      // 3. Upload to Supabase
+      const { data, error: uploadError } = await adminClient.storage
+        .from(bucket)
+        .upload(filePath, buffer, {
+          contentType,
+          upsert: true
+        });
+
+      if (uploadError) {
+        // If bucket missing, create and retry once
+        if (uploadError.message.includes('not found')) {
+            await adminClient.storage.createBucket(bucket, { public: true });
+            const retry = await adminClient.storage.from(bucket).upload(filePath, buffer, { contentType });
+            if (retry.error) throw retry.error;
+        } else {
+            throw uploadError;
+        }
+      }
+
+      const { data: { publicUrl } } = adminClient.storage.from(bucket).getPublicUrl(filePath);
+      
+      console.log(`[Storage] Remote Save Success: ${publicUrl}`);
+      res.json({ publicUrl, filePath });
+    } catch (err: any) {
+      console.error(`[Storage Remote Save Error] ${err.message}`);
+      res.status(500).json({ error: "Failed to save media to cloud storage: " + err.message });
     }
   });
 
@@ -1027,7 +1147,7 @@ async function initApp() {
 
       const response = await axios.get(streamUrl, {
         headers,
-        timeout: 28000, // Slightly under Vercel's 30s limit
+        timeout: 45000, // Increased for stability
         responseType: 'stream',
         validateStatus: (status) => status < 500, 
         maxRedirects: 15
