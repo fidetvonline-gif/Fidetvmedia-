@@ -1809,18 +1809,21 @@ async function initApp() {
     
     app.use(vite.middlewares);
   } else {
-    // In bundle (dist/server.cjs), __dirname is dist/
-    const distPath = path.resolve(__dirname || process.cwd(), '');
+    // In production, files are in 'dist' directory relative to the project root
+    const distPath = path.join(process.cwd(), 'dist');
     console.log(`[Production] Serving static files from: ${distPath}`);
     app.use(express.static(distPath));
     
     // Catch-all for SPA
-    app.get('*all', (req, res) => {
+    app.get(/(.*)/, (req, res) => {
       // If API route not found, return 404 json
       if (req.path.startsWith('/api')) {
+        console.warn(`[API 404] ${req.method} ${req.path}`);
         return res.status(404).json({ error: "API route not found" });
       }
-      res.sendFile(path.resolve(distPath, 'index.html'));
+      
+      console.log(`[SPA Fallback] Serving index.html for: ${req.path}`);
+      res.sendFile(path.join(distPath, 'index.html'));
     });
   }
 
