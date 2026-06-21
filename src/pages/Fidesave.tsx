@@ -140,25 +140,8 @@ export default function Fidesave() {
     );
   }
 
-  if (!user) {
-    return (
-      <div className="min-h-[80vh] flex flex-col items-center justify-center p-4 text-center">
-        <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-8 border border-primary/20 shadow-xl">
-          <ShieldCheck size={48} />
-        </div>
-        <h2 className="text-4xl font-display font-black text-foreground mb-4">Secure Access Only</h2>
-        <p className="text-foreground/60 max-w-md mb-8 px-6">
-          <span className="font-bold text-primary">Fidesave</span> is a premium tool for registered FideTv users. Please sign in to download videos and search our library.
-        </p>
-        <button
-          onClick={() => navigate('/auth')}
-          className="px-10 py-5 bg-primary text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-primary/20 hover:scale-105 transition-all"
-        >
-          Sign In to Access Fidesave
-        </button>
-      </div>
-    );
-  }
+  // Permissive display to allow public users to use the tool
+  // The backend middleware will now also allow guests
 
   return (
     <div className="min-h-[80vh] flex flex-col items-center p-4">

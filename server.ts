@@ -188,38 +188,38 @@ async function initApp() {
   // Unified middleware to validate access permissions, ensuring users and admins have equal access based on 'profiles' table
   const validateLinkAccess = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const authHeader = req.headers.authorization;
+    const adminClient = getSupabaseAdmin();
+    
+    // Default to guest
+    (req as any).userProfile = { id: 'guest', role: 'guest' };
+
     if (!authHeader) {
-      return res.status(401).json({ error: "Missing authorization header. Please log in." });
+      return next(); 
     }
     
     const token = authHeader.split(" ")[1];
-    if (!token) return res.status(401).json({ error: "Invalid authorization header format." });
+    if (!token || token === "undefined") return next();
 
-    const adminClient = getSupabaseAdmin();
-    if (!adminClient) return res.status(500).json({ error: "Database configuration error." });
+    if (!adminClient) return next();
 
     try {
       const { data: { user }, error: authError } = await adminClient.auth.getUser(token);
-      if (authError || !user) throw new Error(authError?.message || "Invalid session.");
+      if (authError || !user) return next();
 
-      const { data: profile, error: profileError } = await adminClient
+      const { data: profile } = await adminClient
          .from('profiles')
          .select('id, role, status')
          .eq('id', user.id)
          .maybeSingle();
       
-      // Relaxed Profile Check: Only check status if profile exists. 
-      // This helps new users who might not have a profile record yet despite having an auth session.
       if (profile && (profile.status === 'suspended' || profile.status === 'blocked')) {
-         throw new Error("Your account is currently restricted from accessing this feature.");
+         return res.status(403).json({ error: "Your account is currently restricted from accessing this feature." });
       }
 
-      // attach profile or null
       (req as any).userProfile = profile || { id: user.id, role: 'user' };
       next();
     } catch (e: any) {
-      console.error("[AuthMiddleware] Error:", e.message);
-      return res.status(403).json({ error: "Access restricted: " + e.message });
+      next();
     }
   };
 
