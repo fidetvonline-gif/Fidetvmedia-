@@ -954,15 +954,24 @@ export default function Home() {
                   
                   <div className="pt-4 border-t border-border-custom flex items-center justify-between">
                     <span className="text-[10px] font-bold font-mono text-text-muted/60 uppercase">FideTV Originals</span>
-                    {(show.youtube_id || show.video_url) ? (
-                      <button 
-                        onClick={() => setPlayingVideo(show)}
-                        className="text-xs text-primary font-bold inline-flex items-center gap-1 hover:underline relative z-30"
+                    <div className="flex items-center gap-3">
+                      {(show.youtube_id || show.video_url) ? (
+                        <button 
+                          onClick={() => setPlayingVideo(show)}
+                          className="text-xs text-primary font-bold inline-flex items-center gap-1 hover:underline relative z-30"
+                        >
+                          <span>Watch</span>
+                          <Play className="w-3 h-3 fill-current" />
+                        </button>
+                      ) : null}
+                      <Link 
+                        to={`/fidesave?url=${encodeURIComponent(show.youtube_id ? `https://www.youtube.com/watch?v=${show.youtube_id}` : show.video_url || '')}`}
+                        className="text-[10px] text-foreground/40 hover:text-primary font-bold inline-flex items-center gap-1 transition-colors relative z-30"
                       >
-                        <span>Watch Now</span>
-                        <Play className="w-3 h-3 fill-current" />
-                      </button>
-                    ) : null}
+                        <Download className="w-3 h-3" />
+                        <span>Save</span>
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </motion.div>

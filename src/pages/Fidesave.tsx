@@ -23,8 +23,20 @@ export default function Fidesave() {
   const [movieLinks, setMovieLinks] = useState<Record<string, any>>({});
   
   const navigate = useNavigate();
+  const searchParams = new URLSearchParams(window.location.search);
+  const initialUrl = searchParams.get('url');
 
   useEffect(() => {
+    if (initialUrl) {
+      setActiveTab('download');
+      setUrl(decodeURIComponent(initialUrl));
+      // Auto trigger if user is signed in or tool is public
+      setTimeout(() => {
+        const fetchBtn = document.querySelector('button[type="submit"]') as HTMLButtonElement;
+        if (fetchBtn) fetchBtn.click();
+      }, 500);
+    }
+    
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setAuthLoading(false);
@@ -64,9 +76,16 @@ export default function Fidesave() {
         setSearchResults(data.results);
         if (data.diagnostics && data.diagnostics.length > 0) {
            console.warn("Search diagnostics:", data.diagnostics);
+           // If we have some diagnostics but no results, maybe show them?
+           if (data.results.length === 0) {
+             setError(`Search trace: ${data.diagnostics.slice(0, 2).join(' | ')}`);
+           }
         }
       } else {
         setSearchResults([]);
+        if (data.diagnostics) {
+          setError(`No matches. Service trace: ${data.diagnostics[0]}`);
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Search failed. Please try again later.');
@@ -206,10 +225,10 @@ export default function Fidesave() {
             <Download size={40} />
           </motion.div>
           <h1 className="text-5xl md:text-7xl font-display font-black text-foreground mb-4 tracking-tighter">
-            Fide<span className="text-primary">save</span>
+            Fide<span className="text-primary">save</span> Hub
           </h1>
           <p className="text-lg text-foreground/60 max-w-xl mx-auto font-medium">
-            Universal Media Inbox. Search for any movie or paste any social media link to download instantly.
+            The Universal Media Toolbox. Search blockbusters or paste any social link to watch and download instantly.
           </p>
         </div>
 
@@ -363,8 +382,8 @@ export default function Fidesave() {
                                 </>
                               ) : (
                                 <>
-                                  {movie.platform === 'YouTube' ? <PlayCircle size={14} /> : <Download size={14} />} 
-                                  <span>{movie.platform === 'YouTube' ? 'Watch / Download' : 'Download Now'}</span>
+                                  {movie.platform === 'YouTube' ? <PlayCircle size={14} /> : <Film size={14} />} 
+                                  <span>{movie.platform === 'YouTube' ? 'Watch / Download' : 'Fetch Media Links'}</span>
                                 </>
                               )}
                             </motion.button>

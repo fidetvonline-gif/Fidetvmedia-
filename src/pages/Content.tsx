@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Play, ZoomIn, Filter, ArrowLeft, Search } from 'lucide-react';
+import { Play, ZoomIn, Filter, ArrowLeft, Search, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
@@ -223,8 +223,18 @@ export default function Content() {
                       </button>
                     </div>
 
-                    <div className="absolute top-6 right-6 w-10 h-10 bg-background/10 backdrop-blur-md rounded-full flex items-center justify-center border border-border-custom text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                       <Filter className="w-5 h-5" />
+                    <div className="absolute top-6 right-6 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Link 
+                        to={`/fidesave?url=${encodeURIComponent(item.youtube_id ? `https://www.youtube.com/watch?v=${item.youtube_id}` : item.stream_url || '')}`}
+                        className="w-10 h-10 bg-background/10 hover:bg-primary backdrop-blur-md rounded-full flex items-center justify-center border border-border-custom text-white transition-all shadow-lg"
+                        title="Save to Fidesave"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                         <Download className="w-5 h-5" />
+                      </Link>
+                      <div className="w-10 h-10 bg-background/10 backdrop-blur-md rounded-full flex items-center justify-center border border-border-custom text-white">
+                         <Filter className="w-5 h-5" />
+                      </div>
                     </div>
                   </div>
                   
@@ -283,10 +293,19 @@ export default function Content() {
               )}
               
               <div className="absolute top-4 sm:top-8 left-4 right-4 sm:left-8 sm:right-8 flex justify-between items-start pointer-events-none">
-                 <div className="p-3 sm:p-4 bg-black/50 backdrop-blur-md rounded-2xl border border-white/10 pointer-events-auto max-w-[60%] sm:max-w-md">
-                    <span className="text-[8px] sm:text-[10px] font-black uppercase text-primary tracking-[0.2em] sm:tracking-[0.3em] mb-1 block">{playingVideo.category}</span>
-                    <h2 className="text-white font-display font-medium text-sm sm:text-base tracking-tight line-clamp-2">{playingVideo.title}</h2>
-                 </div>
+                  <div className="p-3 sm:p-4 bg-black/50 backdrop-blur-md rounded-2xl border border-white/10 pointer-events-auto max-w-[60%] sm:max-w-md">
+                     <span className="text-[8px] sm:text-[10px] font-black uppercase text-primary tracking-[0.2em] sm:tracking-[0.3em] mb-1 block">{playingVideo.category}</span>
+                     <div className="flex items-center justify-between gap-4">
+                       <h2 className="text-white font-display font-medium text-sm sm:text-base tracking-tight line-clamp-2">{playingVideo.title}</h2>
+                       <Link 
+                         to={`/fidesave?url=${encodeURIComponent(playingVideo.youtube_id ? `https://www.youtube.com/watch?v=${playingVideo.youtube_id}` : playingVideo.stream_url || '')}`}
+                         className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/20 hover:bg-primary text-primary hover:text-white rounded-lg text-[8px] font-black uppercase tracking-widest transition-all shrink-0"
+                       >
+                         <Download className="w-3 h-3" />
+                         <span>Save</span>
+                       </Link>
+                     </div>
+                  </div>
                  
                  <button 
                   onClick={() => setPlayingVideo(null)}
