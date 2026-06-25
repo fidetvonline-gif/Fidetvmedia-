@@ -1,4 +1,6 @@
 import express from "express";
+import http from "http";
+import { Server } from "socket.io";
 import path from "path";
 import cors from "cors";
 import { createServer as createViteServer } from "vite";
@@ -237,18 +239,19 @@ async function initApp() {
   // Helper for TMDB API calls
   const fetchTMDB = async (endpoint: string, params: any = {}) => {
     const tmdbKey = process.env.TMDB_API_KEY;
-    if (!tmdbKey || tmdbKey === "YOUR_TMDB_API_KEY") {
+    if (!tmdbKey || tmdbKey === "YOUR_TMDB_API_KEY" || tmdbKey.length < 10) {
       console.warn("[TMDB] API Key missing or default");
       return null;
     }
     try {
       const response = await axios.get(`https://api.themoviedb.org/3${endpoint}`, {
         params: { api_key: tmdbKey, ...params },
+        headers: { 'User-Agent': 'FideTV-Agent/1.0' },
         timeout: 10000
       });
       return response.data;
     } catch (e: any) {
-      console.error(`[TMDB Error] ${endpoint}:`, e.message);
+      console.error(`[TMDB Error] ${endpoint}:`, e.response?.data || e.message);
       return null;
     }
   };
@@ -283,7 +286,7 @@ async function initApp() {
       if (!query) {
         const trending = await fetchTMDB('/trending/movie/day', { language: 'en-US' });
         if (trending?.results) {
-          trending.results.slice(0, 15).forEach((m: any) => {
+          trending.results.slice(0, 20).forEach((m: any) => {
             allResults.push({
               id: `tmdb_${m.id}`,
               title: m.title || m.original_title,
@@ -300,7 +303,7 @@ async function initApp() {
         const tmdbRes = await fetchTMDB('/search/movie', { query, language: 'en-US', include_adult: false });
         if (tmdbRes?.results) {
           console.log(`[Search] TMDB found ${tmdbRes.results.length} results`);
-          tmdbRes.results.slice(0, 18).forEach((m: any) => {
+          tmdbRes.results.slice(0, 24).forEach((m: any) => {
             allResults.push({
               id: `tmdb_${m.id}`,
               title: m.title,
@@ -308,25 +311,9 @@ async function initApp() {
               rating: m.vote_average?.toFixed(1) || 'N/A',
               poster: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : 'https://images.unsplash.com/photo-1485099667858-394460167664?w=800',
               duration: 'Movie',
-              platform: 'TMDB Registry'
+              platform: 'TMDb Metadata'
             });
           });
-        }
-
-        // 3. Fallback to OMDB
-        if (allResults.length === 0) {
-          const omdb = await fetchOMDB(query);
-          if (omdb && omdb.Response !== 'False') {
-            allResults.push({
-              id: `omdb_${omdb.imdbID}`,
-              title: omdb.Title,
-              year: omdb.Year,
-              rating: omdb.imdbRating,
-              poster: omdb.Poster !== 'N/A' ? omdb.Poster : 'https://images.unsplash.com/photo-1485099667858-394460167664?w=800',
-              duration: 'Movie',
-              platform: 'OMDB Search'
-            });
-          }
         }
       }
 
@@ -360,17 +347,145 @@ async function initApp() {
           return res.json({ 
             results: [], 
             diagnostics,
-            debug: { has_tmdb: !!process.env.TMDB_API_KEY, query } 
+            debug: { 
+              has_tmdb: !!process.env.TMDB_API_KEY, 
+              has_omdb: !!process.env.OMDB_API_KEY,
+              query 
+            } 
           });
       }
 
-      return res.json({ results: allResults.slice(0, 32), diagnostics });
+      return res.json({ 
+        results: allResults.slice(0, 32), 
+        diagnostics: diagnostics.length > 0 ? diagnostics : ["Results aggregated from multiple sources."] 
+      });
     } catch (err: any) {
       console.error("[Search Global Error]", err);
       res.status(500).json({ error: "Search failed. Please try again later." });
     }
   });
 
+  // NEW: FideTV Downloader Router for the Universal Downloader Component
+  apiRouter.post("/downloader/search", async (req, res) => {
+    console.log("[Downloader-Search] Endpoint hit!");
+    try {
+      const { query, platform, limit = 12 } = req.body;
+      if (!query) return res.status(400).json({ status: "error", error: "Query is required" });
+
+      console.log(`[Downloader-Search] Query: "${query}" | Platform: ${platform}`);
+      const searchResults: any[] = [];
+
+      // 1. YouTube Search via ruhend-scraper
+      try {
+        const ruhendMod = await import("ruhend-scraper");
+        const ruhend = (ruhendMod as any).default || ruhendMod;
+        const ytSearch = ruhend.ytsearch || (ruhend.search && ruhend.search.youtube);
+        
+        if (ytSearch) {
+          console.log("[Downloader-Search] Calling ytSearch...");
+          const ytResults = await ytSearch(query);
+          
+          if (ytResults && Array.isArray(ytResults)) {
+            ytResults.slice(0, limit).forEach((v: any) => {
+                const vid = v.videoId || v.id;
+                if (vid) {
+                  searchResults.push({
+                    id: `yt_${vid}`,
+                    title: v.title,
+                    thumbnail: v.thumbnail || "",
+                    duration: v.duration || "Video",
+                    source: "YouTube",
+                    qualities: ["360p", "720p", "1080p"],
+                    hasSubtitles: true,
+                    uploadDate: v.ago || "Recent"
+                  });
+                }
+            });
+          }
+        }
+      } catch (e) {
+        console.warn("[Downloader-Search] ruhend-scraper Search failed:", e);
+      }
+
+      console.log("[Downloader-Search] Final results count:", searchResults.length);
+
+      return res.json({
+        status: "success",
+        results: searchResults.slice(0, limit)
+      });
+    } catch (err: any) {
+      console.error("[Downloader-Search] Global error:", err);
+      res.status(500).json({ status: "error", error: "Internal search error" });
+    }
+  });
+
+  apiRouter.post("/downloader/get-link", validateLinkAccess, async (req, res) => {
+    try {
+      const { videoId, quality, format = "mp4" } = req.body;
+      if (!videoId) return res.status(400).json({ status: "error", error: "Video ID is required" });
+
+      console.log(`[Downloader-Link] Fetching for: ${videoId} | Quality: ${quality}`);
+
+      // Handle YouTube IDs
+      if (videoId.startsWith('yt_')) {
+        const vid = videoId.replace('yt_', '');
+        const ytUrl = `https://www.youtube.com/watch?v=${vid}`;
+        
+        try {
+          const ruhendMod = await import("ruhend-scraper");
+          const ruhend = (ruhendMod as any).default || ruhendMod;
+          
+          if (ruhend.ytmp4) {
+             const data = await ruhend.ytmp4(ytUrl);
+             if (data && (data.url || data.video || data.link)) {
+               return res.json({
+                 status: "success",
+                 downloadUrl: data.url || data.video || data.link,
+                 fileName: (data.title || "video") + ".mp4",
+                 fileSize: data.size || "Variable",
+                 expiresIn: 3600
+               });
+             }
+          }
+          
+          // Fallback to ytdl-core
+          const ytdlModule = await import('@distube/ytdl-core');
+          const ytdl = ytdlModule.default || ytdlModule;
+          const info = await ytdl.getInfo(ytUrl);
+          const f = ytdl.chooseFormat(info.formats, { quality: 'highest' });
+          
+          return res.json({
+            status: "success",
+            downloadUrl: f.url,
+            fileName: (info.videoDetails.title || "video") + ".mp4",
+            fileSize: "Variable",
+            expiresIn: 3600
+          });
+        } catch (e) {
+          console.error("[Downloader-Link] YouTube processing failed:", e);
+        }
+      }
+
+      // Default Generic Link (or for TMDb/others, we just give a search link or mock)
+      return res.json({
+        status: "success",
+        downloadUrl: `https://videodownloader.site/download?url=${encodeURIComponent(videoId)}`,
+        fileName: "media_download.mp4",
+        fileSize: "Variable",
+        expiresIn: 3600
+      });
+    } catch (err: any) {
+      console.error("[Downloader-Link] Global error:", err);
+      res.status(500).json({ status: "error", error: "Failed to resolve download link" });
+    }
+  });
+
+  apiRouter.get("/downloader/subtitles/:videoId", async (req, res) => {
+    res.json({
+      status: "success",
+      subtitles: []
+    });
+  });
 
   apiRouter.post("/video-downloader", validateLinkAccess, async (req, res) => {
     const { url } = req.body;
@@ -629,17 +744,15 @@ async function initApp() {
           if (item) {
             console.log(`[Inventory] Match found: ${item.id}`);
             
-            // If it's stored in Supabase Storage, generate a secure signed URL
             if (item.video_url && item.video_url.includes('.supabase.co/storage')) {
-              // Extract bucket and path from URL
               const urlParts = item.video_url.split('/storage/v1/object/public/')[1];
               if (urlParts) {
                 const [bucket, ...pathArr] = urlParts.split('/');
                 const path = pathArr.join('/');
                 
-                const { data: signed, error: signErr } = await admin.storage
+                const { data: signed } = await admin.storage
                   .from(bucket)
-                  .createSignedUrl(path, 3600); // 1 hour link
+                  .createSignedUrl(path, 3600); 
                 
                 if (signed?.signedUrl) {
                   links.push({
@@ -653,7 +766,6 @@ async function initApp() {
                 }
               }
             } else if (item.video_url) {
-              // Direct external but verified URL
               links.push({
                 quality: "HD Stream",
                 type: "stream",
@@ -676,8 +788,8 @@ async function initApp() {
         }
       }
 
-      // No results from internal inventory = Show "Not Available" in UI
-      // We no longer return the "Social" or "P2P" broken links as requested.
+      // If no internal inventory match is found, links remains empty.
+      // We no longer provide fallback to unstable external scrapers or scrapable sites.
       
       return res.json({ title: title as string, links });
     } catch (err: any) {
@@ -1846,7 +1958,40 @@ async function initApp() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  const httpServer = http.createServer(app);
+  const io = new Server(httpServer, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"]
+    }
+  });
+
+  io.on("connection", (socket) => {
+    console.log("Socket connected:", socket.id);
+
+    socket.on("join-room", (roomId, userId) => {
+      socket.join(roomId);
+      socket.to(roomId).emit("user-connected", userId);
+      
+      socket.on("disconnect", () => {
+        socket.to(roomId).emit("user-disconnected", userId);
+      });
+    });
+
+    socket.on("offer", (roomId, offer, userId) => {
+      socket.to(roomId).emit("offer", offer, userId);
+    });
+
+    socket.on("answer", (roomId, answer, userId) => {
+      socket.to(roomId).emit("answer", answer, userId);
+    });
+
+    socket.on("ice-candidate", (roomId, candidate, userId) => {
+      socket.to(roomId).emit("ice-candidate", candidate, userId);
+    });
+  });
+
+  httpServer.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }

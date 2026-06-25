@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Loader2, Video, AlertCircle, PlayCircle, ShieldCheck, Search, Film, Star, Clock, Info, ExternalLink, X, Link as LinkIcon, FileAudio } from 'lucide-react';
+import { Download, Loader2, Video, AlertCircle, PlayCircle, ShieldCheck, Search, Film, Star, Clock, Info, ExternalLink, X, Link as LinkIcon, FileAudio, Globe, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '@/lib/supabase';
 import { useNavigate } from 'react-router-dom';
@@ -7,8 +7,10 @@ import { useNavigate } from 'react-router-dom';
 import { YouTubeVideoPlayer } from '@/components/YouTubeVideoPlayer';
 import UniversalPlayer from '@/components/streaming/UniversalPlayer';
 
+import FideTVDownloaderSection from '@/components/FideTVDownloaderSection';
+
 export default function Fidesave() {
-  const [activeTab, setActiveTab] = useState<'search' | 'download'>('search');
+  const [activeTab, setActiveTab] = useState<'search' | 'download' | 'advanced'>('search');
   const [url, setUrl] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,6 +27,54 @@ export default function Fidesave() {
   const navigate = useNavigate();
   const searchParams = new URLSearchParams(window.location.search);
   const initialUrl = searchParams.get('url');
+
+  const validateMediaUrl = (urlToValidate: string) => {
+    if (!urlToValidate.startsWith('http')) return { valid: false, error: 'Please enter a valid URL starting with http:// or https://' };
+    
+    const supportedDomains = [
+      'youtube.com', 'youtu.be',
+      'tiktok.com',
+      'instagram.com',
+      'facebook.com', 'fb.watch',
+      'x.com', 'twitter.com'
+    ];
+    
+    try {
+      const parsed = new URL(urlToValidate);
+      const isSupported = supportedDomains.some(domain => parsed.hostname.includes(domain));
+      
+      if (!isSupported) {
+        return { 
+          valid: false, 
+          error: 'Currently we only support YouTube, TikTok, Instagram, Facebook, and X (Twitter).' 
+        };
+      }
+      return { valid: true, error: '' };
+    } catch (e) {
+      return { valid: false, error: 'Invalid URL format.' };
+    }
+  };
+
+  const handleSmartSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery) return;
+    
+    // Check if it's a URL
+    if (searchQuery.startsWith('http')) {
+      const validation = validateMediaUrl(searchQuery);
+      if (!validation.valid) {
+        setError(validation.error);
+        return;
+      }
+      setActiveTab('download');
+      setUrl(searchQuery);
+      handleDownload(e);
+      return;
+    }
+
+    // Default to TMDb search
+    handleSearch(e);
+  };
 
   useEffect(() => {
     if (initialUrl) {
@@ -102,6 +152,13 @@ export default function Fidesave() {
     setError('');
     setResult(null);
 
+    const validation = validateMediaUrl(url);
+    if (!validation.valid) {
+      setError(validation.error);
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch('/api/video-downloader', {
@@ -126,23 +183,26 @@ export default function Fidesave() {
 
   const handleFetchLinks = async (movie: any) => {
     setFetchingLinksFor(movie.id);
+    setError('');
+    
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const headers: HeadersInit = session?.access_token ? {
         'Authorization': `Bearer ${session.access_token}`
       } : {};
 
-      const res = await fetch(`/api/movie-download-options?title=${encodeURIComponent(movie.title)}&year=${movie.year}`, {
+      const res = await fetch(`/api/movie-download-options?title=${encodeURIComponent(movie.title)}&id=${movie.id}`, {
         headers
       });
       const data = await res.json();
       if (res.ok) {
-        setMovieLinks(prev => ({ ...prev, [movie.id]: data.links }));
+        setMovieLinks(prev => ({ ...prev, [movie.id]: data.links || [] }));
       } else {
-        console.error("Failed to fetch links", data);
+        throw new Error(data.error || 'Availability check failed');
       }
-    } catch (err) {
-      console.error("Failed to fetch links catch", err);
+    } catch (err: any) {
+      console.error("Failed to fetch links", err);
+      setError(`Notice: ${err.message || 'Limited availability for this title.'}`);
     } finally {
       setFetchingLinksFor(null);
     }
@@ -225,10 +285,11 @@ export default function Fidesave() {
             <Download size={40} />
           </motion.div>
           <h1 className="text-5xl md:text-7xl font-display font-black text-foreground mb-4 tracking-tighter">
-            Fide<span className="text-primary">save</span> Hub
+            Fide<span className="text-primary">Hub</span> Catalog
           </h1>
           <p className="text-lg text-foreground/60 max-w-xl mx-auto font-medium">
-            The Universal Media Toolbox. Search blockbusters or paste any social link to watch and download instantly.
+            Search the global TMDb database for movie metadata, posters, and ratings. 
+            Official high-speed downloads available for select titles in our inventory.
           </p>
         </div>
 
@@ -252,7 +313,37 @@ export default function Fidesave() {
             <LinkIcon size={16} />
             Any Link
           </button>
+          <button
+            onClick={() => { setActiveTab('advanced'); setError(''); }}
+            className={`flex-1 py-3 px-4 rounded-[0.9rem] flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-widest transition-all z-10 ${
+              activeTab === 'advanced' ? 'bg-primary text-white shadow-lg' : 'text-foreground/50 hover:text-foreground'
+            }`}
+          >
+            <Shield size={16} className={activeTab === 'advanced' ? 'text-white' : 'text-primary'} />
+            Advanced
+          </button>
         </div>
+
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 mb-8 flex items-center gap-3 text-red-500"
+            >
+              <AlertCircle size={20} className="shrink-0" />
+              <p className="text-xs font-bold uppercase tracking-wide">{error}</p>
+              <button 
+                onClick={() => setError('')}
+                className="ml-auto hover:bg-red-500/10 p-1 rounded-lg transition-colors"
+                type="button"
+              >
+                <X size={16} />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <AnimatePresence mode="wait">
           {activeTab === 'search' ? (
@@ -264,7 +355,7 @@ export default function Fidesave() {
               className="space-y-10"
             >
               <div className="bg-surface-bright border border-border-custom rounded-[2.5rem] p-2 shadow-xl focus-within:border-primary/50 transition-colors">
-                <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-2">
+                <form onSubmit={handleSmartSearch} className="flex flex-col md:flex-row gap-2">
                   <div className="relative flex-1 flex items-center">
                     <Search className="absolute left-6 text-foreground/30" size={20} />
                     <input
@@ -272,18 +363,20 @@ export default function Fidesave() {
                       required
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search for movies to download..."
+                      placeholder="Search global movie database (TMDb)..."
                       className="w-full bg-transparent text-foreground placeholder-foreground/30 py-6 pl-14 pr-6 rounded-2xl outline-none transition-all font-sans font-medium text-sm md:text-base border-none"
                     />
                   </div>
-                  <button
-                    type="submit"
-                    disabled={loading || !searchQuery}
-                    className="bg-foreground text-background hover:opacity-90 px-10 py-6 rounded-2xl font-black uppercase tracking-widest text-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-xl hover:scale-[1.02] active:scale-[0.98]"
-                  >
-                    {loading ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
-                    <span>Search Movies</span>
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={loading || !searchQuery}
+                      className="bg-foreground text-background hover:opacity-90 px-8 py-6 rounded-2xl font-black uppercase tracking-widest text-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-xl flex-1"
+                    >
+                      {loading ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
+                      <span>Search Catalog</span>
+                    </button>
+                  </div>
                 </form>
               </div>
 
@@ -313,12 +406,15 @@ export default function Fidesave() {
                       <div className="flex-1 space-y-2 mb-6">
                         <div className="flex justify-between items-center">
                           <div className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{movie.year}</div>
-                          {movie.internal_available && (
-                            <div className="text-[8px] font-black text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-md uppercase tracking-wider border border-emerald-500/20">In Library</div>
-                          )}
+                          <div className="flex gap-1.5">
+                            <div className="text-[8px] font-black text-foreground/40 bg-foreground/5 px-1.5 py-0.5 rounded-md uppercase tracking-wider border border-border-custom">TMDb Meta</div>
+                            {movie.internal_available && (
+                              <div className="text-[8px] font-black text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-md uppercase tracking-wider border border-emerald-500/20">In Library</div>
+                            )}
+                          </div>
                         </div>
                         <h4 className="text-xl font-display font-black text-foreground leading-tight group-hover:text-primary transition-colors tracking-tight line-clamp-2">{movie.title}</h4>
-                        <div className="text-[9px] font-bold text-foreground/30 uppercase tracking-widest">{movie.platform}</div>
+                        <div className="text-[9px] font-bold text-foreground/30 uppercase tracking-widest">Global Registry ID: {movie.id.replace('tmdb_', '')}</div>
                       </div>
                       
                       <div className="flex flex-col gap-2 min-h-[60px] justify-end">
@@ -354,14 +450,8 @@ export default function Fidesave() {
                                         e.stopPropagation();
                                         if (link.magnet) {
                                           window.location.href = link.magnet;
-                                        } else if (link.source === "YouTube / Social" || link.source === "Social") {
-                                          setActiveTab('download');
-                                          setUrl(link.url);
-                                          setTimeout(() => {
-                                             const fetchBtn = document.querySelector('button[type="submit"]') as HTMLButtonElement;
-                                             if (fetchBtn) fetchBtn.click();
-                                          }, 100);
-                                          setResult(null);
+                                        } else if (link.type === 'stream' || link.type === 'direct' || link.type === 'youtube') {
+                                          window.open(link.url, '_blank');
                                         } else {
                                           window.open(link.url, '_blank');
                                         }
@@ -378,8 +468,8 @@ export default function Fidesave() {
                                 </div>
                               ) : (
                                 <div className="py-4 text-center">
-                                  <p className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest mb-1">Not Available</p>
-                                  <p className="text-[9px] text-foreground/30 italic px-2">This title is not currently in our high-speed inventory.</p>
+                                  <p className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest mb-1">Source Pending</p>
+                                  <p className="text-[9px] text-foreground/30 italic px-2">High-speed link not found. Try searching again later.</p>
                                 </div>
                               )}
                             </motion.div>
@@ -398,12 +488,12 @@ export default function Fidesave() {
                               {fetchingLinksFor === movie.id ? (
                                 <>
                                   <Loader2 className="animate-spin" size={14} />
-                                  <span>Verifying...</span>
+                                  <span>Searching...</span>
                                 </>
                               ) : (
                                 <>
-                                  <Film size={14} /> 
-                                  <span>{movie.internal_available ? 'Download / Watch' : 'Fetch Media Info'}</span>
+                                  <Download size={14} /> 
+                                  <span>Download / Watch</span>
                                 </>
                               )}
                             </motion.button>
@@ -416,13 +506,14 @@ export default function Fidesave() {
               </div>
 
               {searchQuery && !loading && searchResults.length === 0 && (
-                <div className="text-center py-24 bg-surface-bright/30 border border-dashed border-border-custom rounded-[3rem]">
+                <div className="text-center py-20 px-6 bg-surface-bright/30 border border-dashed border-border-custom rounded-[3rem]">
                   <Film className="w-16 h-16 text-foreground/10 mx-auto mb-6" />
-                  <p className="text-foreground/40 font-bold uppercase tracking-widest text-xs italic">No movies found for "{searchQuery}"</p>
+                  <h3 className="text-xl font-display font-black text-foreground mb-2">No Movies Found</h3>
+                  <p className="text-foreground/40 max-w-sm mx-auto font-medium text-xs uppercase tracking-widest mb-8">We couldn't find matches for "{searchQuery}" in the global database.</p>
                 </div>
               )}
             </motion.div>
-          ) : (
+          ) : activeTab === 'download' ? (
             <motion.div 
               key="tab-download"
               initial={{ opacity: 0, x: -20 }}
@@ -443,14 +534,16 @@ export default function Fidesave() {
                       className="w-full bg-transparent text-foreground placeholder-foreground/30 py-6 pl-14 pr-6 rounded-2xl outline-none transition-all font-mono text-sm md:text-base border-none"
                     />
                   </div>
-                  <button
-                    type="submit"
-                    disabled={loading || !url}
-                    className="bg-primary hover:opacity-90 text-white px-10 py-6 rounded-2xl font-black uppercase tracking-widest text-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98]"
-                  >
-                    {loading ? <Loader2 className="animate-spin" size={18} /> : <Download size={18} />}
-                    <span>Fetch Media</span>
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={loading || !url}
+                      className="bg-primary hover:opacity-90 text-white px-10 py-6 rounded-2xl font-black uppercase tracking-widest text-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-xl shadow-primary/20 flex-1"
+                    >
+                      {loading ? <Loader2 className="animate-spin" size={18} /> : <Download size={18} />}
+                      <span>Fetch Media</span>
+                    </button>
+                  </div>
                 </form>
               </div>
 
@@ -552,6 +645,15 @@ export default function Fidesave() {
                   </motion.div>
                 )}
               </AnimatePresence>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="tab-advanced"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <FideTVDownloaderSection />
             </motion.div>
           )}
         </AnimatePresence>
