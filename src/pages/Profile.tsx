@@ -600,7 +600,10 @@ export default function Profile() {
                   
                   {isOwnProfile && (
                     <div className="space-y-3">
-                      <p className="text-[10px] text-foreground/40 font-black uppercase tracking-widest ml-1">Your Tracking Link</p>
+                      <p className="text-[10px] text-foreground/40 font-black uppercase tracking-widest ml-1">Send an invitation</p>
+                      <p className="text-[11px] text-foreground/60 font-light italic leading-relaxed">
+                        Invite your friends to FideTV! Share your unique link below to start earning rewards for every signup.
+                      </p>
                       <div className="relative group">
                         <input 
                           type="text" 
@@ -620,7 +623,6 @@ export default function Profile() {
                           {copied ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : <Copy className="w-4 h-4" />}
                         </button>
                       </div>
-                      <p className="text-[10px] text-foreground/40 leading-relaxed italic">Share this link with your friends. When they install the FideTV app using your link, you'll be credited as the referrer.</p>
                     </div>
                   )}
                 </div>

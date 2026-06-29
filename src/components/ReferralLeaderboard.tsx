@@ -33,11 +33,13 @@ export const ReferralLeaderboard: React.FC = () => {
 
       // Count occurrences of each referrer (username)
       const counts: Record<string, number> = {};
-      data.forEach(p => {
-        if (p.referred_by) {
-          counts[p.referred_by] = (counts[p.referred_by] || 0) + 1;
-        }
-      });
+      if (data) {
+        data.forEach(p => {
+          if (p.referred_by) {
+            counts[p.referred_by] = (counts[p.referred_by] || 0) + 1;
+          }
+        });
+      }
 
       // Sort referrers by count
       const sortedEntries = Object.entries(counts)

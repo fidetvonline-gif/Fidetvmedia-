@@ -20,6 +20,7 @@ export const SpaceRoom: React.FC<Props> = ({ roomName, userName, localStream, re
   
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
+  const [isSharing, setIsSharing] = useState(false);
 
   const toggleAudio = () => {
     if (localStream) {
@@ -36,6 +37,16 @@ export const SpaceRoom: React.FC<Props> = ({ roomName, userName, localStream, re
         track.enabled = !videoEnabled;
       });
       setVideoEnabled(!videoEnabled);
+    }
+  };
+
+  const toggleScreenShare = async () => {
+    if (!isSharing) {
+      // Logic to add display media to peer connection
+      setIsSharing(true);
+    } else {
+      // Logic to stop display media
+      setIsSharing(false);
     }
   };
 
@@ -86,7 +97,8 @@ export const SpaceRoom: React.FC<Props> = ({ roomName, userName, localStream, re
           {videoEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
         </button>
         <button 
-          className="p-4 rounded-full transition-all bg-slate-700 hover:bg-slate-600 text-white"
+          onClick={toggleScreenShare}
+          className={`p-4 rounded-full transition-all ${isSharing ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'bg-slate-700 hover:bg-slate-600 text-white'}`}
         >
           <MonitorUp className="w-5 h-5" />
         </button>

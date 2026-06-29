@@ -1,35 +1,53 @@
 import React, { useState } from 'react';
 import { SpaceRoom } from './SpaceRoom';
 import { PreJoinScreen } from './PreJoinScreen';
+import { SpaceList } from './SpaceList';
 import { useSocket } from '../hooks/useSocket';
 import { useWebRTC } from '../hooks/useWebRTC';
 
 export const EnterpriseSpace: React.FC = () => {
-  const [inRoom, setInRoom] = useState(false);
+  const [view, setView] = useState<'list' | 'join' | 'host' | 'room'>('list');
   const [roomName, setRoomName] = useState('');
   const [userName, setUserName] = useState('');
   
   const socket = useSocket('/');
-  const { localStream, remoteStreams } = useWebRTC(inRoom ? socket : null, roomName);
+  const { localStream, remoteStreams } = useWebRTC(view === 'room' ? socket : null, roomName);
 
   const handleJoin = (name: string, room: string) => {
     setUserName(name);
     setRoomName(room);
-    setInRoom(true);
+    setView('room');
+    if (socket) {
+      socket.emit('join-room', room, socket.id);
+    }
+  };
+
+  const handleHost = (room: string) => {
+    setUserName('Host');
+    setRoomName(room);
+    setView('room');
     if (socket) {
       socket.emit('join-room', room, socket.id);
     }
   };
 
   const handleLeave = () => {
-    setInRoom(false);
+    setView('list');
     if (socket) {
       socket.emit('leave-room', roomName, socket.id);
     }
   };
 
-  if (!inRoom) {
-    return <PreJoinScreen onJoin={handleJoin} />;
+  if (view === 'list') {
+    return <SpaceList onJoin={(r) => { setRoomName(r); setView('join'); }} onHost={() => setView('host')} />;
+  }
+
+  if (view === 'join') {
+    return <PreJoinScreen onJoin={handleJoin} initialRoom={roomName} />;
+  }
+
+  if (view === 'host') {
+    return <PreJoinScreen onJoin={handleHost} mode="host" />;
   }
 
   return (
