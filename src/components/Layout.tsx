@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, PlayCircle, Users, Briefcase, Info, Mail, LayoutDashboard, LogOut, User, Headset, Home as HomeIcon, DownloadCloud, Sun, Moon, Megaphone } from 'lucide-react';
+import { Menu, X, PlayCircle, Users, Briefcase, Info, Mail, LayoutDashboard, LogOut, User, Headset, Home as HomeIcon, DownloadCloud, Sun, Moon, Megaphone, Construction } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { safeLocalStorage } from '@/lib/storage';
 import { cn } from '@/lib/utils';
@@ -29,6 +29,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }
     return 'dark';
   });
+  const [showComingSoon, setShowComingSoon] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -176,6 +177,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
   };
 
+  const handleNavClick = (e: React.MouseEvent, link: any) => {
+    if (link.name === 'Spaces' || link.name === 'Fidesave') {
+      e.preventDefault();
+      setShowComingSoon(true);
+    }
+    setIsMenuOpen(false);
+  };
+
   const navLinks = [
     { name: 'Home', path: '/', icon: HomeIcon },
     { name: 'Live', path: '/live', icon: PlayCircle, id: 'nav-live' },
@@ -225,6 +234,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   key={link.path}
                   id={link.id}
                   to={link.path}
+                  onClick={(e) => {
+                    if (link.name === 'Spaces' || link.name === 'Fidesave') {
+                      e.preventDefault();
+                      setShowComingSoon(true);
+                    }
+                  }}
                   className={cn(
                     "text-xs font-bold uppercase tracking-widest transition-colors duration-200 hover:text-primary relative py-2",
                     location.pathname === link.path ? "text-primary" : "text-foreground/70"
@@ -313,7 +328,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 >
                   <Link
                     to={link.path}
-                    onClick={() => setIsMenuOpen(false)}
+                    onClick={(e) => {
+                      if (link.name === 'Spaces' || link.name === 'Fidesave') {
+                        e.preventDefault();
+                        setShowComingSoon(true);
+                      }
+                      setIsMenuOpen(false);
+                    }}
                     className="flex items-center gap-4 text-3xl font-display font-black text-foreground hover:text-primary transition-all active:scale-95 origin-left"
                   >
                     {link.icon && <link.icon className="w-6 h-6 text-primary" />}
@@ -473,6 +494,25 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </footer>
       )}
+      {/* Coming Soon Modal */}
+      <AnimatePresence>
+        {showComingSoon && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100000] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setShowComingSoon(false)}
+          >
+            <div className="bg-surface border border-border-custom p-8 rounded-3xl max-w-sm text-center shadow-2xl" onClick={e => e.stopPropagation()}>
+              <Construction className="w-12 h-12 text-primary mx-auto mb-6" />
+              <h2 className="text-2xl font-display font-black text-foreground mb-2">Coming Soon</h2>
+              <p className="text-foreground/60 mb-6 font-medium">We're working hard on these updates. Check back soon!</p>
+              <button onClick={() => setShowComingSoon(false)} className="w-full py-3 bg-primary text-white font-bold rounded-xl">Got it</button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
