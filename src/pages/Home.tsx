@@ -195,13 +195,20 @@ export default function Home() {
 
   const fetchLatestNews = async () => {
     try {
-      const { data } = await supabase
-        .from('news')
-        .select('*, profiles(username)')
-        .eq('is_published', true)
-        .order('created_at', { ascending: false })
-        .limit(3);
-      if (data) setLatestNews(data as any);
+      const response = await fetch('/api/news');
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        setLatestNews(data.map((item: any) => ({
+          id: item.url,
+          title: item.title,
+          excerpt: item.description,
+          description: item.content,
+          content: item.content,
+          image_url: item.urlToImage,
+          created_at: item.publishedAt,
+          profiles: { username: 'News Bot' }
+        })) as News[]);
+      }
     } catch (err) {
       console.error('Error fetching latest news:', err);
     }
@@ -210,14 +217,44 @@ export default function Home() {
   const fetchFeaturedPortfolio = async () => {
     try {
       setLoadingPortfolio(true);
-      const { data, error } = await supabase
+
+      // 1. Fetch from YouTube
+      let ytVideos: any[] = [];
+      try {
+        const ytResponse = await fetch('/api/youtube/content', { cache: 'no-store' });
+        ytVideos = await ytResponse.json();
+        if (!Array.isArray(ytVideos)) ytVideos = [];
+      } catch (err) {
+        console.error('Error fetching YouTube content:', err);
+      }
+
+      // 2. Fetch from portfolio_items
+      const { data: portfolioData, error } = await supabase
         .from('portfolio_items')
         .select('*')
         .eq('is_featured', true)
         .order('created_at', { ascending: false });
-        
-      if (!error && data && data.length > 0) {
-        setFeaturedPortfolio(data);
+
+      // Combine and format
+      const formattedYtVideos: PortfolioItem[] = ytVideos.map((yt: any) => ({
+        id: yt.youtube_id,
+        title: yt.title,
+        category: yt.category || 'General Content',
+        image_url: yt.image,
+        video_url: yt.stream_url,
+        youtube_id: yt.youtube_id,
+        description: yt.description,
+        is_featured: true,
+        created_at: new Date().toISOString()
+      }));
+
+      const allFeatured = [
+        ...formattedYtVideos,
+        ...(portfolioData || [])
+      ];
+
+      if (allFeatured.length > 0) {
+        setFeaturedPortfolio(allFeatured);
       } else {
         const defaultShows: any = [
           { id: '1', title: 'Emeritus director of information has a message for us all', category: 'Campus Matters', image_url: `https://img.youtube.com/vi/0D-zn6YAqCY/maxresdefault.jpg`, youtube_id: '0D-zn6YAqCY', description: 'Emeritus director of information has a message for us all - Campus matters', is_featured: true, created_at: '' },

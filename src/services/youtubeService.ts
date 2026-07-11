@@ -1,9 +1,7 @@
 
 const BASE_URL = '/api/youtube';
 
-const BLOCKLIST = [
-  'LIVE | Mexico vs South Africa | FIFA World Cup 2026™ | FideTv'
-];
+const BLOCKLIST = [];
 
 export interface YouTubeStats {
   viewers: string;

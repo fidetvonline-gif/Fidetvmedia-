@@ -1870,6 +1870,20 @@ async function initApp() {
   app.use("/api", apiRouter);
 
   // Fallback Channel API for when RLS blocks the public frontend
+  apiRouter.get("/news", async (req, res) => {
+    try {
+      if (!process.env.NEWS_API_KEY) {
+         return res.json([]);
+      }
+      const response = await fetch(`https://newsapi.org/v2/top-headlines?country=ng&apiKey=${process.env.NEWS_API_KEY}`);
+      const data = await response.json();
+      res.json(data.articles || []);
+    } catch (error) {
+      console.error('Error fetching news:', error);
+      res.status(500).json({ error: 'Failed to fetch news' });
+    }
+  });
+
   apiRouter.get("/channels", async (req, res) => {
     try {
       const admin = getSupabaseAdmin();

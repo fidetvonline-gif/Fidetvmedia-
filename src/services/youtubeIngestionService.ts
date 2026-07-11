@@ -384,7 +384,7 @@ export class YouTubeIngestionService {
         if (!channelId || !channelTitle) continue;
 
         // Skip blocked content (Specific title match)
-        const blocklist = ['LIVE | Mexico vs South Africa | FIFA World Cup 2026™ | FideTv'];
+        const blocklist: string[] = [];
         if (blocklist.some(title => videoTitle.includes(title))) {
            continue;
         }

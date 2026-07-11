@@ -9,58 +9,8 @@ import { format, formatDistanceToNow } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
 import ReactPlayer from 'react-player';
 import { cn } from '@/lib/utils';
-import fidetvWorldCup from '@/assets/images/fidetv_world_cup_1780392851684.png';
 
 const Player = ReactPlayer as any;
-
-const STATIC_WC_POST: News = {
-  id: 'fidetv-worldcup-live',
-  slug: 'watch-world-cup-matches-live-free',
-  title: 'Where to Watch All World Cup Matches Live & For Free Exclusively Online',
-  excerpt: 'Searching for a premium, reliable place to watch World Cup matches? FideTV.online is proud to broadcast every single global tournament match live, in full HD, and 100% free with no subscription or signup required!',
-  description: 'Learn how to easily tune in to live World Cup fixtures, tournament schedules, multi-feed coverage, and real-time community fan chats on the ultimate digital sports media hub.',
-  content: `### 🏆 The Ultimate Destination for Global Football Fans
-
-Are you looking for the absolute best place to watch the upcoming **World Cup Matches live, online, and completely for free**? Look no further! 
-
-**FideTV.online** is officially bringing you pristine, uninterrupted digital coverage of the entire global soccer tournament. Whether you're cheering for Lionel Messi, Cristiano Ronaldo, Erling Haaland, Kylian Mbappé, or the rising stars of national teams, we have you fully covered.
-
----
-
-### 🎁 Why Watch the World Cup on FideTV.online?
-
-Unlike mainstream paywalled platforms or ad-congested pirate streams, FideTV focuses on a premium, clean viewer experience:
-
-1. **100% Free Access**: No subscription fees, no credit card prompts, and absolutely no mandatory sign-ups. Just click and watch!
-2. **Crystal-Clear HD Audio & Video**: Experience every high-stakes penalty shootout, gorgeous bicycle kick, and crowd roar in high definition.
-3. **Multi-Camera Coverage**: Select from multiple vantage angles or main director streams.
-4. **Interactive Fan Chat**: Share instant emotional reactions, debate tactical lineups, and socialize with football enthusiasts around the globe in our secure, real-time live chat panel next to the broadcast.
-5. **Universal Mobile & TV Support**: Optimized perfectly for smartphones, tablet displays, laptops, and smart TV browsers so you can enjoy matches on the go.
-
----
-
-### 📅 Event Schedule & Kick-Off Details
-
-Our broadcasts synchronize directly with the official kick-off times! To make sure you don't miss a single touch of the ball, head over to our main platform sections:
-
-* **[Visit the Live Section](/live)**: Our continuous matches stream live on the customized video deck immediately.
-* **Matchday Alerts**: Keep the Live Event Banner active to access rolling down-to-the-second countdowns before your favorite national squads square off on the field.
-
-### 🌟 Live Fan Engagement
-
-During live match occurrences, FideTV.online hosts interactive companion panels. You'll have live play-by-plays, scoreboards, and active discussions right alongside fans worldwide.
-
-Be sure to bookmark FideTV.online and share this page with fellow football fans so nobody misses the biggest sports tournament of the decade! No cables, no registrations — just beautiful football.`,
-  category: 'Live Broadcasts',
-  author_id: 'admin',
-  is_published: true,
-  image_url: fidetvWorldCup,
-  created_at: '2026-06-02T09:00:00Z',
-  profiles: {
-    username: 'fidetv_sports',
-    avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=fidetv_sports'
-  } as any
-};
 
 const STATIC_RELEASE_POST: News = {
   id: 'fidetv-release-v2',
@@ -144,13 +94,6 @@ export default function NewsDetail() {
 
   const fetchNewsDetail = async () => {
     setLoading(true);
-    if (slug === 'watch-world-cup-matches-live-free' || slug === 'fidetv-worldcup-live') {
-      setItem(STATIC_WC_POST);
-      setLikesCount(1185);
-      setLoading(false);
-      fetchRelatedNews('fidetv-worldcup-live');
-      return;
-    }
     if (slug === 'major-release-v2' || slug === 'fidetv-release-v2') {
       setItem(STATIC_RELEASE_POST);
       setLikesCount(142);
@@ -207,16 +150,14 @@ export default function NewsDetail() {
       .limit(3);
     
     let combinedRelated: News[] = [];
-    if (currentId === 'fidetv-worldcup-live') {
-      combinedRelated.push(STATIC_RELEASE_POST);
-    } else if (currentId === 'fidetv-release-v2') {
-      combinedRelated.push(STATIC_WC_POST);
+    if (currentId === 'fidetv-release-v2') {
+      // No other static post to add
     } else {
-      combinedRelated.push(STATIC_WC_POST, STATIC_RELEASE_POST);
+      combinedRelated.push(STATIC_RELEASE_POST);
     }
 
     if (data) {
-      combinedRelated = [...combinedRelated, ...(data as any).filter((item: any) => item.id !== currentId && item.slug !== 'major-release-v2' && item.slug !== 'watch-world-cup-matches-live-free')];
+      combinedRelated = [...combinedRelated, ...(data as any).filter((item: any) => item.id !== currentId && item.slug !== 'major-release-v2')];
     }
     setRelatedNews(combinedRelated.slice(0, 3));
   };

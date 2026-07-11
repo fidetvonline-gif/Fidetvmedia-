@@ -43,7 +43,7 @@ export default function Content() {
     setLoading(true);
     try {
       // Fetch from our new YouTube API endpoint
-      const ytResponse = await fetch('/api/youtube/content');
+      const ytResponse = await fetch('/api/youtube/content', { cache: 'no-store' });
       let ytVideos = await ytResponse.json();
       
       if (!Array.isArray(ytVideos)) {

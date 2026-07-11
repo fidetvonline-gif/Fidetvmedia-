@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutPanelLeft, Shield, SignalHigh } from 'lucide-react';
+import { LayoutPanelLeft, Shield, SignalHigh, Copy } from 'lucide-react';
 
 interface Props {
   roomName: string;
@@ -8,6 +8,11 @@ interface Props {
 }
 
 export const SpaceHeader: React.FC<Props> = ({ roomName, sidebarOpen, onToggleSidebar }) => {
+  const copyLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    alert('Meeting link copied to clipboard!');
+  };
+
   return (
     <header className="h-16 px-6 flex items-center justify-between border-b border-white/5 bg-slate-900/50 backdrop-blur-md relative z-10">
       <div className="flex items-center gap-4">
@@ -28,6 +33,13 @@ export const SpaceHeader: React.FC<Props> = ({ roomName, sidebarOpen, onToggleSi
       </div>
       
       <div className="flex items-center gap-3">
+        <button 
+          onClick={copyLink}
+          className="p-2.5 rounded-xl bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white transition-all flex items-center gap-2"
+        >
+          <Copy className="w-5 h-5" />
+          <span className="text-sm">Copy Link</span>
+        </button>
         <button 
           onClick={onToggleSidebar}
           className={`p-2.5 rounded-xl transition-all ${sidebarOpen ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'}`}

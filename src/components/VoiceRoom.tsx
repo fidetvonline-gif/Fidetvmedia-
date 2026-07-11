@@ -1520,7 +1520,7 @@ Keep the tone inspiring, strategic, and professional.`;
         setAiNotes('Failed to auto-generate summary documents.');
       }
     } catch (e) {
-      setAiNotes(`🤖 FideTV AI Co-Pilot Summary Memo\n\n• Executive Session Recap: Team convened live in FideTV Interactive Voice lobby to brainstorm technical broadcast architecture, media delivery channels, and regional creator support grids.\n\n• Suggested Media Production Briefs: 'Independent Voice' - A dedicated 24/7 channel for region-tailored huddles, documentary streams, and amateur tournaments.\n\n• High-Priority Action-Items:\n  - Setup dual backup CDNs for the 25 new streaming channels.\n  - Prepare interactive graphic overlays for upcoming World Cup matches.`);
+      setAiNotes(`🤖 FideTV AI Co-Pilot Summary Memo\n\n• Executive Session Recap: Team convened live in FideTV Interactive Voice lobby to brainstorm technical broadcast architecture, media delivery channels, and regional creator support grids.\n\n• Suggested Media Production Briefs: 'Independent Voice' - A dedicated 24/7 channel for region-tailored huddles, documentary streams, and amateur tournaments.\n\n• High-Priority Action-Items:\n  - Setup dual backup CDNs for the 25 new streaming channels.\n  - Prepare interactive graphic overlays for upcoming events.`);
     } finally {
       setIsAiLoading(false);
     }

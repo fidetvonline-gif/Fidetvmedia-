@@ -178,7 +178,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   };
 
   const handleNavClick = (e: React.MouseEvent, link: any) => {
-    if (link.name === 'Spaces' || link.name === 'Fidesave') {
+    if (link.name === 'Fidesave') {
       e.preventDefault();
       setShowComingSoon(true);
     }
@@ -235,7 +235,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   id={link.id}
                   to={link.path}
                   onClick={(e) => {
-                    if (link.name === 'Spaces' || link.name === 'Fidesave') {
+                    if (link.name === 'Fidesave') {
                       e.preventDefault();
                       setShowComingSoon(true);
                     }
@@ -329,7 +329,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   <Link
                     to={link.path}
                     onClick={(e) => {
-                      if (link.name === 'Spaces' || link.name === 'Fidesave') {
+                      if (link.name === 'Fidesave') {
                         e.preventDefault();
                         setShowComingSoon(true);
                       }
