@@ -14,6 +14,7 @@ import { M3UService } from "./src/services/m3uService";
 import multer from "multer";
 import fs from "fs/promises";
 import rateLimit from "express-rate-limit";
+import meetingRoutes from "./src/services/api/meetingRoutes";
 
 dotenv.config();
 
@@ -139,6 +140,7 @@ async function initApp() {
 
   // Logging middleware for all API calls
   apiRouter.use(express.json());
+  apiRouter.use("/meeting", meetingRoutes);
   apiRouter.use((req, res, next) => {
     console.log(`[API Router] ${req.method} ${req.url}`);
     next();
@@ -1171,13 +1173,80 @@ async function initApp() {
   apiRouter.get("/youtube/content", async (req, res) => {
     try {
       const adminClient = getSupabaseAdmin();
-      const apiKey = process.env.YOUTUBE_API_KEY || process.env.GEMINI_API_KEY;
-      if (!adminClient || !apiKey) throw new Error("Server not configured correctly");
+      let channelId = 'UCnYRsis2rkO8401trlHM7aA'; // FIDE TV channel ID
+      
+      if (adminClient) {
+        try {
+          const { data: chSetting } = await adminClient
+            .from('site_settings')
+            .select('value')
+            .eq('key', 'youtube_channel_id')
+            .maybeSingle();
+          if (chSetting && chSetting.value) {
+            channelId = chSetting.value.trim();
+          }
+        } catch (e) {}
+      }
 
-      const service = new YouTubeIngestionService(adminClient, apiKey);
-      // UCnYRsis2rkO8401trlHM7aA is @fidetvmedia
-      const videos = await service.getFormattedVideosForChannel('UCnYRsis2rkO8401trlHM7aA');
+      const apiKey = process.env.YOUTUBE_API_KEY || process.env.GEMINI_API_KEY || '';
+      const service = new YouTubeIngestionService(adminClient as any, apiKey);
+      
+      // 1. Fetch latest videos from RSS or API (this automatically syncs to portfolio_items in Supabase)
+      let videos: any[] = [];
+      try {
+        videos = await service.getFormattedVideosForChannel(channelId);
+      } catch (e) {
+        console.warn("[YouTube Content] Sync error:", e);
+      }
+
+      // 2. Fetch database portfolio items to include any extra/custom items not in the channel feed
+      if (adminClient) {
+        const { data: dbItems } = await adminClient
+          .from('portfolio_items')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (dbItems && dbItems.length > 0) {
+          const existingIds = new Set(videos.map(v => v.youtube_id || v.id));
+          dbItems.forEach(item => {
+            const ytId = item.youtube_id;
+            if (ytId && !existingIds.has(ytId)) {
+              videos.push({
+                id: item.id,
+                title: item.title,
+                category: item.category || 'General Content',
+                image: item.image_url,
+                image_url: item.image_url,
+                type: 'video',
+                youtube_id: ytId,
+                stream_url: item.video_url,
+                video_url: item.video_url,
+                description: item.description,
+                created_at: item.created_at
+              });
+              existingIds.add(ytId);
+            }
+          });
+        }
+      }
+
       res.json(videos);
+    } catch (err: any) {
+      console.error("[YouTube Content API Error]", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  apiRouter.post("/youtube/sync", async (req, res) => {
+    try {
+      const adminClient = getSupabaseAdmin();
+      let channelId = req.body?.channelId || 'UCnYRsis2rkO8401trlHM7aA';
+      const apiKey = process.env.YOUTUBE_API_KEY || process.env.GEMINI_API_KEY || '';
+      
+      const service = new YouTubeIngestionService(adminClient as any, apiKey);
+      const videos = await service.getFormattedVideosForChannel(channelId);
+      
+      res.json({ success: true, count: videos.length, videos });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -1868,6 +1937,7 @@ async function initApp() {
 
   // Fast mount for serverless environments
   app.use("/api", apiRouter);
+  apiRouter.use("/meeting", meetingRoutes);
 
   // Fallback Channel API for when RLS blocks the public frontend
   apiRouter.get("/news", async (req, res) => {

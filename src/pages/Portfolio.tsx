@@ -18,25 +18,47 @@ export default function Portfolio() {
   }, []);
 
   const fetchPastEvents = async () => {
+    let ytItems: any[] = [];
+    try {
+      const res = await fetch('/api/youtube/content', { cache: 'no-store' });
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        ytItems = data.map(yt => ({
+          id: yt.youtube_id || yt.id,
+          title: yt.title,
+          category: yt.category || 'General Content',
+          image: yt.image || yt.image_url,
+          type: 'video',
+          youtube_id: yt.youtube_id,
+          stream_url: yt.stream_url || yt.video_url
+        }));
+      }
+    } catch (e) {}
+
     const { data } = await supabase
       .from('events')
       .select('*')
       .eq('status', 'offline')
       .order('created_at', { ascending: false });
 
-    if (data) {
-      setDbProjects(
-        data.map((ev) => ({
-          id: ev.id,
-          title: ev.title,
-          category: 'Live Events',
-          image: ev.thumbnail_url || (ev.youtube_id ? `https://img.youtube.com/vi/${ev.youtube_id}/maxresdefault.jpg` : 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&q=80&w=2070'),
-          type: 'video',
-          youtube_id: ev.youtube_id,
-          stream_url: ev.stream_url
-        }))
-      );
-    }
+    const eventItems = (data || []).map((ev) => ({
+      id: ev.id,
+      title: ev.title,
+      category: 'Live Events',
+      image: ev.thumbnail_url || (ev.youtube_id ? `https://img.youtube.com/vi/${ev.youtube_id}/maxresdefault.jpg` : 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&q=80&w=2070'),
+      type: 'video',
+      youtube_id: ev.youtube_id,
+      stream_url: ev.stream_url
+    }));
+
+    const map = new Map();
+    ytItems.forEach(item => map.set(item.youtube_id || item.id, item));
+    eventItems.forEach(item => {
+      const id = item.youtube_id || item.id;
+      if (!map.has(id)) map.set(id, item);
+    });
+
+    setDbProjects(Array.from(map.values()));
   };
 
   const staticProjects = [

@@ -29,7 +29,12 @@ export const ReferralLeaderboard: React.FC = () => {
         .select('referred_by')
         .not('referred_by', 'is', null);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase profiles error:', error);
+        setTopReferrers([]);
+        setLoading(false);
+        return;
+      }
 
       // Count occurrences of each referrer (username)
       const counts: Record<string, number> = {};
@@ -60,7 +65,12 @@ export const ReferralLeaderboard: React.FC = () => {
         .select('username, full_name, avatar_url')
         .in('username', usernames);
 
-      if (pError) throw pError;
+      if (pError) {
+        console.error('Supabase profiles fetch error:', pError);
+        setTopReferrers([]);
+        setLoading(false);
+        return;
+      }
 
       const leaderboard = sortedEntries.map(([username, count]) => {
         const profile = profiles.find(p => p.username === username);

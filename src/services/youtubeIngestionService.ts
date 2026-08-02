@@ -271,63 +271,191 @@ export class YouTubeIngestionService {
   }
 
   /**
-   * Fetch and format videos directly from API (without necessarily saving to DB)
+   * Parse YouTube Channel RSS Feed (Atom format) - Requires NO API Key!
    */
-  async getFormattedVideosForChannel(channelId: string) {
+  public parseRssFeed(xmlText: string) {
+    const videos: any[] = [];
     try {
-      const channelUrl = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${this.apiKey}`;
-      const channelRes = await fetch(channelUrl);
-      const channelData = await channelRes.json();
-      const uploadsPlaylistId = channelData.items[0].contentDetails.relatedPlaylists.uploads;
-      
-      const playlistUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${uploadsPlaylistId}&key=${this.apiKey}`;
-      const playlistRes = await fetch(playlistUrl);
-      const playlistData = await playlistRes.json();
+      const entryRegex = /<entry>([\s\S]*?)<\/entry>/g;
+      let match;
+      while ((match = entryRegex.exec(xmlText)) !== null) {
+        const entryStr = match[1];
+        
+        const videoIdMatch = entryStr.match(/<yt:videoId>([^<]+)<\/yt:videoId>/);
+        const titleMatch = entryStr.match(/<media:title>([^<]+)<\/media:title>/) || entryStr.match(/<title>([^<]+)<\/title>/);
+        const publishedMatch = entryStr.match(/<published>([^<]+)<\/published>/);
+        const descMatch = entryStr.match(/<media:description>([\s\S]*?)<\/media:description>/);
+        const thumbMatch = entryStr.match(/<media:thumbnail url="([^"]+)"/);
 
-      if (!playlistData.items) return [];
+        const videoId = videoIdMatch ? videoIdMatch[1].trim() : null;
+        if (!videoId) continue;
 
-      const videoIds = playlistData.items.map((item: any) => item.snippet.resourceId.videoId).join(',');
-      const videoDetailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoIds}&key=${this.apiKey}`;
-      const videoDetailsRes = await fetch(videoDetailsUrl);
-      const videoDetailsData = await videoDetailsRes.json();
-      
-      const liveStatusMap = new Map();
-      if (videoDetailsData.items) {
-        for (const v of videoDetailsData.items) {
-          liveStatusMap.set(v.id, v.snippet.liveBroadcastContent);
+        const title = titleMatch ? titleMatch[1].trim().replace(/SportyTV/gi, 'FideTv') : 'YouTube Video';
+        const description = descMatch ? descMatch[1].trim().replace(/SportyTV/gi, 'FideTv') : '';
+        const publishedAt = publishedMatch ? publishedMatch[1].trim() : new Date().toISOString();
+        const thumbnail = thumbMatch ? thumbMatch[1] : `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+
+        let category = 'General Content';
+        const lowerTitle = title.toLowerCase();
+        if (lowerTitle.includes('campus matters')) category = 'Campus Matters';
+        else if (lowerTitle.includes('love affair') || lowerTitle.includes('love affairs')) category = 'Love Affairs';
+        else if (lowerTitle.includes('interview') || lowerTitle.includes('interviews')) category = 'Interviews';
+        else if (lowerTitle.includes('commercial')) category = 'Commercial';
+        else if (lowerTitle.includes('corporate')) category = 'Corporate';
+        else if (lowerTitle.includes('live') || lowerTitle.includes('conference')) category = 'Live Events';
+
+        videos.push({
+          id: videoId,
+          title,
+          category,
+          image: thumbnail,
+          image_url: thumbnail,
+          type: 'video',
+          youtube_id: videoId,
+          stream_url: `https://www.youtube.com/watch?v=${videoId}`,
+          video_url: `https://www.youtube.com/watch?v=${videoId}`,
+          description,
+          publishedAt,
+          created_at: publishedAt
+        });
+      }
+    } catch (e) {
+      console.error("[YouTube Ingestion] Error parsing RSS feed:", e);
+    }
+    return videos;
+  }
+
+  /**
+   * Sync fetched YouTube videos directly to Supabase portfolio_items table
+   */
+  async syncVideosToDatabase(videos: any[]) {
+    if (!this.supabase || !videos || videos.length === 0) return;
+    try {
+      for (const v of videos) {
+        const videoId = v.youtube_id || v.id;
+        if (!videoId) continue;
+
+        const { data: existing } = await this.supabase
+          .from('portfolio_items')
+          .select('id')
+          .eq('youtube_id', videoId)
+          .maybeSingle();
+
+        const pubDate = v.publishedAt || v.created_at || new Date().toISOString();
+
+        const payload = {
+          title: v.title,
+          description: v.description || '',
+          category: v.category || 'General Content',
+          image_url: v.image || v.image_url || `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+          youtube_id: videoId,
+          video_url: `https://www.youtube.com/watch?v=${videoId}`,
+          is_featured: true,
+          created_at: pubDate
+        };
+
+        if (!existing) {
+          await this.supabase.from('portfolio_items').insert([payload]);
+        } else {
+          await this.supabase.from('portfolio_items').update(payload).eq('id', existing.id);
         }
       }
-
-      return playlistData.items
-        .filter((item: any) => liveStatusMap.get(item.snippet.resourceId.videoId) !== 'upcoming')
-        .map((item: any) => {
-          const vid = item.snippet.resourceId.videoId;
-          const title = item.snippet.title.replace(/SportyTV/gi, 'FideTv');
-          
-          let category = 'General Content';
-          const lowerTitle = title.toLowerCase();
-          if (lowerTitle.includes('campus matters')) category = 'Campus Matters';
-          else if (lowerTitle.includes('love affair')) category = 'Love Affairs';
-          else if (lowerTitle.includes('interview')) category = 'Interviews';
-          else if (lowerTitle.includes('commercial')) category = 'Commercial';
-          else if (lowerTitle.includes('corporate')) category = 'Corporate';
-          else if (lowerTitle.includes('live')) category = 'Live Events';
-
-          return {
-            id: vid,
-            title: title,
-            category: category,
-            image: item.snippet.thumbnails.maxres?.url || item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default?.url,
-            type: 'video',
-            youtube_id: vid,
-            stream_url: `https://www.youtube.com/watch?v=${vid}`,
-            description: item.snippet.description.replace(/SportyTV/gi, 'FideTv')
-          };
-        });
+      console.log(`[YouTube Ingestion] Successfully synced ${videos.length} videos to portfolio_items.`);
     } catch (err) {
-      console.error("[YouTube Ingestion] getFormattedVideosForChannel failed:", err);
-      return [];
+      console.error("[YouTube Ingestion] Database sync failed:", err);
     }
+  }
+
+  /**
+   * Fetch and format videos directly from RSS or API (saving to DB automatically)
+   */
+  async getFormattedVideosForChannel(channelId: string) {
+    // 1. First try public YouTube RSS/Atom feed (100% reliable, zero quota, instant updates!)
+    try {
+      const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+      const rssRes = await fetch(rssUrl, { cache: 'no-store' });
+      if (rssRes.ok) {
+        const xmlText = await rssRes.text();
+        const rssVideos = this.parseRssFeed(xmlText);
+        if (rssVideos.length > 0) {
+          // Sync into DB in background
+          this.syncVideosToDatabase(rssVideos).catch(e => console.error("Background sync error:", e));
+          return rssVideos;
+        }
+      }
+    } catch (rssErr) {
+      console.warn("[YouTube Ingestion] RSS feed fetch failed, falling back to API:", rssErr);
+    }
+
+    // 2. Fallback to API v3 if API key available
+    try {
+      if (this.apiKey) {
+        const channelUrl = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${this.apiKey}`;
+        const channelRes = await fetch(channelUrl);
+        const channelData = await channelRes.json();
+        if (channelData.items && channelData.items.length > 0) {
+          const uploadsPlaylistId = channelData.items[0].contentDetails.relatedPlaylists.uploads;
+          
+          const playlistUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${uploadsPlaylistId}&key=${this.apiKey}`;
+          const playlistRes = await fetch(playlistUrl);
+          const playlistData = await playlistRes.json();
+
+          if (playlistData.items && playlistData.items.length > 0) {
+            const videoIds = playlistData.items.map((item: any) => item.snippet.resourceId.videoId).join(',');
+            const videoDetailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoIds}&key=${this.apiKey}`;
+            const videoDetailsRes = await fetch(videoDetailsUrl);
+            const videoDetailsData = await videoDetailsRes.json();
+            
+            const liveStatusMap = new Map();
+            if (videoDetailsData.items) {
+              for (const v of videoDetailsData.items) {
+                liveStatusMap.set(v.id, v.snippet.liveBroadcastContent);
+              }
+            }
+
+            const apiVideos = playlistData.items
+              .filter((item: any) => liveStatusMap.get(item.snippet.resourceId.videoId) !== 'upcoming')
+              .map((item: any) => {
+                const vid = item.snippet.resourceId.videoId;
+                const title = item.snippet.title.replace(/SportyTV/gi, 'FideTv');
+                
+                let category = 'General Content';
+                const lowerTitle = title.toLowerCase();
+                if (lowerTitle.includes('campus matters')) category = 'Campus Matters';
+                else if (lowerTitle.includes('love affair')) category = 'Love Affairs';
+                else if (lowerTitle.includes('interview')) category = 'Interviews';
+                else if (lowerTitle.includes('commercial')) category = 'Commercial';
+                else if (lowerTitle.includes('corporate')) category = 'Corporate';
+                else if (lowerTitle.includes('live')) category = 'Live Events';
+
+                return {
+                  id: vid,
+                  title: title,
+                  category: category,
+                  image: item.snippet.thumbnails.maxres?.url || item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default?.url,
+                  image_url: item.snippet.thumbnails.maxres?.url || item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default?.url,
+                  type: 'video',
+                  youtube_id: vid,
+                  stream_url: `https://www.youtube.com/watch?v=${vid}`,
+                  video_url: `https://www.youtube.com/watch?v=${vid}`,
+                  description: item.snippet.description.replace(/SportyTV/gi, 'FideTv'),
+                  publishedAt: item.snippet.publishedAt,
+                  created_at: item.snippet.publishedAt
+                };
+              });
+
+            if (apiVideos.length > 0) {
+              this.syncVideosToDatabase(apiVideos).catch(e => console.error("Background sync error:", e));
+              return apiVideos;
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error("[YouTube Ingestion] API fallback failed:", err);
+    }
+
+    return [];
   }
 
   /**

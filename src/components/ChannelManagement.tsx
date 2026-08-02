@@ -80,17 +80,6 @@ export const ChannelManagement = () => {
     // Merge logic to show what the user actually sees in the app
     const merged = [...allChannels];
     
-    // Add defaults that aren't already represented by URL in DB
-    DEFAULT_CHANNELS.forEach(def => {
-      const exists = merged.find(c => c.url === def.url);
-      if (!exists) {
-        merged.push({
-          ...def,
-          is_default: true,
-        });
-      }
-    });
-
     setChannels(merged);
   };
 
@@ -321,24 +310,17 @@ export const ChannelManagement = () => {
                 <td className="p-2 text-sm font-medium text-white">
                   <div className="flex items-center gap-2">
                     {channel.name}
-                    {channel.is_default && (
-                      <span className="px-1.5 py-0.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded text-[9px] font-black uppercase tracking-widest">Default</span>
-                    )}
                   </div>
                 </td>
                 <td className="p-2 text-sm text-zinc-400">
                   <span className="px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded text-xs select-none">{channel.category}</span>
                 </td>
                 <td className="p-2 text-sm flex gap-2">
-                  <button onClick={() => { setCurrentChannel(channel); setIsModalOpen(true); }} className="text-blue-500 hover:text-blue-400 p-1 rounded hover:bg-blue-500/10 transition-colors" title={channel.is_default ? "Convert to Database Channel" : "Edit"}><Edit2 className="w-4 h-4" /></button>
+                  <button onClick={() => { setCurrentChannel(channel); setIsModalOpen(true); }} className="text-blue-500 hover:text-blue-400 p-1 rounded hover:bg-blue-500/10 transition-colors" title="Edit"><Edit2 className="w-4 h-4" /></button>
                   <button 
-                    disabled={channel.is_default}
                     onClick={() => { setDeleteConfirmId(channel.id); setDeleteConfirmName(channel.name); }} 
-                    className={cn(
-                      "p-1 rounded transition-colors",
-                      channel.is_default ? "text-zinc-700 cursor-not-allowed" : "text-red-500 hover:text-red-400 hover:bg-red-500/10"
-                    )} 
-                    title={channel.is_default ? "Cannot delete default channel" : "Delete"}
+                    className="p-1 rounded transition-colors text-red-500 hover:text-red-400 hover:bg-red-500/10"
+                    title="Delete"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

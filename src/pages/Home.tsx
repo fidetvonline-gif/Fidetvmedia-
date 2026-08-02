@@ -235,23 +235,46 @@ export default function Home() {
         .eq('is_featured', true)
         .order('created_at', { ascending: false });
 
-      // Combine and format
-      const formattedYtVideos: PortfolioItem[] = ytVideos.map((yt: any) => ({
-        id: yt.youtube_id,
-        title: yt.title,
-        category: yt.category || 'General Content',
-        image_url: yt.image,
-        video_url: yt.stream_url,
-        youtube_id: yt.youtube_id,
-        description: yt.description,
-        is_featured: true,
-        created_at: new Date().toISOString()
-      }));
+      // Combine and format with deduplication by youtube_id
+      const map = new Map<string, PortfolioItem>();
 
-      const allFeatured = [
-        ...formattedYtVideos,
-        ...(portfolioData || [])
-      ];
+      ytVideos.forEach((yt: any) => {
+        const id = yt.youtube_id || yt.id;
+        if (id) {
+          map.set(id, {
+            id,
+            title: yt.title,
+            category: yt.category || 'General Content',
+            image_url: yt.image || yt.image_url,
+            video_url: yt.stream_url || yt.video_url,
+            youtube_id: id,
+            description: yt.description,
+            is_featured: true,
+            created_at: yt.created_at || yt.publishedAt || new Date().toISOString()
+          });
+        }
+      });
+
+      if (portfolioData) {
+        portfolioData.forEach((p: any) => {
+          const id = p.youtube_id || p.id;
+          if (id && !map.has(id)) {
+            map.set(id, {
+              id: p.id,
+              title: p.title,
+              category: p.category || 'General Content',
+              image_url: p.image_url,
+              video_url: p.video_url,
+              youtube_id: p.youtube_id,
+              description: p.description,
+              is_featured: p.is_featured,
+              created_at: p.created_at
+            });
+          }
+        });
+      }
+
+      const allFeatured = Array.from(map.values());
 
       if (allFeatured.length > 0) {
         setFeaturedPortfolio(allFeatured);

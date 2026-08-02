@@ -10,6 +10,8 @@ export default function DownloadApp() {
   const [referrer, setReferrer] = useState<any>(null);
   const [isIOS, setIsIOS] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
+  const [isWindows, setIsWindows] = useState(false);
+  const [isLinux, setIsLinux] = useState(false);
   const [isChrome, setIsChrome] = useState(false);
   const [isSafari, setIsSafari] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
@@ -139,6 +141,8 @@ export default function DownloadApp() {
     };
     fetchDownloads();
 
+    const interval = setInterval(fetchDownloads, 30000);
+
     // Subscribe to realtime updates for installation count
     const channel = supabase
       .channel('public:site_settings')
@@ -192,6 +196,8 @@ export default function DownloadApp() {
 
     setIsIOS(isIOSDevice);
     setIsAndroid(isAndroidDevice);
+    setIsWindows(/windows/.test(userAgent));
+    setIsLinux(/linux/.test(userAgent) && !isAndroidDevice);
     setIsChrome(isChromeBrowser);
     setIsSafari(isSafariBrowser);
     setIsDesktop(isDesktopDevice);
@@ -210,6 +216,7 @@ export default function DownloadApp() {
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, []);
 
