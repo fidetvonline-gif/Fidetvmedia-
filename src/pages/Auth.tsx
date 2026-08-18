@@ -25,21 +25,25 @@ export default function Auth() {
   }, [navigate]);
 
   const checkProfile = async (userId: string) => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('username')
-      .eq('id', userId)
-      .single();
-    
-    const params = new URLSearchParams(window.location.search);
-    const redirectUrl = params.get('redirect');
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', userId)
+        .maybeSingle();
+      
+      const params = new URLSearchParams(window.location.search);
+      const redirectUrl = params.get('redirect');
 
-    if (redirectUrl) {
-      navigate(redirectUrl);
-    } else if (data?.username) {
+      if (redirectUrl) {
+        navigate(redirectUrl);
+      } else if (data?.username) {
+        navigate('/profile');
+      } else {
+        navigate('/onboarding');
+      }
+    } catch (e) {
       navigate('/profile');
-    } else {
-      navigate('/onboarding');
     }
   };
 

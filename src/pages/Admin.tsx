@@ -814,15 +814,40 @@ export default function Admin() {
   };
 
   const fetchProfiles = async () => {
-    const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
-    if (error) {
-      if (error.message.includes('relation "public.profiles" does not exist') || 
-          error.message.includes('Could not find the table \'public.profiles\'')) {
-        setDbErrors(prev => ({ ...prev, profiles: 'Table missing.' }));
+    try {
+      const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+      if (error) {
+        const { data: fallbackData, error: fallbackError } = await supabase.from('profiles').select('*');
+        if (fallbackError) {
+          console.warn("fetchProfiles error:", fallbackError);
+          if (fallbackError.message?.toLowerCase().includes('relation') || 
+              fallbackError.message?.toLowerCase().includes('not exist') ||
+              fallbackError.message?.toLowerCase().includes('find the table')) {
+            setDbErrors(prev => ({ ...prev, profiles: 'Table missing.' }));
+          }
+          return;
+        }
+        if (fallbackData) {
+          setProfiles(fallbackData);
+          setDbErrors(prev => {
+            const next = { ...prev };
+            delete next.profiles;
+            return next;
+          });
+        }
+        return;
       }
-      return;
+      if (data) {
+        setProfiles(data);
+        setDbErrors(prev => {
+          const next = { ...prev };
+          delete next.profiles;
+          return next;
+        });
+      }
+    } catch (err) {
+      console.warn("fetchProfiles exception:", err);
     }
-    if (data) setProfiles(data);
   };
 
   const fetchCommunityStats = async () => {
@@ -911,7 +936,7 @@ export default function Admin() {
     }
     
     // Check if user is a blogger via profiles.role
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).maybeSingle();
     if (profile?.role === 'blogger') {
       setIsAdmin(true);
       setIsBloggerOnly(true);
@@ -3829,7 +3854,7 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                                         <span className="text-[8px] font-black text-foreground/20 uppercase tracking-widest">Upload Ad Image</span>
                                       </>
                                     )}
-                                    <input id="ad-creative-upload" type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'event-thumbnails', `ads/${Date.now()}`, setImageUrl)} />
+                                    <input id="ad-creative-upload" type="file" className="hidden" accept="image/*" onClick={e => e.stopPropagation()} onChange={(e) => handleFileUpload(e, 'event-thumbnails', `ads/${Date.now()}`, setImageUrl)} />
                                 </div>
                                 <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="Or paste external Image URL..." className="w-full bg-background border border-border-custom rounded-xl p-3 text-foreground text-[8px] shadow-inner" />
                               </div>
@@ -3908,7 +3933,15 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                         </div>
 
                         <div className="space-y-4">
-                           <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40 ml-4">Full Content (Markdown Supported)</label>
+                           <div className="flex justify-between items-center px-4 mb-2">
+                             <label className="text-[10px] uppercase font-black tracking-widest text-foreground/40">Full Content (Markdown Supported)</label>
+                             <div className="flex gap-2">
+                               <button type="button" onClick={() => document.getElementById('blog-content-image')?.click()} className="flex items-center space-x-2 text-[10px] font-black text-primary hover:text-foreground transition-colors">
+                                  <Camera className="w-3 h-3" /><span>Insert Image</span>
+                               </button>
+                               <input id="blog-content-image" type="file" className="hidden" accept="image/*" onClick={e => e.stopPropagation()} onChange={(e) => handleFileUpload(e, 'event-thumbnails', `blog-inline/${Date.now()}`, (url) => setContent(prev => prev + `\n![Image](${url})\n`))} />
+                             </div>
+                           </div>
                            <div data-color-mode="dark" className="overflow-hidden rounded-3xl border border-border-custom shadow-inner">
                               <MDEditor
                                 value={content}
@@ -3991,7 +4024,7 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                                   <span className="text-[8px] font-black text-foreground/20 uppercase tracking-widest">Select Image</span>
                                 </>
                               )}
-                              <input id="blog-upload" type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'event-thumbnails', `blog/${Date.now()}`, setImageUrl)} />
+                              <input id="blog-upload" type="file" className="hidden" accept="image/*" onClick={e => e.stopPropagation()} onChange={(e) => handleFileUpload(e, 'event-thumbnails', `blog/${Date.now()}`, setImageUrl)} />
                            </div>
                            <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="Or paste external URL..." className="w-full bg-background border border-border-custom rounded-xl p-3 text-foreground text-[8px] shadow-inner" />
                         </div>
