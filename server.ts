@@ -2030,7 +2030,7 @@ async function initApp() {
     app.use(express.static(distPath));
     
     // Catch-all for SPA
-    app.get(/(.*)/, (req, res) => {
+    app.get('*all', (req, res) => {
       // If API route not found, return 404 json
       if (req.path.startsWith('/api')) {
         console.warn(`[API 404] ${req.method} ${req.path}`);
