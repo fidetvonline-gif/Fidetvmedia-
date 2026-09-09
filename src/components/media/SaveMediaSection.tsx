@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { safeLocalStorage } from '@/lib/storage';
+import { parseResponseJson } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 
 export interface MediaItem {
@@ -134,7 +135,7 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
         body: JSON.stringify({ url: trimmed })
       });
 
-      const data = await res.json();
+      const data = await parseResponseJson(res);
       if (!res.ok || !data.success) {
         throw new Error(data.error || "We couldn't save this media. Please try again.");
       }

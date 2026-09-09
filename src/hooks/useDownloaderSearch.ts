@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { parseResponseJson } from '@/lib/api';
 
 export interface SearchResult {
   id: string;
@@ -31,7 +32,7 @@ export function useDownloaderSearch() {
       
       if (!response.ok) throw new Error('Search failed');
       
-      const data = await response.json();
+      const data = await parseResponseJson(response);
       setResults(data.results || []);
     } catch (err: any) {
       setError(err.message);

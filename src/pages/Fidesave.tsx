@@ -20,6 +20,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '@/lib/supabase';
 import { useNavigate } from 'react-router-dom';
+import { parseResponseJson } from '@/lib/api';
 
 import { YouTubeVideoPlayer } from '@/components/YouTubeVideoPlayer';
 import UniversalPlayer from '@/components/streaming/UniversalPlayer';
@@ -62,7 +63,7 @@ export default function Fidesave() {
       } : {};
 
       const res = await fetch('/api/video-search', { headers });
-      const data = await res.json();
+      const data = await parseResponseJson(res);
       if (!res.ok) throw new Error(data.error || 'Failed to fetch catalog');
 
       if (Array.isArray(data)) {
@@ -118,7 +119,7 @@ export default function Fidesave() {
       const res = await fetch(`/api/video-search?q=${encodeURIComponent(q)}`, {
         headers
       });
-      const data = await res.json();
+      const data = await parseResponseJson(res);
       if (!res.ok) throw new Error(data.error || data.details || 'Search failed');
       
       if (Array.isArray(data)) {
@@ -149,7 +150,7 @@ export default function Fidesave() {
       const res = await fetch(`/api/movie-download-options?title=${encodeURIComponent(movie.title)}&id=${movie.id}`, {
         headers
       });
-      const data = await res.json();
+      const data = await parseResponseJson(res);
       if (res.ok) {
         setMovieLinks(prev => ({ ...prev, [movie.id]: data.links || [] }));
       } else {

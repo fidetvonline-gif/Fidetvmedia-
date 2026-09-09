@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { parseResponseJson } from '@/lib/api';
 
 export interface DownloadLinkResponse {
   status: string;
@@ -25,7 +26,7 @@ export function useDownloader() {
       
       if (!response.ok) throw new Error('Failed to get download link');
       
-      const data = await response.json();
+      const data = await parseResponseJson(response);
       return data as DownloadLinkResponse;
     } catch (err: any) {
       setError(err.message);
