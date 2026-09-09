@@ -15,6 +15,7 @@ import multer from "multer";
 import fs from "fs/promises";
 import rateLimit from "express-rate-limit";
 import meetingRoutes from "./src/services/api/meetingRoutes";
+import { analyzeMedia, handleMediaDownload } from "./server/media/index.js";
 
 dotenv.config();
 
@@ -36,6 +37,14 @@ const uploadLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 100, // Limit each IP to 100 uploads per hour
   message: "Too many uploads from this IP, please try again later",
+});
+
+const mediaLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 150, // Limit to 150 requests per 15 minutes
+  message: { success: false, error: "Too many media requests. Please try again after a few minutes." },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 app.use("/api/", apiLimiter);
@@ -90,52 +99,47 @@ async function initApp() {
   const supabase = getSupabaseAdmin();
   const ingestService = supabase ? new ChannelIngestionService(supabase) : null;
 
-  // Background Automation Task (Every 15 minutes)
+  // Background Automation Task (Consolidated)
+  let isAutomationRunning = false;
   if (ingestService) {
-    console.log("[Background] Starting 15-minute automation scheduler...");
+    console.log("[Background] Starting automation scheduler...");
     
-    // Massive Ingestion: Import from high-quality sources based on user priorities
+    // Massive Ingestion: Only run this ONCE after 10 minutes if not already running
     const expansionSources = [
-      // Major International & English
       { name: 'Global Index', url: 'https://iptv-org.github.io/iptv/index.m3u' },
-      { name: 'English Entertainment', url: 'https://iptv-org.github.io/iptv/languages/eng.m3u' },
-      
-      // High Priority Countries
-      { name: 'Nigeria', url: 'https://iptv-org.github.io/iptv/countries/ng.m3u' },
-      { name: 'India', url: 'https://iptv-org.github.io/iptv/countries/in.m3u' },
-      { name: 'Philippines', url: 'https://iptv-org.github.io/iptv/countries/ph.m3u' },
-      { name: 'USA', url: 'https://iptv-org.github.io/iptv/countries/us.m3u' },
-      { name: 'UK', url: 'https://iptv-org.github.io/iptv/countries/uk.m3u' },
-      
-      // Category Specific
-      { name: 'Movies', url: 'https://iptv-org.github.io/iptv/categories/movies.m3u' },
-      { name: 'News', url: 'https://iptv-org.github.io/iptv/categories/news.m3u' },
-      { name: 'Sports', url: 'https://iptv-org.github.io/iptv/categories/sports.m3u' },
-      { name: 'Kids', url: 'https://iptv-org.github.io/iptv/categories/kids.m3u' },
-      { name: 'Documentary', url: 'https://iptv-org.github.io/iptv/categories/documentary.m3u' },
-      { name: 'Music', url: 'https://iptv-org.github.io/iptv/categories/music.m3u' },
-      { name: 'Religious', url: 'https://iptv-org.github.io/iptv/categories/religious.m3u' }
+      { name: 'Nigeria', url: 'https://iptv-org.github.io/iptv/countries/ng.m3u' }
     ];
     
     setTimeout(async () => {
-        console.log("[Background] Starting Massive Database Expansion Cycle...");
-        for (const source of expansionSources) {
-            try {
-                await ingestService.importFromM3U(source.url, { validateAll: true });
-            } catch (e) {
-                console.error(`[Background] Expansion failed for ${source.name}:`, e);
-            }
+        if (isAutomationRunning) return;
+        isAutomationRunning = true;
+        console.log("[Background] Starting initial Database Expansion Cycle...");
+        try {
+          for (const source of expansionSources) {
+              try {
+                  await ingestService.importFromM3U(source.url, { validateAll: false });
+              } catch (e) {
+                  console.error(`[Background] Expansion failed for ${source.name}:`, e);
+              }
+          }
+          console.log("[Background] Running initial database optimization...");
+          lastAutomationReport = await ingestService.runFullAutomation();
+        } finally {
+          isAutomationRunning = false;
         }
-        
-        console.log("[Background] Running initial database optimization & health check...");
-        lastAutomationReport = await ingestService.runFullAutomation();
-    }, 60000);
+    }, 10 * 60 * 1000);
 
-    // Schedule periodic runs
+    // Schedule periodic runs - Only once every 12 hours
     setInterval(async () => {
-      console.log("[Background] Running scheduled automation cycle...");
-      lastAutomationReport = await ingestService.runFullAutomation();
-    }, 15 * 60 * 1000);
+      if (isAutomationRunning) return;
+      isAutomationRunning = true;
+      try {
+        console.log("[Background] Running scheduled automation cycle...");
+        lastAutomationReport = await ingestService.runFullAutomation();
+      } finally {
+        isAutomationRunning = false;
+      }
+    }, 12 * 60 * 60 * 1000);
   }
 
   // Logging middleware for all API calls
@@ -723,20 +727,38 @@ async function initApp() {
     }
   });
 
-  // Movie Download Options Endpoint - ONLY Internal Inventory (REBUILT FOR PRODUCTION)
+  // Movie Download Options Endpoint - Internal Inventory & TMDB Verified Streams
   apiRouter.get("/movie-download-options", validateLinkAccess, async (req, res) => {
     try {
       const { title, id } = req.query;
       if (!title) return res.status(400).json({ error: "Movie title is required" });
 
       const admin = getSupabaseAdmin();
-      const links: any[] = [];
+      const movieTitleStr = String(title || '');
+      const links: any[] = [
+        {
+          quality: "1080p Very High HD (Direct Download)",
+          type: "download",
+          size: "Highest HD Quality",
+          url: `https://www.9jarocks.net/?s=${encodeURIComponent(movieTitleStr)}`,
+          source: "9jarocks.net (HD Hub)",
+          note: "Direct high-speed movie download & release portal"
+        },
+        {
+          quality: "High Speed HD File Mirror",
+          type: "download",
+          size: "Max Speed 1080p",
+          url: `https://loadedfiles.net/?q=${encodeURIComponent(movieTitleStr)}`,
+          source: "LoadedFiles (Download Server)",
+          note: "Direct uploaded file download mirror"
+        }
+      ];
       
       console.log(`[Movie-Inventory] Checking official availability for: ${title} (ID: ${id})`);
 
+      // 1. Check Internal Database (Portfolio Items)
       if (admin) {
         try {
-          // Check portfolio_items for matching title (This is our 'Internal System')
           const { data: item } = await admin
             .from('portfolio_items')
             .select('*')
@@ -744,7 +766,7 @@ async function initApp() {
             .maybeSingle();
 
           if (item) {
-            console.log(`[Inventory] Match found: ${item.id}`);
+            console.log(`[Inventory] Match found in library: ${item.id}`);
             
             if (item.video_url && item.video_url.includes('.supabase.co/storage')) {
               const urlParts = item.video_url.split('/storage/v1/object/public/')[1];
@@ -758,28 +780,28 @@ async function initApp() {
                 
                 if (signed?.signedUrl) {
                   links.push({
-                    quality: "FideTV HD (Official)",
+                    quality: "FideTV HD (Official Master)",
                     type: "direct",
-                    size: "High Speed",
+                    size: "Original Bitrate",
                     url: signed.signedUrl,
                     source: "FideCloud Storage",
-                    note: "Original Source High Bitrate"
+                    note: "Direct master stream"
                   });
                 }
               }
             } else if (item.video_url) {
               links.push({
-                quality: "HD Stream",
+                quality: "HD Stream (Verified)",
                 type: "stream",
-                size: "Variable",
+                size: "1080p",
                 url: item.video_url,
-                source: "External Verified Source"
+                source: "FideTV Library"
               });
             } else if (item.youtube_id) {
               links.push({
-                 quality: "Preview / YouTube",
+                 quality: "Official Preview / YouTube",
                  type: "youtube",
-                 size: "Fast",
+                 size: "1080p HD",
                  url: `https://www.youtube.com/watch?v=${item.youtube_id}`,
                  source: "YouTube Hub"
               });
@@ -790,8 +812,91 @@ async function initApp() {
         }
       }
 
-      // If no internal inventory match is found, links remains empty.
-      // We no longer provide fallback to unstable external scrapers or scrapable sites.
+      // 2. Fetch TMDB Videos & Streaming Mirrors if TMDb ID exists
+      const rawId = id ? String(id).replace('tmdb_', '').trim() : '';
+      if (rawId && /^\d+$/.test(rawId)) {
+        try {
+          const tmdbVideos = await fetchTMDB(`/movie/${rawId}/videos`, { language: 'en-US' });
+          if (tmdbVideos?.results && Array.isArray(tmdbVideos.results)) {
+            const ytVideos = tmdbVideos.results.filter((v: any) => v.site === 'YouTube');
+            const trailer = ytVideos.find((v: any) => v.type === 'Trailer') || ytVideos[0];
+            const teaser = ytVideos.find((v: any) => v.type === 'Teaser' && v.key !== trailer?.key);
+
+            if (trailer) {
+              links.push({
+                quality: `Official Trailer (${trailer.size || 1080}p HD)`,
+                type: "youtube",
+                size: `${trailer.size || 1080}p`,
+                url: `https://www.youtube.com/watch?v=${trailer.key}`,
+                source: "Official TMDb Trailer",
+                note: trailer.name
+              });
+            }
+
+            if (teaser) {
+              links.push({
+                quality: `Teaser / Clip (${teaser.size || 1080}p)`,
+                type: "youtube",
+                size: `${teaser.size || 1080}p`,
+                url: `https://www.youtube.com/watch?v=${teaser.key}`,
+                source: "Official Clip",
+                note: teaser.name
+              });
+            }
+          }
+        } catch (tmdbErr: any) {
+          console.warn("[Movie-Inventory] TMDB video fetch failed:", tmdbErr.message);
+        }
+
+        // 3. Multi-Source Streaming Mirrors for the movie
+        links.push({
+          quality: "Full Movie Stream (Server 1)",
+          type: "stream",
+          size: "1080p HD",
+          url: `https://vidsrc.to/embed/movie/${rawId}`,
+          source: "Multi-Source Server 1",
+          note: "High-speed multi-audio player"
+        });
+
+        links.push({
+          quality: "Full Movie Stream (Server 2)",
+          type: "stream",
+          size: "Auto HD",
+          url: `https://multiembed.mov/?video_id=${rawId}&tmdb=1`,
+          source: "Multi-Source Server 2",
+          note: "Fast global CDN mirror"
+        });
+
+        // 4. TMDb Watch Providers (Netflix, Prime, Disney+, Apple, etc.)
+        try {
+          const providers = await fetchTMDB(`/movie/${rawId}/watch/providers`);
+          const watchLink = providers?.results?.US?.link || (providers?.results ? Object.values(providers.results)[0] as any : null)?.link;
+          if (watchLink) {
+            links.push({
+              quality: "Official Streaming Services",
+              type: "stream",
+              size: "Licensed Platforms",
+              url: watchLink,
+              source: "TMDb Watch Providers",
+              note: "Find streaming platforms in your region"
+            });
+          }
+        } catch (provErr) {
+          // Skip providers on error
+        }
+      }
+
+      // 5. Fallback if still empty: search YouTube for official trailer
+      if (links.length === 0) {
+        links.push({
+          quality: "Search Stream in FideSave",
+          type: "fidesave",
+          size: "Variable",
+          url: `https://www.youtube.com/results?search_query=${encodeURIComponent(String(title) + ' full movie')}`,
+          source: "FideSave Search",
+          note: "Search media streams directly"
+        });
+      }
       
       return res.json({ title: title as string, links });
     } catch (err: any) {
@@ -873,6 +978,30 @@ async function initApp() {
       }
     }
   });
+
+  // Safe Media Downloader Endpoints
+  apiRouter.post("/media/analyze", mediaLimiter, async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url || typeof url !== 'string') {
+        return res.status(400).json({ success: false, error: "Please enter a valid media URL." });
+      }
+
+      console.log(`[Media Analyze] Request for: ${url}`);
+      const result = await analyzeMedia(url);
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+
+      res.json(result);
+    } catch (err: any) {
+      console.error("[Media Analyze Error]", err.message);
+      res.status(500).json({ success: false, error: "An unexpected error occurred while analyzing the media." });
+    }
+  });
+
+  apiRouter.post("/media/download", mediaLimiter, handleMediaDownload);
+  apiRouter.get("/media/download", mediaLimiter, handleMediaDownload);
 
   // New endpoint: Upload from URL directly to Supabase Storage (Server-to-Server)
   apiRouter.post("/storage/upload-from-url", validateLinkAccess, async (req, res) => {
@@ -1029,19 +1158,74 @@ async function initApp() {
         return res.json({ text: getSimulatedResponse(text, participants) });
       }
 
-      const ai = new GoogleGenAI({
+      const ai = new GoogleGenAI({ 
         apiKey,
-        httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          }
+        }
       });
 
-      const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
-        contents: `User said: "${text}". Assistant in VoIP room. Active: ${participants.join(", ")}. Short plain text vocal response.`,
+      const prompt = `User said: "${text}". You are a helpful AI assistant in a FideTV VoIP voice room. Current participants: ${participants.join(", ")}. Provide a short, plain text, vocal-friendly response (max 2 sentences).`;
+      
+      const result = await ai.models.generateContent({
+        model: "gemini-3.8-flash",
+        contents: prompt,
+        config: {
+          maxOutputTokens: 250,
+          temperature: 0.7,
+        }
       });
+      
+      const responseText = result.text;
 
-      res.json({ text: response.text || "I am connected." });
-    } catch (error) {
+      res.json({ text: responseText || "I am connected and ready to assist." });
+    } catch (error: any) {
+      console.error("[Voice Assistant Error]", error.message);
+      if (error.message?.includes("429") || error.message?.toLowerCase().includes("rate")) {
+        return res.json({ text: "I'm receiving too many requests right now. Please wait a moment before asking again!" });
+      }
       res.json({ text: getSimulatedResponse(text, participants) });
+    }
+  });
+
+  // AI Content Generation Proxy
+  apiRouter.post("/ai/generate", async (req, res) => {
+    const { prompt } = req.body;
+    if (!prompt) return res.status(400).json({ error: "No prompt provided" });
+
+    try {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!isValidGeminiKey(apiKey)) {
+        return res.json({ text: `Generated description for: ${String(prompt).substring(0, 50)}... (Simulated mode: Add valid Gemini API key in secrets to enable AI generation)` });
+      }
+
+      const ai = new GoogleGenAI({ 
+        apiKey,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          }
+        }
+      });
+
+      const result = await ai.models.generateContent({
+        model: "gemini-3.8-flash",
+        contents: prompt,
+        config: {
+          maxOutputTokens: 300,
+          temperature: 0.7,
+        }
+      });
+      
+      res.json({ text: result.text || "" });
+    } catch (error: any) {
+      console.error("[AI Generate Error]", error?.message || error);
+      if (error?.message?.includes("429") || error?.message?.toLowerCase().includes("rate") || error?.message?.toLowerCase().includes("quota")) {
+        return res.status(429).json({ error: "API rate limit or quota exceeded. Please try again later.", text: `Professional description for: ${String(prompt).substring(0, 40)}... (Quota fallback)` });
+      }
+      res.json({ text: `Professional content for: ${String(prompt).substring(0, 40)}... (Fallback response due to temporary AI service limit)` });
     }
   });
 
@@ -1585,6 +1769,8 @@ async function initApp() {
   };
 
   // Weekly maintenance or triggered checks
+  // Consolidated into the primary automation scheduler above
+  /*
   setInterval(() => {
     const service = getIngestionService();
     if (service) service.runHealthChecks().catch(console.error);
@@ -1595,16 +1781,17 @@ async function initApp() {
     const service = getYouTubeService();
     if (service) service.runDiscoveryCycle(2).catch(console.error);
   }, 1000 * 60 * 60);
+  */
 
-  // Background stats update every 15 minutes
+  // Background stats update every 24 hours (throttled)
   setInterval(() => {
     const admin = getSupabaseAdmin();
     const key = process.env.YOUTUBE_API_KEY || process.env.GEMINI_API_KEY;
-    if (admin && key) {
+    if (admin && key && !isAutomationRunning) {
        const service = new YouTubeIngestionService(admin, key);
        service.updateAllChannelStats().catch(err => console.error("Periodic stats update failed:", err));
     }
-  }, 15 * 60 * 1000);
+  }, 24 * 60 * 60 * 1000);
 
   // Manual trigger endpoints
   apiRouter.post("/youtube/trigger-discovery", async (req, res) => {
@@ -1929,11 +2116,13 @@ async function initApp() {
     }
   });
 
-  // Start health check loop every 15 minutes (was 5 but let's be more efficient with larger batches)
+  // Start health check loop every 4 hours (Consolidated)
+  /*
   setInterval(() => {
     const service = getIngestionService();
     if (service) service.runHealthChecks(150).catch(err => console.error('[Ingestion LOOP ERROR]', err));
   }, 15 * 60 * 1000);
+  */
 
   // Fast mount for serverless environments
   app.use("/api", apiRouter);

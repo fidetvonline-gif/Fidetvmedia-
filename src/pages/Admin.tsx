@@ -18,7 +18,6 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { GoogleGenAI } from "@google/genai";
 import { fetchYouTubeStats, YouTubeStats, fetchPlaylistItems } from '@/services/youtubeService';
 import { DEFAULT_CHANNELS } from '@/constants/channels';
 import { mergeChannels } from '@/lib/channelUtils';
@@ -1366,11 +1365,22 @@ export default function Admin() {
   const generateWithAI = async () => {
     if (!title) return;
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const prompt = `Write a compelling description (max 300 chars) for: "${title}". Type: ${activeTab}. Make it professional.`;
-      const response = await ai.models.generateContent({ model: "gemini-3-flash-preview", contents: prompt });
-      setDescription(response.text || "");
-    } catch (err) { alert("AI generation failed."); }
+      const res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt })
+      });
+      const data = await res.json();
+      if (data.text) {
+        setDescription(data.text);
+      } else {
+        alert("AI generation failed or rate limited.");
+      }
+    } catch (err) { 
+      console.error(err);
+      alert("AI generation failed."); 
+    }
   };
 
   if (!isAdmin) return (

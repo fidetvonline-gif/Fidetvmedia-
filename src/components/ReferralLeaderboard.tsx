@@ -24,17 +24,25 @@ export const ReferralLeaderboard: React.FC = () => {
       setLoading(true);
       
       // Fetch profiles that have been referred
-      const { data, error } = await supabase
+      let data: any[] = [];
+      const { data: resData, error } = await supabase
         .from('profiles')
         .select('referred_by')
         .not('referred_by', 'is', null);
 
       if (error) {
+        if (error.code === '42703' || error.message?.includes('referred_by')) {
+          // Column doesn't exist yet, graceful empty leaderboard
+          setTopReferrers([]);
+          setLoading(false);
+          return;
+        }
         console.error('Supabase profiles error:', error);
         setTopReferrers([]);
         setLoading(false);
         return;
       }
+      data = resData || [];
 
       // Count occurrences of each referrer (username)
       const counts: Record<string, number> = {};

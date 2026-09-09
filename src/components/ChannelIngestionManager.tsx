@@ -278,7 +278,7 @@ export const ChannelIngestionManager = () => {
                 <Youtube className="w-8 h-8 text-primary/40" />
              </div>
              <p className="text-sm font-bold text-text-muted">No discovery reports available yet.</p>
-             <p className="text-xs text-text-muted/60 mt-1">Discovery runs automatically every 60 minutes.</p>
+             <p className="text-xs text-text-muted/60 mt-1">Automation is scheduled to run every 12 hours to maintain system stability.</p>
           </div>
         )}
       </div>

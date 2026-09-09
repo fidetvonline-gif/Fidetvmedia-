@@ -178,10 +178,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   };
 
   const handleNavClick = (e: React.MouseEvent, link: any) => {
-    if (link.name === 'Fidesave') {
-      e.preventDefault();
-      setShowComingSoon(true);
-    }
     setIsMenuOpen(false);
   };
 
@@ -234,12 +230,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   key={link.path}
                   id={link.id}
                   to={link.path}
-                  onClick={(e) => {
-                    if (link.name === 'Fidesave') {
-                      e.preventDefault();
-                      setShowComingSoon(true);
-                    }
-                  }}
                   className={cn(
                     "text-xs font-bold uppercase tracking-widest transition-colors duration-200 hover:text-primary relative py-2",
                     location.pathname === link.path ? "text-primary" : "text-foreground/70"
@@ -328,11 +318,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 >
                   <Link
                     to={link.path}
-                    onClick={(e) => {
-                      if (link.name === 'Fidesave') {
-                        e.preventDefault();
-                        setShowComingSoon(true);
-                      }
+                    onClick={() => {
                       setIsMenuOpen(false);
                     }}
                     className="flex items-center gap-4 text-3xl font-display font-black text-foreground hover:text-primary transition-all active:scale-95 origin-left"

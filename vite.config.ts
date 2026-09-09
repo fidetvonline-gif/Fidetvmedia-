@@ -130,6 +130,17 @@ export default defineConfig(({ mode }) => {
       emptyOutDir: true,
       sourcemap: false,
       minify: true,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+            'vendor-ui': ['lucide-react', 'motion'],
+            'vendor-charts': ['recharts'],
+            'vendor-streaming': ['hls.js', 'react-player'],
+            'vendor-utils': ['axios', 'date-fns', 'clsx', 'tailwind-merge'],
+          }
+        }
+      }
     },
     server: {
       hmr: false,

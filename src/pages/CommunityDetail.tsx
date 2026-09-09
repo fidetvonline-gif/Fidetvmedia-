@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import ReactPlayer from 'react-player';
 import { format } from 'date-fns';
 import { safeLocalStorage } from '@/lib/storage';
+import VoiceRoom from '@/components/VoiceRoom';
 
 const Player = ReactPlayer as any;
 
@@ -838,6 +839,25 @@ export default function CommunityDetail() {
                 <span>Lounge Chat</span>
                 <span className="absolute -top-1 -right-1 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-full text-[7px] font-mono px-1.5 py-0.5 animate-pulse uppercase">Active</span>
               </button>
+
+              <button
+                onClick={() => setActiveTab('voice')}
+                className={cn(
+                  "flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer relative group",
+                  activeTab === 'voice'
+                    ? "bg-primary text-white shadow-lg shadow-primary/25 scale-[1.02]"
+                    : "text-text-muted hover:text-foreground hover:bg-foreground/5"
+                )}
+              >
+                <div className="relative">
+                  <Mic className={cn("w-4 h-4 text-emerald-400", activeTab === 'voice' && "animate-pulse")} />
+                  {activeTab === 'voice' && <div className="absolute -inset-1 bg-emerald-400/20 rounded-full blur-sm" />}
+                </div>
+                <span>Voice Channels</span>
+                <div className="absolute -top-1 -right-1 flex gap-0.5">
+                  <span className="bg-emerald-500 text-white rounded-full text-[7px] font-mono px-1.5 py-0.5 uppercase shadow-lg shadow-emerald-500/20">Live</span>
+                </div>
+              </button>
             </div>
           )}
 
@@ -922,6 +942,13 @@ export default function CommunityDetail() {
               {activeTab === 'chat' && (
                 <div className="glass rounded-[2rem] border border-border-custom p-6 flex flex-col h-[580px] justify-between shadow-2xl overflow-hidden bg-background/50">
                   {/* Chat content ... */}
+                </div>
+              )}
+
+              {/* VOICE CHANNELS */}
+              {activeTab === 'voice' && (
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <VoiceRoom communityId={id || 'global'} />
                 </div>
               )}
             </div>

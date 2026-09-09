@@ -35,13 +35,28 @@ export const ReferralAnalytics: React.FC = () => {
       const thirtyDaysAgo = subDays(new Date(), 30);
       
       // Fetch profiles from the last 30 days
-      const { data: profiles, error: pError } = await supabase
+      let profiles: any[] = [];
+      const { data: pData, error: pError } = await supabase
         .from('profiles')
         .select('created_at, referred_by')
         .gte('created_at', thirtyDaysAgo.toISOString())
         .order('created_at', { ascending: true });
 
-      if (pError) throw pError;
+      if (pError) {
+        if (pError.code === '42703' || pError.message?.includes('referred_by')) {
+          // Fallback if referred_by column doesn't exist yet
+          const { data: pDataFallback } = await supabase
+            .from('profiles')
+            .select('created_at')
+            .gte('created_at', thirtyDaysAgo.toISOString())
+            .order('created_at', { ascending: true });
+          profiles = (pDataFallback || []).map(p => ({ ...p, referred_by: null }));
+        } else {
+          throw pError;
+        }
+      } else {
+        profiles = pData || [];
+      }
 
       // Fetch visits from the last 30 days
       let visits: any[] = [];

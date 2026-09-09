@@ -49,21 +49,21 @@ export class ChannelIngestionService {
       const epgMap = existing ? new Map(existing.filter(c => c.epg_id).map(c => [c.epg_id, c])) : new Map();
 
       const toInsert: any[] = [];
+      const toUpdate: any[] = [];
       
       for (const ch of filteredChannels) {
         const existingChannel = urlMap.get(ch.url) || nameMap.get(ch.name.toLowerCase()) || (ch.tvgId ? epgMap.get(ch.tvgId) : undefined);
         
-        if (existingChannel) {
-          // console.log(`[Channel Ingestion] Updating existing channel: ${ch.name}`);
-          // Update
-          await this.supabase.from('tv_channels').update({
+        if (existingChannel && existingChannel.id !== 'pending') {
+          toUpdate.push({
+            id: existingChannel.id,
             name: ch.name,
             category: ch.category || 'General',
             thumbnail: ch.logo,
             epg_id: ch.tvgId,
             is_active: true,
             status: 'online'
-          }).eq('id', existingChannel.id);
+          });
           continue;
         }
 
@@ -71,7 +71,6 @@ export class ChannelIngestionService {
         if (options.validateAll) {
           const check = await ChannelIngestionService.validateStream(ch.url);
           if (!check.valid) {
-            console.log(`[Channel Ingestion] Skipping broken stream: ${ch.name}`);
             continue;
           }
         }
@@ -87,13 +86,21 @@ export class ChannelIngestionService {
           status: 'online'
         });
 
-        // Add to sets to avoid duplicates WITHIN the same batch
+        // Add to maps to avoid duplicates WITHIN the same batch
         urlMap.set(ch.url, { id: 'pending' } as any);
         nameMap.set(ch.name.toLowerCase(), { id: 'pending' } as any);
         if (ch.tvgId) epgMap.set(ch.tvgId, { id: 'pending' } as any);
       }
 
-      console.log(`[Channel Ingestion] Finalizing import: ${toInsert.length} new unique channels.`);
+      console.log(`[Channel Ingestion] Finalizing import: ${toInsert.length} new, ${toUpdate.length} updates.`);
+
+      // Batch Update
+      if (toUpdate.length > 0) {
+        for (let i = 0; i < toUpdate.length; i += 50) {
+          const chunk = toUpdate.slice(i, i + 50);
+          await this.supabase.from('tv_channels').upsert(chunk);
+        }
+      }
 
       if (toInsert.length > 0) {
         // Upsert by chunks of 50 to avoid payload limits
@@ -281,6 +288,8 @@ export class ChannelIngestionService {
 
       if (channelsToCheck && channelsToCheck.length > 0) {
         report.scanned = channelsToCheck.length;
+        const updates: any[] = [];
+        const toArchive: string[] = [];
 
         for (const channel of channelsToCheck) {
           const result = await ChannelIngestionService.validateStream(channel.url);
@@ -288,35 +297,45 @@ export class ChannelIngestionService {
           
           if (result.valid) {
             report.online++;
-            await this.supabase.from('tv_channels').update({
+            updates.push({
+              id: channel.id,
               status: 'online',
               is_active: true,
               last_checked: now,
               last_online: now,
               failure_count: 0
-            }).eq('id', channel.id);
+            });
           } else {
             report.offline++;
             const newFailureCount = (channel.failure_count || 0) + 1;
-            
-            // Logic: Archive if offline for more than 7 checks (if running every 15m, this is ~1.75 hours)
-            // User requested 7 CONSECUTIVE DAYS. 
-            // 7 days = 168 hours. 168 hours / 15m intervals = 672 failures.
             const failureThreshold = (7 * 24 * 4); 
 
             if (newFailureCount >= failureThreshold) {
-              await this.archiveChannels([channel.id], `Offline for > 7 days (${result.error})`);
+              toArchive.push(channel.id);
               report.archived++;
             } else {
-              await this.supabase.from('tv_channels').update({
+              updates.push({
+                id: channel.id,
                 status: 'offline',
                 is_active: false,
                 last_checked: now,
                 failure_count: newFailureCount,
                 description: (channel.description || '').split(' [Status:')[0] + ` [Status: Offline - ${result.error}]`
-              }).eq('id', channel.id);
+              });
             }
           }
+        }
+
+        // Batch Update Results
+        if (updates.length > 0) {
+          for (let i = 0; i < updates.length; i += 50) {
+            const chunk = updates.slice(i, i + 50);
+            await this.supabase.from('tv_channels').upsert(chunk);
+          }
+        }
+
+        if (toArchive.length > 0) {
+          await this.archiveChannels(toArchive, 'Offline for > 7 days');
         }
       }
 
