@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { parseResponseJson } from '@/lib/api';
 import { motion, AnimatePresence } from 'motion/react';
 import { Play, ZoomIn, ExternalLink, Filter, ArrowUpRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -21,7 +22,7 @@ export default function Portfolio() {
     let ytItems: any[] = [];
     try {
       const res = await fetch('/api/youtube/content', { cache: 'no-store' });
-      const data = await res.json();
+      const data = await parseResponseJson(res);
       if (Array.isArray(data)) {
         ytItems = data.map(yt => ({
           id: yt.youtube_id || yt.id,

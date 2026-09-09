@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { parseResponseJson } from '@/lib/api';
 import { Search, Play, Filter, Globe, Tv, AlertTriangle, Monitor, X, ChevronRight, LayoutGrid, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import HlsPlayer from './streaming/HlsPlayer';
@@ -26,8 +27,8 @@ export const ChannelExplorer: React.FC = () => {
       try {
         setLoading(true);
         const response = await fetch('/api/channels');
-        if (!response.ok) throw new Error('Failed to load channel feed');
-        const data = await response.json();
+        const data = await parseResponseJson(response);
+        if (!response.ok) throw new Error(data.error || 'Failed to load channel feed');
         setChannels(data.channels || []);
       } catch (err: any) {
         setError(err.message);

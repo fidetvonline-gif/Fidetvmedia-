@@ -1,4 +1,6 @@
 
+import { parseResponseJson } from '@/lib/api';
+
 export interface ChannelHealth {
   valid: boolean;
   httpStatus?: number;
@@ -13,7 +15,7 @@ export interface ChannelHealth {
 export const analyzeChannelHealth = async (channel: any): Promise<ChannelHealth> => {
     try {
         const response = await fetch(`/api/stream-health?url=${encodeURIComponent(channel.url)}&type=${channel.stream_type || 'unknown'}`);
-        return await response.json();
+        return await parseResponseJson(response);
     } catch (e: any) {
         return { valid: false, errorMessage: e.message, lastChecked: new Date().toISOString() };
     }

@@ -1,4 +1,6 @@
 
+import { parseResponseJson } from '@/lib/api';
+
 const BASE_URL = '/api/youtube';
 
 const BLOCKLIST = [];
@@ -30,7 +32,7 @@ export const fetchYouTubeStats = async (youtubeId: string): Promise<YouTubeStats
       };
     }
     
-    const data = await response.json();
+    const data = await parseResponseJson(response);
     
     if (!data.items || data.items.length === 0) return null;
 
@@ -69,7 +71,7 @@ export const fetchRecentUploads = async (channelId: string, signal?: AbortSignal
       console.warn('YouTube activities proxy returned non-ok status:', response.status);
       return [];
     }
-    const data = await response.json();
+    const data = await parseResponseJson(response);
     const items = data.items || [];
     
     // Transform activities to looks like standard video search items

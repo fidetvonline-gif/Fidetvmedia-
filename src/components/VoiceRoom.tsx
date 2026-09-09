@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { parseResponseJson } from '@/lib/api';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Headphones, Mic, MicOff, Volume2, VolumeX, Copy, Check, Users, Shield, 
@@ -1460,7 +1461,7 @@ export default function VoiceRoom({ communityId }: VoiceRoomProps) {
         credentials: 'include'
       });
 
-      const data = await response.json();
+      const data = await parseResponseJson(response);
       if (data && data.text) {
         setAiNotes(prev => prev + `\n\n🤖 AI Voice Assistant:\n${data.text}`);
         
@@ -1513,7 +1514,7 @@ Keep the tone inspiring, strategic, and professional.`;
         }),
         credentials: 'include'
       });
-      const data = await response.json();
+      const data = await parseResponseJson(response);
       if (data && data.text) {
         setAiNotes(data.text);
       } else {

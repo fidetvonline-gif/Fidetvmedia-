@@ -89,6 +89,27 @@ function formatRelativeTime(timestamp: number): string {
   }
 }
 
+// Frontend URL Validation
+function validateInput(urlStr: string): { valid: boolean; error?: string } {
+  if (!urlStr || !urlStr.trim()) {
+    return { valid: false, error: 'Please enter a valid media URL.' };
+  }
+  const trimmed = urlStr.trim();
+  if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+    return { valid: false, error: 'Please enter a valid media URL starting with http:// or https://' };
+  }
+  try {
+    const parsed = new URL(trimmed);
+    const host = parsed.hostname.toLowerCase();
+    if (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host === '::1' || host.endsWith('.local') || host.endsWith('.internal')) {
+      return { valid: false, error: 'This resource is not publicly accessible.' };
+    }
+  } catch {
+    return { valid: false, error: 'Please enter a valid media URL.' };
+  }
+  return { valid: true };
+}
+
 interface SaveMediaSectionProps {
   initialUrl?: string;
   onSwitchToMovieSearch?: (query: string) => void;
@@ -212,27 +233,6 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
     safeLocalStorage.removeItem(HISTORY_KEY);
   };
 
-  // Frontend URL Validation
-  const validateInput = (urlStr: string): { valid: boolean; error?: string } => {
-    if (!urlStr || !urlStr.trim()) {
-      return { valid: false, error: 'Please enter a valid media URL.' };
-    }
-    const trimmed = urlStr.trim();
-    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
-      return { valid: false, error: 'Please enter a valid media URL starting with http:// or https://' };
-    }
-    try {
-      const parsed = new URL(trimmed);
-      const host = parsed.hostname.toLowerCase();
-      if (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host === '::1' || host.endsWith('.local') || host.endsWith('.internal')) {
-        return { valid: false, error: 'This resource is not publicly accessible.' };
-      }
-    } catch {
-      return { valid: false, error: 'Please enter a valid media URL.' };
-    }
-    return { valid: true };
-  };
-
   // Clipboard paste helper
   const handlePasteClipboard = async () => {
     try {
@@ -306,12 +306,9 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
       });
 
       if (!response.ok) {
-        let errorData: any = {};
-        try {
-          errorData = await response.json();
-        } catch {}
+        const errorData = await parseResponseJson(response);
         if (response.status === 413) {
-          throw new Error('This file exceeds the maximum supported size.');
+          throw new Error('This file exceeds the maximum supported size (250 MB).');
         } else if (response.status === 403) {
           throw new Error('This resource is not publicly accessible.');
         } else if (response.status === 415) {

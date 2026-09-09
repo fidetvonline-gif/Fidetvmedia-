@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { parseResponseJson } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 import LiveChat from '@/components/LiveChat';
 import { BatchChannelImport } from '@/components/BatchChannelImport';
@@ -66,7 +67,7 @@ export default function Live() {
             try {
               const fallbackRes = await fetch('/api/channels');
               if (fallbackRes.ok) {
-                const fallbackData = await fallbackRes.json();
+                const fallbackData = await parseResponseJson(fallbackRes);
                 console.log(`[Live] Signal Bridge restored ${fallbackData.length} channels.`);
                 return { data: fallbackData.slice(0, 200), error: null };
               }

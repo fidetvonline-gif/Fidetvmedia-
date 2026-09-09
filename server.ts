@@ -1012,6 +1012,41 @@ async function initApp() {
     }
   });
 
+  // Safe Media Downloader Diagnostic Health Endpoint
+  const mediaHealthHandler = async (_req: any, res: any) => {
+    try {
+      const hasTmdb = !!process.env.TMDB_API_KEY && process.env.TMDB_API_KEY.trim() !== '';
+      const hasOmdb = !!process.env.OMDB_API_KEY && process.env.OMDB_API_KEY.trim() !== '';
+      const hasSupabase = !!(process.env.VITE_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+      return res.json({
+        status: "ok",
+        service: "media-analysis",
+        timestamp: new Date().toISOString(),
+        adapters: {
+          direct_url: "active",
+          permitted_sources: "active",
+          movie_catalog: "active"
+        },
+        environment: {
+          has_tmdb: hasTmdb,
+          has_omdb: hasOmdb,
+          has_supabase: hasSupabase
+        },
+        max_file_size_mb: 250
+      });
+    } catch (err: any) {
+      return res.status(500).json({
+        status: "error",
+        service: "media-analysis",
+        error: "Diagnostic check failed"
+      });
+    }
+  };
+
+  apiRouter.get("/health/media", mediaHealthHandler);
+  apiRouter.get("/media/health", mediaHealthHandler);
+
   // Safe Media Downloader Endpoints
   apiRouter.post("/media/analyze", mediaLimiter, async (req, res) => {
     try {

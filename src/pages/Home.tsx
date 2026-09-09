@@ -1,4 +1,5 @@
 import { SEO } from '@/components/SEO';
+import { parseResponseJson } from '@/lib/api';
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -196,7 +197,7 @@ export default function Home() {
   const fetchLatestNews = async () => {
     try {
       const response = await fetch('/api/news');
-      const data = await response.json();
+      const data = await parseResponseJson(response);
       if (Array.isArray(data)) {
         setLatestNews(data.map((item: any) => ({
           id: item.url,
@@ -222,7 +223,7 @@ export default function Home() {
       let ytVideos: any[] = [];
       try {
         const ytResponse = await fetch('/api/youtube/content', { cache: 'no-store' });
-        ytVideos = await ytResponse.json();
+        ytVideos = await parseResponseJson(ytResponse);
         if (!Array.isArray(ytVideos)) ytVideos = [];
       } catch (err) {
         console.error('Error fetching YouTube content:', err);

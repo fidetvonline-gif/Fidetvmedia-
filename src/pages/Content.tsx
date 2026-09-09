@@ -12,6 +12,8 @@ import { YouTubeVideoPlayer } from '@/components/YouTubeVideoPlayer';
 
 const Player = ReactPlayer as any;
 
+import { parseResponseJson } from '@/lib/api';
+
 export default function Content() {
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -44,7 +46,7 @@ export default function Content() {
     try {
       // Fetch from our new YouTube API endpoint
       const ytResponse = await fetch('/api/youtube/content', { cache: 'no-store' });
-      let ytVideos = await ytResponse.json();
+      let ytVideos = await parseResponseJson(ytResponse);
       
       if (!Array.isArray(ytVideos)) {
         console.error("YouTube API returned non-array:", ytVideos);
