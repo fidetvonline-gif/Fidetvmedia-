@@ -2291,8 +2291,8 @@ async function initApp() {
     console.log(`[Production] Serving static files from: ${distPath}`);
     app.use(express.static(distPath));
     
-    // Catch-all for SPA in production (Express 4 wildcard)
-    app.get('*', (req, res) => {
+    // Catch-all for SPA in production (Express 5 wildcard syntax)
+    app.get('{*path}', (req, res) => {
       // If API route not found, return 404 json
       if (req.path.startsWith('/api')) {
         console.warn(`[API 404] ${req.method} ${req.path}`);
