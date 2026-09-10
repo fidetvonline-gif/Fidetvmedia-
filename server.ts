@@ -151,6 +151,15 @@ export async function initApp(startServer = true) {
   });
 
   // Health check endpoint
+  apiRouter.get("/fidesave-health", (req, res) => {
+    res.json({
+      status: "ok",
+      service: "fidesave",
+      environment: process.env.VERCEL ? "vercel-serverless" : "container",
+      timestamp: new Date().toISOString()
+    });
+  });
+
   apiRouter.get("/health-check", async (req, res) => {
     const admin = getSupabaseAdmin();
     const results: any = {
