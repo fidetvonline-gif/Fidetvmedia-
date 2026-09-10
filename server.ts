@@ -91,7 +91,7 @@ function getSupabaseAdmin() {
 // Check if we are running in a serverless environment (like Vercel)
 const isVercel = process.env.VERCEL === '1' || !!process.env.VERCEL_URL;
 
-async function initApp() {
+export async function initApp(startServer = true) {
   // Store the last automation report
   let lastAutomationReport: any = { status: "No cycle run yet" };
 
@@ -1051,12 +1051,20 @@ async function initApp() {
   apiRouter.post("/media/analyze", mediaLimiter, async (req, res) => {
     try {
       const { url } = req.body;
+      console.log(`[DIAGNOSTICS] Request received. Endpoint: /media/analyze. Method: ${req.method}.`);
+      console.log(`[DIAGNOSTICS] Env vars check - TMDB: ${!!process.env.TMDB_API_KEY}, OMDB: ${!!process.env.OMDB_API_KEY}, Supabase: ${!!process.env.VITE_SUPABASE_URL}`);
+      
       if (!url || typeof url !== 'string') {
+        console.log(`[DIAGNOSTICS] URL validation result: Invalid or missing URL.`);
         return res.status(400).json({ success: false, error: "Please enter a valid media URL." });
       }
 
-      console.log(`[Media Analyze] Request for: ${url}`);
+      console.log(`[DIAGNOSTICS] URL validation result: Valid URL structure provided: ${url}`);
+      console.log(`[DIAGNOSTICS] External service request started via analyzeMedia...`);
       const result = await analyzeMedia(url);
+      console.log(`[DIAGNOSTICS] External service status: ${result.success ? 'Success' : 'Failed'}`);
+      console.log(`[DIAGNOSTICS] Final response status: ${result.success ? 200 : 400}`);
+      
       if (!result.success) {
         return res.status(400).json(result);
       }
@@ -1064,6 +1072,7 @@ async function initApp() {
       res.json(result);
     } catch (err: any) {
       console.error("[Media Analyze Error]", err.message);
+      console.log(`[DIAGNOSTICS] Final response status: 500 (Internal Error)`);
       res.status(500).json({ success: false, error: "An unexpected error occurred while analyzing the media." });
     }
   });
@@ -2337,14 +2346,18 @@ async function initApp() {
     });
   });
 
-  httpServer.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  if (startServer) {
+    httpServer.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  }
 }
 
 // Global initialization
-initApp().catch(err => {
-  console.error("Critical failure during app initialization:", err);
-});
+if (!isVercel) {
+  initApp(true).catch(err => {
+    console.error("Critical failure during app initialization:", err);
+  });
+}
 
 export default app;
