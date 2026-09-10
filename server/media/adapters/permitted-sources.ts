@@ -12,34 +12,7 @@ export async function analyzePermittedSource(url: string): Promise<MediaMetadata
 
   // 1. YouTube Handler
   if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) {
-    // Try btch-downloader first for YouTube
-    try {
-      const btchModule = await import('btch-downloader');
-      const btch = (btchModule as any).default || btchModule;
-      if (btch.youtube) {
-        const data = await btch.youtube(url);
-        if (data && (data.mp4 || data.video || data.url || data.link)) {
-          const directUrl = data.mp4 || data.video || data.url || data.link;
-          const title = sanitizeFilename(data.title || 'youtube_video', 'youtube_video') + '.mp4';
-          return {
-            type: 'video',
-            mimeType: 'video/mp4',
-            filename: title,
-            size: 25000000,
-            format: 'MP4',
-            thumbnail: data.thumbnail || '',
-            downloadUrl: directUrl,
-            sourceUrl: url,
-            platform: 'YouTube',
-            resolution: 'HD'
-          };
-        }
-      }
-    } catch (btchErr: any) {
-      console.warn('[Permitted-Source] btch YouTube failed, trying ytdl-core...');
-    }
-
-    // Try @distube/ytdl-core
+    // 1. Try @distube/ytdl-core FIRST (Lightweight, less prone to OOM on Vercel)
     try {
       const ytdlModule = await import('@distube/ytdl-core');
       const ytdl = (ytdlModule as any).default || ytdlModule;
@@ -75,27 +48,56 @@ export async function analyzePermittedSource(url: string): Promise<MediaMetadata
         }
       }
     } catch (ytErr) {
-      console.warn('[Permitted-Source] ytdl-core YouTube failed. Falling back to oEmbed metadata.');
-      try {
-        const oembedRes = await axios.get(`https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`, { timeout: 5000 });
-        const data = oembedRes.data;
-        if (data && data.title) {
-          const cleanTitle = sanitizeFilename(data.title, 'youtube_video') + '.mp4';
+      console.warn('[Permitted-Source] ytdl-core YouTube failed, trying btch-downloader...');
+    }
+
+    // 2. Fallback to btch-downloader
+    try {
+      const btchModule = await import('btch-downloader');
+      const btch = (btchModule as any).default || btchModule;
+      if (btch.youtube) {
+        const data = await btch.youtube(url);
+        if (data && (data.mp4 || data.video || data.url || data.link)) {
+          const directUrl = data.mp4 || data.video || data.url || data.link;
+          const title = sanitizeFilename(data.title || 'youtube_video', 'youtube_video') + '.mp4';
           return {
             type: 'video',
             mimeType: 'video/mp4',
-            filename: cleanTitle,
+            filename: title,
             size: 25000000,
             format: 'MP4',
-            thumbnail: data.thumbnail_url || '',
-            downloadUrl: url,
+            thumbnail: data.thumbnail || '',
+            downloadUrl: directUrl,
             sourceUrl: url,
-            platform: 'YouTube (Stream / Watch)'
+            platform: 'YouTube',
+            resolution: 'HD'
           };
         }
-      } catch (oembedErr) {
-        // Ignore oembed error
       }
+    } catch (btchErr: any) {
+      console.warn('[Permitted-Source] btch YouTube failed. Falling back to oEmbed metadata.');
+    }
+
+    // 3. Fallback to oEmbed metadata
+    try {
+      const oembedRes = await axios.get(`https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`, { timeout: 2500 });
+      const data = oembedRes.data;
+      if (data && data.title) {
+        const cleanTitle = sanitizeFilename(data.title, 'youtube_video') + '.mp4';
+        return {
+          type: 'video',
+          mimeType: 'video/mp4',
+          filename: cleanTitle,
+          size: 25000000,
+          format: 'MP4',
+          thumbnail: data.thumbnail_url || '',
+          downloadUrl: url,
+          sourceUrl: url,
+          platform: 'YouTube (Stream / Watch)'
+        };
+      }
+    } catch (oembedErr) {
+      // Ignore oembed error
     }
 
     // Explicitly reject YouTube if all direct extractors fail, preventing OpenGraph from returning an embed iframe
@@ -125,83 +127,93 @@ export async function analyzePermittedSource(url: string): Promise<MediaMetadata
         const btchModule = await import('btch-downloader');
         const btch = (btchModule as any).default || btchModule;
 
+        const withTimeout = <T>(promise: Promise<T>, ms = 3500): Promise<T> => {
+          let timeoutId: NodeJS.Timeout;
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            timeoutId = setTimeout(() => {
+              reject(new Error('Scraper timed out'));
+            }, ms);
+          });
+          return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId));
+        };
+
         let data: any = null;
         let platformName = 'Media';
 
         if (lowerUrl.includes('tiktok.com')) {
           platformName = 'TikTok';
           if (ruhend?.ttdl) {
-            try { data = await ruhend.ttdl(url); } catch (e) { console.warn('ttdl failed', e); }
+            try { data = await withTimeout(ruhend.ttdl(url)); } catch (e) { console.warn('ttdl failed', e); }
           }
           if (!data && btch?.ttdl) {
-            try { data = await btch.ttdl(url); } catch (e) { console.warn('btch ttdl failed', e); }
+            try { data = await withTimeout(btch.ttdl(url)); } catch (e) { console.warn('btch ttdl failed', e); }
           }
         } else if (lowerUrl.includes('instagram.com')) {
           platformName = 'Instagram';
           if (ruhend?.igdl) {
-            try { data = await ruhend.igdl(url); } catch (e) { console.warn('igdl failed', e); }
+            try { data = await withTimeout(ruhend.igdl(url)); } catch (e) { console.warn('igdl failed', e); }
           }
           if (!data && btch?.igdl) {
-            try { data = await btch.igdl(url); } catch (e) { console.warn('btch igdl failed', e); }
+            try { data = await withTimeout(btch.igdl(url)); } catch (e) { console.warn('btch igdl failed', e); }
           }
         } else if (lowerUrl.includes('facebook.com') || lowerUrl.includes('fb.watch')) {
           platformName = 'Facebook';
           if (ruhend?.fbdl) {
-            try { data = await ruhend.fbdl(url); } catch (e) { console.warn('fbdl failed', e); }
+            try { data = await withTimeout(ruhend.fbdl(url)); } catch (e) { console.warn('fbdl failed', e); }
           }
           if (!data && btch?.fbdown) {
-            try { data = await btch.fbdown(url); } catch (e) { console.warn('btch fbdown failed', e); }
+            try { data = await withTimeout(btch.fbdown(url)); } catch (e) { console.warn('btch fbdown failed', e); }
           }
         } else if (lowerUrl.includes('twitter.com') || lowerUrl.includes('x.com')) {
           platformName = 'X (Twitter)';
           if (ruhend?.twitter) {
-            try { data = await ruhend.twitter(url); } catch (e) { console.warn('twitter failed', e); }
+            try { data = await withTimeout(ruhend.twitter(url)); } catch (e) { console.warn('twitter failed', e); }
           }
           if (!data && btch?.twitter) {
-            try { data = await btch.twitter(url); } catch (e) { console.warn('btch twitter failed', e); }
+            try { data = await withTimeout(btch.twitter(url)); } catch (e) { console.warn('btch twitter failed', e); }
           }
         } else if (lowerUrl.includes('threads.net')) {
           platformName = 'Threads';
           if (ruhend?.threads) {
-            try { data = await ruhend.threads(url); } catch (e) { console.warn('threads failed', e); }
+            try { data = await withTimeout(ruhend.threads(url)); } catch (e) { console.warn('threads failed', e); }
           }
           if (!data && btch?.threads) {
-            try { data = await btch.threads(url); } catch (e) { console.warn('btch threads failed', e); }
+            try { data = await withTimeout(btch.threads(url)); } catch (e) { console.warn('btch threads failed', e); }
           }
         } else if (lowerUrl.includes('capcut.com')) {
           platformName = 'CapCut';
           if (ruhend?.capcut) {
-            try { data = await ruhend.capcut(url); } catch (e) { console.warn('capcut failed', e); }
+            try { data = await withTimeout(ruhend.capcut(url)); } catch (e) { console.warn('capcut failed', e); }
           }
           if (!data && btch?.capcut) {
-            try { data = await btch.capcut(url); } catch (e) { console.warn('btch capcut failed', e); }
+            try { data = await withTimeout(btch.capcut(url)); } catch (e) { console.warn('btch capcut failed', e); }
           }
         } else if (lowerUrl.includes('snapchat.com')) {
           platformName = 'Snapchat';
           if (ruhend?.snapchat) {
-            try { data = await ruhend.snapchat(url); } catch (e) { console.warn('snapchat failed', e); }
+            try { data = await withTimeout(ruhend.snapchat(url)); } catch (e) { console.warn('snapchat failed', e); }
           }
         } else if (lowerUrl.includes('pinterest.com')) {
           platformName = 'Pinterest';
           if (btch?.pinterest) {
-            try { data = await btch.pinterest(url); } catch (e) { console.warn('pinterest failed', e); }
+            try { data = await withTimeout(btch.pinterest(url)); } catch (e) { console.warn('pinterest failed', e); }
           }
         } else if (lowerUrl.includes('mediafire.com')) {
           platformName = 'MediaFire';
           if (btch?.mediafire) {
-            try { data = await btch.mediafire(url); } catch (e) { console.warn('mediafire failed', e); }
+            try { data = await withTimeout(btch.mediafire(url)); } catch (e) { console.warn('mediafire failed', e); }
           }
         } else if (lowerUrl.includes('soundcloud.com')) {
           platformName = 'SoundCloud';
           if (btch?.soundcloud) {
-            try { data = await btch.soundcloud(url); } catch (e) { console.warn('soundcloud failed', e); }
+            try { data = await withTimeout(btch.soundcloud(url)); } catch (e) { console.warn('soundcloud failed', e); }
           }
         }
 
       // If specific scrapers didn't return data, try AIO (All-in-One)
       if (!data && btch?.aio) {
         try {
-          data = await btch.aio(url);
+          data = await withTimeout(btch.aio(url), 6000);
         } catch {}
       }
 
@@ -242,7 +254,7 @@ export async function analyzePermittedSource(url: string): Promise<MediaMetadata
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
       },
-      timeout: 6000,
+      timeout: 2500,
       maxRedirects: 5,
       validateStatus: (status) => status < 400
     });

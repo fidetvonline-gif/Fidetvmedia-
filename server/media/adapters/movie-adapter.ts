@@ -24,7 +24,7 @@ export async function analyzeMovieSource(url: string): Promise<MediaMetadata | n
       const match = url.match(/archive\.org\/details\/([a-zA-Z0-9_\-\.]+)/i);
       if (match && match[1]) {
         const identifier = match[1];
-        const metaRes = await axios.get(`https://archive.org/metadata/${identifier}`, { timeout: 6000 });
+        const metaRes = await axios.get(`https://archive.org/metadata/${identifier}`, { timeout: 2500 });
         const data = metaRes.data;
         const files: any[] = data?.files || [];
         
@@ -91,7 +91,7 @@ export async function analyzeMovieSource(url: string): Promise<MediaMetadata | n
     try {
       const findRes = await axios.get(
         `https://api.themoviedb.org/3/find/${imdbMatch[1]}?external_source=imdb_id&api_key=${tmdbKey}`,
-        { timeout: 5000 }
+        { timeout: 2500 }
       );
       const movieResult = findRes.data?.movie_results?.[0];
       if (movieResult?.id) {
@@ -128,7 +128,7 @@ export async function analyzeMovieSource(url: string): Promise<MediaMetadata | n
         // Try fetching OpenGraph title from the page
         const htmlRes = await axios.get(url, {
           headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-          timeout: 4000,
+          timeout: 2500,
           maxRedirects: 5
         });
         const html = String(htmlRes.data || '');
@@ -144,7 +144,7 @@ export async function analyzeMovieSource(url: string): Promise<MediaMetadata | n
       if (searchTitleQuery) {
         const searchRes = await axios.get(
           `https://api.themoviedb.org/3/search/movie?api_key=${tmdbKey}&query=${encodeURIComponent(searchTitleQuery)}`,
-          { timeout: 5000 }
+          { timeout: 2500 }
         );
         const topResult = searchRes.data?.results?.[0];
         if (topResult?.id) {
@@ -162,7 +162,7 @@ export async function analyzeMovieSource(url: string): Promise<MediaMetadata | n
       // 1. Fetch movie details
       const detailsRes = await axios.get(
         `https://api.themoviedb.org/3/movie/${tmdbMovieId}?api_key=${tmdbKey}&language=en-US`,
-        { timeout: 6000 }
+        { timeout: 2500 }
       );
       const movie = detailsRes.data;
       if (!movie || !movie.title) return null;
@@ -176,7 +176,7 @@ export async function analyzeMovieSource(url: string): Promise<MediaMetadata | n
       // 2. Fetch official videos for this movie
       const videosRes = await axios.get(
         `https://api.themoviedb.org/3/movie/${tmdbMovieId}/videos?api_key=${tmdbKey}&language=en-US`,
-        { timeout: 6000 }
+        { timeout: 2500 }
       );
       const videos: any[] = videosRes.data?.results || [];
       const ytVideos = videos.filter(v => v.site === 'YouTube');
