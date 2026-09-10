@@ -1087,7 +1087,13 @@ export async function initApp(startServer = true) {
       res.json(result);
     } catch (err: any) {
       console.error("[Media Analyze Error]", err);
-      res.status(400).json({ success: false, error: err.message || "An unexpected error occurred while analyzing the media." });
+      // On Vercel, we want to see the error details even in production for debugging
+      res.status(500).json({ 
+        success: false, 
+        error: "Server Error: Media analysis failed.",
+        details: err.message,
+        stack: isVercel ? err.stack : undefined
+      });
     }
   });
 

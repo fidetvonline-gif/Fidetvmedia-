@@ -118,53 +118,85 @@ export async function analyzePermittedSource(url: string): Promise<MediaMetadata
     lowerUrl.includes('soundcloud.com');
 
   if (isSocialPlatform) {
-    try {
-      const ruhendModule = await import('ruhend-scraper');
-      const ruhend = (ruhendModule as any).default || ruhendModule;
+      try {
+        const ruhendModule = await import('ruhend-scraper');
+        const ruhend = (ruhendModule as any).default || ruhendModule;
 
-      const btchModule = await import('btch-downloader');
-      const btch = (btchModule as any).default || btchModule;
+        const btchModule = await import('btch-downloader');
+        const btch = (btchModule as any).default || btchModule;
 
-      let data: any = null;
-      let platformName = 'Media';
+        let data: any = null;
+        let platformName = 'Media';
 
-      if (lowerUrl.includes('tiktok.com')) {
-        platformName = 'TikTok';
-        if (ruhend?.ttdl) data = await ruhend.ttdl(url);
-        if (!data && btch?.ttdl) data = await btch.ttdl(url);
-      } else if (lowerUrl.includes('instagram.com')) {
-        platformName = 'Instagram';
-        if (ruhend?.igdl) data = await ruhend.igdl(url);
-        if (!data && btch?.igdl) data = await btch.igdl(url);
-      } else if (lowerUrl.includes('facebook.com') || lowerUrl.includes('fb.watch')) {
-        platformName = 'Facebook';
-        if (ruhend?.fbdl) data = await ruhend.fbdl(url);
-        if (!data && btch?.fbdown) data = await btch.fbdown(url);
-      } else if (lowerUrl.includes('twitter.com') || lowerUrl.includes('x.com')) {
-        platformName = 'X (Twitter)';
-        if (ruhend?.twitter) data = await ruhend.twitter(url);
-        if (!data && btch?.twitter) data = await btch.twitter(url);
-      } else if (lowerUrl.includes('threads.net')) {
-        platformName = 'Threads';
-        if (ruhend?.threads) data = await ruhend.threads(url);
-        if (!data && btch?.threads) data = await btch.threads(url);
-      } else if (lowerUrl.includes('capcut.com')) {
-        platformName = 'CapCut';
-        if (ruhend?.capcut) data = await ruhend.capcut(url);
-        if (!data && btch?.capcut) data = await btch.capcut(url);
-      } else if (lowerUrl.includes('snapchat.com')) {
-        platformName = 'Snapchat';
-        if (ruhend?.snapchat) data = await ruhend.snapchat(url);
-      } else if (lowerUrl.includes('pinterest.com')) {
-        platformName = 'Pinterest';
-        if (btch?.pinterest) data = await btch.pinterest(url);
-      } else if (lowerUrl.includes('mediafire.com')) {
-        platformName = 'MediaFire';
-        if (btch?.mediafire) data = await btch.mediafire(url);
-      } else if (lowerUrl.includes('soundcloud.com')) {
-        platformName = 'SoundCloud';
-        if (btch?.soundcloud) data = await btch.soundcloud(url);
-      }
+        if (lowerUrl.includes('tiktok.com')) {
+          platformName = 'TikTok';
+          if (ruhend?.ttdl) {
+            try { data = await ruhend.ttdl(url); } catch (e) { console.warn('ttdl failed', e); }
+          }
+          if (!data && btch?.ttdl) {
+            try { data = await btch.ttdl(url); } catch (e) { console.warn('btch ttdl failed', e); }
+          }
+        } else if (lowerUrl.includes('instagram.com')) {
+          platformName = 'Instagram';
+          if (ruhend?.igdl) {
+            try { data = await ruhend.igdl(url); } catch (e) { console.warn('igdl failed', e); }
+          }
+          if (!data && btch?.igdl) {
+            try { data = await btch.igdl(url); } catch (e) { console.warn('btch igdl failed', e); }
+          }
+        } else if (lowerUrl.includes('facebook.com') || lowerUrl.includes('fb.watch')) {
+          platformName = 'Facebook';
+          if (ruhend?.fbdl) {
+            try { data = await ruhend.fbdl(url); } catch (e) { console.warn('fbdl failed', e); }
+          }
+          if (!data && btch?.fbdown) {
+            try { data = await btch.fbdown(url); } catch (e) { console.warn('btch fbdown failed', e); }
+          }
+        } else if (lowerUrl.includes('twitter.com') || lowerUrl.includes('x.com')) {
+          platformName = 'X (Twitter)';
+          if (ruhend?.twitter) {
+            try { data = await ruhend.twitter(url); } catch (e) { console.warn('twitter failed', e); }
+          }
+          if (!data && btch?.twitter) {
+            try { data = await btch.twitter(url); } catch (e) { console.warn('btch twitter failed', e); }
+          }
+        } else if (lowerUrl.includes('threads.net')) {
+          platformName = 'Threads';
+          if (ruhend?.threads) {
+            try { data = await ruhend.threads(url); } catch (e) { console.warn('threads failed', e); }
+          }
+          if (!data && btch?.threads) {
+            try { data = await btch.threads(url); } catch (e) { console.warn('btch threads failed', e); }
+          }
+        } else if (lowerUrl.includes('capcut.com')) {
+          platformName = 'CapCut';
+          if (ruhend?.capcut) {
+            try { data = await ruhend.capcut(url); } catch (e) { console.warn('capcut failed', e); }
+          }
+          if (!data && btch?.capcut) {
+            try { data = await btch.capcut(url); } catch (e) { console.warn('btch capcut failed', e); }
+          }
+        } else if (lowerUrl.includes('snapchat.com')) {
+          platformName = 'Snapchat';
+          if (ruhend?.snapchat) {
+            try { data = await ruhend.snapchat(url); } catch (e) { console.warn('snapchat failed', e); }
+          }
+        } else if (lowerUrl.includes('pinterest.com')) {
+          platformName = 'Pinterest';
+          if (btch?.pinterest) {
+            try { data = await btch.pinterest(url); } catch (e) { console.warn('pinterest failed', e); }
+          }
+        } else if (lowerUrl.includes('mediafire.com')) {
+          platformName = 'MediaFire';
+          if (btch?.mediafire) {
+            try { data = await btch.mediafire(url); } catch (e) { console.warn('mediafire failed', e); }
+          }
+        } else if (lowerUrl.includes('soundcloud.com')) {
+          platformName = 'SoundCloud';
+          if (btch?.soundcloud) {
+            try { data = await btch.soundcloud(url); } catch (e) { console.warn('soundcloud failed', e); }
+          }
+        }
 
       // If specific scrapers didn't return data, try AIO (All-in-One)
       if (!data && btch?.aio) {
