@@ -101,7 +101,7 @@ export async function initApp(startServer = true) {
 
   // Background Automation Task (Consolidated)
   let isAutomationRunning = false;
-  if (ingestService) {
+  if (ingestService && !isVercel) {
     console.log("[Background] Starting automation scheduler...");
     
     // Massive Ingestion: Only run this ONCE after 10 minutes if not already running
@@ -1059,7 +1059,14 @@ export async function initApp(startServer = true) {
   // Safe Media Downloader Endpoints
   apiRouter.post("/media/analyze", mediaLimiter, async (req, res) => {
     try {
-      const { url } = req.body;
+      let body = req.body;
+      if (typeof body === 'string') {
+        try {
+          body = JSON.parse(body);
+        } catch (e) {}
+      }
+
+      const url = body?.url;
       console.log(`[DIAGNOSTICS] Request received. Endpoint: /media/analyze. Method: ${req.method}.`);
       console.log(`[DIAGNOSTICS] Env vars check - TMDB: ${!!process.env.TMDB_API_KEY}, OMDB: ${!!process.env.OMDB_API_KEY}, Supabase: ${!!process.env.VITE_SUPABASE_URL}`);
       
@@ -1072,7 +1079,6 @@ export async function initApp(startServer = true) {
       console.log(`[DIAGNOSTICS] External service request started via analyzeMedia...`);
       const result = await analyzeMedia(url);
       console.log(`[DIAGNOSTICS] External service status: ${result.success ? 'Success' : 'Failed'}`);
-      console.log(`[DIAGNOSTICS] Final response status: ${result.success ? 200 : 400}`);
       
       if (!result.success) {
         return res.status(400).json(result);
@@ -1080,9 +1086,8 @@ export async function initApp(startServer = true) {
 
       res.json(result);
     } catch (err: any) {
-      console.error("[Media Analyze Error]", err.message);
-      console.log(`[DIAGNOSTICS] Final response status: 500 (Internal Error)`);
-      res.status(500).json({ success: false, error: "An unexpected error occurred while analyzing the media." });
+      console.error("[Media Analyze Error]", err);
+      res.status(400).json({ success: false, error: err.message || "An unexpected error occurred while analyzing the media." });
     }
   });
 
@@ -2293,7 +2298,7 @@ export async function initApp(startServer = true) {
   }
 
   // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV !== "production" && !isVercel) {
     const vite = await createViteServer({
       server: { 
         middlewareMode: true,
@@ -2303,7 +2308,7 @@ export async function initApp(startServer = true) {
     });
     
     app.use(vite.middlewares);
-  } else {
+  } else if (!isVercel) {
     // In production, files are in 'dist' directory relative to the project root
     const distPath = path.join(process.cwd(), 'dist');
     console.log(`[Production] Serving static files from: ${distPath}`);
@@ -2322,40 +2327,50 @@ export async function initApp(startServer = true) {
     });
   }
 
-  const httpServer = http.createServer(app);
-  const io = new Server(httpServer, {
-    cors: {
-      origin: "*",
-      methods: ["GET", "POST"]
-    }
-  });
-
-  io.on("connection", (socket) => {
-    console.log("Socket connected:", socket.id);
-
-    socket.on("join-room", (roomId, userId) => {
-      socket.join(roomId);
-      socket.to(roomId).emit("user-connected", userId);
-      
-      socket.on("disconnect", () => {
-        socket.to(roomId).emit("user-disconnected", userId);
-      });
-    });
-
-    socket.on("offer", (roomId, offer, userId) => {
-      socket.to(roomId).emit("offer", offer, userId);
-    });
-
-    socket.on("answer", (roomId, answer, userId) => {
-      socket.to(roomId).emit("answer", answer, userId);
-    });
-
-    socket.on("ice-candidate", (roomId, candidate, userId) => {
-      socket.to(roomId).emit("ice-candidate", candidate, userId);
+  // Global Error Handler for Express
+  app.use((err: any, req: any, res: any, next: any) => {
+    console.error('[Express Global Error]', err);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Internal Server Error', 
+      details: process.env.NODE_ENV === 'development' || isVercel ? err.message : undefined 
     });
   });
 
   if (startServer) {
+    const httpServer = http.createServer(app);
+    const io = new Server(httpServer, {
+      cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+      }
+    });
+
+    io.on("connection", (socket) => {
+      console.log("Socket connected:", socket.id);
+
+      socket.on("join-room", (roomId, userId) => {
+        socket.join(roomId);
+        socket.to(roomId).emit("user-connected", userId);
+        
+        socket.on("disconnect", () => {
+          socket.to(roomId).emit("user-disconnected", userId);
+        });
+      });
+
+      socket.on("offer", (roomId, offer, userId) => {
+        socket.to(roomId).emit("offer", offer, userId);
+      });
+
+      socket.on("answer", (roomId, answer, userId) => {
+        socket.to(roomId).emit("answer", answer, userId);
+      });
+
+      socket.on("ice-candidate", (roomId, candidate, userId) => {
+        socket.to(roomId).emit("ice-candidate", candidate, userId);
+      });
+    });
+
     httpServer.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on http://localhost:${PORT}`);
     });
