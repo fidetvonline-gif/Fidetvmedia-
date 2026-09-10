@@ -125,6 +125,7 @@ export async function analyzePermittedSource(url: string): Promise<MediaMetadata
 
         const withTimeout = <T>(promise: Promise<T>, ms = 3500): Promise<T> => {
           let timeoutId: NodeJS.Timeout;
+          promise.catch(() => {});
           const timeoutPromise = new Promise<never>((_, reject) => {
             timeoutId = setTimeout(() => {
               reject(new Error('Scraper timed out'));

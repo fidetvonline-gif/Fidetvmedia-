@@ -15,6 +15,7 @@ import {
   RefreshCw, 
   ExternalLink,
   ShieldCheck,
+  Copy,
   Play,
   Pause,
   HardDrive
@@ -446,6 +447,20 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
                   <X size={16} />
                 </button>
               </div>
+              {inputUrl.startsWith('http') && (
+                <div className="pt-2 border-t border-red-500/20 flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs text-foreground/70">Serverless proxy limited? You can open the source media directly:</span>
+                  <a
+                    href={inputUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-bold text-primary hover:underline flex items-center gap-1.5 bg-primary/10 px-3 py-1.5 rounded-xl border border-primary/20"
+                  >
+                    <span>Open Source Media URL</span>
+                    <ExternalLink size={13} />
+                  </a>
+                </div>
+              )}
               {onSwitchToMovieSearch && !inputUrl.startsWith('http') && inputUrl.trim().length > 1 && (
                 <div className="pt-2 border-t border-red-500/20 flex items-center justify-between">
                   <span className="text-xs text-foreground/70">Searching for a movie or cinema title?</span>
@@ -631,24 +646,43 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
                 <span className="font-mono text-foreground/40 truncate block">{analyzedMedia.sourceUrl}</span>
               </div>
 
-              <div className="flex items-center gap-3 w-full sm:w-auto">
+              <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+                {/* Direct Source Stream Link (Bypasses serverless proxy limits) */}
                 <a
-                  href={`/api/media/download?url=${encodeURIComponent(analyzedMedia.downloadUrl || analyzedMedia.sourceUrl)}&filename=${encodeURIComponent(analyzedMedia.filename)}`}
-                  download={analyzedMedia.filename}
+                  href={analyzedMedia.downloadUrl || analyzedMedia.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   onClick={() => saveToHistory(analyzedMedia)}
-                  className="px-5 py-3.5 rounded-2xl bg-surface-bright border border-border-custom text-foreground font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-surface hover:text-primary transition-all min-h-[44px]"
-                  title="Direct download file"
+                  className="px-4 py-3 rounded-2xl bg-surface-bright border border-border-custom text-foreground font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-surface hover:text-primary transition-all min-h-[44px]"
+                  title="Open direct media stream in new window"
                 >
                   <ExternalLink size={16} />
-                  <span>Direct File</span>
+                  <span>Open Stream</span>
                 </a>
 
+                {/* Copy Link Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const link = analyzedMedia.downloadUrl || analyzedMedia.sourceUrl;
+                    navigator.clipboard.writeText(link);
+                    setDownloadStatus('Link copied!');
+                    setTimeout(() => setDownloadStatus(''), 2000);
+                  }}
+                  className="px-3.5 py-3 rounded-2xl bg-surface-bright border border-border-custom text-foreground/80 hover:text-foreground font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all min-h-[44px]"
+                  title="Copy media URL to clipboard"
+                >
+                  <Copy size={15} />
+                  <span>Copy Link</span>
+                </button>
+
+                {/* Main Download Button */}
                 <button
                   type="button"
                   id="media-save-download-button"
                   onClick={() => handleDownload()}
                   disabled={downloading}
-                  className="flex-1 sm:flex-initial px-8 py-3.5 rounded-2xl bg-primary text-white font-bold text-sm uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-primary/90 active:scale-95 disabled:opacity-50 transition-all shadow-md shadow-primary/20 min-h-[44px]"
+                  className="flex-1 sm:flex-initial px-6 py-3.5 rounded-2xl bg-primary text-white font-bold text-sm uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-primary/90 active:scale-95 disabled:opacity-50 transition-all shadow-md shadow-primary/20 min-h-[44px]"
                 >
                   {downloading ? (
                     <>

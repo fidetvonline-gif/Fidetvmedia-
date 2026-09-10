@@ -423,8 +423,8 @@ export async function initApp(startServer = true) {
 
       // 1. YouTube Search via ruhend-scraper
       try {
-        const ruhendMod = await import("ruhend-scraper");
-        const ruhend = (ruhendMod as any).default || ruhendMod;
+        
+        const ruhend = (ruhend_static as any).default || ruhend_static;
         const ytSearch = ruhend.ytsearch || (ruhend.search && ruhend.search.youtube);
         
         if (ytSearch) {
@@ -478,8 +478,8 @@ export async function initApp(startServer = true) {
         const ytUrl = `https://www.youtube.com/watch?v=${vid}`;
         
         try {
-          const ruhendMod = await import("ruhend-scraper");
-          const ruhend = (ruhendMod as any).default || ruhendMod;
+          
+          const ruhend = (ruhend_static as any).default || ruhend_static;
           
           if (ruhend.ytmp4) {
              const data = await ruhend.ytmp4(ytUrl);
@@ -495,8 +495,8 @@ export async function initApp(startServer = true) {
           }
           
           // Fallback to ytdl-core
-          const ytdlModule = await import('@distube/ytdl-core');
-          const ytdl = ytdlModule.default || ytdlModule;
+          
+          const ytdl = (ytdl_core_static as any).default || ytdl_core_static;
           const info = await ytdl.getInfo(ytUrl);
           const f = ytdl.chooseFormat(info.formats, { quality: 'highest' });
           
@@ -567,7 +567,7 @@ export async function initApp(startServer = true) {
       });
       
       if (pageRes.status === 200) {
-          const $ = await import("cheerio").then(m => m.load(pageRes.data));
+          const $ = cheerio_static.load(pageRes.data);
           universalMeta.title = $('meta[property="og:title"]').attr('content') || $('title').text() || universalMeta.title;
           universalMeta.thumbnail = $('meta[property="og:image"]').attr('content') || universalMeta.thumbnail;
           
@@ -582,8 +582,8 @@ export async function initApp(startServer = true) {
       // 1. YouTube Handler
       if (workingUrl.includes('youtube.com') || workingUrl.includes('youtu.be')) {
         try {
-          const ytdlModule = await import('@distube/ytdl-core');
-          const ytdl = ytdlModule.default || ytdlModule;
+          
+          const ytdl = (ytdl_core_static as any).default || ytdl_core_static;
           if (!ytdl.validateURL(workingUrl)) return res.status(400).json({ error: "Invalid YouTube URL" });
           
           console.log(`[FideSave] Processing YouTube: ${workingUrl}`);
@@ -609,8 +609,8 @@ export async function initApp(startServer = true) {
           // Primary Fallback: Ruhend Scraper
           try {
             console.log("[FideSave] YouTube Fallback 1: Ruhend Scraper...");
-            const ruhendMod = await import("ruhend-scraper");
-            const ruhend = (ruhendMod as any).default || ruhendMod;
+            
+            const ruhend = (ruhend_static as any).default || ruhend_static;
             
             if (ruhend.ytmp4) {
                const data = await ruhend.ytmp4(workingUrl);
@@ -638,8 +638,8 @@ export async function initApp(startServer = true) {
           // Secondary Fallback: Btch Downloader
           try {
             console.log("[FideSave] YouTube Fallback 2: Btch Downloader...");
-            const btchMod = await import("btch-downloader");
-            const btch = (btchMod as any).default || btchMod;
+            
+            const btch = (btch_static as any).default || btch_static;
             
             if (btch.youtube) {
               const data = await btch.youtube(workingUrl);
@@ -679,11 +679,11 @@ export async function initApp(startServer = true) {
     // 2. Specialized Scrapers Fallback (TikTok, IG, FB, X, Threads, Capcut, Snapchat)
       if (workingUrl.includes('tiktok.com') || workingUrl.includes('instagram.com') || workingUrl.includes('facebook.com') || workingUrl.includes('twitter.com') || workingUrl.includes('x.com') || workingUrl.includes('fb.watch') || workingUrl.includes('threads.net') || workingUrl.includes('capcut.com') || workingUrl.includes('snapchat.com')) {
         try {
-          const ruhendMod = await import("ruhend-scraper");
-          const ruhend = (ruhendMod as any).default || ruhendMod;
           
-          const btchMod = await import("btch-downloader");
-          const btch = (btchMod as any).default || btchMod;
+          const ruhend = (ruhend_static as any).default || ruhend_static;
+          
+          
+          const btch = (btch_static as any).default || btch_static;
           
           let data: any = null;
           if (workingUrl.includes('tiktok.com')) data = await (ruhend.ttdl || ruhend.tiktok)(workingUrl);
@@ -729,7 +729,7 @@ export async function initApp(startServer = true) {
         });
         
         if (pageRes.status === 200) {
-            const $ = await import("cheerio").then(m => m.load(pageRes.data));
+            const $ = cheerio_static.load(pageRes.data);
             
             // Comprehensive selector list for video sources
             const videoSrc = 
