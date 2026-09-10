@@ -1,3 +1,7 @@
+import { load } from 'cheerio';
+import ytdl from '@distube/ytdl-core';
+import btch from 'btch-downloader';
+import ruhend from 'ruhend-scraper';
 import axios from 'axios';
 import { MediaMetadata } from '../types.js';
 import { validateUrlSecurity, sanitizeFilename } from '../validator.js';
@@ -14,8 +18,6 @@ export async function analyzePermittedSource(url: string): Promise<MediaMetadata
   if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) {
     // 1. Try @distube/ytdl-core FIRST (Lightweight, less prone to OOM on Vercel)
     try {
-      const ytdlModule = await import('@distube/ytdl-core');
-      const ytdl = (ytdlModule as any).default || ytdlModule;
       if (ytdl.validateURL(url)) {
         const info = await ytdl.getInfo(url);
         let format = ytdl.chooseFormat(info.formats, { quality: 'highestvideo', filter: 'videoandaudio' });
@@ -53,10 +55,8 @@ export async function analyzePermittedSource(url: string): Promise<MediaMetadata
 
     // 2. Fallback to btch-downloader
     try {
-      const btchModule = await import('btch-downloader');
-      const btch = (btchModule as any).default || btchModule;
       if (btch.youtube) {
-        const data = await btch.youtube(url);
+        const data = (await btch.youtube(url)) as any;
         if (data && (data.mp4 || data.video || data.url || data.link)) {
           const directUrl = data.mp4 || data.video || data.url || data.link;
           const title = sanitizeFilename(data.title || 'youtube_video', 'youtube_video') + '.mp4';
@@ -121,11 +121,7 @@ export async function analyzePermittedSource(url: string): Promise<MediaMetadata
 
   if (isSocialPlatform) {
       try {
-        const ruhendModule = await import('ruhend-scraper');
-        const ruhend = (ruhendModule as any).default || ruhendModule;
 
-        const btchModule = await import('btch-downloader');
-        const btch = (btchModule as any).default || btchModule;
 
         const withTimeout = <T>(promise: Promise<T>, ms = 3500): Promise<T> => {
           let timeoutId: NodeJS.Timeout;
@@ -260,9 +256,7 @@ export async function analyzePermittedSource(url: string): Promise<MediaMetadata
     });
 
     if (pageRes.status === 200 && typeof pageRes.data === 'string') {
-      const cheerioModule = await import('cheerio');
-      const cheerio = (cheerioModule as any).default || cheerioModule;
-      const $ = cheerio.load(pageRes.data);
+      const $ = load(pageRes.data);
 
       const title = $('meta[property="og:title"]').attr('content') || $('title').text() || 'Web Media';
       

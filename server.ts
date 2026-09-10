@@ -1,3 +1,7 @@
+import ytdl_core_static from '@distube/ytdl-core';
+import btch_static from 'btch-downloader';
+import ruhend_static from 'ruhend-scraper';
+import * as cheerio_static from 'cheerio';
 import express from "express";
 import http from "http";
 import path from "path";
@@ -218,6 +222,7 @@ export async function initApp(startServer = true) {
     try {
       // Add timeout to auth check to prevent hanging
       const authPromise = adminClient.auth.getUser(token);
+      authPromise.catch(() => {});
       const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Auth timeout")), 5000));
       
       const { data: { user }, error: authError } = await (Promise.race([authPromise, timeoutPromise]) as any);
