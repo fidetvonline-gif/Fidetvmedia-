@@ -20,6 +20,17 @@ export async function handleMediaDownload(req: Request, res: Response): Promise<
     return;
   }
 
+  // VERCEL PAYLOAD LIMIT WORKAROUND
+  // Serverless functions on Vercel have a 4.5MB response limit. 
+  // Proxied downloads will crash with a 502 for files larger than 4.5MB.
+  // We detect if we're on Vercel and force a 302 redirect for those environments.
+  const isVercel = process.env.VERCEL === '1' || !!process.env.VERCEL_URL;
+  if (isVercel) {
+    console.log(`[Vercel Download] Bypassing proxy to avoid 4.5MB limit. Redirecting to source: ${url}`);
+    res.redirect(302, url);
+    return;
+  }
+
   try {
     const targetUrl = new URL(url);
     const referer = targetUrl.origin;

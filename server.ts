@@ -1,20 +1,17 @@
 import express from "express";
 import http from "http";
-import { Server } from "socket.io";
 import path from "path";
 import cors from "cors";
-import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import axios from "axios";
 import { GoogleGenAI } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
-import { ChannelIngestionService } from "./src/services/channelIngestionService";
-import { YouTubeIngestionService } from "./src/services/youtubeIngestionService";
-import { M3UService } from "./src/services/m3uService";
+import { ChannelIngestionService } from "./src/services/channelIngestionService.js";
+import { YouTubeIngestionService } from "./src/services/youtubeIngestionService.js";
+import { M3UService } from "./src/services/m3uService.js";
 import multer from "multer";
 import fs from "fs/promises";
 import rateLimit from "express-rate-limit";
-import meetingRoutes from "./src/services/api/meetingRoutes";
 import { analyzeMedia, handleMediaDownload } from "./server/media/index.js";
 
 dotenv.config();
@@ -26,22 +23,22 @@ const PORT = 3000;
 
 // Apply basic rate limiting
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // Limit each IP to 1000 requests per `window`
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
   message: "Too many requests from this IP, please try again after 15 minutes",
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 const uploadLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 100, // Limit each IP to 100 uploads per hour
+  windowMs: 60 * 60 * 1000,
+  max: 100,
   message: "Too many uploads from this IP, please try again later",
 });
 
 const mediaLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 150, // Limit to 150 requests per 15 minutes
+  windowMs: 15 * 60 * 1000,
+  max: 150,
   message: { success: false, error: "Too many media requests. Please try again after a few minutes." },
   standardHeaders: true,
   legacyHeaders: false,
@@ -49,25 +46,13 @@ const mediaLimiter = rateLimit({
 
 app.use("/api/", apiLimiter);
 
-// Global Security Headers Middleware
-app.use((req, res, next) => {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  // Allow the app to be embedded in iframes for the AI Studio preview
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  
-  // Content Security Policy: Allow YouTube, Google Fonts, and internal assets
-  // Added frame-ancestors 'self' https://ai.studio https://*.google.com to allow embedding in preview
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.youtube.com https://s.ytimg.com https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://js.stripe.com; connect-src 'self' https://*.supabase.co https://*.googleapis.com wss://*.supabase.co; frame-ancestors 'self' https://*.google.com https://ai.studio;");
-  next();
-});
-
-const apiRouter = express.Router();
-
 const upload = multer({ 
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  limits: { fileSize: 10 * 1024 * 1024 },
   storage: multer.memoryStorage()
 });
+
+// Check if we are running in a serverless environment (like Vercel)
+const isVercel = process.env.VERCEL === '1' || !!process.env.VERCEL_URL;
 
 let _supabaseAdmin: any = null;
 function getSupabaseAdmin() {
@@ -88,10 +73,16 @@ function getSupabaseAdmin() {
   return _supabaseAdmin;
 }
 
-// Check if we are running in a serverless environment (like Vercel)
-const isVercel = process.env.VERCEL === '1' || !!process.env.VERCEL_URL;
-
 export async function initApp(startServer = true) {
+  // Global Security Headers Middleware
+  app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.youtube.com https://s.ytimg.com https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://js.stripe.com; connect-src 'self' https://*.supabase.co https://*.googleapis.com wss://*.supabase.co; frame-ancestors 'self' https://*.google.com https://ai.studio;");
+    next();
+  });
+
   // Store the last automation report
   let lastAutomationReport: any = { status: "No cycle run yet" };
 
@@ -142,8 +133,10 @@ export async function initApp(startServer = true) {
     }, 12 * 60 * 60 * 1000);
   }
 
-  // Logging middleware for all API calls
+  const apiRouter = express.Router();
   apiRouter.use(express.json());
+
+  const { default: meetingRoutes } = await import("./src/services/api/meetingRoutes.js");
   apiRouter.use("/meeting", meetingRoutes);
   apiRouter.use((req, res, next) => {
     console.log(`[API Router] ${req.method} ${req.url}`);
@@ -2223,7 +2216,6 @@ export async function initApp(startServer = true) {
 
   // Fast mount for serverless environments
   app.use("/api", apiRouter);
-  apiRouter.use("/meeting", meetingRoutes);
 
   // Fallback Channel API for when RLS blocks the public frontend
   apiRouter.get("/news", async (req, res) => {
@@ -2305,6 +2297,7 @@ export async function initApp(startServer = true) {
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production" && !isVercel) {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { 
         middlewareMode: true,
@@ -2344,6 +2337,7 @@ export async function initApp(startServer = true) {
   });
 
   if (startServer) {
+    const { Server } = await import("socket.io");
     const httpServer = http.createServer(app);
     const io = new Server(httpServer, {
       cors: {

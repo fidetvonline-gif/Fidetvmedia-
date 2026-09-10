@@ -293,112 +293,40 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
       }
     }
 
+    // Simplified Download Trigger for Production Stability
+    // We use a direct browser navigation for the download endpoint.
+    // This bypasses Vercel's 4.5MB payload limit (because the server now redirects)
+    // and also avoids CORS fetch issues by using native browser download behavior.
     try {
-      const response = await fetch('/api/media/download', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          url: targetMedia.downloadUrl || targetMedia.sourceUrl,
-          filename: targetMedia.filename
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await parseResponseJson(response);
-        if (response.status === 413) {
-          throw new Error('This file exceeds the maximum supported size (250 MB).');
-        } else if (response.status === 403) {
-          throw new Error('This resource is not publicly accessible.');
-        } else if (response.status === 415) {
-          throw new Error('This media type is not supported.');
-        } else if (response.status === 504) {
-          throw new Error('The source took too long to respond. Please try again.');
-        }
-        throw new Error(errorData.error || "We couldn't save this media. Please try again.");
-      }
-
-      const contentLengthHeader = response.headers.get('Content-Length');
-      const totalBytes = contentLengthHeader ? parseInt(contentLengthHeader, 10) : targetMedia.size || 0;
-
-      setDownloadStatus('Downloading...');
-
-      // Read streaming body with progress
-      if (response.body) {
-        const reader = response.body.getReader();
-        const chunks: Uint8Array[] = [];
-        let receivedBytes = 0;
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          if (value) {
-            chunks.push(value);
-            receivedBytes += value.length;
-
-            if (totalBytes > 0) {
-              const progress = Math.min(100, Math.round((receivedBytes / totalBytes) * 100));
-              setDownloadProgress(progress);
-              setDownloadStatus(`Downloading ${progress}%`);
-            }
-          }
-        }
-
+      setDownloadStatus('Starting download...');
+      setDownloadProgress(20);
+      
+      const downloadUrl = `/api/media/download?url=${encodeURIComponent(targetMedia.downloadUrl || targetMedia.sourceUrl)}&filename=${encodeURIComponent(targetMedia.filename)}`;
+      
+      // Use hidden iframe or direct navigation to trigger download without leaving page
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = targetMedia.filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      
+      // Give it a moment to trigger the browser's download manager
+      setTimeout(() => {
+        document.body.removeChild(a);
         setDownloadProgress(100);
-        setDownloadStatus('Download complete');
-
-        // Create downloaded file blob
-        const mime = targetMedia.mimeType || 'application/octet-stream';
-        const blob = new Blob(chunks as any, { type: mime });
-        const blobUrl = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = targetMedia.filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
-
+        setDownloadStatus('Download started');
         setDownloadComplete(true);
         saveToHistory(targetMedia);
-      } else {
-        // Fallback if ReadableStream is unavailable
-        const blob = await response.blob();
-        const blobUrl = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = targetMedia.filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
+        setDownloading(false);
+      }, 1500);
 
-        setDownloadProgress(100);
-        setDownloadStatus('Download complete');
-        setDownloadComplete(true);
-        saveToHistory(targetMedia);
-      }
+      return;
     } catch (err: any) {
       console.error('[Media Download Frontend Error]', err);
-      // Automatic fallback to native browser direct download
-      try {
-        const fallbackUrl = targetMedia.downloadUrl || targetMedia.sourceUrl;
-        const a = document.createElement('a');
-        a.href = fallbackUrl;
-        a.download = targetMedia.filename;
-        a.target = '_blank';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setDownloadComplete(true);
-        saveToHistory(targetMedia);
-      } catch (fallbackErr) {
-        setErrorMessage(err.message || "We couldn't save this media. Please try again.");
-      }
+      setErrorMessage("We couldn't start the download. Please try the 'Direct File' link.");
     } finally {
-      setDownloading(false);
+      // setDownloading(false) is handled in the timeout above
     }
   };
 
