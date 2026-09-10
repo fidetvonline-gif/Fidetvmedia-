@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { parseResponseJson } from '@/lib/api';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Megaphone, 
@@ -146,12 +147,12 @@ export default function AdminAdManagement() {
         credentials: 'include'
       });
 
+      const data = await parseResponseJson(response);
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
-        throw new Error(errorData.error || `Server error: ${response.status}`);
+        throw new Error(data.error || `Server error: ${response.status}`);
       }
 
-      const { publicUrl } = await response.json();
+      const { publicUrl } = data;
       setEditingAd(prev => ({ ...prev, image_url: publicUrl }));
     } catch (err: any) {
       console.error('Error uploading file:', err);

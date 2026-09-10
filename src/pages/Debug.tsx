@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { parseResponseJson } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 import { 
   Terminal, Shield, Play, AlertCircle, CheckCircle, 
@@ -53,7 +54,7 @@ export default function Debug() {
     addLog('HEALTH', 'Triggering system health check...');
     try {
       const resp = await fetch('/api/health-check');
-      const data = await resp.json();
+      const data = await parseResponseJson(resp);
       setHealthStatus(data);
       addLog('HEALTH', `System Status: ${data.status.toUpperCase()}`);
       if (data.status !== 'ok') {

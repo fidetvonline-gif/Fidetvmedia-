@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { parseResponseJson } from '@/lib/api';
 import { X, Upload, Check, AlertCircle, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
@@ -110,9 +111,10 @@ export const EditChannelModal: React.FC<EditChannelModalProps> = ({
         credentials: 'include'
       });
 
-      if (!response.ok) throw new Error('Upload failed');
+      const data = await parseResponseJson(response);
+      if (!response.ok) throw new Error(data.error || 'Upload failed');
       
-      const { publicUrl } = await response.json();
+      const publicUrl = data.publicUrl;
       setFormData({ ...formData, thumbnail: publicUrl });
     } catch (err: any) {
       console.error('Upload error:', err);

@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { parseResponseJson } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 import { Shield, Database, Signal, Terminal, AlertTriangle, CheckCircle2, Loader2, Globe } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -54,7 +55,7 @@ export default function Health() {
           const proxyRes = await fetch('/api/health');
           stats.network.proxy_latency = Date.now() - proxyStart;
           if (proxyRes.ok) {
-            const proxyData = await proxyRes.json();
+            const proxyData = await parseResponseJson(proxyRes);
             stats.network.proxy = { status: 'ok', version: proxyData.version || '1.0.0', ...proxyData };
           } else {
             stats.network.proxy = { status: 'failed', code: proxyRes.status };
@@ -67,11 +68,11 @@ export default function Health() {
         try {
           const bridgeRes = await fetch('/api/channels');
           if (bridgeRes.ok) {
-            const bridgeData = await bridgeRes.json();
-            stats.network.bridge = { status: 'ok', count: bridgeData.length };
+            const bridgeData = await parseResponseJson(bridgeRes);
+            stats.network.bridge = { status: 'ok', count: Array.isArray(bridgeData) ? bridgeData.length : 0 };
           } else {
-            const errData = await bridgeRes.json().catch(() => ({}));
-            stats.network.bridge = { status: 'failed', error: errData.message || bridgeRes.statusText };
+            const errData = await parseResponseJson(bridgeRes);
+            stats.network.bridge = { status: 'failed', error: errData.error || errData.message || bridgeRes.statusText };
           }
         } catch (e: any) {
           stats.network.bridge = { status: 'error', error: e.message };

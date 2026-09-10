@@ -8,6 +8,8 @@ interface Props {
   onLeave: () => void;
 }
 
+import { parseResponseJson } from '@/lib/api';
+
 export const LiveKitRoomView: React.FC<Props> = ({ roomName, userName, onLeave }) => {
   const [token, setToken] = useState('');
 
@@ -19,7 +21,7 @@ export const LiveKitRoomView: React.FC<Props> = ({ roomName, userName, onLeave }
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ roomName, participantName: userName }),
         });
-        const data = await resp.json();
+        const data = await parseResponseJson(resp);
         setToken(data.token);
       } catch (e) {
         console.error(e);

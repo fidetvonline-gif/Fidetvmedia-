@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { parseResponseJson } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, Send, User, Check, CheckCheck, EyeOff, X, Eye, Paperclip, Image as ImageIcon, Trash2, Loader2, MessageSquare, DownloadCloud, Zap, ExternalLink } from 'lucide-react';
@@ -162,12 +163,12 @@ export default function Messages() {
         credentials: 'include'
       });
 
+      const data = await parseResponseJson(response);
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
-        throw new Error(errorData.error || `Server error: ${response.status}`);
+        throw new Error(data.error || `Server error: ${response.status}`);
       }
 
-      const { publicUrl } = await response.json();
+      const { publicUrl } = data;
 
       const isImage = file.type.startsWith('image/');
       

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { parseResponseJson } from '@/lib/api';
 import { supabase } from '../lib/supabase';
 import { Trash2, Edit2, Plus, Search, X, Upload, Zap, RefreshCw } from 'lucide-react';
 import { BatchChannelImport } from './BatchChannelImport';
@@ -32,7 +33,7 @@ export const ChannelManagement = () => {
         credentials: 'include'
       });
       
-      const data = await response.json();
+      const data = await parseResponseJson(response);
       showToast(data.message || "Health check cycle completed!", 'success');
       fetchChannels();
     } catch (err: any) {
@@ -170,7 +171,7 @@ export const ChannelManagement = () => {
         credentials: 'include'
       });
       
-      const data = await response.json();
+      const data = await parseResponseJson(response);
       if (data.success) {
         showToast(`Successfully refreshed ${data.updatedCount} thumbnails!`, 'success');
         fetchChannels();

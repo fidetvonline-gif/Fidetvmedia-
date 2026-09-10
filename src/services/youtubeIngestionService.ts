@@ -1,4 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
+import { parseResponseJson } from '@/lib/api';
 
 export interface YoutubeDiscoveryReport {
   new_channels_added: string[];
@@ -94,7 +95,7 @@ export class YouTubeIngestionService {
     try {
       const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails,statistics&id=${videoId}&key=${this.apiKey}`;
       const response = await fetch(url);
-      const data = await response.json();
+      const data = await parseResponseJson(response);
       
       if (!data.items || data.items.length === 0) {
         // Fallback: Generate basic info if API fails or video not found via specific ID
@@ -182,7 +183,7 @@ export class YouTubeIngestionService {
       // 1. Get channel upload playlist
       const channelUrl = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${this.apiKey}`;
       const channelRes = await fetch(channelUrl);
-      const channelData = await channelRes.json();
+      const channelData = await parseResponseJson(channelRes);
       
       if (!channelData.items || channelData.items.length === 0) {
         throw new Error("Channel not found");
@@ -193,7 +194,7 @@ export class YouTubeIngestionService {
       // 2. Get videos from uploads playlist
       const playlistUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${uploadsPlaylistId}&key=${this.apiKey}`;
       const playlistRes = await fetch(playlistUrl);
-      const playlistData = await playlistRes.json();
+      const playlistData = await parseResponseJson(playlistRes);
       
       if (!playlistData.items) return [];
 
@@ -201,7 +202,7 @@ export class YouTubeIngestionService {
       const videoIds = playlistData.items.map((item: any) => item.snippet.resourceId.videoId).join(',');
       const videoDetailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails&id=${videoIds}&key=${this.apiKey}`;
       const videoDetailsRes = await fetch(videoDetailsUrl);
-      const videoDetailsData = await videoDetailsRes.json();
+      const videoDetailsData = await parseResponseJson(videoDetailsRes);
       
       const liveStatusMap = new Map();
       if (videoDetailsData.items) {
@@ -392,19 +393,19 @@ export class YouTubeIngestionService {
       if (this.apiKey) {
         const channelUrl = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${this.apiKey}`;
         const channelRes = await fetch(channelUrl);
-        const channelData = await channelRes.json();
+        const channelData = await parseResponseJson(channelRes);
         if (channelData.items && channelData.items.length > 0) {
           const uploadsPlaylistId = channelData.items[0].contentDetails.relatedPlaylists.uploads;
           
           const playlistUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${uploadsPlaylistId}&key=${this.apiKey}`;
           const playlistRes = await fetch(playlistUrl);
-          const playlistData = await playlistRes.json();
+          const playlistData = await parseResponseJson(playlistRes);
 
           if (playlistData.items && playlistData.items.length > 0) {
             const videoIds = playlistData.items.map((item: any) => item.snippet.resourceId.videoId).join(',');
             const videoDetailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoIds}&key=${this.apiKey}`;
             const videoDetailsRes = await fetch(videoDetailsUrl);
-            const videoDetailsData = await videoDetailsRes.json();
+            const videoDetailsData = await parseResponseJson(videoDetailsRes);
             
             const liveStatusMap = new Map();
             if (videoDetailsData.items) {
@@ -588,7 +589,7 @@ export class YouTubeIngestionService {
       for (let i = 0; i < pages; i++) {
         const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&eventType=live&maxResults=50&q=${encodeURIComponent(query)}&key=${this.apiKey}${nextToken ? `&pageToken=${nextToken}` : ''}`;
         const response = await fetch(url);
-        const data = await response.json();
+        const data = await parseResponseJson(response);
         
         if (data.error) {
           console.error(`[YouTube API Error] Query: ${query}`, data.error);
@@ -615,7 +616,7 @@ export class YouTubeIngestionService {
     try {
       const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails&id=${videoId}&key=${this.apiKey}`;
       const response = await fetch(url);
-      const data = await response.json();
+      const data = await parseResponseJson(response);
       
       if (!data.items || data.items.length === 0) return false;
       

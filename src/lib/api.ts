@@ -5,7 +5,16 @@
  */
 
 export async function parseResponseJson(res: Response): Promise<any> {
-  const text = await res.text();
+  let text = '';
+  try {
+    text = await res.text();
+  } catch (e) {
+    if (!res.ok) {
+      throw new Error(`Server error (${res.status}).`);
+    }
+    return {};
+  }
+
   if (!text || !text.trim()) {
     if (!res.ok) {
       throw new Error(`Server returned error status (${res.status}).`);
@@ -17,10 +26,13 @@ export async function parseResponseJson(res: Response): Promise<any> {
     return JSON.parse(text);
   } catch (err) {
     console.warn(`[API] Response was not valid JSON (status ${res.status}):`, text.substring(0, 120));
+    const cleanText = text.replace(/<[^>]*>?/gm, '').trim();
+    const shortMsg = cleanText.substring(0, 150) || `Server returned status ${res.status}`;
+
     if (!res.ok) {
-      throw new Error(`Server returned error (${res.status}). Please try again.`);
+      throw new Error(shortMsg);
     }
-    return { error: 'Received invalid formatting from server.' };
+    return { error: shortMsg, raw: text };
   }
 }
 

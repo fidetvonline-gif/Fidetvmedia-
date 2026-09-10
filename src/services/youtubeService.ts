@@ -103,7 +103,7 @@ export const fetchPlaylistItems = async (playlistId: string) => {
       `${BASE_URL}/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=50`
     );
     
-    const data = await response.json().catch(() => ({}));
+    const data = await parseResponseJson(response);
     
     if (!response.ok) {
       let errorMessage = `YouTube API error: ${response.status}`;

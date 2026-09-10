@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { parseResponseJson } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 import { ChannelManagement } from '@/components/ChannelManagement';
 import { ChannelIngestionManager } from '@/components/ChannelIngestionManager';
@@ -164,7 +165,7 @@ export default function Admin() {
             credentials: 'include'
           });
           if (res.ok) {
-            const data = await res.json();
+            const data = await parseResponseJson(res);
             // Use the higher resolution thumbnail if available
             const thumb = data.thumbnail;
             if (thumb) setImageUrl(thumb);
@@ -458,7 +459,7 @@ export default function Admin() {
       });
 
       if (response.ok) {
-        const data = await response.json();
+        const data = await parseResponseJson(response);
         return data.publicUrl;
       } else {
         const text = await response.text();
@@ -1000,7 +1001,8 @@ export default function Admin() {
         }
       }
       
-      const { publicUrl } = await response.json();
+      const data = await parseResponseJson(response);
+      const publicUrl = data.publicUrl;
       callback(publicUrl + '?t=' + Date.now());
     } catch (err: any) {
        console.error("Upload error:", err);
@@ -1371,7 +1373,7 @@ export default function Admin() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt })
       });
-      const data = await res.json();
+      const data = await parseResponseJson(res);
       if (data.text) {
         setDescription(data.text);
       } else {

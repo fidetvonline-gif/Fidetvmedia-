@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { parseResponseJson } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
@@ -197,12 +198,12 @@ export default function Profile() {
         credentials: 'include'
       });
 
+      const data = await parseResponseJson(response);
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
-        throw new Error(errorData.error || `Server error: ${response.status}`);
+        throw new Error(data.error || `Server error: ${response.status}`);
       }
 
-      const { publicUrl } = await response.json();
+      const { publicUrl } = data;
 
       const { error: updateError } = await supabase
         .from('profiles')

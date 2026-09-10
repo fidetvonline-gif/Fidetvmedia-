@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { parseResponseJson } from '@/lib/api';
 import { Play, CheckCircle, XCircle, RefreshCcw, Plus, Activity, Zap, Youtube, Clock, History, Globe } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -33,8 +34,8 @@ export const ChannelIngestionManager = () => {
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
         credentials: 'include'
       });
-      const data = await response.json();
-      if (!data.error) {
+      const data = await parseResponseJson(response);
+      if (data && !data.error) {
         setDiscoveryReport(data);
       }
     } catch (err) {
@@ -54,7 +55,7 @@ export const ChannelIngestionManager = () => {
         body: JSON.stringify({ deep }),
         credentials: 'include'
       });
-      const data = await response.json();
+      const data = await parseResponseJson(response);
       setDiscoveryReport(data);
       alert(deep ? 'Deep discovery cycle complete! Hundreds of channels scanned.' : 'YouTube discovery cycle complete!');
     } catch (err) {
@@ -78,7 +79,7 @@ export const ChannelIngestionManager = () => {
         },
         credentials: 'include'
       });
-      const data = await response.json();
+      const data = await parseResponseJson(response);
       alert(data.message || 'Massive expansion initiated!');
     } catch (err) {
       console.error('Expansion trigger error:', err);
@@ -94,10 +95,10 @@ export const ChannelIngestionManager = () => {
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
         credentials: 'include'
       });
-      const data = await response.json();
+      const data = await parseResponseJson(response);
       if (Array.isArray(data)) {
         setChannels(data);
-      } else if (data.error) {
+      } else if (data && data.error) {
         console.warn('Backend returned error:', data.error);
         setChannels([]);
       }
@@ -120,12 +121,12 @@ export const ChannelIngestionManager = () => {
         body: JSON.stringify(newChannel),
         credentials: 'include'
       });
+      const data = await parseResponseJson(response);
       if (response.ok) {
         setNewChannel({ name: '', url: '', category: 'General' });
         fetchDiscoveredChannels();
       } else {
-        const err = await response.json();
-        alert(err.error || 'Ingestion failed');
+        alert(data.error || 'Ingestion failed');
       }
     } catch (err) {
       console.error('Ingestion error:', err);
