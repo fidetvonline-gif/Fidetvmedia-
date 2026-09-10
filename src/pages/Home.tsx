@@ -140,15 +140,13 @@ export default function Home() {
           description: ch.description || 'Watch live broadcast stream.',
           isLive: ch.is_active ?? true
         }));
-        
-        // Use ONLY database channels, giving full control to Admin
         setChannels(mappedChannels);
       } else {
-        setChannels([]);
+        setChannels(DEFAULT_CHANNELS);
       }
     } catch (err) {
       console.error('Error fetching tv channels:', err);
-      setChannels([]);
+      setChannels(DEFAULT_CHANNELS);
     } finally {
       setLoadingChannels(false);
     }
