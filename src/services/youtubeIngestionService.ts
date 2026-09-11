@@ -1,5 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import { parseResponseJson } from '@/lib/api';
+import { parseResponseJson } from '../lib/api.js';
 
 export interface YoutubeDiscoveryReport {
   new_channels_added: string[];

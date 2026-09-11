@@ -1,7 +1,7 @@
 
 import { Parser } from 'm3u8-parser';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { M3UService, M3UChannel } from './m3uService';
+import { M3UService, M3UChannel } from './m3uService.js';
 
 export interface ChannelStream {
   id?: string;

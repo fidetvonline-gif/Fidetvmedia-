@@ -1,4 +1,4 @@
-import app, { initApp } from '../server';
+import app, { initApp } from '../server.js';
 
 let initialized = false;
 

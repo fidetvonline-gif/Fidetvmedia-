@@ -1,4 +1,4 @@
-import { M3UService, M3UChannel } from './m3uService';
+import { M3UService, M3UChannel } from './m3uService.js';
 import axios from 'axios';
 import fs from 'fs/promises';
 import path from 'path';
