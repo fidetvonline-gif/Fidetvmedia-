@@ -1,5 +1,5 @@
 
-import { parseResponseJson } from '../lib/api';
+import { parseResponseJson } from '../lib/api.js';
 
 const BASE_URL = '/api/youtube';
 

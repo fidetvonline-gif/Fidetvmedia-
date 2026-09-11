@@ -129,7 +129,8 @@ export async function analyzeMovieSource(url: string): Promise<MediaMetadata | n
         const htmlRes = await axios.get(url, {
           headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
           timeout: 2500,
-          maxRedirects: 5
+          maxRedirects: 5,
+          maxContentLength: 5 * 1024 * 1024 // 5MB limit
         });
         const html = String(htmlRes.data || '');
         const ogTitleMatch = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i) || html.match(/<title>([^<]+)<\/title>/i);

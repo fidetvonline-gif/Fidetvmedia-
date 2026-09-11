@@ -253,6 +253,7 @@ export async function analyzePermittedSource(url: string): Promise<MediaMetadata
       },
       timeout: 2500,
       maxRedirects: 5,
+      maxContentLength: 5 * 1024 * 1024, // 5MB limit
       validateStatus: (status) => status < 400
     });
 

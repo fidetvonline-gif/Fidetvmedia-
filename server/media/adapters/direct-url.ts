@@ -26,8 +26,8 @@ export async function analyzeDirectUrl(url: string): Promise<MediaMetadata | nul
   try {
     const headRes = await axios.head(url, {
       headers: commonHeaders,
-      timeout: 6000,
-      maxRedirects: 5,
+      timeout: 2500,
+      maxRedirects: 3,
       validateStatus: (status) => status < 400
     });
 
@@ -47,8 +47,8 @@ export async function analyzeDirectUrl(url: string): Promise<MediaMetadata | nul
           'Range': 'bytes=0-65535'
         },
         responseType: 'arraybuffer',
-        timeout: 8000,
-        maxRedirects: 5,
+        timeout: 4000,
+        maxRedirects: 3,
         validateStatus: (status) => status < 400
       });
 
