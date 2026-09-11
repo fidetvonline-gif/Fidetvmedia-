@@ -11,11 +11,9 @@ export default async function handler(req: any, res: any) {
       console.log("[Vercel] Initialization complete.");
     }
 
-    // Preserve and normalize the API path when rewritten by Vercel
-    const xForwardedUri = req.headers['x-forwarded-uri'] || req.headers['x-invoke-path'] || req.headers['x-matched-path'];
-    if (xForwardedUri && typeof xForwardedUri === 'string' && xForwardedUri.startsWith('/api')) {
-      req.url = xForwardedUri;
-    } else if (req.url && (req.url === '/api/server' || req.url.startsWith('/api/server?'))) {
+    // Vercel's Node.js builder preserves the original req.url (e.g. /api/video-search).
+    // Do NOT overwrite it with x-matched-path, which would be /api/server and break Express routing.
+    if (req.url && (req.url === '/api/server' || req.url.startsWith('/api/server?'))) {
       if (req.query && req.query.path) {
         req.url = `/api/${req.query.path}`;
       }
