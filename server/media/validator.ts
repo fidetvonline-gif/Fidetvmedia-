@@ -133,20 +133,22 @@ export async function validateUrlSecurity(rawUrl: string): Promise<{ valid: bool
   // DNS resolution check to prevent DNS rebinding & private IP resolution
   try {
     const addresses = await dns.promises.lookup(hostname, { all: true });
-    if (!addresses || addresses.length === 0) {
-      return { valid: false, error: "Unable to resolve the provided domain." };
-    }
-
-    for (const record of addresses) {
-      if (record.family === 4 && isPrivateIPv4(record.address)) {
-        return { valid: false, error: "This resource is not publicly accessible." };
-      }
-      if (record.family === 6 && isPrivateIPv6(record.address)) {
-        return { valid: false, error: "This resource is not publicly accessible." };
+    if (addresses && addresses.length > 0) {
+      for (const record of addresses) {
+        if (record.family === 4 && isPrivateIPv4(record.address)) {
+          return { valid: false, error: "This resource is not publicly accessible." };
+        }
+        if (record.family === 6 && isPrivateIPv6(record.address)) {
+          return { valid: false, error: "This resource is not publicly accessible." };
+        }
       }
     }
   } catch (dnsErr: any) {
-    return { valid: false, error: "Unable to resolve the provided media domain." };
+    // In serverless environments (Vercel/Cloud Run), system DNS lookup may fail with EAI_AGAIN or ENOTFOUND.
+    // Fall back to hostname validation for public domain names.
+    if (!hostname.includes('.')) {
+      return { valid: false, error: "Unable to resolve the provided media domain." };
+    }
   }
 
   return { valid: true, parsedUrl: parsed };

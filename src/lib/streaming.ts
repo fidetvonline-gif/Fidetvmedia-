@@ -61,7 +61,24 @@ export class UniversalStreamService {
     // because the server's IP is banned, while dev environment (localhost/local IP) works.
     // Solution: Only proxy if it's Mixed Content (HTTP on HTTPS) or explicitly failing CORS.
     // We let HTTPS streams attempt direct playback first from the client's own IP.
-    let needsProxy = isHttps && isHttpStream;
+    const knownCorsDomains = [
+      'cloudfront.net',
+      'tubi.video',
+      'tubi.io',
+      'pluto.tv',
+      'limex.tv',
+      'redbull.com',
+      'amagi.tv',
+      'wurl.com',
+      'plex.tv',
+      'samsungcloudtv.com',
+      'roku.com',
+      'gravitas'
+    ];
+    
+    const lowerUrl = url.toLowerCase();
+    const isKnownCorsDomain = knownCorsDomains.some(d => lowerUrl.includes(d));
+    let needsProxy = (isHttps && isHttpStream) || isKnownCorsDomain;
     
     return {
       id: channel.id || 'temp-' + Math.random(),

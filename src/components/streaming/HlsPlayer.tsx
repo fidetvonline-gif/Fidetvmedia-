@@ -83,11 +83,21 @@ const HlsPlayer: React.FC<HlsPlayerProps> = ({
               data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT) {
             
             manifestErrorCount++;
-            if (manifestErrorCount <= 2) {
-              console.log(`[HlsPlayer] Manifest error (${data.details}), retrying (${manifestErrorCount}/2)...`);
+            
+            // If direct stream fails CORS/manifest load, immediately trigger fallback without waiting for useless retries
+            const isDirectUrl = !src.includes('/api/proxy-stream');
+            if (isDirectUrl) {
+              console.warn(`[HlsPlayer] Direct manifest load error (${data.details}). Triggering proxy fallback immediately.`);
+              onErrorRef.current?.(`Direct manifest load failed: ${data.details}`);
+              hls.destroy();
+              return;
+            }
+
+            if (manifestErrorCount <= 1) {
+              console.log(`[HlsPlayer] Proxy manifest error (${data.details}), retrying (${manifestErrorCount}/1)...`);
               setTimeout(() => {
                 hls.loadSource(src);
-              }, 2000);
+              }, 1000);
               return;
             }
 

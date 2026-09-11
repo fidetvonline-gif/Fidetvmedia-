@@ -17,6 +17,7 @@ import multer from "multer";
 import fs from "fs/promises";
 import rateLimit from "express-rate-limit";
 import { analyzeMedia, handleMediaDownload } from "./server/media/index.js";
+import meetingRoutes from "./src/services/api/meetingRoutes.js";
 
 dotenv.config();
 
@@ -140,7 +141,6 @@ export async function initApp(startServer = true) {
   const apiRouter = express.Router();
   apiRouter.use(express.json());
 
-  const { default: meetingRoutes } = await import("./src/services/api/meetingRoutes.js");
   apiRouter.use("/meeting", meetingRoutes);
   apiRouter.use((req, res, next) => {
     console.log(`[API Router] ${req.method} ${req.url}`);
@@ -1651,15 +1651,24 @@ export async function initApp(startServer = true) {
         else if (streamUrl.includes('limex')) effectiveReferer = 'https://limex.tv/';
         else if (streamUrl.includes('linear')) effectiveReferer = 'https://limex.tv/';
         else if (streamUrl.includes('pluto.tv')) effectiveReferer = 'https://pluto.tv/';
+        else if (streamUrl.includes('tubi')) effectiveReferer = 'https://tubitv.com/';
+        else if (streamUrl.includes('cloudfront')) effectiveReferer = 'https://www.google.com/';
+        else if (streamUrl.includes('gravitas')) effectiveReferer = 'https://www.google.com/';
         else effectiveReferer = targetOrigin + '/';
       }
 
       console.log(`[Proxy] → ${streamUrl}`);
       
+      let effectiveOrigin = targetOrigin;
+      if (streamUrl.includes('pluto.tv')) effectiveOrigin = 'https://pluto.tv';
+      else if (streamUrl.includes('tubi')) effectiveOrigin = 'https://tubitv.com';
+      else if (streamUrl.includes('limex') || streamUrl.includes('linear')) effectiveOrigin = 'https://limex.tv';
+      else if (streamUrl.includes('cloudfront') || streamUrl.includes('gravitas')) effectiveOrigin = 'https://www.google.com';
+
       const headers: Record<string, string> = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Referer': effectiveReferer,
-        'Origin': streamUrl.includes('pluto.tv') ? 'https://pluto.tv' : ((streamUrl.includes('limex') || streamUrl.includes('linear')) ? 'https://limex.tv' : targetOrigin),
+        'Origin': effectiveOrigin,
         'Accept': '*/*',
         'Accept-Language': 'en-US,en;q=0.9',
         'Cache-Control': 'no-cache',
@@ -1989,7 +1998,10 @@ export async function initApp(startServer = true) {
     if (!name || !url) return res.status(400).json({ error: "Name and URL are required" });
 
     try {
-      const adminClient = getSupabaseAdmin()!;
+      const adminClient = getSupabaseAdmin();
+      if (!adminClient) {
+        return res.status(503).json({ error: "Database configuration error. SUPABASE_SERVICE_ROLE_KEY is missing." });
+      }
       const apiKey = process.env.YOUTUBE_API_KEY || process.env.GEMINI_API_KEY;
       
       // Auto-enrich if YouTube
