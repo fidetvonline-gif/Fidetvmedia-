@@ -14,12 +14,23 @@ export async function analyzePermittedSource(url: string): Promise<MediaMetadata
 
   const lowerUrl = url.toLowerCase();
 
+  const withTimeout = <T>(promise: Promise<T>, ms = 3500): Promise<T> => {
+    let timeoutId: NodeJS.Timeout;
+    promise.catch(() => {});
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error('Scraper timed out'));
+      }, ms);
+    });
+    return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId));
+  };
+
   // 1. YouTube Handler
   if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) {
     // 1. Try @distube/ytdl-core FIRST (Lightweight, less prone to OOM on Vercel)
     try {
       if (ytdl.validateURL(url)) {
-        const info = await ytdl.getInfo(url);
+        const info = await withTimeout(ytdl.getInfo(url), 4000);
         let format = ytdl.chooseFormat(info.formats, { quality: 'highestvideo', filter: 'videoandaudio' });
         if (!format) format = ytdl.chooseFormat(info.formats, { quality: 'highest' });
 
@@ -56,7 +67,7 @@ export async function analyzePermittedSource(url: string): Promise<MediaMetadata
     // 2. Fallback to btch-downloader
     try {
       if (btch.youtube) {
-        const data = (await btch.youtube(url)) as any;
+        const data = (await withTimeout(btch.youtube(url), 4000)) as any;
         if (data && (data.mp4 || data.video || data.url || data.link)) {
           const directUrl = data.mp4 || data.video || data.url || data.link;
           const title = sanitizeFilename(data.title || 'youtube_video', 'youtube_video') + '.mp4';
