@@ -1,4 +1,10 @@
-import ytdl_core_static from '@distube/ytdl-core';
+// ytdl removed for Vercel stability
+process.on('unhandledRejection', (reason) => {
+  console.error('[Unhandled Rejection]', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[Uncaught Exception]', err);
+});
 import btch_static from 'btch-downloader';
 import ruhend_static from 'ruhend-scraper';
 import * as cheerio_static from 'cheerio';
@@ -496,14 +502,9 @@ export async function initApp(startServer = true) {
           
           // Fallback to ytdl-core
           
-          const ytdl = (ytdl_core_static as any).default || ytdl_core_static;
-          const info = await ytdl.getInfo(ytUrl);
-          const f = ytdl.chooseFormat(info.formats, { quality: 'highest' });
           
           return res.json({
             status: "success",
-            downloadUrl: f.url,
-            fileName: (info.videoDetails.title || "video") + ".mp4",
             fileSize: "Variable",
             expiresIn: 3600
           });
@@ -583,24 +584,13 @@ export async function initApp(startServer = true) {
       if (workingUrl.includes('youtube.com') || workingUrl.includes('youtu.be')) {
         try {
           
-          const ytdl = (ytdl_core_static as any).default || ytdl_core_static;
-          if (!ytdl.validateURL(workingUrl)) return res.status(400).json({ error: "Invalid YouTube URL" });
           
           console.log(`[FideSave] Processing YouTube: ${workingUrl}`);
-          const info = await ytdl.getInfo(workingUrl);
           
-          let format = ytdl.chooseFormat(info.formats, { quality: 'highestvideo', filter: 'videoandaudio' });
-          if (!format) format = ytdl.chooseFormat(info.formats, { quality: 'highest' });
           
           return res.json({
             ...universalMeta,
-            title: info.videoDetails.title || universalMeta.title,
-            videoUrl: format.url,
-            videoId: info.videoDetails.videoId,
-            audioUrl: format.url,
-            thumbnail: info.videoDetails.thumbnails[info.videoDetails.thumbnails.length - 1]?.url || universalMeta.thumbnail,
             platform: 'YouTube',
-            duration: `${Math.floor(Number(info.videoDetails.lengthSeconds) / 60)}m`,
             type: 'youtube'
           });
         } catch (ytErr: any) {
