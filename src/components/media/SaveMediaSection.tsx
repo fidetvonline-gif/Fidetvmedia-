@@ -18,12 +18,14 @@ import {
   Copy,
   Play,
   Pause,
-  HardDrive
+  HardDrive,
+  DownloadCloud
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { safeLocalStorage } from '@/lib/storage';
 import { parseResponseJson } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
+import FidesaveDiagnostics, { LogEntry } from './FidesaveDiagnostics';
 
 export interface MediaItem {
   type: 'video' | 'audio' | 'image' | 'file';
@@ -122,6 +124,53 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
   const [analyzedMedia, setAnalyzedMedia] = useState<MediaItem | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Diagnostics state
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [healthStatus, setHealthStatus] = useState<any>(null);
+  const [healthLoading, setHealthLoading] = useState<boolean>(false);
+
+  const addLog = (entry: Omit<LogEntry, 'id'>) => {
+    const newLog: LogEntry = {
+      ...entry,
+      id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+    };
+    setLogs(prev => [newLog, ...prev.slice(0, 49)]);
+  };
+
+  const runHealthCheck = async () => {
+    setHealthLoading(true);
+    const start = performance.now();
+    try {
+      const res = await fetch('/api/fidesave-health');
+      const data = await parseResponseJson(res);
+      const durationMs = Math.round(performance.now() - start);
+      setHealthStatus(data);
+      addLog({
+        timestamp: new Date().toISOString(),
+        method: 'GET',
+        path: '/api/fidesave-health',
+        status: res.status,
+        statusText: res.statusText,
+        responsePayload: data,
+        durationMs
+      });
+    } catch (err: any) {
+      const durationMs = Math.round(performance.now() - start);
+      setHealthStatus({ status: 'error', error: err.message });
+      addLog({
+        timestamp: new Date().toISOString(),
+        method: 'GET',
+        path: '/api/fidesave-health',
+        status: 500,
+        statusText: 'Internal Error',
+        error: err.message,
+        durationMs
+      });
+    } finally {
+      setHealthLoading(false);
+    }
+  };
+
   // Download progress states
   const [downloading, setDownloading] = useState(false);
   const [downloadStatus, setDownloadStatus] = useState<string>('');
@@ -148,6 +197,7 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
     }
 
     setAnalyzing(true);
+    const start = performance.now();
     try {
       const res = await fetch('/api/media/analyze', {
         method: 'POST',
@@ -158,12 +208,37 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
       });
 
       const data = await parseResponseJson(res);
+      const durationMs = Math.round(performance.now() - start);
+
+      addLog({
+        timestamp: new Date().toISOString(),
+        method: 'POST',
+        path: '/api/media/analyze',
+        status: res.status,
+        statusText: res.statusText,
+        requestPayload: { url: trimmed },
+        responsePayload: data,
+        durationMs
+      });
+
       if (!res.ok || !data.success) {
         throw new Error(data.error || "We couldn't save this media. Please try again.");
       }
 
       setAnalyzedMedia(data.media);
     } catch (err: any) {
+      const durationMs = Math.round(performance.now() - start);
+      addLog({
+        timestamp: new Date().toISOString(),
+        method: 'POST',
+        path: '/api/media/analyze',
+        status: 500,
+        statusText: 'Error',
+        requestPayload: { url: trimmed },
+        error: err.message,
+        durationMs
+      });
+
       console.error('[Media Analyze Frontend Error]', err);
       let msg = err.message || "We couldn't save this media. Please try again.";
       if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
@@ -266,14 +341,12 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
     setDownloadProgress(0);
     setDownloadStatus('Preparing download...');
 
-    // If we have a direct downloadUrl, prioritize direct download to guarantee full file delivery (e.g. 23.8MB)
     const directUrl = targetMedia.downloadUrl;
     if (directUrl && !directUrl.includes('/api/media/download')) {
       try {
         setDownloadStatus('Downloading full file...');
         setDownloadProgress(50);
         
-        // Try direct browser anchor download
         const a = document.createElement('a');
         a.href = directUrl;
         a.download = targetMedia.filename || 'downloaded_media.mp4';
@@ -294,17 +367,12 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
       }
     }
 
-    // Simplified Download Trigger for Production Stability
-    // We use a direct browser navigation for the download endpoint.
-    // This bypasses Vercel's 4.5MB payload limit (because the server now redirects)
-    // and also avoids CORS fetch issues by using native browser download behavior.
     try {
       setDownloadStatus('Starting download...');
       setDownloadProgress(20);
       
       const downloadUrl = `/api/media/download?url=${encodeURIComponent(targetMedia.downloadUrl || targetMedia.sourceUrl)}&filename=${encodeURIComponent(targetMedia.filename)}`;
       
-      // Use hidden iframe or direct navigation to trigger download without leaving page
       const a = document.createElement('a');
       a.href = downloadUrl;
       a.download = targetMedia.filename;
@@ -312,7 +380,6 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
       document.body.appendChild(a);
       a.click();
       
-      // Give it a moment to trigger the browser's download manager
       setTimeout(() => {
         document.body.removeChild(a);
         setDownloadProgress(100);
@@ -321,19 +388,25 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
         saveToHistory(targetMedia);
         setDownloading(false);
       }, 1500);
-
-      return;
     } catch (err: any) {
-      console.error('[Media Download Frontend Error]', err);
-      setErrorMessage("We couldn't start the download. Please try the 'Direct File' link.");
-    } finally {
-      // setDownloading(false) is handled in the timeout above
+      console.error('[Download Error]', err);
+      setErrorMessage(err.message || 'Download failed. Please try again.');
+      setDownloading(false);
     }
   };
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-10">
       
+      {/* Diagnostics Panel */}
+      <FidesaveDiagnostics
+        logs={logs}
+        onClearLogs={() => setLogs([])}
+        onRunHealthCheck={runHealthCheck}
+        healthStatus={healthStatus}
+        healthLoading={healthLoading}
+      />
+
       {/* Search / Input Box */}
       <div className="bg-surface border border-border-custom p-6 md:p-8 rounded-3xl shadow-sm space-y-6">
         <div className="text-center space-y-2">
@@ -401,408 +474,222 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
               <span className="flex items-center gap-1">
                 <ImageIcon size={13} className="text-primary" /> Images
               </span>
-              <span>•</span>
-              <span className="flex items-center gap-1">
-                <FileText size={13} className="text-primary" /> Documents
-              </span>
             </div>
 
             <button
               type="submit"
               id="media-analyze-button"
-              disabled={analyzing || downloading || !inputUrl.trim()}
-              className="w-full sm:w-auto min-w-[140px] px-8 py-3.5 rounded-2xl bg-primary text-white font-bold text-sm uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-primary/90 active:scale-95 disabled:opacity-50 transition-all shadow-md shadow-primary/20 min-h-[44px]"
+              disabled={analyzing || !inputUrl.trim()}
+              className="w-full sm:w-auto px-8 py-3.5 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-2xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
             >
               {analyzing ? (
                 <>
                   <Loader2 size={18} className="animate-spin" />
-                  <span>Analyzing...</span>
+                  Analyzing URL...
                 </>
               ) : (
                 <>
-                  <RefreshCw size={18} />
-                  <span>Analyze</span>
+                  <Download size={18} />
+                  Analyze & Save
                 </>
               )}
             </button>
           </div>
         </form>
 
-        {/* Clean Error Alert */}
+        {/* Error message */}
         <AnimatePresence>
           {errorMessage && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex flex-col gap-2 text-red-500"
+              className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-2xl flex items-start gap-3 text-sm"
             >
-              <div className="flex items-center gap-3">
-                <AlertCircle size={20} className="shrink-0" />
-                <p className="text-sm font-semibold flex-1">{errorMessage}</p>
-                <button 
-                  onClick={() => setErrorMessage('')}
-                  className="hover:bg-red-500/20 p-1.5 rounded-xl transition-colors shrink-0"
-                >
-                  <X size={16} />
-                </button>
+              <AlertCircle size={18} className="shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <span className="font-bold">Analysis Failed:</span> {errorMessage}
               </div>
-              {inputUrl.startsWith('http') && (
-                <div className="pt-2 border-t border-red-500/20 flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs text-foreground/70">Serverless proxy limited? You can open the source media directly:</span>
-                  <a
-                    href={inputUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs font-bold text-primary hover:underline flex items-center gap-1.5 bg-primary/10 px-3 py-1.5 rounded-xl border border-primary/20"
-                  >
-                    <span>Open Source Media URL</span>
-                    <ExternalLink size={13} />
-                  </a>
-                </div>
-              )}
-              {onSwitchToMovieSearch && !inputUrl.startsWith('http') && inputUrl.trim().length > 1 && (
-                <div className="pt-2 border-t border-red-500/20 flex items-center justify-between">
-                  <span className="text-xs text-foreground/70">Searching for a movie or cinema title?</span>
-                  <button
-                    type="button"
-                    onClick={() => onSwitchToMovieSearch(inputUrl.trim())}
-                    className="text-xs font-bold text-primary hover:underline flex items-center gap-1.5 bg-primary/10 px-3 py-1.5 rounded-xl border border-primary/20"
-                  >
-                    <span>Search "{inputUrl.trim()}" in Movie Search</span>
-                    <span>&rarr;</span>
-                  </button>
-                </div>
-              )}
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Loading / Downloading State Banner */}
-        {(analyzing || downloading) && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="p-5 rounded-2xl bg-primary/5 border border-primary/20 space-y-3"
-          >
-            <div className="flex items-center justify-between text-sm font-bold text-foreground">
-              <span className="flex items-center gap-2">
-                <Loader2 size={18} className="animate-spin text-primary" />
-                {analyzing ? 'Analyzing media...' : (downloadStatus || 'Preparing download...')}
-              </span>
-              {downloading && downloadProgress > 0 && (
-                <span className="font-mono text-primary">{downloadProgress}%</span>
-              )}
-            </div>
-            {downloading && (
-              <div className="w-full h-2 bg-foreground/10 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-primary transition-all duration-300 rounded-full"
-                  style={{ width: `${downloadProgress || 5}%` }}
-                />
-              </div>
-            )}
-          </motion.div>
-        )}
-
-        {/* Download Success Confirmation */}
-        {downloadComplete && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="p-4 rounded-2xl bg-green-500/10 border border-green-500/20 flex items-center justify-between text-green-500"
-          >
-            <div className="flex items-center gap-2.5 text-sm font-bold">
-              <CheckCircle2 size={18} />
-              <span>Download complete! Media saved to your device.</span>
-            </div>
-            <button
-              onClick={() => setDownloadComplete(false)}
-              className="p-1 hover:bg-green-500/20 rounded-lg transition-colors"
-            >
-              <X size={16} />
-            </button>
-          </motion.div>
-        )}
       </div>
 
-      {/* MEDIA FOUND PREVIEW CARD */}
+      {/* Analyzed Media Preview Card */}
       <AnimatePresence>
         {analyzedMedia && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="bg-surface border border-border-custom rounded-3xl p-6 md:p-8 space-y-6 shadow-sm"
+            className="bg-surface border border-border-custom rounded-3xl p-6 md:p-8 shadow-md space-y-6"
           >
-            <div className="flex items-center justify-between border-b border-border-custom pb-4">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-xs font-black uppercase tracking-widest text-foreground/70">
-                  Media Found
-                </span>
-              </div>
-              <span className="px-3 py-1 rounded-full bg-surface-bright border border-border-custom text-xs font-bold text-foreground/60 uppercase">
-                {analyzedMedia.platform || analyzedMedia.format || 'Media'}
-              </span>
-            </div>
-
-            {/* Dynamic Media Preview Container */}
-            <div className="rounded-2xl overflow-hidden bg-black/20 border border-border-custom flex items-center justify-center min-h-[160px] max-h-[420px] relative">
-              {analyzedMedia.type === 'image' && (
-                <img
-                  src={analyzedMedia.thumbnail || analyzedMedia.downloadUrl}
-                  alt={analyzedMedia.filename}
-                  referrerPolicy="no-referrer"
-                  className="max-h-[400px] w-auto max-w-full object-contain mx-auto"
-                />
-              )}
-
-              {analyzedMedia.type === 'video' && (
-                <div className="w-full flex flex-col items-center justify-center p-2">
-                  <video
-                    controls
-                    preload="metadata"
-                    poster={analyzedMedia.thumbnail}
-                    crossOrigin="anonymous"
-                    className="max-h-[380px] w-full rounded-xl object-contain bg-black"
-                  >
-                    <source src={analyzedMedia.downloadUrl} type={analyzedMedia.mimeType} />
-                    <source src={`/api/media/download?url=${encodeURIComponent(analyzedMedia.downloadUrl || analyzedMedia.sourceUrl)}&filename=${encodeURIComponent(analyzedMedia.filename)}`} type="video/mp4" />
-                    Your browser does not support the video tag.
-                  </video>
+            <div className="flex flex-col md:flex-row gap-6 items-start">
+              {analyzedMedia.thumbnail ? (
+                <div className="w-full md:w-56 h-36 rounded-2xl overflow-hidden bg-background border border-border-custom relative shrink-0 shadow-inner">
+                  <img
+                    src={analyzedMedia.thumbnail}
+                    alt={analyzedMedia.filename}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-lg bg-black/70 backdrop-blur-md text-white text-[10px] font-mono uppercase tracking-wider">
+                    {analyzedMedia.platform || 'Media'}
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full md:w-56 h-36 rounded-2xl bg-surface-bright border border-border-custom flex items-center justify-center shrink-0">
+                  <Video size={36} className="text-foreground/30" />
                 </div>
               )}
 
-              {analyzedMedia.type === 'audio' && (
-                <div className="w-full p-8 flex flex-col items-center justify-center space-y-4">
-                  <div className="w-16 h-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
-                    <Music size={32} />
-                  </div>
-                  <p className="font-bold text-foreground text-center truncate max-w-md">
-                    {analyzedMedia.filename}
-                  </p>
-                  <audio controls className="w-full max-w-md">
-                    <source src={analyzedMedia.downloadUrl} type={analyzedMedia.mimeType} />
-                    <source src={`/api/media/download?url=${encodeURIComponent(analyzedMedia.downloadUrl || analyzedMedia.sourceUrl)}&filename=${encodeURIComponent(analyzedMedia.filename)}`} type="audio/mpeg" />
-                    Your browser does not support the audio element.
-                  </audio>
-                </div>
-              )}
-
-              {analyzedMedia.type === 'file' && (
-                <div className="w-full p-10 flex flex-col items-center justify-center space-y-3">
-                  <div className="w-16 h-16 rounded-2xl bg-surface-bright border border-border-custom flex items-center justify-center text-primary">
-                    <FileText size={32} />
-                  </div>
-                  <p className="font-bold text-foreground text-center truncate max-w-md">
-                    {analyzedMedia.filename}
-                  </p>
-                  <span className="text-xs text-foreground/50 font-mono">
-                    {analyzedMedia.mimeType}
+              <div className="flex-1 space-y-3 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider border border-primary/20">
+                    {analyzedMedia.format || analyzedMedia.type}
                   </span>
-                </div>
-              )}
-            </div>
-
-            {/* Media Metadata Details */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-surface-bright border border-border-custom p-4 rounded-2xl text-center">
-              <div>
-                <span className="text-xs text-foreground/40 font-bold uppercase tracking-wider block">Format</span>
-                <span className="text-sm md:text-base font-black text-foreground">
-                  {analyzedMedia.format || analyzedMedia.type.toUpperCase()}
-                </span>
-              </div>
-
-              <div>
-                <span className="text-xs text-foreground/40 font-bold uppercase tracking-wider block">File Size</span>
-                <span className="text-sm md:text-base font-black text-foreground">
-                  {formatFileSize(analyzedMedia.size)}
-                </span>
-              </div>
-
-              <div>
-                <span className="text-xs text-foreground/40 font-bold uppercase tracking-wider block">
-                  {analyzedMedia.type === 'video' ? 'Resolution' : (analyzedMedia.type === 'image' ? 'Dimensions' : 'Type')}
-                </span>
-                <span className="text-sm md:text-base font-black text-foreground">
-                  {analyzedMedia.resolution || 
-                   (analyzedMedia.width && analyzedMedia.height ? `${analyzedMedia.width}x${analyzedMedia.height}` : (analyzedMedia.type.toUpperCase()))}
-                </span>
-              </div>
-
-              <div>
-                <span className="text-xs text-foreground/40 font-bold uppercase tracking-wider block">Duration</span>
-                <span className="text-sm md:text-base font-black text-foreground">
-                  {analyzedMedia.duration ? formatDuration(analyzedMedia.duration) : 'N/A'}
-                </span>
-              </div>
-            </div>
-
-            {/* Action Bar */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
-              <div className="text-xs text-foreground/60 truncate max-w-xs sm:max-w-md w-full">
-                <span className="font-bold text-foreground block truncate">{analyzedMedia.filename}</span>
-                <span className="font-mono text-foreground/40 truncate block">{analyzedMedia.sourceUrl}</span>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
-                {/* Direct Source Stream Link (Bypasses serverless proxy limits) */}
-                <a
-                  href={analyzedMedia.downloadUrl || analyzedMedia.sourceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => saveToHistory(analyzedMedia)}
-                  className="px-4 py-3 rounded-2xl bg-surface-bright border border-border-custom text-foreground font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-surface hover:text-primary transition-all min-h-[44px]"
-                  title="Open direct media stream in new window"
-                >
-                  <ExternalLink size={16} />
-                  <span>Open Stream</span>
-                </a>
-
-                {/* Copy Link Button */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const link = analyzedMedia.downloadUrl || analyzedMedia.sourceUrl;
-                    navigator.clipboard.writeText(link);
-                    setDownloadStatus('Link copied!');
-                    setTimeout(() => setDownloadStatus(''), 2000);
-                  }}
-                  className="px-3.5 py-3 rounded-2xl bg-surface-bright border border-border-custom text-foreground/80 hover:text-foreground font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all min-h-[44px]"
-                  title="Copy media URL to clipboard"
-                >
-                  <Copy size={15} />
-                  <span>Copy Link</span>
-                </button>
-
-                {/* Main Download Button */}
-                <button
-                  type="button"
-                  id="media-save-download-button"
-                  onClick={() => handleDownload()}
-                  disabled={downloading}
-                  className="flex-1 sm:flex-initial px-6 py-3.5 rounded-2xl bg-primary text-white font-bold text-sm uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-primary/90 active:scale-95 disabled:opacity-50 transition-all shadow-md shadow-primary/20 min-h-[44px]"
-                >
-                  {downloading ? (
-                    <>
-                      <Loader2 size={18} className="animate-spin" />
-                      <span>{downloadStatus || 'Downloading...'}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Download size={18} />
-                      <span>Save / Download</span>
-                    </>
+                  {analyzedMedia.resolution && (
+                    <span className="px-2.5 py-1 rounded-full bg-surface-bright text-foreground/70 text-xs font-mono font-bold border border-border-custom">
+                      {analyzedMedia.resolution}
+                    </span>
                   )}
-                </button>
+                  {analyzedMedia.size > 0 && (
+                    <span className="text-xs text-foreground/50 font-mono">
+                      ~{formatFileSize(analyzedMedia.size)}
+                    </span>
+                  )}
+                </div>
+
+                <h3 className="text-lg md:text-xl font-display font-bold text-foreground truncate">
+                  {analyzedMedia.filename}
+                </h3>
+
+                <p className="text-xs text-foreground/50 truncate font-mono">
+                  Source: {analyzedMedia.sourceUrl}
+                </p>
+
+                <div className="pt-2 flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={() => handleDownload()}
+                    disabled={downloading}
+                    className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-md flex items-center gap-2 text-sm transition disabled:opacity-50"
+                  >
+                    {downloading ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        {downloadStatus || 'Downloading...'}
+                      </>
+                    ) : (
+                      <>
+                        <DownloadCloud size={16} />
+                        Download File
+                      </>
+                    )}
+                  </button>
+
+                  <a
+                    href={analyzedMedia.downloadUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-3 bg-surface-bright hover:bg-surface-bright/80 text-foreground font-bold rounded-xl border border-border-custom flex items-center gap-2 text-sm transition"
+                  >
+                    <ExternalLink size={16} />
+                    Open Direct Link
+                  </a>
+                </div>
               </div>
             </div>
+
+            {downloading && (
+              <div className="space-y-2 pt-4 border-t border-border-custom">
+                <div className="flex justify-between text-xs font-mono text-foreground/70">
+                  <span>{downloadStatus}</span>
+                  <span>{downloadProgress}%</span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-background overflow-hidden border border-border-custom">
+                  <div 
+                    className="h-full bg-emerald-500 transition-all duration-300 rounded-full"
+                    style={{ width: `${downloadProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* SAVED MEDIA HISTORY SECTION (Requirement 18) */}
-      <div className="bg-surface border border-border-custom rounded-3xl p-6 md:p-8 space-y-6 shadow-sm">
-        <div className="flex items-center justify-between border-b border-border-custom pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-              <Clock size={18} />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-foreground">Saved Media</h3>
-              <p className="text-xs text-foreground/50">Your recently downloaded and saved media</p>
-            </div>
+      {/* Saved History List */}
+      <div className="bg-surface border border-border-custom p-6 md:p-8 rounded-3xl shadow-sm space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Clock size={20} className="text-primary" />
+            <h3 className="text-lg font-display font-bold text-foreground">
+              Recent Saved Media
+            </h3>
           </div>
-
           {history.length > 0 && (
             <button
               onClick={clearHistory}
-              className="text-xs text-foreground/40 hover:text-red-500 font-bold flex items-center gap-1.5 transition-colors px-2 py-1 rounded-lg hover:bg-red-500/10"
-              title="Clear all saved items"
+              className="text-xs text-foreground/50 hover:text-rose-500 transition flex items-center gap-1"
             >
-              <Trash2 size={14} />
-              <span>Clear History</span>
+              <Trash2 size={14} /> Clear History
             </button>
           )}
         </div>
 
         {history.length === 0 ? (
-          <div className="text-center py-10 space-y-3">
-            <div className="w-14 h-14 rounded-2xl bg-surface-bright border border-border-custom mx-auto flex items-center justify-center text-foreground/30">
-              <HardDrive size={24} />
-            </div>
-            <p className="text-sm text-foreground/50 font-medium">
-              No media saved yet. Paste a URL above to analyze and save media.
-            </p>
+          <div className="text-center py-12 bg-background/50 rounded-2xl border border-dashed border-border-custom">
+            <HardDrive size={32} className="text-foreground/30 mx-auto mb-2" />
+            <p className="text-sm text-foreground/60">No downloaded items in your local history.</p>
+            <p className="text-xs text-foreground/40 mt-1">Successfully downloaded files will appear here for quick access.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            {history.map((record) => {
-              const iconMap = {
-                video: <Video size={18} className="text-primary" />,
-                audio: <Music size={18} className="text-amber-500" />,
-                image: <ImageIcon size={18} className="text-emerald-500" />,
-                file: <FileText size={18} className="text-indigo-500" />
-              };
-
-              return (
-                <div
-                  key={record.id}
-                  className="p-4 rounded-2xl bg-surface-bright border border-border-custom hover:border-primary/40 transition-all flex items-center justify-between gap-3 group"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-surface border border-border-custom flex items-center justify-center shrink-0">
-                      {iconMap[record.mediaType] || <FileText size={18} className="text-primary" />}
-                    </div>
-                    <div className="min-w-0 space-y-0.5">
-                      <p className="text-sm font-bold text-foreground truncate" title={record.filename}>
-                        {record.filename}
-                      </p>
-                      <p className="text-xs text-foreground/50 font-mono flex items-center gap-1.5">
-                        <span>{record.format || record.mediaType.toUpperCase()}</span>
-                        {record.resolution && (
-                          <>
-                            <span>•</span>
-                            <span>{record.resolution}</span>
-                          </>
-                        )}
-                        <span>•</span>
-                        <span>{formatFileSize(record.size)}</span>
-                      </p>
-                      <span className="text-[11px] text-foreground/40 font-medium block">
-                        {formatRelativeTime(record.createdAt)}
-                      </span>
-                    </div>
+          <div className="space-y-3">
+            {history.map((record) => (
+              <div
+                key={record.id}
+                className="p-4 rounded-2xl bg-background border border-border-custom flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition hover:border-primary/40"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+                    {record.mediaType === 'audio' ? <Music size={18} /> : <Video size={18} />}
                   </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      onClick={() => handleDownload({
-                        type: record.mediaType,
-                        mimeType: 'application/octet-stream',
-                        filename: record.filename,
-                        size: record.size,
-                        format: record.format,
-                        downloadUrl: record.downloadUrl,
-                        sourceUrl: record.sourceUrl
-                      })}
-                      className="p-2 text-foreground/60 hover:text-primary hover:bg-primary/10 rounded-xl transition-all"
-                      title="Re-download file"
-                    >
-                      <Download size={16} />
-                    </button>
-                    <button
-                      onClick={() => removeFromHistory(record.id)}
-                      className="p-2 text-foreground/30 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
-                      title="Remove from history"
-                    >
-                      <X size={15} />
-                    </button>
+                  <div className="min-w-0">
+                    <h4 className="font-bold text-sm text-foreground truncate">{record.filename}</h4>
+                    <div className="flex items-center gap-2 text-xs text-foreground/50 font-mono mt-0.5">
+                      <span>{formatFileSize(record.size)}</span>
+                      <span>•</span>
+                      <span>{formatRelativeTime(record.createdAt)}</span>
+                      {record.resolution && (
+                        <>
+                          <span>•</span>
+                          <span className="text-primary font-bold">{record.resolution}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-              );
-            })}
+
+                <div className="flex items-center gap-2.5 shrink-0">
+                  <a
+                    href={record.downloadUrl}
+                    download={record.filename}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3.5 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl text-xs flex items-center gap-1.5 transition shadow-sm"
+                  >
+                    <Download size={14} /> Download Again
+                  </a>
+                  <button
+                    onClick={() => removeFromHistory(record.id)}
+                    className="p-2 text-foreground/40 hover:text-rose-500 rounded-xl bg-surface-bright border border-border-custom transition"
+                    title="Remove from history"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
