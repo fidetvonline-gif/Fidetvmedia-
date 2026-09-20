@@ -18,15 +18,33 @@ export default async function handler(req: any, res: any) {
       req.socket.remoteAddress = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : '127.0.0.1';
     }
 
+    // Fast-path for health check to ensure zero-latency diagnostic reporting
+    if (req.url && (req.url.includes('fidesave-health') || req.headers['x-matched-path']?.includes('fidesave-health'))) {
+      return res.status(200).json({
+        status: "ok",
+        service: "fidesave",
+        environment: "vercel-serverless",
+        timestamp: new Date().toISOString()
+      });
+    }
+
     // Reconstruct the real URL in Vercel's rewrite environment
-    const xMatched = req.headers['x-matched-path'] || req.headers['x-vercel-matched-path'] || req.headers['x-rewrite-url'];
-    if (xMatched && typeof xMatched === 'string' && xMatched.startsWith('/api/') && !xMatched.startsWith('/api/server')) {
-      req.url = xMatched;
-    } else if (req.url && (req.url === '/api/server' || req.url.startsWith('/api/server?'))) {
-      if (req.query && req.query.path) {
-        const queryPath = Array.isArray(req.query.path) ? req.query.path.join('/') : req.query.path;
-        req.url = `/api/${queryPath}`;
+    try {
+      const urlObj = new URL(req.url || '/', 'http://localhost');
+      const xMatched = req.headers['x-matched-path'] || req.headers['x-vercel-matched-path'] || req.headers['x-rewrite-url'];
+      if (typeof xMatched === 'string' && xMatched.startsWith('/api/') && !xMatched.startsWith('/api/server')) {
+        req.url = xMatched;
+      } else if (urlObj.pathname === '/api/server' || urlObj.pathname.startsWith('/api/server')) {
+        const pathParam = urlObj.searchParams.get('path') || (req.query && req.query.path);
+        if (pathParam) {
+          const cleanPath = Array.isArray(pathParam) ? pathParam.join('/') : pathParam;
+          urlObj.pathname = `/api/${cleanPath.replace(/^\/+/, '')}`;
+          urlObj.searchParams.delete('path');
+          req.url = urlObj.pathname + (urlObj.search ? urlObj.search : '');
+        }
       }
+    } catch (urlErr) {
+      console.warn('[Vercel URL Normalization Error]', urlErr);
     }
 
     // Express app(req, res) does not return a Promise; wrap in a Promise to keep Vercel Lambda alive
@@ -56,6 +74,13 @@ export default async function handler(req: any, res: any) {
               details: err.message || "An unexpected error occurred." 
             });
           }
+        } else if (!res.headersSent) {
+          console.warn(`[Vercel Unhandled Route] 404 for ${req.method} ${req.url}`);
+          res.status(404).json({
+            success: false,
+            error: "Not Found",
+            message: `The endpoint ${req.method} ${req.url} was not found on this server.`
+          });
         }
         done();
       });

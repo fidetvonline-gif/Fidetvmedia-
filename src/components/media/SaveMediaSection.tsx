@@ -19,7 +19,8 @@ import {
   Play,
   Pause,
   HardDrive,
-  DownloadCloud
+  DownloadCloud,
+  Info
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { safeLocalStorage } from '@/lib/storage';
@@ -341,53 +342,67 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
     setDownloadProgress(0);
     setDownloadStatus('Preparing download...');
 
-    const directUrl = targetMedia.downloadUrl;
-    if (directUrl && !directUrl.includes('/api/media/download')) {
-      try {
-        setDownloadStatus('Downloading full file...');
-        setDownloadProgress(50);
-        
-        const a = document.createElement('a');
-        a.href = directUrl;
-        a.download = targetMedia.filename || 'downloaded_media.mp4';
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+    const directUrl = targetMedia.downloadUrl || targetMedia.sourceUrl;
+    const isStreamOnly = 
+      targetMedia.platform?.toLowerCase().includes('youtube') || 
+      targetMedia.platform?.toLowerCase().includes('watch') || 
+      directUrl.includes('youtube.com') || 
+      directUrl.includes('youtu.be');
 
-        setDownloadProgress(100);
-        setDownloadStatus('Download complete');
-        setDownloadComplete(true);
-        saveToHistory(targetMedia);
-        setDownloading(false);
-        return;
-      } catch (directErr) {
-        console.warn('Direct download anchor failed, falling back to server proxy download:', directErr);
-      }
+    if (isStreamOnly) {
+      // YouTube streams cannot be downloaded as raw files without DRM circumvention
+      window.open(directUrl, '_blank', 'noopener,noreferrer');
+      setDownloadProgress(100);
+      setDownloadStatus('Opened stream viewer');
+      setDownloadComplete(true);
+      saveToHistory(targetMedia);
+      setDownloading(false);
+      return;
     }
 
     try {
-      setDownloadStatus('Starting download...');
-      setDownloadProgress(20);
-      
-      const downloadUrl = `/api/media/download?url=${encodeURIComponent(targetMedia.downloadUrl || targetMedia.sourceUrl)}&filename=${encodeURIComponent(targetMedia.filename)}`;
-      
-      const a = document.createElement('a');
-      a.href = downloadUrl;
-      a.download = targetMedia.filename;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      
-      setTimeout(() => {
-        document.body.removeChild(a);
-        setDownloadProgress(100);
-        setDownloadStatus('Download started');
-        setDownloadComplete(true);
-        saveToHistory(targetMedia);
-        setDownloading(false);
-      }, 1500);
+      setDownloadStatus('Downloading media bytes...');
+      setDownloadProgress(30);
+
+      // Attempt client-side blob download (bypasses server 4.5MB payload limits)
+      let downloaded = false;
+      try {
+        const response = await fetch(directUrl, { mode: 'cors' });
+        if (response.ok) {
+          setDownloadProgress(75);
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = targetMedia.filename || 'downloaded_media.mp4';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+          downloaded = true;
+        }
+      } catch (blobErr) {
+        console.warn('Client-side blob fetch failed (likely CORS), falling back to proxy:', blobErr);
+      }
+
+      if (!downloaded) {
+        const downloadUrl = `/api/media/download?url=${encodeURIComponent(directUrl)}&filename=${encodeURIComponent(targetMedia.filename)}`;
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = targetMedia.filename || 'downloaded_media.mp4';
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+        }, 2000);
+      }
+
+      setDownloadProgress(100);
+      setDownloadStatus('Download complete');
+      setDownloadComplete(true);
+      saveToHistory(targetMedia);
+      setDownloading(false);
     } catch (err: any) {
       console.error('[Download Error]', err);
       setErrorMessage(err.message || 'Download failed. Please try again.');
@@ -568,6 +583,15 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
                   Source: {analyzedMedia.sourceUrl}
                 </p>
 
+                {analyzedMedia.platform?.toLowerCase().includes('youtube') && (
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300 flex items-start gap-2">
+                    <Info size={16} className="shrink-0 mt-0.5" />
+                    <span>
+                      YouTube streams are protected by DRM. You can open and stream them directly in HD. For file downloads to your device, please input direct media links (MP4, MP3, or direct CDN links).
+                    </span>
+                  </div>
+                )}
+
                 <div className="pt-2 flex flex-wrap items-center gap-3">
                   <button
                     onClick={() => handleDownload()}
@@ -577,7 +601,12 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
                     {downloading ? (
                       <>
                         <Loader2 size={16} className="animate-spin" />
-                        {downloadStatus || 'Downloading...'}
+                        {downloadStatus || 'Processing...'}
+                      </>
+                    ) : analyzedMedia.platform?.toLowerCase().includes('youtube') ? (
+                      <>
+                        <Play size={16} />
+                        Watch Stream
                       </>
                     ) : (
                       <>
@@ -594,7 +623,7 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
                     className="px-4 py-3 bg-surface-bright hover:bg-surface-bright/80 text-foreground font-bold rounded-xl border border-border-custom flex items-center gap-2 text-sm transition"
                   >
                     <ExternalLink size={16} />
-                    Open Direct Link
+                    {analyzedMedia.platform?.toLowerCase().includes('youtube') ? 'Open on YouTube' : 'Open Direct Link'}
                   </a>
                 </div>
               </div>
