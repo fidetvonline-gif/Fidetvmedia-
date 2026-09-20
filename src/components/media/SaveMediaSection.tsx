@@ -42,6 +42,9 @@ export interface MediaItem {
   sourceUrl: string;
   platform?: string;
   resolution?: string;
+  title?: string;
+  author?: string;
+  audioUrl?: string;
 }
 
 export interface SavedRecord {
@@ -332,7 +335,7 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
   };
 
   // Trigger download directly into user's device storage
-  const handleDownload = async (mediaToDownload?: MediaItem) => {
+  const handleDownload = async (mediaToDownload?: MediaItem, asAudio = false) => {
     const targetMedia = mediaToDownload || analyzedMedia;
     if (!targetMedia) return;
 
@@ -340,13 +343,19 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
     setDownloading(true);
     setDownloadComplete(false);
     setDownloadProgress(0);
-    setDownloadStatus('Preparing download...');
+    setDownloadStatus(asAudio ? 'Preparing audio extraction...' : 'Preparing download...');
 
-    const directUrl = targetMedia.downloadUrl || targetMedia.sourceUrl;
-    const targetFilename = targetMedia.filename || 'downloaded_media.mp4';
+    const directUrl = (asAudio && targetMedia.audioUrl) 
+      ? targetMedia.audioUrl 
+      : (targetMedia.downloadUrl || targetMedia.sourceUrl);
+
+    let targetFilename = targetMedia.filename || 'downloaded_media.mp4';
+    if (asAudio) {
+      targetFilename = targetFilename.replace(/\.[^/.]+$/, '') + '.mp3';
+    }
 
     try {
-      setDownloadStatus('Connecting to media source...');
+      setDownloadStatus(asAudio ? 'Connecting to audio stream...' : 'Connecting to media source...');
       setDownloadProgress(20);
 
       // 1. Attempt client-side blob download (saves directly to disk via object URL)
@@ -354,7 +363,7 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
       try {
         const response = await fetch(directUrl, { mode: 'cors' });
         if (response.ok) {
-          setDownloadStatus('Downloading media bytes...');
+          setDownloadStatus(asAudio ? 'Downloading audio bytes...' : 'Downloading media bytes...');
           setDownloadProgress(60);
           const blob = await response.blob();
           const blobUrl = URL.createObjectURL(blob);
@@ -392,7 +401,12 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
       setDownloadProgress(100);
       setDownloadStatus('Download complete');
       setDownloadComplete(true);
-      saveToHistory(targetMedia);
+      saveToHistory({
+        ...targetMedia,
+        filename: targetFilename,
+        type: asAudio ? 'audio' : targetMedia.type,
+        format: asAudio ? 'MP3' : targetMedia.format
+      });
       setDownloading(false);
     } catch (err: any) {
       console.error('[Download Error]', err);
@@ -418,14 +432,21 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
         <div className="text-center space-y-2">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-black uppercase tracking-widest border border-primary/20">
             <ShieldCheck size={14} />
-            Safe Media Downloader
+            Universal Media Downloader
           </div>
           <h2 className="text-3xl md:text-4xl font-display font-black text-foreground tracking-tight">
             Save Your Media
           </h2>
           <p className="text-sm md:text-base text-foreground/60 max-w-xl mx-auto">
-            Paste a publicly accessible URL to analyze and download videos, audios, images, or files with live preview.
+            Paste any link from YouTube, TikTok, Instagram, Facebook, Twitter / X, Spotify, SoundCloud, Reddit, or any website to download video, audio, or files directly.
           </p>
+          <div className="flex flex-wrap justify-center gap-1.5 pt-2 text-[11px] font-medium text-foreground/50">
+            {['YouTube', 'TikTok', 'Instagram', 'Facebook', 'Twitter / X', 'Spotify', 'SoundCloud', 'Reddit', 'Direct MP4/MP3', 'Any Web Link'].map((name) => (
+              <span key={name} className="px-2 py-0.5 rounded-full bg-surface-bright border border-border-custom">
+                {name}
+              </span>
+            ))}
+          </div>
         </div>
 
         <form onSubmit={handleAnalyze} className="space-y-4">
@@ -566,17 +587,36 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
                   )}
                 </div>
 
-                <h3 className="text-lg md:text-xl font-display font-bold text-foreground truncate">
-                  {analyzedMedia.filename}
-                </h3>
+                <div>
+                  <h3 className="text-lg md:text-xl font-display font-bold text-foreground line-clamp-1">
+                    {analyzedMedia.title || analyzedMedia.filename}
+                  </h3>
+                  {analyzedMedia.author && (
+                    <p className="text-xs text-foreground/60 font-medium mt-0.5">
+                      By {analyzedMedia.author}
+                    </p>
+                  )}
+                </div>
 
                 <p className="text-xs text-foreground/50 truncate font-mono">
                   Source: {analyzedMedia.sourceUrl}
                 </p>
 
+                {analyzedMedia.type === 'audio' && (
+                  <div className="pt-1">
+                    <audio
+                      controls
+                      src={analyzedMedia.downloadUrl}
+                      className="w-full h-9 rounded-lg"
+                      preload="none"
+                    />
+                  </div>
+                )}
+
                 <div className="pt-2 flex flex-wrap items-center gap-3">
+                  {/* Primary Video / File / Image Download Button */}
                   <button
-                    onClick={() => handleDownload()}
+                    onClick={() => handleDownload(analyzedMedia, false)}
                     disabled={downloading}
                     className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-md flex items-center gap-2 text-sm transition disabled:opacity-50 cursor-pointer"
                   >
@@ -588,10 +628,22 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
                     ) : (
                       <>
                         <DownloadCloud size={16} />
-                        Download File
+                        {analyzedMedia.type === 'video' ? 'Download Video' : (analyzedMedia.type === 'audio' ? 'Download Audio' : 'Download File')}
                       </>
                     )}
                   </button>
+
+                  {/* Optional Audio Extract Button if available on video */}
+                  {analyzedMedia.type === 'video' && analyzedMedia.audioUrl && (
+                    <button
+                      onClick={() => handleDownload(analyzedMedia, true)}
+                      disabled={downloading}
+                      className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-md flex items-center gap-2 text-sm transition disabled:opacity-50 cursor-pointer"
+                    >
+                      <Music size={16} />
+                      Download Audio (MP3)
+                    </button>
+                  )}
 
                   <a
                     href={analyzedMedia.downloadUrl}
@@ -600,7 +652,7 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
                     className="px-4 py-3 bg-surface-bright hover:bg-surface-bright/80 text-foreground font-bold rounded-xl border border-border-custom flex items-center gap-2 text-sm transition"
                   >
                     <ExternalLink size={16} />
-                    {analyzedMedia.platform?.toLowerCase().includes('youtube') ? 'Open on YouTube' : 'Open Direct Link'}
+                    Open Source
                   </a>
                 </div>
               </div>

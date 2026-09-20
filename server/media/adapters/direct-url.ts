@@ -80,19 +80,14 @@ export async function analyzeDirectUrl(url: string): Promise<MediaMetadata | nul
     }
   }
 
-  // Check file size limit
-  if (contentLength > MAX_FILE_SIZE) {
-    throw new Error('This file exceeds the maximum supported size (250 MB).');
+  // If HTML is returned, this is a webpage, not a direct media stream
+  if (contentType.includes('text/html')) {
+    return null; // Let other adapters try
   }
 
   // Determine filename
   let filename = extractFilename(url, contentDisposition);
   filename = sanitizeFilename(filename);
-
-  // If HTML is returned, this is a webpage, not a direct media stream
-  if (contentType.includes('text/html')) {
-    return null; // Let other adapters try
-  }
 
   // Detect media type and format
   const { type, format } = detectMediaType(contentType, filename);

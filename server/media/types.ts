@@ -14,6 +14,9 @@ export interface MediaMetadata {
   sourceUrl: string;
   platform?: string;
   resolution?: string;
+  title?: string;
+  author?: string;
+  audioUrl?: string;
 }
 
 export interface AnalyzeResult {
