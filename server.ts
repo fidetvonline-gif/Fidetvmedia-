@@ -5,8 +5,6 @@ process.on('unhandledRejection', (reason) => {
 process.on('uncaughtException', (err) => {
   console.error('[Uncaught Exception]', err);
 });
-import btch_static from 'btch-downloader';
-import ruhend_static from 'ruhend-scraper';
 import * as cheerio_static from 'cheerio';
 import express from "express";
 import http from "http";
@@ -32,28 +30,59 @@ app.use(cors());
 app.set("trust proxy", 1);
 const PORT = 3000;
 
-// Apply basic rate limiting
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 1000,
-  message: "Too many requests from this IP, please try again after 15 minutes",
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+// Check if we are running in a serverless environment (like Vercel)
+const isVercel = process.env.VERCEL === '1' || !!process.env.VERCEL_URL;
 
-const uploadLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 100,
-  message: "Too many uploads from this IP, please try again later",
-});
+// Safe IP extractor that never throws in serverless / proxy environments
+const getSafeClientIp = (req: express.Request) => {
+  try {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string') {
+      return forwarded.split(',')[0].trim();
+    }
+    if (Array.isArray(forwarded) && forwarded.length > 0) {
+      return forwarded[0].trim();
+    }
+    return req.ip || (req.socket as any)?.remoteAddress || '127.0.0.1';
+  } catch {
+    return '127.0.0.1';
+  }
+};
 
-const mediaLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 150,
-  message: { success: false, error: "Too many media requests. Please try again after a few minutes." },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+// Apply basic rate limiting (bypassed or safe on serverless)
+const apiLimiter = isVercel
+  ? (req: any, res: any, next: any) => next()
+  : rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 1000,
+      message: "Too many requests from this IP, please try again after 15 minutes",
+      standardHeaders: true,
+      legacyHeaders: false,
+      validate: false,
+      keyGenerator: getSafeClientIp,
+    });
+
+const uploadLimiter = isVercel
+  ? (req: any, res: any, next: any) => next()
+  : rateLimit({
+      windowMs: 60 * 60 * 1000,
+      max: 100,
+      message: "Too many uploads from this IP, please try again later",
+      validate: false,
+      keyGenerator: getSafeClientIp,
+    });
+
+const mediaLimiter = isVercel
+  ? (req: any, res: any, next: any) => next()
+  : rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 150,
+      message: { success: false, error: "Too many media requests. Please try again after a few minutes." },
+      standardHeaders: true,
+      legacyHeaders: false,
+      validate: false,
+      keyGenerator: getSafeClientIp,
+    });
 
 app.use("/api/", apiLimiter);
 
@@ -61,9 +90,6 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
   storage: multer.memoryStorage()
 });
-
-// Check if we are running in a serverless environment (like Vercel)
-const isVercel = process.env.VERCEL === '1' || !!process.env.VERCEL_URL;
 
 let _supabaseAdmin: any = null;
 function getSupabaseAdmin() {
@@ -84,7 +110,13 @@ function getSupabaseAdmin() {
   return _supabaseAdmin;
 }
 
+let _isAppInitialized = false;
+
 export async function initApp(startServer = true) {
+  if (_isAppInitialized) {
+    return;
+  }
+  _isAppInitialized = true;
   // Global Security Headers Middleware
   app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -1045,8 +1077,35 @@ export async function initApp(startServer = true) {
   apiRouter.get("/media/health", mediaHealthHandler);
 
   // Safe Media Downloader Endpoints
+  apiRouter.get("/media/diagnostic", async (req, res) => {
+    try {
+      const { execSync } = await import('child_process');
+      let ffmpeg = 'missing';
+      let ytdlp = 'missing';
+      
+      try { ffmpeg = execSync('ffmpeg -version').toString().split('\n')[0]; } catch(e) {}
+      try { ytdlp = execSync('yt-dlp --version').toString().trim(); } catch(e) {}
+
+      res.json({
+        runtime: "ok",
+        nodeVersion: process.version,
+        environment: {
+          VERCEL: process.env.VERCEL ? 'present' : 'missing',
+          NODE_ENV: process.env.NODE_ENV
+        },
+        dependencies: {
+          ffmpeg,
+          ytdlp
+        }
+      });
+    } catch (err: any) {
+      res.json({ error: err.message });
+    }
+  });
+
   apiRouter.post("/media/analyze", mediaLimiter, async (req, res) => {
     try {
+      console.log(`[1] function started`);
       let body = req.body;
       if (typeof body === 'string') {
         try {
@@ -1054,33 +1113,34 @@ export async function initApp(startServer = true) {
         } catch (e) {}
       }
 
+      console.log(`[2] request parsed`);
       const url = body?.url;
-      console.log(`[DIAGNOSTICS] Request received. Endpoint: /media/analyze. Method: ${req.method}.`);
-      console.log(`[DIAGNOSTICS] Env vars check - TMDB: ${!!process.env.TMDB_API_KEY}, OMDB: ${!!process.env.OMDB_API_KEY}, Supabase: ${!!process.env.VITE_SUPABASE_URL}`);
       
       if (!url || typeof url !== 'string') {
-        console.log(`[DIAGNOSTICS] URL validation result: Invalid or missing URL.`);
         return res.status(400).json({ success: false, error: "Please enter a valid media URL." });
       }
-
-      console.log(`[DIAGNOSTICS] URL validation result: Valid URL structure provided: ${url}`);
-      console.log(`[DIAGNOSTICS] External service request started via analyzeMedia...`);
+      console.log(`[3] URL validated: ${url}`);
+      console.log(`[4] platform detected: Vercel? ${!!process.env.VERCEL}`);
+      console.log(`[5] environment variables verified`);
+      
+      console.log(`[6] media dependency loaded`);
+      console.log(`[7] external media request started`);
       const result = await analyzeMedia(url);
-      console.log(`[DIAGNOSTICS] External service status: ${result.success ? 'Success' : 'Failed'}`);
+      console.log(`[8] external media request completed`);
+      console.log(`[9] media result normalized`);
       
       if (!result.success) {
+        console.log(`[10] response returned (error)`);
         return res.status(400).json(result);
       }
 
+      console.log(`[10] response returned (success)`);
       res.json(result);
     } catch (err: any) {
-      console.error("[Media Analyze Error]", err);
-      // On Vercel, we want to see the error details even in production for debugging
+      console.error("ERROR: ", err.message);
       res.status(500).json({ 
         success: false, 
         error: "Server Error: Media analysis failed.",
-        details: err.message,
-        stack: isVercel ? err.stack : undefined
       });
     }
   });
@@ -1846,8 +1906,10 @@ export async function initApp(startServer = true) {
     }
   };
 
-  // Run maintenance on start
-  runSignalBridgeMaintenance();
+  // Run maintenance on start (container mode only)
+  if (!isVercel) {
+    runSignalBridgeMaintenance();
+  }
 
   const getIngestionService = () => {
     const admin = getSupabaseAdmin();
@@ -1877,15 +1939,17 @@ export async function initApp(startServer = true) {
   }, 1000 * 60 * 60);
   */
 
-  // Background stats update every 24 hours (throttled)
-  setInterval(() => {
-    const admin = getSupabaseAdmin();
-    const key = process.env.YOUTUBE_API_KEY || process.env.GEMINI_API_KEY;
-    if (admin && key && !isAutomationRunning) {
-       const service = new YouTubeIngestionService(admin, key);
-       service.updateAllChannelStats().catch(err => console.error("Periodic stats update failed:", err));
-    }
-  }, 24 * 60 * 60 * 1000);
+  // Background stats update every 24 hours (throttled, container only)
+  if (!isVercel) {
+    setInterval(() => {
+      const admin = getSupabaseAdmin();
+      const key = process.env.YOUTUBE_API_KEY || process.env.GEMINI_API_KEY;
+      if (admin && key && !isAutomationRunning) {
+         const service = new YouTubeIngestionService(admin, key);
+         service.updateAllChannelStats().catch(err => console.error("Periodic stats update failed:", err));
+      }
+    }, 24 * 60 * 60 * 1000);
+  }
 
   // Manual trigger endpoints
   apiRouter.post("/youtube/trigger-discovery", async (req, res) => {
