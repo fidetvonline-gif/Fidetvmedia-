@@ -130,9 +130,12 @@ export async function validateUrlSecurity(rawUrl: string): Promise<{ valid: bool
     }
   }
 
-  // DNS resolution check to prevent DNS rebinding & private IP resolution
+  // DNS resolution check to prevent DNS rebinding & private IP resolution (with strict timeout)
   try {
-    const addresses = await dns.promises.lookup(hostname, { all: true });
+    const addresses = await Promise.race([
+      dns.promises.lookup(hostname, { all: true }),
+      new Promise<dns.LookupAddress[]>((_, reject) => setTimeout(() => reject(new Error('DNS_TIMEOUT')), 1000))
+    ]);
     if (addresses && addresses.length > 0) {
       for (const record of addresses) {
         if (record.family === 4 && isPrivateIPv4(record.address)) {
@@ -144,7 +147,7 @@ export async function validateUrlSecurity(rawUrl: string): Promise<{ valid: bool
       }
     }
   } catch (dnsErr: any) {
-    // In serverless environments (Vercel/Cloud Run), system DNS lookup may fail with EAI_AGAIN or ENOTFOUND.
+    // In serverless environments (Vercel/Cloud Run), system DNS lookup may fail or timeout.
     // Fall back to hostname validation for public domain names.
     if (!hostname.includes('.')) {
       return { valid: false, error: "Unable to resolve the provided media domain." };

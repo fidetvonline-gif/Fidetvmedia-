@@ -20,34 +20,68 @@ export async function analyzeMedia(rawUrl: string): Promise<AnalyzeResult> {
     }
 
     const url = rawUrl.trim();
+    const lowerUrl = url.toLowerCase();
 
-    // Try 1: Direct URL Analysis (raw MP4, MP3, images, etc.)
-    try {
-      const directResult = await analyzeDirectUrl(url);
-      if (directResult) {
-        return {
-          success: true,
-          media: directResult
-        };
+    // Check if URL is a known streaming / social / cloud media platform
+    const isSocialOrPlatform = /(youtube\.com|youtu\.be|tiktok\.com|instagram\.com|twitter\.com|x\.com|facebook\.com|fb\.watch|fb\.com|spotify\.com|soundcloud\.com|reddit\.com|v\.redd\.it|pinterest\.com|pin\.it|threads\.net|capcut\.com|drive\.google\.com|mediafire\.com|dropbox\.com|vimeo\.com|dailymotion\.com|twitch\.tv)/i.test(lowerUrl);
+
+    // Check if URL has a direct file extension
+    const isDirectFileExtension = /\.(mp4|mp3|webm|wav|ogg|m4a|flac|mov|avi|mkv|jpg|jpeg|png|webp|gif|pdf|zip)(?:\?|$)/i.test(lowerUrl);
+
+    if (isSocialOrPlatform) {
+      // Step 1 for platforms: Run high-speed permitted-sources adapter first
+      try {
+        const sourceResult = await analyzePermittedSource(url);
+        if (sourceResult) {
+          return {
+            success: true,
+            media: sourceResult
+          };
+        }
+      } catch (err: any) {
+        console.warn('[Media Analyzer] Permitted source adapter error:', err.message);
       }
-    } catch (err: any) {
-      console.warn('[Media Analyzer] Direct URL probe failed, attempting scrapers:', err.message);
+    } else if (isDirectFileExtension) {
+      // Step 1 for direct files: Run direct URL probe first
+      try {
+        const directResult = await analyzeDirectUrl(url);
+        if (directResult) {
+          return {
+            success: true,
+            media: directResult
+          };
+        }
+      } catch (err: any) {
+        console.warn('[Media Analyzer] Direct URL probe failed:', err.message);
+      }
+    } else {
+      // General web URL: Try direct URL first, then permitted source web scraper
+      try {
+        const directResult = await analyzeDirectUrl(url);
+        if (directResult) {
+          return {
+            success: true,
+            media: directResult
+          };
+        }
+      } catch (err: any) {
+        console.warn('[Media Analyzer] Direct URL probe failed, attempting scrapers:', err.message);
+      }
+
+      try {
+        const sourceResult = await analyzePermittedSource(url);
+        if (sourceResult) {
+          return {
+            success: true,
+            media: sourceResult
+          };
+        }
+      } catch (err: any) {
+        console.warn('[Media Analyzer] Permitted source adapter error:', err.message);
+      }
     }
 
-    // Try 2: Permitted Sources (YouTube, TikTok, Socials, OpenGraph)
-    try {
-      const sourceResult = await analyzePermittedSource(url);
-      if (sourceResult) {
-        return {
-          success: true,
-          media: sourceResult
-        };
-      }
-    } catch (err: any) {
-      console.warn('[Media Analyzer] Permitted source adapter error:', err.message);
-    }
-
-    // Try 3: Movie Catalog & Cinema Adapters (TMDB, IMDb, Embeds, Archive.org)
+    // Try: Movie Catalog & Cinema Adapters (TMDB, IMDb, Embeds, Archive.org)
     try {
       const movieResult = await analyzeMovieSource(url);
       if (movieResult) {
@@ -60,7 +94,7 @@ export async function analyzeMedia(rawUrl: string): Promise<AnalyzeResult> {
       console.warn('[Media Analyzer] Movie source adapter error:', err.message);
     }
 
-    // Try 4: Universal Guaranteed Fallback - Extract and present any web media link for direct download
+    // Universal Guaranteed Fallback - Extract and present any web media link for direct download
     try {
       const parsed = new URL(url);
       const cleanHost = parsed.hostname.replace(/^www\./, '');

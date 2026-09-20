@@ -13,6 +13,13 @@ const ruhend = (ruhendStatic as any).default || ruhendStatic;
 const igDirect = (igDirectStatic as any).default || igDirectStatic;
 const getTwitterMedia = (getTwitterMediaStatic as any).default || getTwitterMediaStatic;
 
+const fastTimeout = <T>(promise: Promise<T>, ms = 2500): Promise<T | null> => {
+  return Promise.race([
+    promise.catch(() => null),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms))
+  ]);
+};
+
 const BROWSER_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,video/*,audio/*,*/*;q=0.8',
@@ -43,391 +50,214 @@ export async function analyzePermittedSource(url: string): Promise<MediaMetadata
   // 1. YouTube & YouTube Shorts
   // ----------------------------------------------------
   if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) {
-    try {
-      if (btch && btch.youtube) {
-        const data = await Promise.race([
-          btch.youtube(rawUrl),
-          new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
-        ]);
+    const videoId = rawUrl.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([a-zA-Z0-9_-]{11})/)?.[1] || '';
+    const fallbackThumb = videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : '';
 
-        if (data && (data.mp4 || data.video || data.link)) {
-          const directMp4 = data.mp4 || data.video || data.link;
-          const cleanTitle = sanitizeFilename(data.title || 'YouTube_Video', 'youtube_video') + '.mp4';
-          const audioUrl = data.audio || data.mp3 || undefined;
-          return {
-            type: 'video',
-            mimeType: 'video/mp4',
-            filename: cleanTitle,
-            title: data.title || 'YouTube Video',
-            size: 25000000,
-            format: 'MP4',
-            thumbnail: data.thumbnail || `https://i.ytimg.com/vi/${rawUrl.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)?.[1] || ''}/hqdefault.jpg`,
-            downloadUrl: directMp4,
-            audioUrl: audioUrl,
-            sourceUrl: rawUrl,
-            platform: 'YouTube'
-          };
-        }
-      }
-    } catch (btchErr: any) {
-      console.warn('[YouTube Resolver] btch fallback triggered:', btchErr?.message);
-    }
+    const [btchData, oembedData] = await Promise.all([
+      (btch && btch.youtube) ? fastTimeout(btch.youtube(rawUrl), 2500) : Promise.resolve(null),
+      fastTimeout(axios.get(`https://www.youtube.com/oembed?url=${encodeURIComponent(rawUrl)}&format=json`).then(r => r.data), 2000)
+    ]);
 
-    // Secondary YouTube fallback: oEmbed
-    try {
-      const oembedRes = await axios.get(`https://www.youtube.com/oembed?url=${encodeURIComponent(rawUrl)}&format=json`, { timeout: 3500 });
-      const data = oembedRes.data;
-      if (data && data.title) {
-        const cleanTitle = sanitizeFilename(data.title, 'youtube_video') + '.mp4';
-        return {
-          type: 'video',
-          mimeType: 'video/mp4',
-          filename: cleanTitle,
-          title: data.title,
-          size: 25000000,
-          format: 'MP4',
-          thumbnail: data.thumbnail_url || '',
-          downloadUrl: rawUrl,
-          sourceUrl: rawUrl,
-          platform: 'YouTube'
-        };
-      }
-    } catch (oembedErr) {}
+    const title = btchData?.title || oembedData?.title || 'YouTube Video';
+    const cleanFilename = sanitizeFilename(title, 'youtube_video') + '.mp4';
+    const directMp4 = btchData?.mp4 || btchData?.video || btchData?.link || rawUrl;
+    const audioUrl = btchData?.audio || btchData?.mp3 || undefined;
+    const thumbnail = btchData?.thumbnail || oembedData?.thumbnail_url || fallbackThumb;
+
+    return {
+      type: 'video',
+      mimeType: 'video/mp4',
+      filename: cleanFilename,
+      title: title,
+      author: oembedData?.author_name || undefined,
+      size: 25000000,
+      format: 'MP4',
+      thumbnail: thumbnail,
+      downloadUrl: directMp4,
+      audioUrl: audioUrl,
+      sourceUrl: rawUrl,
+      platform: 'YouTube'
+    };
   }
 
   // ----------------------------------------------------
   // 2. TikTok (Videos, Clips, Audio)
   // ----------------------------------------------------
   if (lowerUrl.includes('tiktok.com')) {
-    // Try ruhend ttdl
-    try {
-      if (ruhend && (ruhend.ttdl || ruhend.tiktok)) {
-        const fn = ruhend.ttdl || ruhend.tiktok;
-        const res = await Promise.race([
-          fn(rawUrl),
-          new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 7000))
-        ]);
-        if (res && (res.video || res.video2 || res.nowm || res.url)) {
-          const videoUrl = res.video2 || res.video || res.nowm || res.url;
-          const cleanTitle = sanitizeFilename(res.title || 'TikTok_Video', 'tiktok_video') + '.mp4';
-          return {
-            type: 'video',
-            mimeType: 'video/mp4',
-            filename: cleanTitle,
-            title: res.title || 'TikTok Video',
-            author: res.author || undefined,
-            size: 15000000,
-            format: 'MP4',
-            thumbnail: res.cover || res.thumbnail || '',
-            downloadUrl: videoUrl,
-            audioUrl: res.audio || res.mp3 || undefined,
-            sourceUrl: rawUrl,
-            platform: 'TikTok'
-          };
-        }
-      }
-    } catch (e: any) {
-      console.warn('[TikTok Resolver] ruhend failed:', e?.message);
-    }
+    const [ruhendRes, btchRes, tikwmRes, oembedRes] = await Promise.all([
+      (ruhend && (ruhend.ttdl || ruhend.tiktok)) ? fastTimeout((ruhend.ttdl || ruhend.tiktok)(rawUrl), 2500) : Promise.resolve(null),
+      (btch && (btch.ttdl || btch.tiktok)) ? fastTimeout((btch.ttdl || btch.tiktok)(rawUrl), 2500) : Promise.resolve(null),
+      fastTimeout(axios.get(`https://www.tikwm.com/api/?url=${encodeURIComponent(rawUrl)}`).then(r => r.data?.data), 2500),
+      fastTimeout(axios.get(`https://www.tiktok.com/oembed?url=${encodeURIComponent(rawUrl)}`).then(r => r.data), 1800)
+    ]);
 
-    // Try btch ttdl
-    try {
-      if (btch && (btch.ttdl || btch.tiktok)) {
-        const fn = btch.ttdl || btch.tiktok;
-        const res = await Promise.race([
-          fn(rawUrl),
-          new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 7000))
-        ]);
-        if (res && (res.video || res.video2 || res.url || res.link)) {
-          const videoUrl = res.video || res.video2 || res.url || res.link;
-          const cleanTitle = sanitizeFilename(res.title || 'TikTok_Video', 'tiktok_video') + '.mp4';
-          return {
-            type: 'video',
-            mimeType: 'video/mp4',
-            filename: cleanTitle,
-            title: res.title || 'TikTok Video',
-            size: 15000000,
-            format: 'MP4',
-            thumbnail: res.thumbnail || res.cover || '',
-            downloadUrl: videoUrl,
-            audioUrl: res.audio || res.mp3 || undefined,
-            sourceUrl: rawUrl,
-            platform: 'TikTok'
-          };
-        }
-      }
-    } catch (e: any) {
-      console.warn('[TikTok Resolver] btch failed:', e?.message);
-    }
+    const directVideo = tikwmRes?.play || ruhendRes?.video2 || ruhendRes?.video || ruhendRes?.nowm || btchRes?.video || btchRes?.video2 || btchRes?.url || rawUrl;
+    const audioUrl = tikwmRes?.music || ruhendRes?.audio || ruhendRes?.mp3 || btchRes?.audio || btchRes?.mp3 || undefined;
+    const title = tikwmRes?.title || ruhendRes?.title || btchRes?.title || oembedRes?.title || 'TikTok Video';
+    const author = tikwmRes?.author?.nickname || ruhendRes?.author || oembedRes?.author_name || undefined;
+    const thumbnail = tikwmRes?.cover || ruhendRes?.cover || ruhendRes?.thumbnail || btchRes?.thumbnail || oembedRes?.thumbnail_url || '';
+
+    return {
+      type: 'video',
+      mimeType: 'video/mp4',
+      filename: sanitizeFilename(title, 'tiktok_video') + '.mp4',
+      title: title,
+      author: author,
+      size: 15000000,
+      format: 'MP4',
+      thumbnail: thumbnail,
+      downloadUrl: directVideo,
+      audioUrl: audioUrl,
+      sourceUrl: rawUrl,
+      platform: 'TikTok'
+    };
   }
 
   // ----------------------------------------------------
   // 3. Instagram (Reels, Posts, Videos)
   // ----------------------------------------------------
   if (lowerUrl.includes('instagram.com')) {
-    // Try ruhend igdl
-    try {
-      if (ruhend && (ruhend.igdl || ruhend.instagram)) {
-        const fn = ruhend.igdl || ruhend.instagram;
-        const res = await Promise.race([
-          fn(rawUrl),
-          new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 7000))
-        ]);
-        const items = Array.isArray(res) ? res : (res?.result || [res]);
-        const validItem = items.find((it: any) => it && (it.url || it.video || it.link));
-        if (validItem) {
-          const directUrl = validItem.url || validItem.video || validItem.link;
-          return {
-            type: 'video',
-            mimeType: 'video/mp4',
-            filename: 'Instagram_Reel_' + Date.now() + '.mp4',
-            title: 'Instagram Video',
-            size: 18000000,
-            format: 'MP4',
-            thumbnail: validItem.thumbnail || '',
-            downloadUrl: directUrl,
-            sourceUrl: rawUrl,
-            platform: 'Instagram'
-          };
-        }
-      }
-    } catch (e: any) {
-      console.warn('[Instagram Resolver] ruhend failed:', e?.message);
-    }
+    const [ruhendRes, igDirectRes, btchRes] = await Promise.all([
+      (ruhend && (ruhend.igdl || ruhend.instagram)) ? fastTimeout((ruhend.igdl || ruhend.instagram)(rawUrl), 2500) : Promise.resolve(null),
+      (igDirect && igDirect.instagramGetUrl) ? fastTimeout(igDirect.instagramGetUrl(rawUrl), 2500) : Promise.resolve(null),
+      (btch && (btch.igdl || btch.instagram)) ? fastTimeout((btch.igdl || btch.instagram)(rawUrl), 2500) : Promise.resolve(null)
+    ]);
 
-    // Try instagram-url-direct
-    try {
-      if (igDirect && igDirect.instagramGetUrl) {
-        const res = await Promise.race([
-          igDirect.instagramGetUrl(rawUrl),
-          new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 7000))
-        ]);
-        if (res && res.url_list && res.url_list.length > 0) {
-          const directUrl = res.url_list[0];
-          return {
-            type: 'video',
-            mimeType: 'video/mp4',
-            filename: 'Instagram_Media_' + Date.now() + '.mp4',
-            title: 'Instagram Media',
-            size: 18000000,
-            format: 'MP4',
-            downloadUrl: directUrl,
-            sourceUrl: rawUrl,
-            platform: 'Instagram'
-          };
-        }
-      }
-    } catch (e: any) {
-      console.warn('[Instagram Resolver] igDirect failed:', e?.message);
-    }
+    const ruhendItems = Array.isArray(ruhendRes) ? ruhendRes : (ruhendRes?.result || [ruhendRes]);
+    const ruhendItem = ruhendItems.find((it: any) => it && (it.url || it.video || it.link));
+    const igDirectUrl = igDirectRes?.url_list?.[0];
+    const btchUrl = btchRes?.url || btchRes?.link || (Array.isArray(btchRes?.result) ? btchRes.result[0]?.url : btchRes?.result);
 
-    // Try btch igdl
-    try {
-      if (btch && (btch.igdl || btch.instagram)) {
-        const fn = btch.igdl || btch.instagram;
-        const res = await Promise.race([
-          fn(rawUrl),
-          new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 7000))
-        ]);
-        const finalUrl = res?.url || res?.link || (Array.isArray(res?.result) ? res.result[0]?.url : res?.result);
-        if (finalUrl && typeof finalUrl === 'string') {
-          return {
-            type: 'video',
-            mimeType: 'video/mp4',
-            filename: 'Instagram_Media_' + Date.now() + '.mp4',
-            title: 'Instagram Media',
-            size: 18000000,
-            format: 'MP4',
-            downloadUrl: finalUrl,
-            sourceUrl: rawUrl,
-            platform: 'Instagram'
-          };
-        }
-      }
-    } catch (e: any) {
-      console.warn('[Instagram Resolver] btch failed:', e?.message);
-    }
+    const directUrl = ruhendItem?.url || ruhendItem?.video || ruhendItem?.link || igDirectUrl || btchUrl || rawUrl;
+    const thumbnail = ruhendItem?.thumbnail || '';
+
+    return {
+      type: 'video',
+      mimeType: 'video/mp4',
+      filename: 'Instagram_Media_' + Date.now() + '.mp4',
+      title: 'Instagram Media',
+      size: 18000000,
+      format: 'MP4',
+      thumbnail: thumbnail,
+      downloadUrl: directUrl,
+      sourceUrl: rawUrl,
+      platform: 'Instagram'
+    };
   }
 
   // ----------------------------------------------------
   // 4. Facebook & FB Watch
   // ----------------------------------------------------
   if (lowerUrl.includes('facebook.com') || lowerUrl.includes('fb.watch') || lowerUrl.includes('fb.com')) {
-    try {
-      if (ruhend && (ruhend.fbdl || ruhend.facebook)) {
-        const fn = ruhend.fbdl || ruhend.facebook;
-        const res = await Promise.race([
-          fn(rawUrl),
-          new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 7000))
-        ]);
-        if (res && (res.video || res.HD || res.Normal_video || res.url)) {
-          const directUrl = res.HD || res.video || res.Normal_video || res.url;
-          return {
-            type: 'video',
-            mimeType: 'video/mp4',
-            filename: sanitizeFilename(res.title || 'Facebook_Video', 'facebook_video') + '.mp4',
-            title: res.title || 'Facebook Video',
-            size: 25000000,
-            format: 'MP4',
-            downloadUrl: directUrl,
-            audioUrl: res.audio || undefined,
-            sourceUrl: rawUrl,
-            platform: 'Facebook'
-          };
-        }
-      }
-    } catch (e: any) {
-      console.warn('[Facebook Resolver] ruhend failed:', e?.message);
-    }
+    const [ruhendRes, btchRes] = await Promise.all([
+      (ruhend && (ruhend.fbdl || ruhend.facebook)) ? fastTimeout((ruhend.fbdl || ruhend.facebook)(rawUrl), 2500) : Promise.resolve(null),
+      (btch && (btch.fbdown || btch.facebook)) ? fastTimeout((btch.fbdown || btch.facebook)(rawUrl), 2500) : Promise.resolve(null)
+    ]);
 
-    try {
-      if (btch && (btch.fbdown || btch.facebook)) {
-        const fn = btch.fbdown || btch.facebook;
-        const res = await Promise.race([
-          fn(rawUrl),
-          new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 7000))
-        ]);
-        if (res && (res.HD || res.Normal_video || res.video || res.url)) {
-          const directUrl = res.HD || res.Normal_video || res.video || res.url;
-          return {
-            type: 'video',
-            mimeType: 'video/mp4',
-            filename: sanitizeFilename(res.title || 'Facebook_Video', 'facebook_video') + '.mp4',
-            title: res.title || 'Facebook Video',
-            size: 25000000,
-            format: 'MP4',
-            downloadUrl: directUrl,
-            audioUrl: res.audio || undefined,
-            sourceUrl: rawUrl,
-            platform: 'Facebook'
-          };
-        }
-      }
-    } catch (e: any) {
-      console.warn('[Facebook Resolver] btch failed:', e?.message);
-    }
+    const directUrl = ruhendRes?.HD || ruhendRes?.video || ruhendRes?.Normal_video || ruhendRes?.url ||
+                      btchRes?.HD || btchRes?.Normal_video || btchRes?.video || btchRes?.url || rawUrl;
+    const title = ruhendRes?.title || btchRes?.title || 'Facebook Video';
+    const audioUrl = ruhendRes?.audio || btchRes?.audio || undefined;
+
+    return {
+      type: 'video',
+      mimeType: 'video/mp4',
+      filename: sanitizeFilename(title, 'facebook_video') + '.mp4',
+      title: title,
+      size: 25000000,
+      format: 'MP4',
+      downloadUrl: directUrl,
+      audioUrl: audioUrl,
+      sourceUrl: rawUrl,
+      platform: 'Facebook'
+    };
   }
 
   // ----------------------------------------------------
   // 5. Twitter / X
   // ----------------------------------------------------
   if (lowerUrl.includes('twitter.com') || lowerUrl.includes('x.com')) {
-    try {
-      if (getTwitterMedia) {
-        const res = await Promise.race([
-          getTwitterMedia(rawUrl),
-          new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 7000))
-        ]);
-        if (res && res.media && Array.isArray(res.media) && res.media.length > 0) {
-          const sorted = [...res.media].sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0));
-          const best = sorted[0];
-          if (best && best.url) {
-            return {
-              type: 'video',
-              mimeType: 'video/mp4',
-              filename: 'Twitter_Video_' + Date.now() + '.mp4',
-              title: res.text ? res.text.substring(0, 50) : 'Twitter Video',
-              size: 15000000,
-              format: 'MP4',
-              downloadUrl: best.url,
-              sourceUrl: rawUrl,
-              platform: 'Twitter / X'
-            };
-          }
-        }
-      }
-    } catch (e: any) {
-      console.warn('[Twitter Resolver] getTwitterMedia failed:', e?.message);
-    }
+    const [twitterMediaRes, btchRes, oembedRes] = await Promise.all([
+      getTwitterMedia ? fastTimeout(getTwitterMedia(rawUrl), 2500) : Promise.resolve(null),
+      (btch && btch.twitter) ? fastTimeout(btch.twitter(rawUrl), 2500) : Promise.resolve(null),
+      fastTimeout(axios.get(`https://publish.twitter.com/oembed?url=${encodeURIComponent(rawUrl)}`).then(r => r.data), 1800)
+    ]);
 
-    try {
-      if (btch && btch.twitter) {
-        const res = await Promise.race([
-          btch.twitter(rawUrl),
-          new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 7000))
-        ]);
-        if (res && (res.hd || res.sd || res.url || res.video)) {
-          const directUrl = res.hd || res.video || res.sd || res.url;
-          return {
-            type: 'video',
-            mimeType: 'video/mp4',
-            filename: sanitizeFilename(res.title || 'Twitter_Video', 'twitter_video') + '.mp4',
-            title: res.title || 'Twitter Video',
-            size: 15000000,
-            format: 'MP4',
-            downloadUrl: directUrl,
-            sourceUrl: rawUrl,
-            platform: 'Twitter / X'
-          };
-        }
-      }
-    } catch (e: any) {
-      console.warn('[Twitter Resolver] btch failed:', e?.message);
+    let bestUrl: string | undefined;
+    if (twitterMediaRes?.media && Array.isArray(twitterMediaRes.media)) {
+      const sorted = [...twitterMediaRes.media].sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0));
+      bestUrl = sorted[0]?.url;
     }
+    const directVideo = bestUrl || btchRes?.hd || btchRes?.video || btchRes?.sd || btchRes?.url || rawUrl;
+    const title = twitterMediaRes?.text?.substring(0, 60) || btchRes?.title || (oembedRes?.author_name ? `Post by ${oembedRes.author_name}` : 'Twitter Video');
+
+    return {
+      type: 'video',
+      mimeType: 'video/mp4',
+      filename: sanitizeFilename(title, 'twitter_video') + '.mp4',
+      title: title,
+      author: oembedRes?.author_name || undefined,
+      size: 15000000,
+      format: 'MP4',
+      downloadUrl: directVideo,
+      sourceUrl: rawUrl,
+      platform: 'Twitter / X'
+    };
   }
 
   // ----------------------------------------------------
   // 6. Spotify (Tracks & Audio)
   // ----------------------------------------------------
   if (lowerUrl.includes('spotify.com')) {
-    try {
-      if (btch && btch.spotify) {
-        const res = await Promise.race([
-          btch.spotify(rawUrl),
-          new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
-        ]);
-        if (res && (res.download || res.url || res.link)) {
-          const directUrl = res.download || res.url || res.link;
-          const cleanTitle = sanitizeFilename(`${res.artist || 'Artist'} - ${res.title || 'Track'}`, 'spotify_track') + '.mp3';
-          return {
-            type: 'audio',
-            mimeType: 'audio/mpeg',
-            filename: cleanTitle,
-            title: res.title ? `${res.title} - ${res.artist || ''}` : 'Spotify Track',
-            size: 9000000,
-            format: 'MP3',
-            thumbnail: res.thumbnail || res.cover || '',
-            downloadUrl: directUrl,
-            sourceUrl: rawUrl,
-            platform: 'Spotify'
-          };
-        }
-      }
-    } catch (e: any) {
-      console.warn('[Spotify Resolver] btch failed:', e?.message);
-    }
+    const [btchRes, oembedRes] = await Promise.all([
+      (btch && btch.spotify) ? fastTimeout(btch.spotify(rawUrl), 2500) : Promise.resolve(null),
+      fastTimeout(axios.get(`https://open.spotify.com/oembed?url=${encodeURIComponent(rawUrl)}`).then(r => r.data), 1800)
+    ]);
+
+    const directUrl = btchRes?.download || btchRes?.url || btchRes?.link || rawUrl;
+    const title = btchRes?.title ? `${btchRes.title} - ${btchRes.artist || ''}` : (oembedRes?.title || 'Spotify Track');
+    const thumbnail = btchRes?.thumbnail || btchRes?.cover || oembedRes?.thumbnail_url || '';
+
+    return {
+      type: 'audio',
+      mimeType: 'audio/mpeg',
+      filename: sanitizeFilename(title, 'spotify_track') + '.mp3',
+      title: title,
+      size: 9000000,
+      format: 'MP3',
+      thumbnail: thumbnail,
+      downloadUrl: directUrl,
+      sourceUrl: rawUrl,
+      platform: 'Spotify'
+    };
   }
 
   // ----------------------------------------------------
   // 7. SoundCloud (Music & Audio Tracks)
   // ----------------------------------------------------
   if (lowerUrl.includes('soundcloud.com')) {
-    try {
-      if (btch && btch.soundcloud) {
-        const res = await Promise.race([
-          btch.soundcloud(rawUrl),
-          new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
-        ]);
-        if (res && (res.download || res.url || res.link)) {
-          const directUrl = res.download || res.url || res.link;
-          const cleanTitle = sanitizeFilename(res.title || 'SoundCloud_Track', 'soundcloud_audio') + '.mp3';
-          return {
-            type: 'audio',
-            mimeType: 'audio/mpeg',
-            filename: cleanTitle,
-            title: res.title || 'SoundCloud Audio',
-            size: 8500000,
-            format: 'MP3',
-            thumbnail: res.thumbnail || '',
-            downloadUrl: directUrl,
-            sourceUrl: rawUrl,
-            platform: 'SoundCloud'
-          };
-        }
-      }
-    } catch (e: any) {
-      console.warn('[SoundCloud Resolver] btch failed:', e?.message);
-    }
+    const [btchRes, oembedRes] = await Promise.all([
+      (btch && btch.soundcloud) ? fastTimeout(btch.soundcloud(rawUrl), 2500) : Promise.resolve(null),
+      fastTimeout(axios.get(`https://soundcloud.com/oembed?url=${encodeURIComponent(rawUrl)}&format=json`).then(r => r.data), 1800)
+    ]);
+
+    const directUrl = btchRes?.download || btchRes?.url || btchRes?.link || rawUrl;
+    const title = btchRes?.title || oembedRes?.title || 'SoundCloud Audio';
+    const thumbnail = btchRes?.thumbnail || oembedRes?.thumbnail_url || '';
+
+    return {
+      type: 'audio',
+      mimeType: 'audio/mpeg',
+      filename: sanitizeFilename(title, 'soundcloud_audio') + '.mp3',
+      title: title,
+      author: oembedRes?.author_name || undefined,
+      size: 8500000,
+      format: 'MP3',
+      thumbnail: thumbnail,
+      downloadUrl: directUrl,
+      sourceUrl: rawUrl,
+      platform: 'SoundCloud'
+    };
   }
 
   // ----------------------------------------------------

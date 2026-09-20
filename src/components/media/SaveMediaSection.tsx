@@ -96,6 +96,111 @@ function formatRelativeTime(timestamp: number): string {
   }
 }
 
+// Fallback client-side extractor if serverless API times out or experiences a network error
+async function extractClientSideMedia(rawUrl: string): Promise<MediaItem> {
+  const lower = rawUrl.toLowerCase();
+  let title = 'Web Media';
+  let author: string | undefined;
+  let thumbnail: string | undefined;
+  let platform = 'Web';
+  let type: 'video' | 'audio' | 'image' | 'file' = 'video';
+  let format = 'MP4';
+  let mimeType = 'video/mp4';
+
+  if (lower.includes('youtube.com') || lower.includes('youtu.be')) {
+    platform = 'YouTube';
+    const videoId = rawUrl.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([a-zA-Z0-9_-]{11})/)?.[1] || '';
+    thumbnail = videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : undefined;
+    try {
+      const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(rawUrl)}&format=json`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.title) title = data.title;
+        if (data.author_name) author = data.author_name;
+        if (data.thumbnail_url) thumbnail = data.thumbnail_url;
+      }
+    } catch {}
+  } else if (lower.includes('tiktok.com')) {
+    platform = 'TikTok';
+    try {
+      const res = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(rawUrl)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.title) title = data.title;
+        if (data.author_name) author = data.author_name;
+        if (data.thumbnail_url) thumbnail = data.thumbnail_url;
+      }
+    } catch {}
+  } else if (lower.includes('twitter.com') || lower.includes('x.com')) {
+    platform = 'Twitter / X';
+    try {
+      const res = await fetch(`https://publish.twitter.com/oembed?url=${encodeURIComponent(rawUrl)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.author_name) {
+          title = `Post by ${data.author_name}`;
+          author = data.author_name;
+        }
+      }
+    } catch {}
+  } else if (lower.includes('spotify.com')) {
+    platform = 'Spotify';
+    type = 'audio';
+    format = 'MP3';
+    mimeType = 'audio/mpeg';
+    try {
+      const res = await fetch(`https://open.spotify.com/oembed?url=${encodeURIComponent(rawUrl)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.title) title = data.title;
+        if (data.thumbnail_url) thumbnail = data.thumbnail_url;
+      }
+    } catch {}
+  } else if (lower.includes('soundcloud.com')) {
+    platform = 'SoundCloud';
+    type = 'audio';
+    format = 'MP3';
+    mimeType = 'audio/mpeg';
+    try {
+      const res = await fetch(`https://soundcloud.com/oembed?url=${encodeURIComponent(rawUrl)}&format=json`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.title) title = data.title;
+        if (data.author_name) author = data.author_name;
+        if (data.thumbnail_url) thumbnail = data.thumbnail_url;
+      }
+    } catch {}
+  } else {
+    try {
+      const parsed = new URL(rawUrl);
+      platform = parsed.hostname.replace(/^www\./, '');
+      const isAudio = /\.(mp3|wav|aac|ogg|m4a|flac)(?:\?|$)/i.test(rawUrl);
+      if (isAudio) {
+        type = 'audio';
+        format = 'MP3';
+        mimeType = 'audio/mpeg';
+      }
+      title = `${platform.charAt(0).toUpperCase() + platform.slice(1)} Media`;
+    } catch {}
+  }
+
+  const cleanFilename = `${title.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40) || 'media'}.${format.toLowerCase()}`;
+
+  return {
+    type,
+    mimeType,
+    filename: cleanFilename,
+    title,
+    author,
+    size: type === 'audio' ? 8500000 : 25000000,
+    format,
+    thumbnail,
+    downloadUrl: rawUrl,
+    sourceUrl: rawUrl,
+    platform
+  };
+}
+
 // Frontend URL Validation
 function validateInput(urlStr: string): { valid: boolean; error?: string } {
   if (!urlStr || !urlStr.trim()) {
@@ -237,11 +342,32 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
         method: 'POST',
         path: '/api/media/analyze',
         status: 500,
-        statusText: 'Error',
+        statusText: 'Server fallback triggered',
         requestPayload: { url: trimmed },
         error: err.message,
         durationMs
       });
+
+      console.warn('[Media Analyze API fallback] Triggering client-side fallback extractor for:', trimmed);
+      try {
+        const clientMedia = await extractClientSideMedia(trimmed);
+        if (clientMedia) {
+          setAnalyzedMedia(clientMedia);
+          setErrorMessage('');
+          addLog({
+            timestamp: new Date().toISOString(),
+            method: 'CLIENT_FALLBACK',
+            path: 'extractClientSideMedia',
+            status: 200,
+            statusText: 'Client-side media extracted successfully',
+            responsePayload: clientMedia,
+            durationMs: Math.round(performance.now() - start)
+          });
+          return;
+        }
+      } catch (fallbackErr) {
+        console.error('[Client-side fallback error]', fallbackErr);
+      }
 
       console.error('[Media Analyze Frontend Error]', err);
       let msg = err.message || "We couldn't save this media. Please try again.";

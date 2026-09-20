@@ -22,11 +22,11 @@ export async function analyzeDirectUrl(url: string): Promise<MediaMetadata | nul
   let contentDisposition = '';
   let headerBuffer: Buffer | null = null;
 
-  // 1. Try HEAD request first
+  // 1. Try HEAD request first with fast 1500ms timeout
   try {
     const headRes = await axios.head(url, {
       headers: commonHeaders,
-      timeout: 2500,
+      timeout: 1500,
       maxRedirects: 3,
       validateStatus: (status) => status < 400
     });
@@ -38,7 +38,7 @@ export async function analyzeDirectUrl(url: string): Promise<MediaMetadata | nul
     // Some servers reject HEAD with 405/403, proceed to ranged GET
   }
 
-  // 2. If HEAD didn't yield enough or failed, do a small ranged GET (64KB)
+  // 2. If HEAD didn't yield enough or failed, do a small ranged GET (64KB) with 2000ms timeout
   if (!contentType || !contentLength || contentType.includes('text/html') || contentType.startsWith('image/')) {
     try {
       const getRes = await axios.get(url, {
@@ -47,7 +47,7 @@ export async function analyzeDirectUrl(url: string): Promise<MediaMetadata | nul
           'Range': 'bytes=0-65535'
         },
         responseType: 'arraybuffer',
-        timeout: 4000,
+        timeout: 2000,
         maxRedirects: 3,
         validateStatus: (status) => status < 400
       });
