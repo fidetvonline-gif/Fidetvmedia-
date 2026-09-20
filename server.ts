@@ -6,6 +6,8 @@ process.on('uncaughtException', (err) => {
   console.error('[Uncaught Exception]', err);
 });
 import * as cheerio_static from 'cheerio';
+import * as ruhend_static from 'ruhend-scraper';
+import * as btch_static from 'btch-downloader';
 import express from "express";
 import http from "http";
 import path from "path";

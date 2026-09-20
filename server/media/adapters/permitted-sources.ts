@@ -1,7 +1,10 @@
 import { load } from 'cheerio';
 import axios from 'axios';
+import btchStatic from 'btch-downloader';
 import { MediaMetadata } from '../types.js';
 import { validateUrlSecurity, sanitizeFilename } from '../validator.js';
+
+const btch = (btchStatic as any).default || btchStatic;
 
 export async function analyzePermittedSource(url: string): Promise<MediaMetadata | null> {
   const security = await validateUrlSecurity(url);
@@ -11,10 +14,39 @@ export async function analyzePermittedSource(url: string): Promise<MediaMetadata
 
   const lowerUrl = url.toLowerCase();
 
-  // 1. YouTube Fallback (oEmbed only)
+  // 1. YouTube Handler - Attempt direct MP4 resolution
   if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) {
+    // Primary: btch-downloader for direct MP4 stream
     try {
-      const oembedRes = await axios.get(`https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`, { timeout: 2500 });
+      if (btch && btch.youtube) {
+        const data = await Promise.race([
+          btch.youtube(url),
+          new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
+        ]);
+
+        if (data && (data.mp4 || data.video || data.link)) {
+          const directMp4 = data.mp4 || data.video || data.link;
+          const cleanTitle = sanitizeFilename(data.title || 'YouTube_Video', 'youtube_video') + '.mp4';
+          return {
+            type: 'video',
+            mimeType: 'video/mp4',
+            filename: cleanTitle,
+            size: 25000000,
+            format: 'MP4',
+            thumbnail: data.thumbnail || `https://i.ytimg.com/vi/${url.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)?.[1] || ''}/hqdefault.jpg`,
+            downloadUrl: directMp4,
+            sourceUrl: url,
+            platform: 'YouTube'
+          };
+        }
+      }
+    } catch (btchErr: any) {
+      console.warn('[Permitted-Source] btch YouTube failed:', btchErr?.message);
+    }
+
+    // Secondary fallback: oEmbed metadata with direct watch/stream link
+    try {
+      const oembedRes = await axios.get(`https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`, { timeout: 3000 });
       const data = oembedRes.data;
       if (data && data.title) {
         const cleanTitle = sanitizeFilename(data.title, 'youtube_video') + '.mp4';
@@ -27,7 +59,7 @@ export async function analyzePermittedSource(url: string): Promise<MediaMetadata
           thumbnail: data.thumbnail_url || '',
           downloadUrl: url,
           sourceUrl: url,
-          platform: 'YouTube (Stream / Watch)'
+          platform: 'YouTube'
         };
       }
     } catch (oembedErr) {
