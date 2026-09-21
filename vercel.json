@@ -1,8 +1,12 @@
 {
   "functions": {
-    "api/**/*.ts": {
+    "api/server.ts": {
       "maxDuration": 60,
       "memory": 1024
+    },
+    "api/fidesave-health.ts": {
+      "maxDuration": 10,
+      "memory": 512
     }
   },
   "rewrites": [

@@ -33,6 +33,40 @@ export default function DownloadApp() {
   const [loadingReviews, setLoadingReviews] = useState(true);
   const videoRef1 = useRef<HTMLVideoElement>(null);
   const videoRef2 = useRef<HTMLVideoElement>(null);
+  const [versionHistory, setVersionHistory] = useState<any[]>([
+    {
+      version: '1.3.0',
+      date: 'Today',
+      type: 'Latest Release',
+      changes: [
+        'Proactive PWA Install Toast with 5-second timer and persistent localStorage dismissal memory.',
+        'Bulletproof Save Media universal fallback engine ensuring 100% success rate on all real domains.',
+        'Zero-dependency serverless health endpoint optimization for production environments.'
+      ]
+    },
+    {
+      version: '1.2.5',
+      date: 'June 01, 2026',
+      type: 'Feature Update',
+      changes: [
+        'Optimized high-fidelity streaming for 4K live broadcasts.',
+        'New: Integrated real-time community chat in the live player.',
+        'Improved efficiency: 15% reduction in background battery usage.',
+        'Fixed: Occasional audio synchronization issues on Android 12+ devices.'
+      ]
+    },
+    {
+      version: '1.2.0',
+      date: 'May 12, 2026',
+      type: 'Major Release',
+      changes: [
+        'Official PWA rollout for Android and iOS devices worldwide.',
+        'Offline mode: Save news and articles for reading without data.',
+        'Visual Overhaul: Implemented the new Cosmic Slate design language.',
+        'Enhanced security: Biometric login support for profile access.'
+      ]
+    }
+  ]);
 
   useEffect(() => {
     // Force play for both videos if needed
@@ -141,6 +175,28 @@ export default function DownloadApp() {
       }
     };
     fetchDownloads();
+
+    const fetchVersionHistory = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('version_history')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!error && data && data.length > 0) {
+          const formatted = data.map((item: any) => ({
+            version: item.version || item.version_number || '1.0.0',
+            date: item.release_date || item.date || 'Recent',
+            type: item.release_type || item.type || 'Update',
+            changes: Array.isArray(item.changes) ? item.changes : (typeof item.changes === 'string' ? JSON.parse(item.changes) : [item.changes || item.description])
+          }));
+          setVersionHistory(formatted);
+        }
+      } catch (err) {
+        console.warn('Could not fetch version_history from Supabase:', err);
+      }
+    };
+    fetchVersionHistory();
 
     const interval = setInterval(fetchDownloads, 30000);
 
@@ -929,46 +985,13 @@ export default function DownloadApp() {
             </div>
             <div className="flex items-center gap-4 px-6 py-3 bg-white/5 rounded-2xl border border-white/10">
                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-               <span className="text-white font-bold">Latest Build: v1.3.0</span>
-               <span className="text-gray-500 text-sm">Today</span>
+               <span className="text-white font-bold">Latest Build: v{versionHistory[0]?.version || '1.3.0'}</span>
+               <span className="text-gray-500 text-sm">{versionHistory[0]?.date || 'Today'}</span>
             </div>
          </div>
 
          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {[
-              {
-                version: '1.3.0',
-                date: 'Today',
-                type: 'Latest Release',
-                changes: [
-                  'Proactive PWA Install Toast with 5-second timer and persistent localStorage dismissal memory.',
-                  'Bulletproof Save Media universal fallback engine ensuring 100% success rate on all real domains.',
-                  'Zero-dependency serverless health endpoint optimization for production environments.'
-                ]
-              },
-              {
-                version: '1.2.5',
-                date: 'June 01, 2026',
-                type: 'Feature Update',
-                changes: [
-                  'Optimized high-fidelity streaming for 4K live broadcasts.',
-                  'New: Integrated real-time community chat in the live player.',
-                  'Improved efficiency: 15% reduction in background battery usage.',
-                  'Fixed: Occasional audio synchronization issues on Android 12+ devices.'
-                ]
-              },
-              {
-                version: '1.2.0',
-                date: 'May 12, 2026',
-                type: 'Major Release',
-                changes: [
-                  'Official PWA rollout for Android and iOS devices worldwide.',
-                  'Offline mode: Save news and articles for reading without data.',
-                  'Visual Overhaul: Implemented the new Cosmic Slate design language.',
-                  'Enhanced security: Biometric login support for profile access.'
-                ]
-              }
-            ].map((entry, idx) => (
+            {versionHistory.map((entry, idx) => (
               <div key={idx} className={cn(
                 "glass p-8 rounded-[2.5rem] border-white/5 relative overflow-hidden group",
                 idx === 0 && "ring-1 ring-primary/30"
