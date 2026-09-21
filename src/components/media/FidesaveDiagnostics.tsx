@@ -85,16 +85,29 @@ export default function FidesaveDiagnostics({
       {healthStatus && (
         <div className="my-4 p-3.5 bg-zinc-950/80 border border-zinc-800 rounded-xl flex items-center justify-between text-xs">
           <div className="flex items-center gap-3">
-            <div className={`w-3 h-3 rounded-full ${healthStatus.status === 'ok' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+            <div className={`w-3 h-3 rounded-full ${
+              healthStatus.status === 'ok' && !healthStatus.stale 
+                ? 'bg-emerald-500 animate-pulse' 
+                : healthStatus.status === 'unknown' || healthStatus.stale 
+                ? 'bg-amber-500' 
+                : 'bg-rose-500'
+            }`} />
             <div>
               <span className="font-medium text-zinc-300">Endpoint Status: </span>
-              <span className={healthStatus.status === 'ok' ? 'text-emerald-400 font-semibold' : 'text-rose-400 font-semibold'}>
-                {healthStatus.status === 'ok' ? 'Operational' : 'Degraded / Error'}
+              <span className={
+                healthStatus.status === 'ok' && !healthStatus.stale 
+                  ? 'text-emerald-400 font-semibold' 
+                  : healthStatus.status === 'unknown' || healthStatus.stale 
+                  ? 'text-amber-400 font-semibold' 
+                  : 'text-rose-400 font-semibold'
+              }>
+                {healthStatus.status === 'ok' && !healthStatus.stale ? 'Operational' : healthStatus.status === 'unknown' ? 'Status Unknown (Fallback)' : 'Degraded / Stale'}
               </span>
               <span className="text-zinc-500 ml-3">Environment: {healthStatus.environment || 'container'} ({window.location.hostname})</span>
+              {healthStatus.stale && <span className="text-amber-400/80 ml-2 font-mono text-[10px] bg-amber-950/30 px-1.5 py-0.5 rounded border border-amber-800/40">SWR Stale Cache</span>}
             </div>
           </div>
-          <span className="text-zinc-500 font-mono text-[11px]">{healthStatus.timestamp}</span>
+          <span className="text-zinc-500 font-mono text-[11px]">{healthStatus.timestamp ? new Date(healthStatus.timestamp).toLocaleTimeString() : ''}</span>
         </div>
       )}
 

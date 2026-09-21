@@ -27,6 +27,7 @@ import { safeLocalStorage } from '@/lib/storage';
 import { parseResponseJson } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 import FidesaveDiagnostics, { LogEntry } from './FidesaveDiagnostics';
+import { fetchHealthWithStaleWhileRevalidate } from '@/utils/healthCheckWrapper';
 
 export interface MediaItem {
   type: 'video' | 'audio' | 'image' | 'file';
@@ -250,28 +251,28 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
     setHealthLoading(true);
     const start = performance.now();
     try {
-      const res = await fetch('/api/fidesave-health');
-      const data = await parseResponseJson(res);
+      const { data, responseStatus, responseStatusText, isStale } = await fetchHealthWithStaleWhileRevalidate();
       const durationMs = Math.round(performance.now() - start);
-      setHealthStatus(data);
+      setHealthStatus({ ...data, stale: isStale });
       addLog({
         timestamp: new Date().toISOString(),
         method: 'GET',
         path: '/api/fidesave-health',
-        status: res.status,
-        statusText: res.statusText,
+        status: responseStatus,
+        statusText: responseStatusText,
         responsePayload: data,
         durationMs
       });
     } catch (err: any) {
       const durationMs = Math.round(performance.now() - start);
-      setHealthStatus({ status: 'error', error: err.message });
+      const fallbackData = { status: 'unknown', error: err.message, stale: true };
+      setHealthStatus(fallbackData);
       addLog({
         timestamp: new Date().toISOString(),
         method: 'GET',
         path: '/api/fidesave-health',
-        status: 500,
-        statusText: 'Internal Error',
+        status: 503,
+        statusText: 'Status Unknown',
         error: err.message,
         durationMs
       });
