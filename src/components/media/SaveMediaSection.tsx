@@ -26,8 +26,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { safeLocalStorage } from '@/lib/storage';
 import { parseResponseJson } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
-import FidesaveDiagnostics, { LogEntry } from './FidesaveDiagnostics';
-import { fetchHealthWithStaleWhileRevalidate } from '@/utils/healthCheckWrapper';
+
 
 export interface MediaItem {
   type: 'video' | 'audio' | 'image' | 'file';
@@ -234,56 +233,9 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
   const [analyzedMedia, setAnalyzedMedia] = useState<MediaItem | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Diagnostics state
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [healthStatus, setHealthStatus] = useState<any>(null);
-  const [healthLoading, setHealthLoading] = useState<boolean>(false);
+  const addLog = (_entry?: any) => {};
 
-  const addLog = (entry: Omit<LogEntry, 'id'>) => {
-    const newLog: LogEntry = {
-      ...entry,
-      id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
-    };
-    setLogs(prev => [newLog, ...prev.slice(0, 49)]);
-  };
 
-  const runHealthCheck = async () => {
-    setHealthLoading(true);
-    const start = performance.now();
-    try {
-      const { data, responseStatus, responseStatusText, isStale } = await fetchHealthWithStaleWhileRevalidate();
-      const durationMs = Math.round(performance.now() - start);
-      setHealthStatus({ ...data, stale: isStale });
-      addLog({
-        timestamp: new Date().toISOString(),
-        method: 'GET',
-        path: '/api/fidesave-health',
-        status: responseStatus,
-        statusText: responseStatusText,
-        responsePayload: data,
-        durationMs
-      });
-    } catch (err: any) {
-      const durationMs = Math.round(performance.now() - start);
-      const fallbackData = { status: 'unknown', error: err.message, stale: true };
-      setHealthStatus(fallbackData);
-      addLog({
-        timestamp: new Date().toISOString(),
-        method: 'GET',
-        path: '/api/fidesave-health',
-        status: 503,
-        statusText: 'Status Unknown',
-        error: err.message,
-        durationMs
-      });
-    } finally {
-      setHealthLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    runHealthCheck();
-  }, []);
 
   // Download progress states
   const [downloading, setDownloading] = useState(false);
@@ -549,15 +501,6 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-10">
       
-      {/* Diagnostics Panel */}
-      <FidesaveDiagnostics
-        logs={logs}
-        onClearLogs={() => setLogs([])}
-        onRunHealthCheck={runHealthCheck}
-        healthStatus={healthStatus}
-        healthLoading={healthLoading}
-      />
-
       {/* Search / Input Box */}
       <div className="bg-surface border border-border-custom p-6 md:p-8 rounded-3xl shadow-sm space-y-6">
         <div className="text-center space-y-2">
