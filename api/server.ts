@@ -4,6 +4,21 @@ let initialized = false;
 
 export default async function handler(req: any, res: any) {
   try {
+    // Fast-path for health check to ensure zero-latency diagnostic reporting
+    const reqUrl = req.url || '';
+    const matchedPath = req.headers['x-matched-path'] || req.headers['x-vercel-matched-path'] || req.headers['x-rewrite-url'] || '';
+    const isHealthCheck = reqUrl.includes('fidesave-health') || 
+                          matchedPath.includes('fidesave-health') ||
+                          (req.query && (req.query.path === 'fidesave-health' || (Array.isArray(req.query.path) && req.query.path.includes('fidesave-health'))));
+    if (isHealthCheck) {
+      return res.status(200).json({
+        status: "ok",
+        service: "fidesave",
+        environment: "vercel-serverless",
+        timestamp: new Date().toISOString()
+      });
+    }
+
     if (!initialized) {
       await initApp(false);
       initialized = true;
@@ -16,16 +31,6 @@ export default async function handler(req: any, res: any) {
     if (!req.socket.remoteAddress) {
       const forwarded = req.headers['x-forwarded-for'];
       req.socket.remoteAddress = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : '127.0.0.1';
-    }
-
-    // Fast-path for health check to ensure zero-latency diagnostic reporting
-    if (req.url && (req.url.includes('fidesave-health') || req.headers['x-matched-path']?.includes('fidesave-health'))) {
-      return res.status(200).json({
-        status: "ok",
-        service: "fidesave",
-        environment: "vercel-serverless",
-        timestamp: new Date().toISOString()
-      });
     }
 
     // Reconstruct the real URL in Vercel's rewrite environment

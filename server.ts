@@ -32,8 +32,8 @@ app.use(cors());
 app.set("trust proxy", 1);
 const PORT = 3000;
 
-// Check if we are running in a serverless environment (like Vercel)
-const isVercel = process.env.VERCEL === '1' || !!process.env.VERCEL_URL;
+// Check if we are running in a serverless environment (like Vercel or AWS Lambda)
+const isVercel = process.env.VERCEL === '1' || !!process.env.VERCEL_URL || !!process.env.NOW_REGION || !!process.env.VERCEL_ENV || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
 
 // Safe IP extractor that never throws in serverless / proxy environments
 const getSafeClientIp = (req: express.Request) => {
@@ -137,7 +137,7 @@ export async function initApp(startServer = true) {
 
   // Background Automation Task (Consolidated)
   let isAutomationRunning = false;
-  if (ingestService && !isVercel) {
+  if (ingestService && !isVercel && startServer) {
     console.log("[Background] Starting automation scheduler...");
     
     // Massive Ingestion: Only run this ONCE after 10 minutes if not already running
@@ -464,7 +464,7 @@ export async function initApp(startServer = true) {
       // 1. YouTube Search via ruhend-scraper
       try {
         
-        const ruhend = (ruhend_static as any).default || ruhend_static;
+        const ruhend: any = (ruhend_static as any)?.default || ruhend_static;
         const ytSearch = ruhend.ytsearch || (ruhend.search && ruhend.search.youtube);
         
         if (ytSearch) {
@@ -519,7 +519,7 @@ export async function initApp(startServer = true) {
         
         try {
           
-          const ruhend = (ruhend_static as any).default || ruhend_static;
+          const ruhend: any = (ruhend_static as any)?.default || ruhend_static;
           
           if (ruhend.ytmp4) {
              const data = await ruhend.ytmp4(ytUrl);
@@ -634,7 +634,7 @@ export async function initApp(startServer = true) {
           try {
             console.log("[FideSave] YouTube Fallback 1: Ruhend Scraper...");
             
-            const ruhend = (ruhend_static as any).default || ruhend_static;
+            const ruhend: any = (ruhend_static as any)?.default || ruhend_static;
             
             if (ruhend.ytmp4) {
                const data = await ruhend.ytmp4(workingUrl);
@@ -663,7 +663,7 @@ export async function initApp(startServer = true) {
           try {
             console.log("[FideSave] YouTube Fallback 2: Btch Downloader...");
             
-            const btch = (btch_static as any).default || btch_static;
+            const btch: any = (btch_static as any)?.default || btch_static;
             
             if (btch.youtube) {
               const data = await btch.youtube(workingUrl);
@@ -704,10 +704,10 @@ export async function initApp(startServer = true) {
       if (workingUrl.includes('tiktok.com') || workingUrl.includes('instagram.com') || workingUrl.includes('facebook.com') || workingUrl.includes('twitter.com') || workingUrl.includes('x.com') || workingUrl.includes('fb.watch') || workingUrl.includes('threads.net') || workingUrl.includes('capcut.com') || workingUrl.includes('snapchat.com')) {
         try {
           
-          const ruhend = (ruhend_static as any).default || ruhend_static;
+          const ruhend: any = (ruhend_static as any)?.default || ruhend_static;
           
           
-          const btch = (btch_static as any).default || btch_static;
+          const btch: any = (btch_static as any)?.default || btch_static;
           
           let data: any = null;
           if (workingUrl.includes('tiktok.com')) data = await (ruhend.ttdl || ruhend.tiktok)(workingUrl);
@@ -1909,7 +1909,7 @@ export async function initApp(startServer = true) {
   };
 
   // Run maintenance on start (container mode only)
-  if (!isVercel) {
+  if (!isVercel && startServer) {
     runSignalBridgeMaintenance();
   }
 
@@ -2369,7 +2369,7 @@ export async function initApp(startServer = true) {
   }
 
   // Vite middleware for development
-  if (process.env.NODE_ENV !== "production" && !isVercel) {
+  if (startServer && process.env.NODE_ENV !== "production" && !isVercel) {
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { 
@@ -2380,7 +2380,7 @@ export async function initApp(startServer = true) {
     });
     
     app.use(vite.middlewares);
-  } else if (!isVercel) {
+  } else if (startServer && !isVercel) {
     // In production, files are in 'dist' directory relative to the project root
     const distPath = path.join(process.cwd(), 'dist');
     console.log(`[Production] Serving static files from: ${distPath}`);
@@ -2451,7 +2451,14 @@ export async function initApp(startServer = true) {
 }
 
 // Global initialization
-if (!isVercel) {
+const isServerless = isVercel || !!process.env.AWS_LAMBDA_FUNCTION_NAME || !!process.env.LAMBDA_TASK_ROOT;
+const isMain = typeof process !== 'undefined' && Array.isArray(process.argv) && process.argv[1] && (
+  process.argv[1].endsWith('server.ts') || 
+  process.argv[1].endsWith('server.js') || 
+  process.argv[1].endsWith('server.cjs')
+);
+
+if (isMain && !isServerless) {
   initApp(true).catch(err => {
     console.error("Critical failure during app initialization:", err);
   });

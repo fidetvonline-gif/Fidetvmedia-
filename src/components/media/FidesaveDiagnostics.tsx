@@ -91,7 +91,7 @@ export default function FidesaveDiagnostics({
               <span className={healthStatus.status === 'ok' ? 'text-emerald-400 font-semibold' : 'text-rose-400 font-semibold'}>
                 {healthStatus.status === 'ok' ? 'Operational' : 'Degraded / Error'}
               </span>
-              <span className="text-zinc-500 ml-3">Environment: {healthStatus.environment || 'container'}</span>
+              <span className="text-zinc-500 ml-3">Environment: {healthStatus.environment || 'container'} ({window.location.hostname})</span>
             </div>
           </div>
           <span className="text-zinc-500 font-mono text-[11px]">{healthStatus.timestamp}</span>

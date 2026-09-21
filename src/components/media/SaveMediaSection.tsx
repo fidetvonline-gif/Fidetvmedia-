@@ -280,6 +280,10 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
     }
   };
 
+  useEffect(() => {
+    runHealthCheck();
+  }, []);
+
   // Download progress states
   const [downloading, setDownloading] = useState(false);
   const [downloadStatus, setDownloadStatus] = useState<string>('');

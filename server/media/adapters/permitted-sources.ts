@@ -1,17 +1,17 @@
 import * as cheerioStatic from 'cheerio';
 import axios from 'axios';
-import btchStatic from 'btch-downloader';
-import ruhendStatic from 'ruhend-scraper';
-import igDirectStatic from 'instagram-url-direct';
-import getTwitterMediaStatic from 'get-twitter-media';
+import * as btchStatic from 'btch-downloader';
+import * as ruhendStatic from 'ruhend-scraper';
+import * as igDirectStatic from 'instagram-url-direct';
+import * as getTwitterMediaStatic from 'get-twitter-media';
 import { MediaMetadata } from '../types.js';
 import { validateUrlSecurity, sanitizeFilename } from '../validator.js';
 
-const cheerio = (cheerioStatic as any).default || cheerioStatic;
-const btch = (btchStatic as any).default || btchStatic;
-const ruhend = (ruhendStatic as any).default || ruhendStatic;
-const igDirect = (igDirectStatic as any).default || igDirectStatic;
-const getTwitterMedia = (getTwitterMediaStatic as any).default || getTwitterMediaStatic;
+const cheerio: any = (cheerioStatic as any)?.default || cheerioStatic;
+const btch: any = (btchStatic as any)?.default || btchStatic;
+const ruhend: any = (ruhendStatic as any)?.default || ruhendStatic;
+const igDirect: any = (igDirectStatic as any)?.default || igDirectStatic;
+const getTwitterMedia: any = (getTwitterMediaStatic as any)?.default || (getTwitterMediaStatic as any)?.getTwitterMedia || getTwitterMediaStatic;
 
 const fastTimeout = <T>(promise: Promise<T>, ms = 2500): Promise<T | null> => {
   return Promise.race([

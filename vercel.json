@@ -1,11 +1,15 @@
 {
   "functions": {
-    "api/server.ts": {
+    "api/**/*.ts": {
       "maxDuration": 60,
       "memory": 1024
     }
   },
   "rewrites": [
+    {
+      "source": "/api/fidesave-health",
+      "destination": "/api/fidesave-health"
+    },
     {
       "source": "/api/:path*",
       "destination": "/api/server?path=:path*"

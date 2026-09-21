@@ -27,6 +27,7 @@ export default function DownloadApp() {
   const [submittingReport, setSubmittingReport] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [swStatus, setSwStatus] = useState<'not-ready' | 'loading' | 'ready'>('not-ready');
+  const [showPwaToast, setShowPwaToast] = useState(false);
   const [reviews, setReviews] = useState<any[]>([]);
   const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
   const [loadingReviews, setLoadingReviews] = useState(true);
@@ -181,6 +182,13 @@ export default function DownloadApp() {
       || (window.navigator as any).standalone 
       || document.referrer.includes('android-app://');
     setIsStandalone(isStandaloneMode);
+
+    // Proactive PWA Install Prompt after 5 seconds
+    const pwaTimer = setTimeout(() => {
+      if (!isStandaloneMode) {
+        setShowPwaToast(true);
+      }
+    }, 5000);
 
     // Detect OS and Browser
     const userAgent = window.navigator.userAgent.toLowerCase();
@@ -1239,6 +1247,53 @@ export default function DownloadApp() {
               </button>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Proactive PWA Install Toast (triggers after 5 seconds) */}
+      <AnimatePresence>
+        {showPwaToast && !isStandalone && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="fixed bottom-6 right-6 z-50 max-w-sm bg-zinc-900 border border-primary/40 rounded-2xl p-4 shadow-2xl backdrop-blur-xl text-white flex items-start gap-4"
+          >
+            <div className="w-12 h-12 shrink-0 bg-primary/20 rounded-xl flex items-center justify-center border border-primary/50">
+              <Download className="w-6 h-6 text-primary animate-bounce" />
+            </div>
+            <div className="flex-1 space-y-1">
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold text-sm">Add FideTV to Home Screen</h4>
+                <button 
+                  onClick={() => setShowPwaToast(false)}
+                  className="text-gray-400 hover:text-white p-1"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Enjoy instant access, offline mode, and immersive live streaming right from your device.
+              </p>
+              <div className="pt-2 flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setShowPwaToast(false);
+                    handleInstall();
+                  }}
+                  className="px-4 py-2 bg-primary hover:bg-primary/90 text-black font-black uppercase text-[10px] tracking-wider rounded-xl transition shadow-lg"
+                >
+                  Install Now
+                </button>
+                <button
+                  onClick={() => setShowPwaToast(false)}
+                  className="px-3 py-2 bg-white/5 hover:bg-white/10 text-gray-300 font-bold text-[10px] uppercase tracking-wider rounded-xl transition"
+                >
+                  Later
+                </button>
+              </div>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
