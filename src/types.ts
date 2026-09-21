@@ -66,7 +66,7 @@ export interface Post {
 export interface News {
   id: string;
   title: string;
-  slug: string;
+  slug?: string;
   excerpt?: string;
   description?: string;
   content: string;
@@ -74,8 +74,8 @@ export interface News {
   tags?: string[];
   image_url?: string;
   image_urls?: string[];
-  author_id: string;
-  is_published: boolean;
+  author_id?: string;
+  is_published?: boolean;
   created_at: string;
   profiles?: Profile;
 }
