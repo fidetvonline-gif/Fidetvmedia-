@@ -3,17 +3,9 @@
     "api/server.ts": {
       "maxDuration": 60,
       "memory": 1024
-    },
-    "api/fidesave-health.ts": {
-      "maxDuration": 10,
-      "memory": 512
     }
   },
   "rewrites": [
-    {
-      "source": "/api/fidesave-health",
-      "destination": "/api/fidesave-health"
-    },
     {
       "source": "/api/:path*",
       "destination": "/api/server?path=:path*"
