@@ -20,12 +20,13 @@ export default async function handler(req: any, res: any) {
                           matchedPath.includes('fidesave-health') ||
                           (req.query && (req.query.path === 'fidesave-health' || (Array.isArray(req.query.path) && req.query.path.includes('fidesave-health'))));
     if (isHealthCheck) {
-      return sendJson(res, 200, {
+      sendJson(res, 200, {
         status: "ok",
         service: "fidesave",
         environment: "vercel-serverless",
         timestamp: new Date().toISOString()
       });
+      return;
     }
 
     if (!initialized) {
