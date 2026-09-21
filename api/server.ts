@@ -2,6 +2,15 @@ import app, { initApp } from '../server.js';
 
 let initialized = false;
 
+function sendJson(res: any, status: number, data: any) {
+  if (res.headersSent) return;
+  try {
+    res.setHeader('Content-Type', 'application/json');
+  } catch {}
+  res.statusCode = status;
+  res.end(JSON.stringify(data));
+}
+
 export default async function handler(req: any, res: any) {
   try {
     // Fast-path for health check to ensure zero-latency diagnostic reporting
@@ -11,7 +20,7 @@ export default async function handler(req: any, res: any) {
                           matchedPath.includes('fidesave-health') ||
                           (req.query && (req.query.path === 'fidesave-health' || (Array.isArray(req.query.path) && req.query.path.includes('fidesave-health'))));
     if (isHealthCheck) {
-      return res.status(200).json({
+      return sendJson(res, 200, {
         status: "ok",
         service: "fidesave",
         environment: "vercel-serverless",
@@ -73,7 +82,7 @@ export default async function handler(req: any, res: any) {
         if (err) {
           console.error("[Vercel Express Unhandled Error]", err);
           if (!res.headersSent) {
-            res.status(500).json({ 
+            sendJson(res, 500, { 
               success: false, 
               error: "Internal Server Error", 
               details: err.message || "An unexpected error occurred." 
@@ -81,7 +90,7 @@ export default async function handler(req: any, res: any) {
           }
         } else if (!res.headersSent) {
           console.warn(`[Vercel Unhandled Route] 404 for ${req.method} ${req.url}`);
-          res.status(404).json({
+          sendJson(res, 404, {
             success: false,
             error: "Not Found",
             message: `The endpoint ${req.method} ${req.url} was not found on this server.`
@@ -92,14 +101,12 @@ export default async function handler(req: any, res: any) {
     });
   } catch (err: any) {
     console.error("[Vercel Function Error]", err);
-    if (!res.headersSent) {
-      res.status(500).json({ 
-        success: false, 
-        error: "Server Error", 
-        details: err.message || "An error occurred on the server.",
-        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
-      });
-    }
+    sendJson(res, 500, { 
+      success: false, 
+      error: "Server Error", 
+      details: err.message || "An error occurred on the server.",
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
   }
 }
 
