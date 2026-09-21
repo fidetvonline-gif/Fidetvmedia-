@@ -441,7 +441,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <ul className="space-y-3 text-sm text-foreground/60">
                   <li><a href="https://youtube.com/@fidetvmedia?si=JkdixDjpkGPah9ay" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">YouTube Channel</a></li>
                   <li><a href="mailto:fidetvonline@gmail.com" className="hover:text-primary transition-colors">fidetvonline@gmail.com</a></li>
-                  <li><a href="https://wa.me/2348108889805" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">WhatsApp: 08108889805</a></li>
+                  <li><a href="https://wa.me/2348124323608" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">WhatsApp: 08124323608</a></li>
                   <li><a href="tel:08124323608" className="hover:text-primary transition-colors">Call: 08124323608</a></li>
                   <li><Link to="/contact" className="hover:text-primary transition-colors">Community Links</Link></li>
                 </ul>

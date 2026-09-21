@@ -28,7 +28,7 @@ interface PlanProps {
 function PlanCard({ name, price, duration, features, recommended, type }: PlanProps) {
   const getWhatsAppLink = () => {
     const message = `Hello FideTV! I'm interested in the ${name} (${duration}) advertising plan. Please provide more details on how to proceed with payment.`;
-    return `https://wa.me/2348108889805?text=${encodeURIComponent(message)}`; // Updated number
+    return `https://wa.me/2348124323608?text=${encodeURIComponent(message)}`;
   };
 
   return (
@@ -267,7 +267,7 @@ export default function Advertise() {
                        <div className="text-xs text-gray-500 uppercase tracking-widest font-black">Average Launch: 2 Hours</div>
                     </div>
                     <a 
-                      href="https://wa.me/2348108889805" 
+                      href="https://wa.me/2348124323608" 
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="p-4 bg-green-500 text-white rounded-2xl hover:bg-green-600 transition-colors shadow-lg shadow-green-500/20"
@@ -296,7 +296,7 @@ export default function Advertise() {
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-4 pt-4">
                <a 
-                 href="https://wa.me/2348108889805" 
+                 href="https://wa.me/2348124323608" 
                  target="_blank" 
                  rel="noopener noreferrer"
                  className="px-8 py-4 bg-white text-black font-black uppercase tracking-widest rounded-2xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-3"
@@ -305,7 +305,7 @@ export default function Advertise() {
                   <MessageSquare className="w-5 h-5" />
                </a>
                <a 
-                 href="https://wa.me/2348108889805?text=Hello%20FideTV!%20I%20would%20like%20to%20request%20the%20Media%20Kit%20to%20review%20your%20detailed%20advertising%20statistics%20and%20demographics." 
+                 href="https://wa.me/2348124323608?text=Hello%20FideTV!%20I%20would%20like%20to%20request%20the%20Media%20Kit%20to%20review%20your%20detailed%20advertising%20statistics%20and%20demographics." 
                  target="_blank" 
                  rel="noopener noreferrer"
                  className="px-8 py-4 border border-white/10 text-white font-black uppercase tracking-widest rounded-2xl hover:bg-white/5 transition-colors flex items-center justify-center"

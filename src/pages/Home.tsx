@@ -1536,7 +1536,7 @@ export default function Home() {
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <a
-                href="https://wa.me/2348108889805"
+                href="https://wa.me/2348124323608"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full sm:w-auto inline-flex items-center justify-center space-x-2.5 bg-green-500 text-white px-8 py-4.5 rounded-2xl font-bold uppercase tracking-wider text-xs hover:bg-green-600 transition-all shadow-md shadow-black/10"

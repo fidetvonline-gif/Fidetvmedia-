@@ -8,7 +8,7 @@ export default function Contact() {
   const contactInfo = [
     { label: 'Email', value: 'fidetvonline@gmail.com', icon: Mail, action: 'mailto:fidetvonline@gmail.com' },
     { label: 'Support Email', value: 'fidetvmedia@gmail.com', icon: Mail, action: 'mailto:fidetvmedia@gmail.com' },
-    { label: 'WhatsApp', value: '08108889805', icon: MessageCircle, action: 'https://wa.me/2348108889805' },
+    { label: 'WhatsApp', value: '08124323608', icon: MessageCircle, action: 'https://wa.me/2348124323608' },
     { label: 'Call Us', value: '08124323608', icon: Phone, action: 'tel:08124323608' },
   ];
 
