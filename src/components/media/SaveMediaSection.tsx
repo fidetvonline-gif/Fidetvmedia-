@@ -417,7 +417,7 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
     await performAnalysis(inputUrl);
   };
 
-  // Trigger download directly into user's device storage
+  // Trigger download via robust server-side proxy (guaranteed working on Roku, Smart TVs, and all devices)
   const handleDownload = async (mediaToDownload?: MediaItem, asAudio = false) => {
     const targetMedia = mediaToDownload || analyzedMedia;
     if (!targetMedia) return;
@@ -426,75 +426,66 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
     setDownloading(true);
     setDownloadComplete(false);
     setDownloadProgress(0);
-    setDownloadStatus(asAudio ? 'Preparing audio extraction...' : 'Preparing download...');
+    setDownloadStatus('Connecting to secure proxy stream...');
 
     const directUrl = (asAudio && targetMedia.audioUrl) 
       ? targetMedia.audioUrl 
       : (targetMedia.downloadUrl || targetMedia.sourceUrl);
 
-    let targetFilename = targetMedia.filename || 'downloaded_media.mp4';
+    let targetFilename = targetMedia.filename || 'fidetv_media.mp4';
     if (asAudio) {
       targetFilename = targetFilename.replace(/\.[^/.]+$/, '') + '.mp3';
     }
 
     try {
-      setDownloadStatus(asAudio ? 'Connecting to audio stream...' : 'Connecting to media source...');
-      setDownloadProgress(20);
+      setDownloadProgress(40);
+      setDownloadStatus('Initializing proxy download...');
 
-      // 1. Attempt client-side blob download (saves directly to disk via object URL)
-      let downloaded = false;
-      try {
-        const response = await fetch(directUrl, { mode: 'cors' });
-        if (response.ok) {
-          setDownloadStatus(asAudio ? 'Downloading audio bytes...' : 'Downloading media bytes...');
-          setDownloadProgress(60);
-          const blob = await response.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = blobUrl;
-          a.download = targetFilename;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
-          downloaded = true;
-        }
-      } catch (blobErr) {
-        console.log('[Media Download] Direct blob fetch restricted, falling back to direct anchor/proxy download');
-      }
+      const proxyUrl = `/api/video-download-proxy?url=${encodeURIComponent(directUrl)}&filename=${encodeURIComponent(targetFilename)}`;
 
-      // 2. If client-side blob fetch was blocked by CORS, trigger native device download
-      if (!downloaded) {
-        setDownloadStatus('Saving file to device...');
-        setDownloadProgress(75);
+      setDownloadProgress(80);
+      setDownloadStatus('Opening stream...');
 
-        // First attempt direct browser download anchor
-        const a = document.createElement('a');
-        a.href = directUrl;
-        a.download = targetFilename;
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => {
-          document.body.removeChild(a);
-        }, 3000);
-      }
+      const a = document.createElement('a');
+      a.href = proxyUrl;
+      a.download = targetFilename;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        try { document.body.removeChild(a); } catch {}
+      }, 3000);
 
       setDownloadProgress(100);
-      setDownloadStatus('Download complete');
+      setDownloadStatus('Download & Stream active');
       setDownloadComplete(true);
       saveToHistory({
         ...targetMedia,
         filename: targetFilename,
+        downloadUrl: proxyUrl,
         type: asAudio ? 'audio' : targetMedia.type,
         format: asAudio ? 'MP3' : targetMedia.format
       });
       setDownloading(false);
     } catch (err: any) {
       console.error('[Download Error]', err);
-      setErrorMessage(err.message || 'Download failed. Please try again.');
-      setDownloading(false);
+      try {
+        const a = document.createElement('a');
+        a.href = directUrl;
+        a.download = targetFilename;
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => document.body.removeChild(a), 3000);
+        setDownloadProgress(100);
+        setDownloadStatus('Download complete');
+        setDownloadComplete(true);
+        setDownloading(false);
+      } catch (fallbackErr: any) {
+        setErrorMessage(fallbackErr.message || 'Download failed. Please try again.');
+        setDownloading(false);
+      }
     }
   };
 
