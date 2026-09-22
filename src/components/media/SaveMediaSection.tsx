@@ -99,9 +99,9 @@ function formatRelativeTime(timestamp: number): string {
 // Fallback client-side extractor if serverless API times out or experiences a network error
 async function extractClientSideMedia(rawUrl: string): Promise<MediaItem> {
   const lower = rawUrl.toLowerCase();
-  let title = 'Web Media';
-  let author: string | undefined;
-  let thumbnail: string | undefined;
+  let title = 'FideTV Media Stream';
+  let author: string | undefined = 'FideTV Creator Hub';
+  let thumbnail: string | undefined = 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&q=80&w=1200';
   let platform = 'Web';
   let type: 'video' | 'audio' | 'image' | 'file' = 'video';
   let format = 'MP4';
@@ -110,81 +110,53 @@ async function extractClientSideMedia(rawUrl: string): Promise<MediaItem> {
   if (lower.includes('youtube.com') || lower.includes('youtu.be')) {
     platform = 'YouTube';
     const videoId = rawUrl.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([a-zA-Z0-9_-]{11})/)?.[1] || '';
-    thumbnail = videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : undefined;
-    try {
-      const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(rawUrl)}&format=json`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.title) title = data.title;
-        if (data.author_name) author = data.author_name;
-        if (data.thumbnail_url) thumbnail = data.thumbnail_url;
-      }
-    } catch {}
+    if (videoId) {
+      thumbnail = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+      title = `YouTube HD Video (${videoId})`;
+    }
   } else if (lower.includes('tiktok.com')) {
     platform = 'TikTok';
-    try {
-      const res = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(rawUrl)}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.title) title = data.title;
-        if (data.author_name) author = data.author_name;
-        if (data.thumbnail_url) thumbnail = data.thumbnail_url;
-      }
-    } catch {}
+    title = 'TikTok HD Video & Audio Stream';
+    thumbnail = 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&q=80&w=800';
+  } else if (lower.includes('instagram.com')) {
+    platform = 'Instagram';
+    title = 'Instagram Media Reel & Post';
+    thumbnail = 'https://images.unsplash.com/photo-1611262588024-d12430b989db?auto=format&fit=crop&q=80&w=800';
   } else if (lower.includes('twitter.com') || lower.includes('x.com')) {
     platform = 'Twitter / X';
-    try {
-      const res = await fetch(`https://publish.twitter.com/oembed?url=${encodeURIComponent(rawUrl)}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.author_name) {
-          title = `Post by ${data.author_name}`;
-          author = data.author_name;
-        }
-      }
-    } catch {}
+    title = 'X / Twitter Media Broadcast';
+    thumbnail = 'https://images.unsplash.com/photo-1611605698335-8b1569810432?auto=format&fit=crop&q=80&w=800';
   } else if (lower.includes('spotify.com')) {
     platform = 'Spotify';
     type = 'audio';
     format = 'MP3';
     mimeType = 'audio/mpeg';
-    try {
-      const res = await fetch(`https://open.spotify.com/oembed?url=${encodeURIComponent(rawUrl)}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.title) title = data.title;
-        if (data.thumbnail_url) thumbnail = data.thumbnail_url;
-      }
-    } catch {}
+    title = 'Spotify Audio Track';
+    thumbnail = 'https://images.unsplash.com/photo-1614680376593-902f749f7ffc?auto=format&fit=crop&q=80&w=800';
   } else if (lower.includes('soundcloud.com')) {
     platform = 'SoundCloud';
     type = 'audio';
     format = 'MP3';
     mimeType = 'audio/mpeg';
-    try {
-      const res = await fetch(`https://soundcloud.com/oembed?url=${encodeURIComponent(rawUrl)}&format=json`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.title) title = data.title;
-        if (data.author_name) author = data.author_name;
-        if (data.thumbnail_url) thumbnail = data.thumbnail_url;
-      }
-    } catch {}
+    title = 'SoundCloud Audio Stream';
+    thumbnail = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&q=80&w=800';
   } else {
     try {
       const parsed = new URL(rawUrl);
       platform = parsed.hostname.replace(/^www\./, '');
+      const pathname = parsed.pathname;
+      const lastPart = pathname.split('/').filter(Boolean).pop() || 'media';
       const isAudio = /\.(mp3|wav|aac|ogg|m4a|flac)(?:\?|$)/i.test(rawUrl);
       if (isAudio) {
         type = 'audio';
         format = 'MP3';
         mimeType = 'audio/mpeg';
       }
-      title = `${platform.charAt(0).toUpperCase() + platform.slice(1)} Media`;
+      title = `${platform.charAt(0).toUpperCase() + platform.slice(1)} - ${lastPart.replace(/[^a-zA-Z0-9_-]/g, ' ')}`;
     } catch {}
   }
 
-  const cleanFilename = `${title.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40) || 'media'}.${format.toLowerCase()}`;
+  const cleanFilename = `${title.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40) || 'fidetv_media'}.${format.toLowerCase()}`;
 
   return {
     type,
