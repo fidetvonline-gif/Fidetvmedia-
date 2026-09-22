@@ -78,9 +78,10 @@ export async function handleMediaDownload(req: Request, res: Response): Promise<
 
     const contentType = String(response.headers['content-type'] || 'application/octet-stream');
 
-    // Disallow HTML pages
+    // If HTML page (like YouTube or social media watch pages), redirect to source or provide stream
     if (contentType.includes('text/html')) {
-      res.status(415).json({ error: "This media type is not supported. The link points to a webpage." });
+      console.log(`[Media Download] URL returned HTML webpage. Redirecting to source: ${url}`);
+      res.redirect(302, url);
       return;
     }
 

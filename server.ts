@@ -1008,8 +1008,8 @@ export async function initApp(startServer = true) {
 
       const contentType = (response.headers as any)['content-type'] || 'application/octet-stream';
       if (contentType.includes('text/html')) {
-        console.error(`[Download Proxy Error] Refused to stream HTML: ${url}`);
-        return res.status(415).send("The link points to a webpage, not a direct media file.");
+        console.log(`[Download Proxy] URL returned HTML webpage. Redirecting to source: ${url}`);
+        return res.redirect(302, url);
       }
 
       const cleanFilename = (filename as string || `fidesave-${Date.now()}.mp4`).replace(/[^a-zA-Z0-9.\-_]/g, '_');
