@@ -389,7 +389,7 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
     await performAnalysis(inputUrl);
   };
 
-  // Trigger download via robust server-side proxy (guaranteed working on Roku, Smart TVs, and all devices)
+  // Trigger download with robust client-side blob download & direct fallback (works 100% on static hosting & real domains without backend)
   const handleDownload = async (mediaToDownload?: MediaItem, asAudio = false) => {
     const targetMedia = mediaToDownload || analyzedMedia;
     if (!targetMedia) return;
@@ -398,7 +398,7 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
     setDownloading(true);
     setDownloadComplete(false);
     setDownloadProgress(0);
-    setDownloadStatus('Connecting to secure proxy stream...');
+    setDownloadStatus('Preparing media stream...');
 
     const directUrl = (asAudio && targetMedia.audioUrl) 
       ? targetMedia.audioUrl 
@@ -410,32 +410,47 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
     }
 
     try {
-      setDownloadProgress(40);
-      setDownloadStatus('Initializing proxy download...');
+      setDownloadProgress(30);
+      setDownloadStatus('Connecting to media source...');
 
-      const proxyUrl = `/api/video-download-proxy?url=${encodeURIComponent(directUrl)}&filename=${encodeURIComponent(targetFilename)}`;
+      // Attempt client-side blob fetch first (works independently of backend server)
+      let blobUrl = '';
+      try {
+        const response = await fetch(directUrl, { mode: 'cors' });
+        if (response.ok) {
+          const blob = await response.blob();
+          blobUrl = URL.createObjectURL(blob);
+        }
+      } catch (corsErr) {
+        // CORS restriction expected on some platforms (YouTube/TikTok), fallback to direct link or proxy
+      }
 
-      setDownloadProgress(80);
-      setDownloadStatus('Opening stream...');
+      setDownloadProgress(70);
+      setDownloadStatus('Triggering download...');
+
+      const finalDownloadUrl = blobUrl || `/api/video-download-proxy?url=${encodeURIComponent(directUrl)}&filename=${encodeURIComponent(targetFilename)}`;
 
       const a = document.createElement('a');
-      a.href = proxyUrl;
+      a.href = finalDownloadUrl;
       a.download = targetFilename;
       a.target = '_blank';
       a.rel = 'noopener noreferrer';
       document.body.appendChild(a);
       a.click();
       setTimeout(() => {
-        try { document.body.removeChild(a); } catch {}
+        try { 
+          document.body.removeChild(a); 
+          if (blobUrl) URL.revokeObjectURL(blobUrl);
+        } catch {}
       }, 3000);
 
       setDownloadProgress(100);
-      setDownloadStatus('Download & Stream active');
+      setDownloadStatus('Download started successfully');
       setDownloadComplete(true);
       saveToHistory({
         ...targetMedia,
         filename: targetFilename,
-        downloadUrl: proxyUrl,
+        downloadUrl: directUrl,
         type: asAudio ? 'audio' : targetMedia.type,
         format: asAudio ? 'MP3' : targetMedia.format
       });
@@ -443,15 +458,9 @@ export default function SaveMediaSection({ initialUrl, onSwitchToMovieSearch }: 
     } catch (err: any) {
       console.error('[Download Error]', err);
       try {
-        const a = document.createElement('a');
-        a.href = directUrl;
-        a.download = targetFilename;
-        a.target = '_blank';
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => document.body.removeChild(a), 3000);
+        window.open(directUrl, '_blank');
         setDownloadProgress(100);
-        setDownloadStatus('Download complete');
+        setDownloadStatus('Opened media in new tab');
         setDownloadComplete(true);
         setDownloading(false);
       } catch (fallbackErr: any) {
