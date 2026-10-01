@@ -969,10 +969,14 @@ export async function initApp(startServer = true) {
     }
   });
 
-  // Video download proxy with improved Range support and Error handling
+  // Video download proxy with Roku & Smart TV support, CORS, and robust Range handling
   apiRouter.get("/video-download-proxy", async (req, res) => {
-    const { url, filename } = req.query;
+    const { url, filename, inline } = req.query;
     if (!url || typeof url !== 'string') return res.status(400).send("URL required");
+
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', '*');
 
     try {
       console.log(`[Download Proxy] Initiating download for: ${url}`);
@@ -1025,7 +1029,16 @@ export async function initApp(startServer = true) {
         }
       });
 
-      res.setHeader('Content-Disposition', `attachment; filename="${cleanFilename}"`);
+      // Check if Roku / Smart TV or inline streaming requested
+      const userAgent = req.headers['user-agent'] || '';
+      const isRokuOrTv = /roku|smarttv|smart-tv|googletv|appletv|hbbtv|netcast|webos/i.test(userAgent);
+      const forceInline = inline === '1' || inline === 'true' || isRokuOrTv;
+
+      if (forceInline) {
+        res.setHeader('Content-Disposition', `inline; filename="${cleanFilename}"`);
+      } else {
+        res.setHeader('Content-Disposition', `attachment; filename="${cleanFilename}"`);
+      }
       res.setHeader('Cache-Control', 'no-cache');
 
       response.data.on('error', (e: any) => {
@@ -1106,6 +1119,10 @@ export async function initApp(startServer = true) {
   });
 
   apiRouter.post("/media/analyze", mediaLimiter, async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', '*');
+
     try {
       console.log(`[1] function started`);
       let body = req.body;
