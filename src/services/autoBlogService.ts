@@ -144,8 +144,15 @@ export class AutoBlogService {
       const data = await fs.readFile(this.storageFilePath, 'utf-8');
       const parsed = JSON.parse(data);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        this.posts = parsed;
-        console.log(`[AutoBlogService] Loaded ${this.posts.length} blog posts from disk cache.`);
+        const uniqueMap = new Map<string, AutoBlogPost>();
+        for (const p of parsed) {
+          const key = p.slug || p.id || (p.title ? p.title.toLowerCase().trim() : Math.random().toString());
+          if (!uniqueMap.has(key)) {
+            uniqueMap.set(key, p);
+          }
+        }
+        this.posts = Array.from(uniqueMap.values());
+        console.log(`[AutoBlogService] Loaded ${this.posts.length} unique blog posts from disk cache.`);
         return;
       }
     } catch {

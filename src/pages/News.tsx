@@ -96,7 +96,31 @@ export default function News() {
   const [lastUpdated, setLastUpdated] = useState<string | null>(new Date().toISOString());
 
   useEffect(() => {
-    fetchNews();
+    fetchNews().then(() => {
+      fetch('/api/blog/auto-generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.success && Array.isArray(data.posts) && data.posts.length > 0) {
+            // Deduplicate posts
+            const uniqueMap = new Map<string, NewsType>();
+            for (const item of data.posts) {
+              const key = item.slug || item.id || (item.title ? item.title.toLowerCase().trim() : Math.random().toString());
+              if (!uniqueMap.has(key)) {
+                uniqueMap.set(key, item);
+              }
+            }
+            const cleanPosts = Array.from(uniqueMap.values());
+            setNews(cleanPosts);
+            try {
+              safeLocalStorage.setItem('fidetv_live_blogs', JSON.stringify(cleanPosts));
+            } catch {}
+          }
+        })
+        .catch(() => {});
+    });
   }, [selectedCategory]);
 
   const fetchNews = async () => {
@@ -125,23 +149,13 @@ export default function News() {
       const res = await fetch(url);
       const data = await parseResponseJson(res);
       if (data && Array.isArray(data.posts) && data.posts.length > 0) {
-        // Merge API posts
-        const existingSlugs = new Set(data.posts.map((n: any) => n.slug || n.id));
-        combinedNews = [...data.posts];
-        // Append any bundled posts that weren't in API response
-        for (const item of (AUTO_BLOGS as any[])) {
-          const key = item.slug || item.id;
-          if (!existingSlugs.has(key)) {
-            combinedNews.push(item);
-            existingSlugs.add(key);
-          }
-        }
+        combinedNews = [...data.posts, ...combinedNews];
         if (data.lastSync) {
           setLastUpdated(data.lastSync);
         }
       }
     } catch (err) {
-      console.warn('[News] AutoBlog API fetch notice (using bundled wire cache):', err);
+      console.warn('[News] AutoBlog API fetch notice:', err);
     }
 
     // 3. Fetch from Supabase (if available) and merge
@@ -158,14 +172,7 @@ export default function News() {
 
       const { data: dbData } = await query;
       if (dbData && Array.isArray(dbData)) {
-        const existingSlugs = new Set(combinedNews.map(n => n.slug || n.id));
-        for (const item of dbData) {
-          const key = item.slug || item.id;
-          if (!existingSlugs.has(key)) {
-            combinedNews.push(item);
-            existingSlugs.add(key);
-          }
-        }
+        combinedNews = [...dbData, ...combinedNews];
       }
     } catch (dbErr) {
       console.warn('[News] Supabase fetch notice:', dbErr);
@@ -185,41 +192,21 @@ export default function News() {
       combinedNews = combinedNews.filter(n => n.category?.toLowerCase() === catLower);
     }
 
+    // Strict Deduplication by slug, id, or normalized title
+    const uniqueMap = new Map<string, NewsType>();
+    for (const item of combinedNews) {
+      const key = item.slug || item.id || (item.title ? item.title.toLowerCase().trim() : Math.random().toString());
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, item);
+      }
+    }
+    combinedNews = Array.from(uniqueMap.values());
+
     // Sort by created_at descending
     combinedNews.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
     setNews(combinedNews);
     setLoading(false);
-  };
-
-  const handleSyncNews = async () => {
-    setIsSyncing(true);
-    setSyncStatusMsg('Ingesting latest breaking news & generating blog posts...');
-    try {
-      const res = await fetch('/api/blog/auto-generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const data = await parseResponseJson(res);
-      if (data && data.success && Array.isArray(data.posts) && data.posts.length > 0) {
-        setSyncStatusMsg(data.message || 'Latest news ingested and posted successfully!');
-        setNews(data.posts);
-        try {
-          safeLocalStorage.setItem('fidetv_live_blogs', JSON.stringify(data.posts));
-        } catch {}
-        setLastUpdated(new Date().toISOString());
-      } else {
-        setSyncStatusMsg('All latest news articles are already up to date!');
-        await fetchNews();
-      }
-    } catch (err: any) {
-      console.warn('[News] Auto-sync warning (falling back to live local refresh):', err);
-      setSyncStatusMsg('News feed refreshed with latest wire dispatches.');
-      await fetchNews();
-    } finally {
-      setIsSyncing(false);
-      setTimeout(() => setSyncStatusMsg(null), 4000);
-    }
   };
 
   const filteredNews = news.filter(item => {
@@ -237,7 +224,7 @@ export default function News() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-      {/* Header & Automated Sync Banner */}
+      {/* Header */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-8 mb-12">
         <div className="space-y-4">
           <div className="inline-flex items-center space-x-2.5 px-3.5 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary font-black uppercase tracking-[0.25em] text-xs">
@@ -251,46 +238,7 @@ export default function News() {
             Continuously updated editorial news on media production, broadcasting breakthroughs, creator tools, and real-time industry intelligence.
           </p>
         </div>
-
-        {/* Live Auto-Update Control Card */}
-        <div className="w-full lg:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-3 glass p-3.5 rounded-2xl border-border-custom shadow-xl">
-          <div className="flex items-center space-x-2 text-xs text-text-muted px-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-            <span className="font-semibold text-foreground">Live News Feed</span>
-            {lastUpdated && (
-              <span className="text-[11px] text-text-muted hidden sm:inline">
-                • {formatDistanceToNow(new Date(lastUpdated), { addSuffix: true })}
-              </span>
-            )}
-          </div>
-          <button
-            onClick={handleSyncNews}
-            disabled={isSyncing}
-            className="flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-medium text-xs transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer"
-            title="Fetch latest breaking news and automatically post new blog articles"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-            <span>{isSyncing ? 'Auto-Updating...' : 'Auto-Update News'}</span>
-          </button>
-        </div>
       </div>
-
-      {/* Sync Status Toast Notification */}
-      <AnimatePresence>
-        {syncStatusMsg && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="mb-8 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-between text-sm"
-          >
-            <div className="flex items-center space-x-3">
-              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-              <span>{syncStatusMsg}</span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Search & Category Filter Navigation */}
       <div className="mb-12 space-y-5">
@@ -364,11 +312,11 @@ export default function News() {
               : 'Our automated news wire is refreshing. Click "Auto-Update News" above to fetch latest stories.'}
           </p>
           <button
-            onClick={handleSyncNews}
+            onClick={fetchNews}
             className="mt-6 inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary-hover transition-all cursor-pointer"
           >
             <RefreshCw className="w-3.5 h-3.5" />
-            <span>Fetch Latest News Now</span>
+            <span>Refresh News Now</span>
           </button>
         </div>
       ) : (
