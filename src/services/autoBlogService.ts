@@ -72,6 +72,16 @@ const CATEGORY_FALLBACK_IMAGES: Record<string, string[]> = {
 
 const NEWS_SOURCES = [
   {
+    name: 'Channels Television Nigeria',
+    url: 'https://www.channelstv.com/feed/',
+    defaultCategory: 'Global News & Culture'
+  },
+  {
+    name: 'Vanguard Nigeria News',
+    url: 'https://www.vanguardngr.com/feed/',
+    defaultCategory: 'Global News & Culture'
+  },
+  {
     name: 'Tech & Digital Innovation',
     url: 'http://feeds.bbci.co.uk/news/technology/rss.xml',
     defaultCategory: 'Technology & AI'
