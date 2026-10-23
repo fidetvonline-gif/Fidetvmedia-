@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Play, Calendar, Users, ArrowRight, Video, Zap, CheckCircle, Flame, Sparkles, Globe, Shield, X, MessageSquare, Newspaper, Monitor, Smartphone, BarChart3, Radio, Heart, Phone, Award, Instagram, Linkedin, ExternalLink, Tv, Headphones, DownloadCloud, Download, Link as LinkIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, getHighQualityImage } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import ReactPlayer from 'react-player';
 import { PortfolioItem, News } from '@/types';
@@ -18,6 +18,7 @@ import DisplayInlineAds from '@/components/DisplayInlineAds';
 import { YouTubeVideoPlayer } from '@/components/YouTubeVideoPlayer';
 
 import { ReferralLeaderboard } from '@/components/ReferralLeaderboard';
+import AUTO_BLOGS from '@/data/auto_blogs.json';
 
 const Player = ReactPlayer as any;
 
@@ -42,7 +43,7 @@ export default function Home() {
   const [smedanUrl, setSmedanUrl] = useState('');
   const [playingVideo, setPlayingVideo] = useState<PortfolioItem | null>(null);
   const [featuredPortfolio, setFeaturedPortfolio] = useState<PortfolioItem[]>([]);
-  const [latestNews, setLatestNews] = useState<News[]>([]);
+  const [latestNews, setLatestNews] = useState<News[]>((AUTO_BLOGS as any[]).slice(0, 3));
   const [displayedChannels, setDisplayedChannels] = useState<any[]>([]);
   const [displayedVideos, setDisplayedVideos] = useState<PortfolioItem[]>([]);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -210,33 +211,11 @@ export default function Home() {
           profiles: item.profiles || { username: 'FideTV News Desk' }
         })) as News[]);
       } else {
-        setLatestNews([
-          {
-            id: 'default-news-1',
-            title: 'FideTV Global Broadcast Hub Launches 25+ 24/7 HD Streams',
-            excerpt: 'Experience uninterrupted live broadcasting with our new high-performance streaming architecture.',
-            description: 'Experience uninterrupted live broadcasting with our new high-performance streaming architecture.',
-            content: 'Experience uninterrupted live broadcasting with our new high-performance streaming architecture.',
-            image_url: 'https://images.unsplash.com/photo-1478737270239-2f02b77fc618?q=80&w=800',
-            created_at: new Date().toISOString(),
-            profiles: { username: 'FideTV Admin' } as any
-          }
-        ]);
+        setLatestNews((AUTO_BLOGS as any[]).slice(0, 3));
       }
     } catch (err) {
-      console.warn('News fetch warning (handled):', err);
-      setLatestNews([
-        {
-          id: 'default-news-1',
-          title: 'FideTV Global Broadcast Hub Launches 25+ 24/7 HD Streams',
-          excerpt: 'Experience uninterrupted live broadcasting with our new high-performance streaming architecture.',
-          description: 'Experience uninterrupted live broadcasting with our new high-performance streaming architecture.',
-          content: 'Experience uninterrupted live broadcasting with our new high-performance streaming architecture.',
-          image_url: 'https://images.unsplash.com/photo-1478737270239-2f02b77fc618?q=80&w=800',
-          created_at: new Date().toISOString(),
-          profiles: { username: 'FideTV Admin' } as any
-        }
-      ]);
+      console.warn('News fetch warning (using bundled news):', err);
+      setLatestNews((AUTO_BLOGS as any[]).slice(0, 3));
     }
   };
 
@@ -1501,8 +1480,9 @@ export default function Home() {
                 <div className="flex flex-col h-full relative z-10">
                   <div className="aspect-[16/10] overflow-hidden relative bg-background">
                     <img 
-                      src={item.image_url || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&q=80&w=800'} 
+                      src={getHighQualityImage(item.image_url || (item as any).cover_image)} 
                       alt={item.title} 
+                      loading="lazy"
                       className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500 opacity-90" 
                     />
                     <div className="absolute top-4 left-4 z-30">

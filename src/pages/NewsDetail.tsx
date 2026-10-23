@@ -8,7 +8,9 @@ import { Calendar, User, ArrowLeft, Share2, Bookmark, Heart, MessageCircle, Send
 import { format, formatDistanceToNow } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
 import ReactPlayer from 'react-player';
-import { cn } from '@/lib/utils';
+import { cn, getHighQualityImage } from '@/lib/utils';
+import AUTO_BLOGS from '@/data/auto_blogs.json';
+import { safeLocalStorage } from '@/lib/storage';
 
 const Player = ReactPlayer as any;
 
@@ -103,6 +105,32 @@ export default function NewsDetail() {
     }
 
     try {
+      // 0. Immediate match from bundled AUTO_BLOGS and localStorage (Instant on real domain)
+      let localMatch: any = null;
+      try {
+        const local = safeLocalStorage.getItem('fidetv_live_blogs');
+        if (local) {
+          const parsed = JSON.parse(local);
+          if (Array.isArray(parsed)) {
+            localMatch = parsed.find((p: any) => p.slug === slug || p.id === slug);
+          }
+        }
+      } catch {}
+
+      if (!localMatch && Array.isArray(AUTO_BLOGS)) {
+        localMatch = (AUTO_BLOGS as any[]).find(p => p.slug === slug || p.id === slug);
+      }
+
+      if (localMatch) {
+        setItem(localMatch);
+        const related = ((AUTO_BLOGS as any[]) || []).filter(p => p.id !== localMatch.id).slice(0, 3);
+        setRelatedNews(related);
+        setLoading(false);
+        fetchComments(localMatch.id);
+        fetchLikes(localMatch.id);
+        return;
+      }
+
       // 1. Try fetching from automated blog posts API first
       try {
         const apiRes = await fetch(`/api/blog/posts/${encodeURIComponent(slug!)}`);
@@ -377,9 +405,15 @@ export default function NewsDetail() {
         </div>
       </header>
 
-      {item.image_url && (
+      {(item.image_url || (item as any).cover_image) && (
         <div className="rounded-[2.5rem] sm:rounded-[3rem] overflow-hidden mb-16 border border-border-custom aspect-video shadow-2xl relative group bg-surface">
-          <img src={item.image_url} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" />
+          <img 
+            src={getHighQualityImage(item.image_url || (item as any).cover_image)} 
+            alt={item.title} 
+            loading="eager"
+            fetchPriority="high"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" 
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
         </div>
       )}

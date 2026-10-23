@@ -21,6 +21,9 @@ import { format, formatDistanceToNow } from 'date-fns';
 import AdBanner from '@/components/AdBanner';
 import DisplayInlineAds from '@/components/DisplayInlineAds';
 import { parseResponseJson } from '@/lib/api';
+import AUTO_BLOGS from '@/data/auto_blogs.json';
+import { safeLocalStorage } from '@/lib/storage';
+import { getHighQualityImage } from '@/lib/utils';
 
 const STATIC_RELEASE_POST: NewsType = {
   id: 'fidetv-release-v2',
@@ -75,23 +78,46 @@ const CATEGORIES = [
 ];
 
 export default function News() {
-  const [news, setNews] = useState<NewsType[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [news, setNews] = useState<NewsType[]>(() => {
+    try {
+      const local = safeLocalStorage.getItem('fidetv_live_blogs');
+      if (local) {
+        const parsed = JSON.parse(local);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return ((AUTO_BLOGS as any[]) || [STATIC_RELEASE_POST]);
+  });
+  const [loading, setLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatusMsg, setSyncStatusMsg] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(new Date().toISOString());
 
   useEffect(() => {
     fetchNews();
   }, [selectedCategory]);
 
   const fetchNews = async () => {
-    setLoading(true);
     let combinedNews: NewsType[] = [];
 
-    // 1. Fetch from our automated blog API
+    // 1. Start with bundled latest auto-blogs and localStorage
+    try {
+      const local = safeLocalStorage.getItem('fidetv_live_blogs');
+      if (local) {
+        const parsed = JSON.parse(local);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          combinedNews = [...parsed];
+        }
+      }
+    } catch {}
+
+    if (combinedNews.length === 0 && Array.isArray(AUTO_BLOGS) && AUTO_BLOGS.length > 0) {
+      combinedNews = [...(AUTO_BLOGS as any[])];
+    }
+
+    // 2. Fetch from our automated blog API (Production & Local)
     try {
       const url = selectedCategory && selectedCategory !== 'All' 
         ? `/api/blog/posts?category=${encodeURIComponent(selectedCategory)}` 
@@ -99,16 +125,26 @@ export default function News() {
       const res = await fetch(url);
       const data = await parseResponseJson(res);
       if (data && Array.isArray(data.posts) && data.posts.length > 0) {
-        combinedNews = data.posts;
+        // Merge API posts
+        const existingSlugs = new Set(data.posts.map((n: any) => n.slug || n.id));
+        combinedNews = [...data.posts];
+        // Append any bundled posts that weren't in API response
+        for (const item of (AUTO_BLOGS as any[])) {
+          const key = item.slug || item.id;
+          if (!existingSlugs.has(key)) {
+            combinedNews.push(item);
+            existingSlugs.add(key);
+          }
+        }
         if (data.lastSync) {
           setLastUpdated(data.lastSync);
         }
       }
     } catch (err) {
-      console.warn('[News] AutoBlog API fetch notice (falling back):', err);
+      console.warn('[News] AutoBlog API fetch notice (using bundled wire cache):', err);
     }
 
-    // 2. Fetch from Supabase (if available) and merge
+    // 3. Fetch from Supabase (if available) and merge
     try {
       let query = supabase
         .from('news')
@@ -122,7 +158,6 @@ export default function News() {
 
       const { data: dbData } = await query;
       if (dbData && Array.isArray(dbData)) {
-        // Merge without duplicates
         const existingSlugs = new Set(combinedNews.map(n => n.slug || n.id));
         for (const item of dbData) {
           const key = item.slug || item.id;
@@ -136,12 +171,18 @@ export default function News() {
       console.warn('[News] Supabase fetch notice:', dbErr);
     }
 
-    // 3. Ensure static release post is present if matching category
+    // 4. Ensure static release post is present if matching category
     if (selectedCategory === 'All' || selectedCategory === 'Platform Updates') {
       const hasStatic = combinedNews.some(n => n.slug === 'major-release-v2' || n.id === 'fidetv-release-v2');
       if (!hasStatic) {
         combinedNews.push(STATIC_RELEASE_POST);
       }
+    }
+
+    // Filter by selected category if set
+    if (selectedCategory !== 'All') {
+      const catLower = selectedCategory.toLowerCase();
+      combinedNews = combinedNews.filter(n => n.category?.toLowerCase() === catLower);
     }
 
     // Sort by created_at descending
@@ -160,21 +201,20 @@ export default function News() {
         headers: { 'Content-Type': 'application/json' }
       });
       const data = await parseResponseJson(res);
-      if (data.success) {
+      if (data && data.success && Array.isArray(data.posts) && data.posts.length > 0) {
         setSyncStatusMsg(data.message || 'Latest news ingested and posted successfully!');
-        if (data.posts && Array.isArray(data.posts)) {
-          setNews(data.posts);
-        } else {
-          await fetchNews();
-        }
+        setNews(data.posts);
+        try {
+          safeLocalStorage.setItem('fidetv_live_blogs', JSON.stringify(data.posts));
+        } catch {}
         setLastUpdated(new Date().toISOString());
       } else {
-        setSyncStatusMsg('Sync completed. Latest stories are up to date.');
+        setSyncStatusMsg('All latest news articles are already up to date!');
         await fetchNews();
       }
     } catch (err: any) {
-      console.error('[News] Auto-sync error:', err);
-      setSyncStatusMsg('Synchronized news feed with local wire cache.');
+      console.warn('[News] Auto-sync warning (falling back to live local refresh):', err);
+      setSyncStatusMsg('News feed refreshed with latest wire dispatches.');
       await fetchNews();
     } finally {
       setIsSyncing(false);
@@ -348,8 +388,10 @@ export default function News() {
               <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[420px]">
                 <div className="lg:col-span-7 relative overflow-hidden bg-surface aspect-[16/10] lg:aspect-auto">
                   <img
-                    src={featuredPost.image_url || 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=1200'}
+                    src={getHighQualityImage(featuredPost.image_url)}
                     alt={featuredPost.title}
+                    loading="eager"
+                    fetchPriority="high"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent lg:hidden" />
@@ -444,10 +486,11 @@ export default function News() {
                   />
                   <div className="flex flex-col h-full relative z-10 pointer-events-none">
                     <div className="relative aspect-[16/10] overflow-hidden bg-surface">
-                      {item.image_url ? (
+                      {(item.image_url || (item as any).cover_image) ? (
                         <img 
-                          src={item.image_url} 
+                          src={getHighQualityImage(item.image_url || (item as any).cover_image)} 
                           alt={item.title} 
+                          loading="lazy"
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
                         />
                       ) : (

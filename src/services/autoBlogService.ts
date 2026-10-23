@@ -42,31 +42,31 @@ interface RawFeedItem {
 
 const CATEGORY_FALLBACK_IMAGES: Record<string, string[]> = {
   'Broadcasting & Streaming': [
-    'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=1200&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1516280440614-37939bbacd81?q=80&w=1200&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1478737270239-2f02b77fc618?q=80&w=1200&auto=format&fit=crop'
+    'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=85&w=1600&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1516280440614-37939bbacd81?q=85&w=1600&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1478737270239-2f02b77fc618?q=85&w=1600&auto=format&fit=crop'
   ],
   'Technology & AI': [
-    'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1200&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=1200&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1531482615713-2afd69097998?q=80&w=1200&auto=format&fit=crop'
+    'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=85&w=1600&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=85&w=1600&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1531482615713-2afd69097998?q=85&w=1600&auto=format&fit=crop'
   ],
   'Media & Entertainment': [
-    'https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=1200&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=1200&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1522869635100-9f4c5e86aa37?q=80&w=1200&auto=format&fit=crop'
+    'https://images.unsplash.com/photo-1485846234645-a62644f84728?q=85&w=1600&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=85&w=1600&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1522869635100-9f4c5e86aa37?q=85&w=1600&auto=format&fit=crop'
   ],
   'Global News & Culture': [
-    'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1200&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1200&auto=format&fit=crop'
+    'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=85&w=1600&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=85&w=1600&auto=format&fit=crop'
   ],
   'Creator Economy & Production': [
-    'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?q=80&w=1200&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?q=80&w=1200&auto=format&fit=crop'
+    'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?q=85&w=1600&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?q=85&w=1600&auto=format&fit=crop'
   ],
   'Sports & Live Events': [
-    'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1200&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=1200&auto=format&fit=crop'
+    'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=85&w=1600&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=85&w=1600&auto=format&fit=crop'
   ]
 };
 
@@ -347,7 +347,46 @@ Output ONLY valid JSON in this exact structure without markdown fences:
     return null;
   }
 
-  private synthesizeFallbackPost(rawItem: RawFeedItem): {
+  private async scrapeArticleDetail(url: string): Promise<{ highResImage?: string; paragraphs: string[] } | null> {
+    try {
+      const cleanUrl = url.split('?')[0];
+      const resp = await axios.get(cleanUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 FideTV-NewsBot/3.0'
+        },
+        timeout: 6000
+      });
+      const $ = cheerio.load(resp.data);
+      let ogImg = $('meta[property="og:image"]').attr('content') ||
+                  $('meta[name="twitter:image:src"]').attr('content') ||
+                  $('figure img').first().attr('src') ||
+                  '';
+      if (ogImg) {
+        ogImg = ogImg
+          .replace(/\/standard\/\d+\//, '/standard/1280/')
+          .replace(/\/cpsprodpb\/[a-z0-9]+\/live\//, '/cpsprodpb/1200/live/')
+          .replace(/\/branded_news\/\d+\//, '/branded_news/1200/');
+      }
+      const paragraphs: string[] = [];
+      $('article p, [data-component="text-block"] p, main p').each((_, el) => {
+        const text = $(el).text().trim();
+        if (
+          text.length > 25 &&
+          !text.includes('Follow BBC') &&
+          !text.includes('Sign up for our') &&
+          !text.includes('Image source,') &&
+          !text.toLowerCase().startsWith('image caption')
+        ) {
+          paragraphs.push(text);
+        }
+      });
+      return { highResImage: ogImg || undefined, paragraphs };
+    } catch {
+      return null;
+    }
+  }
+
+  private synthesizeFallbackPost(rawItem: RawFeedItem, fullParas?: string[]): {
     title: string;
     excerpt: string;
     content: string;
@@ -358,17 +397,37 @@ Output ONLY valid JSON in this exact structure without markdown fences:
     const title = rawItem.title;
     const category = rawItem.defaultCategory;
     const snippet = rawItem.description || 'Breaking coverage on major industry developments.';
-    const excerpt = snippet.length > 170 ? snippet.substring(0, 167) + '...' : snippet;
+    let excerpt = snippet.length > 170 ? snippet.substring(0, 167) + '...' : snippet;
 
-    const content = `In a fast-moving development across the international media landscape, **${title}** has emerged as a focal point for industry observers, digital broadcasters, and creative professionals worldwide.
+    let content = '';
+    let readTime = '4 min read';
+
+    if (fullParas && fullParas.length >= 3) {
+      const lead = fullParas.slice(0, 2).join('\n\n');
+      const middleStory = fullParas.slice(2, Math.floor(fullParas.length * 0.65)).join('\n\n');
+      const detailBackground = fullParas.slice(Math.floor(fullParas.length * 0.65), fullParas.length - 2).join('\n\n');
+      const concluding = fullParas.slice(fullParas.length - 2).join('\n\n');
+
+      if (fullParas[0]) {
+        excerpt = fullParas[0].length > 170 ? fullParas[0].substring(0, 167) + '...' : fullParas[0];
+      }
+
+      const words = fullParas.join(' ').split(/\s+/).length;
+      readTime = `${Math.max(3, Math.ceil(words / 200))} min read`;
+
+      content = `${lead}
 
 ---
 
-### 🌐 The Developing Story
+### 📰 The Full Developing Story & Context
 
-${snippet}
+${middleStory}
 
-As reported via ${rawItem.sourceName}, this event reflects broader shifts currently impacting how media is distributed, consumed, and experienced in real-time environments. Technological convergence and changing audience expectations continue to redefine standard workflows across live broadcasting and digital networks.
+---
+
+### 🔍 In-Depth Background & Statements
+
+${detailBackground}
 
 ---
 
@@ -379,6 +438,12 @@ From a digital media infrastructure viewpoint, updates of this magnitude demonst
 * **Real-time Distribution**: The shift towards decentralized, multi-channel broadcast architectures.
 * **Creator Democratization**: Lowering the barrier for independent journalists and production studios to broadcast globally.
 * **Audience Interactivity**: Moving beyond passive viewing to synchronized voice spaces, collaborative commentary, and community notice walls.
+
+---
+
+### 🎙️ Perspectives & What Comes Next
+
+${concluding}
 
 ---
 
@@ -394,6 +459,41 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
 2. **Key Insight**: ${snippet.substring(0, 100)}...
 3. **Next Steps**: Continued observation of follow-up announcements and technical standards rollouts.
 4. **Source Reference**: Live wire coverage courtesy of *${rawItem.sourceName}*.`;
+    } else {
+      content = `In a fast-moving development across the international media landscape, **${title}** has emerged as a focal point for industry observers, digital broadcasters, and creative professionals worldwide.
+
+---
+
+### 🌐 The Developing Story
+
+${snippet}
+
+As reported via ${rawItem.sourceName}, this event reflects broader shifts currently impacting how media is distributed, consumed, and experienced in real-time environments.
+
+---
+
+### 📡 Industry & Broadcast Perspective
+
+From a digital media infrastructure viewpoint, updates of this magnitude demonstrate the critical importance of adaptable, high-capacity broadcasting systems:
+* **Real-time Distribution**: The shift towards decentralized, multi-channel broadcast architectures.
+* **Creator Democratization**: Lowering the barrier for independent journalists and production studios to broadcast globally.
+* **Audience Interactivity**: Synchronized voice spaces and collaborative commentary.
+
+---
+
+### 💡 FideTV Editorial Commentary
+
+At **FideTV Media**, our commitment is to provide transparent, continuous insights into the evolving landscape of broadcasting, streaming tech, and digital storytelling.
+
+---
+
+### 📌 Key Takeaways
+
+1. **Impact**: Significant immediate relevance for digital media practitioners, creators, and audiences.
+2. **Key Insight**: ${snippet.substring(0, 100)}...
+3. **Next Steps**: Continued observation of follow-up announcements.
+4. **Source Reference**: Live wire coverage courtesy of *${rawItem.sourceName}*.`;
+    }
 
     const tags = [
       category.split(' ')[0].replace(/[^a-zA-Z]/g, ''),
@@ -409,7 +509,7 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
       content,
       category,
       tags,
-      read_time: '3 min read'
+      read_time: readTime
     };
   }
 
@@ -446,15 +546,35 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
         );
         if (alreadyExists) continue;
 
+        let highResImage = item.imageUrl;
+        let fullParas: string[] = [];
+
+        if (item.link) {
+          const detail = await this.scrapeArticleDetail(item.link);
+          if (detail) {
+            if (detail.highResImage) highResImage = detail.highResImage;
+            if (detail.paragraphs && detail.paragraphs.length >= 3) {
+              fullParas = detail.paragraphs;
+            }
+          }
+        }
+
+        if (highResImage) {
+          highResImage = highResImage
+            .replace(/\/standard\/\d+\//, '/standard/1280/')
+            .replace(/\/cpsprodpb\/[a-z0-9]+\/live\//, '/cpsprodpb/1200/live/')
+            .replace(/\/branded_news\/\d+\//, '/branded_news/1200/');
+        }
+
         // Try AI generation first, fallback to editorial synthesis
         let generated = await this.generateWithGemini(item);
         if (!generated) {
-          generated = this.synthesizeFallbackPost(item);
+          generated = this.synthesizeFallbackPost(item, fullParas);
         }
 
         const id = `fidetv-blog-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
         const slug = this.generateSlug(generated.title) || tempSlug;
-        const imageUrl = item.imageUrl || this.getRandomImage(generated.category);
+        const imageUrl = highResImage || this.getRandomImage(generated.category);
 
         const newPost: AutoBlogPost = {
           id,
