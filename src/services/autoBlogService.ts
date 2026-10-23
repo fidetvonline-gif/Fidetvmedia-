@@ -559,11 +559,8 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
           }
         }
 
-        if (highResImage) {
-          highResImage = highResImage
-            .replace(/\/standard\/\d+\//, '/standard/1280/')
-            .replace(/\/cpsprodpb\/[a-z0-9]+\/live\//, '/cpsprodpb/1200/live/')
-            .replace(/\/branded_news\/\d+\//, '/branded_news/1200/');
+        if (highResImage && (highResImage.includes('bbci.co.uk') || highResImage.includes('bbc.co.uk'))) {
+          highResImage = '';
         }
 
         // Try AI generation first, fallback to editorial synthesis
