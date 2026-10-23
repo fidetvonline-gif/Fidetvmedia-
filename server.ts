@@ -19,6 +19,7 @@ import { createClient } from "@supabase/supabase-js";
 import { ChannelIngestionService } from "./src/services/channelIngestionService.js";
 import { YouTubeIngestionService } from "./src/services/youtubeIngestionService.js";
 import { M3UService } from "./src/services/m3uService.js";
+import { AutoBlogService } from "./src/services/autoBlogService.js";
 import multer from "multer";
 import fs from "fs/promises";
 import rateLimit from "express-rate-limit";
@@ -134,6 +135,8 @@ export async function initApp(startServer = true) {
   // Database Setup
   const supabase = getSupabaseAdmin();
   const ingestService = supabase ? new ChannelIngestionService(supabase) : null;
+  const autoBlogService = AutoBlogService.getInstance(supabase);
+  autoBlogService.init().catch(err => console.error("[AutoBlog] Init error:", err));
 
   // Background Automation Task (Consolidated)
   let isAutomationRunning = false;
@@ -2354,18 +2357,69 @@ export async function initApp(startServer = true) {
   // Fast mount for serverless environments
   app.use("/api", apiRouter);
 
-  // Fallback Channel API for when RLS blocks the public frontend
+  // Automated Blog & News Endpoints
   apiRouter.get("/news", async (req, res) => {
     try {
-      if (!process.env.NEWS_API_KEY) {
-         return res.json([]);
-      }
-      const response = await fetch(`https://newsapi.org/v2/top-headlines?country=ng&apiKey=${process.env.NEWS_API_KEY}`);
-      const data = await response.json();
-      res.json(data.articles || []);
+      const postsData = autoBlogService.getAllPosts({ limit: 30 });
+      res.json(postsData.posts);
     } catch (error) {
-      console.warn('Error fetching news (handled gracefully):', error);
+      console.warn('[API /news] Handled gracefully:', error);
       res.json([]);
+    }
+  });
+
+  apiRouter.get("/blog/posts", (req, res) => {
+    try {
+      const { category, search, page, limit } = req.query;
+      const result = autoBlogService.getAllPosts({
+        category: category as string,
+        search: search as string,
+        page: page ? parseInt(page as string, 10) : 1,
+        limit: limit ? parseInt(limit as string, 10) : 20
+      });
+      res.json(result);
+    } catch (error: any) {
+      console.error('[API /blog/posts] Error:', error);
+      res.status(500).json({ error: error.message || 'Failed to fetch blog posts' });
+    }
+  });
+
+  apiRouter.get("/blog/posts/:slug", (req, res) => {
+    try {
+      const { slug } = req.params;
+      const result = autoBlogService.getPostBySlugOrId(slug);
+      if (!result.post) {
+        return res.status(404).json({ error: 'Post not found' });
+      }
+      res.json(result);
+    } catch (error: any) {
+      console.error('[API /blog/posts/:slug] Error:', error);
+      res.status(500).json({ error: error.message || 'Failed to fetch blog post' });
+    }
+  });
+
+  apiRouter.post("/blog/auto-generate", async (req, res) => {
+    try {
+      console.log('[API] Manual/Admin trigger: Ingesting news & writing blog posts...');
+      const syncResult = await autoBlogService.syncLatestNews();
+      const updatedPosts = autoBlogService.getAllPosts({ limit: 20 });
+      res.json({
+        success: true,
+        message: `Successfully ingested news and updated blog feed (${syncResult.addedCount} new posts).`,
+        ...syncResult,
+        posts: updatedPosts.posts
+      });
+    } catch (error: any) {
+      console.error('[API /blog/auto-generate] Error:', error);
+      res.status(500).json({ success: false, error: error.message || 'Failed to generate blog posts' });
+    }
+  });
+
+  apiRouter.get("/blog/status", (req, res) => {
+    try {
+      res.json(autoBlogService.getStatus());
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 

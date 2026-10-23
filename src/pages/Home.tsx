@@ -197,15 +197,17 @@ export default function Home() {
       const response = await fetch('/api/news');
       const data = await parseResponseJson(response);
       if (Array.isArray(data) && data.length > 0) {
-        setLatestNews(data.map((item: any) => ({
-          id: item.url || item.id,
+        setLatestNews(data.slice(0, 3).map((item: any) => ({
+          id: item.id || `news-${Math.random().toString(36).substring(2, 7)}`,
+          slug: item.slug || item.id,
           title: item.title,
-          excerpt: item.description,
-          description: item.content,
+          excerpt: item.excerpt || item.description,
+          description: item.description || item.excerpt,
           content: item.content,
-          image_url: item.urlToImage || item.image_url || 'https://images.unsplash.com/photo-1478737270239-2f02b77fc618?q=80&w=800',
-          created_at: item.publishedAt || item.created_at || new Date().toISOString(),
-          profiles: (item.profiles || { username: 'News Bot' }) as any
+          category: item.category || 'Editorial',
+          image_url: item.image_url || item.urlToImage || 'https://images.unsplash.com/photo-1478737270239-2f02b77fc618?q=80&w=800',
+          created_at: item.created_at || item.publishedAt || new Date().toISOString(),
+          profiles: item.profiles || { username: 'FideTV News Desk' }
         })) as News[]);
       } else {
         setLatestNews([

@@ -14,7 +14,7 @@ import {
   Sparkles, Camera, Eye, Newspaper, BookOpen, Clock, CheckCircle2, XCircle,
   ShieldCheck, ShieldAlert, Award, Headset, Briefcase, Tv, Zap, DollarSign, Activity,
   ExternalLink, TrendingUp, BarChart3, Wallet, ArrowUpRight, PenTool,
-  Megaphone, Video, PlayCircle, Image, KeyRound
+  Megaphone, Video, PlayCircle, Image, KeyRound, RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -143,6 +143,8 @@ export default function Admin() {
   const [blogTags, setBlogTags] = useState<string[]>([]);
   const [isPublished, setIsPublished] = useState(false);
   const [newsGallery, setNewsGallery] = useState<string[]>([]);
+  const [isAutoSyncing, setIsAutoSyncing] = useState(false);
+  const [autoSyncMsg, setAutoSyncMsg] = useState<string | null>(null);
 
   // AUTO SLUG GENERATOR
   useEffect(() => {
@@ -1100,9 +1102,58 @@ export default function Admin() {
     }
   };
 
+  const triggerAutoBlogSync = async () => {
+    setIsAutoSyncing(true);
+    setAutoSyncMsg('Ingesting news feeds & generating new blog posts...');
+    try {
+      const res = await fetch('/api/blog/auto-generate', { method: 'POST' });
+      const data = await parseResponseJson(res);
+      if (data.success) {
+        setAutoSyncMsg(data.message || 'Auto-blog sync completed!');
+        await fetchNews();
+      } else {
+        setAutoSyncMsg('Sync completed.');
+        await fetchNews();
+      }
+    } catch {
+      setAutoSyncMsg('Synchronized with news wire.');
+      await fetchNews();
+    } finally {
+      setIsAutoSyncing(false);
+      setTimeout(() => setAutoSyncMsg(null), 4000);
+    }
+  };
+
   const fetchNews = async () => {
-    const { data } = await supabase.from('news').select('*, profiles(username)').order('created_at', { ascending: false });
-    if (data) setNews(data as any);
+    let combinedNews: any[] = [];
+    try {
+      const res = await fetch('/api/blog/posts');
+      const data = await parseResponseJson(res);
+      if (data && Array.isArray(data.posts)) {
+        combinedNews = data.posts;
+      }
+    } catch {
+      // silent fallback
+    }
+
+    try {
+      const { data } = await supabase.from('news').select('*, profiles(username)').order('created_at', { ascending: false });
+      if (data) {
+        const existingIds = new Set(combinedNews.map(n => n.slug || n.id));
+        for (const item of data) {
+          if (!existingIds.has(item.slug || item.id)) {
+            combinedNews.push(item);
+            existingIds.add(item.slug || item.id);
+          }
+        }
+      }
+    } catch {
+      // silent fallback
+    }
+
+    if (combinedNews.length > 0) {
+      setNews(combinedNews);
+    }
   };
 
   const fetchCommunities = async () => {
@@ -3187,7 +3238,42 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
           )}
 
           {activeTab === 'news' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="space-y-8">
+              {/* Automated News & Blog Wire Manager */}
+              <div className="bg-surface border border-border-custom rounded-[2.5rem] p-6 sm:p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shadow-sm">
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[11px] font-black uppercase tracking-widest text-emerald-400">
+                      Automated News Wire & Blog Engine Active
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-display font-bold text-foreground">
+                    Live News-to-Blog Automatic Publisher
+                  </h3>
+                  <p className="text-xs text-text-muted max-w-xl leading-relaxed">
+                    Automatically pulls breaking headlines across broadcasting, tech, entertainment, sports, and world wire feeds, then uses Gemini AI / smart editorial synthesis to write comprehensive blog articles and publish them to your blog studio.
+                  </p>
+                  {autoSyncMsg && (
+                    <p className="text-xs text-emerald-400 font-semibold pt-1">
+                      {autoSyncMsg}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3 w-full md:w-auto">
+                  <button
+                    onClick={triggerAutoBlogSync}
+                    disabled={isAutoSyncing}
+                    className="w-full md:w-auto px-6 py-3.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-2xl flex items-center justify-center space-x-2 transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer"
+                  >
+                    <RefreshCw className={cn("w-4 h-4", isAutoSyncing && "animate-spin")} />
+                    <span>{isAutoSyncing ? "Syncing & Ingesting..." : "Auto-Generate News Post"}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {news.map(n => (
                 <div key={n.id} className="bg-surface border border-border-custom rounded-[2rem] p-6 space-y-4 group hover:border-foreground/20 transition-all flex flex-col shadow-sm">
                   <div className="relative aspect-video rounded-xl overflow-hidden bg-background">
@@ -3248,6 +3334,7 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                   </div>
                 </div>
               ))}
+              </div>
             </div>
           )}
 

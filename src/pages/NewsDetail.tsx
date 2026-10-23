@@ -101,8 +101,32 @@ export default function NewsDetail() {
       fetchRelatedNews('fidetv-release-v2');
       return;
     }
+
     try {
-      // Check if slug is potentially a UUID (standard news ID format)
+      // 1. Try fetching from automated blog posts API first
+      try {
+        const apiRes = await fetch(`/api/blog/posts/${encodeURIComponent(slug!)}`);
+        if (apiRes.ok) {
+          const apiData = await apiRes.json();
+          if (apiData && apiData.post) {
+            console.log('NewsDetail: Loaded post from AutoBlog API:', apiData.post.title);
+            setItem(apiData.post);
+            if (apiData.relatedPosts && Array.isArray(apiData.relatedPosts) && apiData.relatedPosts.length > 0) {
+              setRelatedNews(apiData.relatedPosts);
+            } else {
+              fetchRelatedNews(apiData.post.id);
+            }
+            fetchComments(apiData.post.id);
+            fetchLikes(apiData.post.id);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (apiErr) {
+        console.warn('NewsDetail: AutoBlog API check failed (falling back to Supabase):', apiErr);
+      }
+
+      // 2. Query Supabase
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(slug!);
       
       let query = supabase
@@ -117,22 +141,22 @@ export default function NewsDetail() {
 
       const { data, error } = await query.maybeSingle();
       
-      if (error) {
-        console.error('NewsDetail: Supabase error:', error);
-        throw error;
-      }
-
-      if (!data) {
-        console.warn('NewsDetail: No data found for slug:', slug);
-        navigate('/news');
+      if (data) {
+        console.log('NewsDetail: Data loaded from Supabase:', data.title);
+        setItem(data as any);
+        fetchComments(data.id);
+        fetchLikes(data.id);
+        fetchRelatedNews(data.id);
+        setLoading(false);
         return;
       }
 
-      console.log('NewsDetail: Data loaded:', data);
-      setItem(data as any);
-      fetchComments(data.id);
-      fetchLikes(data.id);
-      fetchRelatedNews(data.id);
+      if (error) {
+        console.warn('NewsDetail: Supabase error:', error);
+      }
+
+      console.warn('NewsDetail: No data found for slug:', slug);
+      navigate('/news');
     } catch (err) {
       console.error('NewsDetail: Unexpected error:', err);
       navigate('/news');
@@ -142,23 +166,49 @@ export default function NewsDetail() {
   };
 
   const fetchRelatedNews = async (currentId: string) => {
-    const { data } = await supabase
-      .from('news')
-      .select('*')
-      .eq('is_published', true)
-      .neq('id', currentId)
-      .limit(3);
-    
     let combinedRelated: News[] = [];
-    if (currentId === 'fidetv-release-v2') {
-      // No other static post to add
-    } else {
+
+    // Try API first
+    try {
+      const res = await fetch('/api/blog/posts?limit=6');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.posts)) {
+          combinedRelated = data.posts.filter((p: any) => p.id !== currentId && p.slug !== slug);
+        }
+      }
+    } catch {
+      // silent fallback
+    }
+
+    // Try Supabase if needed
+    if (combinedRelated.length < 3) {
+      try {
+        const { data } = await supabase
+          .from('news')
+          .select('*')
+          .eq('is_published', true)
+          .neq('id', currentId)
+          .limit(4);
+
+        if (data) {
+          const existingIds = new Set(combinedRelated.map(r => r.id));
+          for (const item of data) {
+            if (!existingIds.has(item.id)) {
+              combinedRelated.push(item);
+              existingIds.add(item.id);
+            }
+          }
+        }
+      } catch {
+        // silent fallback
+      }
+    }
+
+    if (currentId !== 'fidetv-release-v2' && !combinedRelated.some(r => r.slug === 'major-release-v2')) {
       combinedRelated.push(STATIC_RELEASE_POST);
     }
 
-    if (data) {
-      combinedRelated = [...combinedRelated, ...(data as any).filter((item: any) => item.id !== currentId && item.slug !== 'major-release-v2')];
-    }
     setRelatedNews(combinedRelated.slice(0, 3));
   };
 
@@ -268,14 +318,24 @@ export default function NewsDetail() {
       </Link>
 
       <header className="space-y-8 mb-12">
-        <div className="flex items-center space-x-4">
+        <div className="flex flex-wrap items-center gap-3">
           <span className="bg-primary/20 text-primary text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full border border-primary/20">
             {item.category || 'Platform News'}
           </span>
-          <div className="flex items-center space-x-2 text-foreground/40 text-[10px] font-black uppercase tracking-widest">
-            <Calendar className="w-3 h-3" />
+          <div className="flex items-center space-x-1.5 text-foreground/60 text-[10px] font-black uppercase tracking-widest">
+            <Calendar className="w-3 h-3 text-primary" />
             <span>{format(new Date(item.created_at), 'MMMM dd, yyyy')}</span>
           </div>
+          {(item as any).read_time && (
+            <span className="text-[10px] font-bold text-foreground/60 bg-surface px-2.5 py-1 rounded-full border border-border-custom">
+              {(item as any).read_time}
+            </span>
+          )}
+          {(item as any).source_name && (
+            <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+              Wire: {(item as any).source_name}
+            </span>
+          )}
         </div>
 
         <h1 className="text-4xl md:text-6xl font-display font-medium text-foreground tracking-tighter leading-[1.1]">
