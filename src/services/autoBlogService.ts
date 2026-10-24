@@ -695,7 +695,7 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
           generated = this.synthesizeFallbackPost(item);
         }
 
-        const id = `fidetv-blog-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+        const id = crypto.randomUUID();
         const slug = this.generateSlug(generated.title) || tempSlug;
 
         const newPost: AutoBlogPost = {
@@ -729,22 +729,24 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
         // Sync new post to Supabase database
         if (this.supabase) {
           try {
+            console.log('[AutoBlogService] Upserting to Supabase:', newPost.id, newPost.title);
             await this.supabase.from('news').upsert({
               id: newPost.id,
-              slug: newPost.slug,
+              slug: newPost.slug || newPost.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
               title: newPost.title,
-              excerpt: newPost.excerpt,
-              description: newPost.description,
-              content: newPost.content,
-              category: newPost.category,
-              tags: newPost.tags,
-              image_url: newPost.image_url,
-              image_urls: newPost.image_urls,
+              excerpt: newPost.excerpt || '',
+              description: newPost.description || '',
+              content: newPost.content || '',
+              category: newPost.category || 'News',
+              tags: newPost.tags || [],
+              image_url: newPost.image_url || '',
+              image_urls: newPost.image_urls || [],
               is_published: true,
-              created_at: newPost.created_at
-            }, { onConflict: 'slug' });
+              created_at: newPost.created_at,
+              author_id: newPost.author_id
+            }, { onConflict: 'id' });
           } catch (dbErr: any) {
-            console.warn('[AutoBlogService] Supabase news upsert notice:', dbErr.message);
+            console.error('[AutoBlogService] Supabase news upsert FAILED:', dbErr);
           }
         }
       }
@@ -767,7 +769,7 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
               image_urls: post.image_urls || [post.image_url],
               is_published: true,
               created_at: post.created_at
-            }, { onConflict: 'slug' });
+            }, { onConflict: 'id' });
           }
 
           // Broadcast real-time update
