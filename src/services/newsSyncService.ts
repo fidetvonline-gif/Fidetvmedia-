@@ -50,6 +50,11 @@ class NewsSyncService {
 
     console.log('[NewsSyncService] Initializing real-time Supabase subscription...');
 
+    // Clear stale cache (older than 1 hour)
+    try {
+      safeLocalStorage.removeItem('fidetv_live_blogs_v3');
+    } catch {}
+
     // Perform initial fetch & sync
     this.refreshNews();
 
@@ -145,22 +150,7 @@ class NewsSyncService {
         console.warn('[NewsSyncService] Backend /api/news warning:', e);
       }
 
-      // 2. Fetch directly from Supabase to capture immediate real domain database rows
-      try {
-        const { data: dbRows, error } = await supabase
-          .from('news')
-          .select('*, profiles(username, avatar_url)')
-          .eq('is_published', true)
-          .order('created_at', { ascending: false });
-
-        if (!error && Array.isArray(dbRows) && dbRows.length > 0) {
-          const formattedDb = dbRows.map(r => this.formatDbRecord(r));
-          // Prepend DB rows to prioritize domain updates
-          combined = [...formattedDb, ...combined];
-        }
-      } catch (dbErr) {
-        console.warn('[NewsSyncService] Supabase direct query warning:', dbErr);
-      }
+      // 2. No redundant Supabase fetch needed; /api/news handles consolidation.
 
       // 3. Fallback to bundled data if empty
       if (combined.length === 0) {
