@@ -138,6 +138,62 @@ export async function initApp(startServer = true) {
   const autoBlogService = AutoBlogService.getInstance(supabase);
   autoBlogService.init().catch(err => console.error("[AutoBlog] Init error:", err));
 
+  // Dynamic Sitemap Generator
+  const generateSitemapXml = (hostUrl: string) => {
+    const baseUrl = hostUrl.startsWith('http') ? hostUrl : `https://${hostUrl}`;
+    const staticPages = [
+      { url: '', changefreq: 'daily', priority: '1.0' },
+      { url: '/news', changefreq: 'hourly', priority: '0.9' },
+      { url: '/live', changefreq: 'always', priority: '0.9' },
+      { url: '/fidesave', changefreq: 'weekly', priority: '0.8' },
+      { url: '/spaces', changefreq: 'daily', priority: '0.8' },
+      { url: '/about', changefreq: 'monthly', priority: '0.5' },
+      { url: '/contact', changefreq: 'monthly', priority: '0.5' }
+    ];
+
+    const blogData = autoBlogService.getAllPosts({ limit: 100 });
+    const posts = blogData.posts || [];
+
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+    xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+
+    for (const page of staticPages) {
+      xml += `  <url>\n`;
+      xml += `    <loc>${baseUrl}${page.url}</loc>\n`;
+      xml += `    <changefreq>${page.changefreq}</changefreq>\n`;
+      xml += `    <priority>${page.priority}</priority>\n`;
+      xml += `  </url>\n`;
+    }
+
+    for (const post of posts) {
+      const postUrl = `${baseUrl}/news/${post.slug || post.id}`;
+      const lastMod = post.updated_at || post.created_at || new Date().toISOString();
+      xml += `  <url>\n`;
+      xml += `    <loc>${postUrl}</loc>\n`;
+      xml += `    <lastmod>${new Date(lastMod).toISOString().split('T')[0]}</lastmod>\n`;
+      xml += `    <changefreq>weekly</changefreq>\n`;
+      xml += `    <priority>0.8</priority>\n`;
+      xml += `  </url>\n`;
+    }
+
+    xml += `</urlset>`;
+    return xml;
+  };
+
+  // High-priority sitemap route to prevent SPA catch-all interference
+  app.get("/sitemap.xml", async (req, res) => {
+    try {
+      // Force canonical domain for production sitemap submission consistency
+      const host = 'fidetv.online';
+      const xml = generateSitemapXml('https://' + host);
+      res.type('application/xml');
+      res.send(xml);
+    } catch (err: any) {
+      console.error('[Sitemap Error]', err);
+      res.status(500).send('Error generating sitemap');
+    }
+  });
+
   // Background Automation Task (Consolidated)
   let isAutomationRunning = false;
   if (ingestService && !isVercel) {
@@ -2422,81 +2478,6 @@ export async function initApp(startServer = true) {
       res.status(500).json({ error: error.message });
     }
   });
-
-  // Dynamic Sitemap Generator
-  const generateSitemapXml = (hostUrl: string) => {
-    const baseUrl = hostUrl.startsWith('http') ? hostUrl : `https://${hostUrl}`;
-    const staticPages = [
-      { url: '', changefreq: 'daily', priority: '1.0' },
-      { url: '/news', changefreq: 'hourly', priority: '0.9' },
-      { url: '/live', changefreq: 'always', priority: '0.9' },
-      { url: '/fidesave', changefreq: 'weekly', priority: '0.8' },
-      { url: '/spaces', changefreq: 'daily', priority: '0.8' },
-      { url: '/about', changefreq: 'monthly', priority: '0.5' },
-      { url: '/contact', changefreq: 'monthly', priority: '0.5' }
-    ];
-
-    const blogData = autoBlogService.getAllPosts({ limit: 100 });
-    const posts = blogData.posts || [];
-
-    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-    xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
-
-    for (const page of staticPages) {
-      xml += `  <url>\n`;
-      xml += `    <loc>${baseUrl}${page.url}</loc>\n`;
-      xml += `    <changefreq>${page.changefreq}</changefreq>\n`;
-      xml += `    <priority>${page.priority}</priority>\n`;
-      xml += `  </url>\n`;
-    }
-
-    for (const post of posts) {
-      const postUrl = `${baseUrl}/news/${post.slug || post.id}`;
-      const lastMod = post.updated_at || post.created_at || new Date().toISOString();
-      xml += `  <url>\n`;
-      xml += `    <loc>${postUrl}</loc>\n`;
-      xml += `    <lastmod>${new Date(lastMod).toISOString().split('T')[0]}</lastmod>\n`;
-      xml += `    <changefreq>weekly</changefreq>\n`;
-      xml += `    <priority>0.8</priority>\n`;
-      xml += `  </url>\n`;
-    }
-
-    xml += `</urlset>`;
-    return xml;
-  };
-
-  app.get("/sitemap.xml", async (req, res) => {
-    try {
-      const host = req.get('host') || 'fidetv.com';
-      const xml = generateSitemapXml(req.protocol + '://' + host);
-      res.setHeader('Content-Type', 'application/xml');
-      res.send(xml);
-    } catch (err: any) {
-      console.error('[Sitemap Error]', err);
-      res.status(500).send('Error generating sitemap');
-    }
-  });
-
-  apiRouter.get("/sitemap.xml", async (req, res) => {
-    try {
-      const host = req.get('host') || 'fidetv.com';
-      const xml = generateSitemapXml(req.protocol + '://' + host);
-      res.setHeader('Content-Type', 'application/xml');
-      res.send(xml);
-    } catch (err: any) {
-      console.error('[Sitemap Error]', err);
-      res.status(500).send('Error generating sitemap');
-    }
-  });
-
-  // Write sitemap.xml to public folder on init
-  try {
-    const publicSitemapPath = path.resolve(process.cwd(), 'public/sitemap.xml');
-    await fs.mkdir(path.dirname(publicSitemapPath), { recursive: true });
-    await fs.writeFile(publicSitemapPath, generateSitemapXml('https://fidetv.com'), 'utf-8');
-  } catch (e) {
-    console.warn('[Sitemap] Failed to write public sitemap file:', e);
-  }
 
   apiRouter.get("/channels", async (req, res) => {
     try {

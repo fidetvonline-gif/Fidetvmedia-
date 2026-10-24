@@ -523,7 +523,7 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
    * Ping Search Engine Indexing Services (Google, Bing, IndexNow) whenever
    * news content is published or updated.
    */
-  public async pingSearchEngineIndexing(sitemapUrl = 'https://fidetv.com/sitemap.xml'): Promise<any> {
+  public async pingSearchEngineIndexing(sitemapUrl = 'https://fidetv.online/sitemap.xml'): Promise<any> {
     const results: any = {
       timestamp: new Date().toISOString(),
       sitemapUrl,
@@ -552,9 +552,9 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
     try {
       const indexNowUrl = 'https://api.indexnow.org/indexnow';
       const indexNowResp = await axios.post(indexNowUrl, {
-        host: 'fidetv.com',
+        host: 'fidetv.online',
         key: 'fidetv_seo_key_2026',
-        urlList: [sitemapUrl, 'https://fidetv.com/news']
+        urlList: [sitemapUrl, 'https://fidetv.online/news']
       }, { timeout: 5000, validateStatus: () => true });
       results.targets.indexNow = { status: indexNowResp.status, success: indexNowResp.status >= 200 && indexNowResp.status < 400 };
     } catch (e: any) {

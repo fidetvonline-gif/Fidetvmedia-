@@ -235,6 +235,48 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
+    // 0. Sitemap Handler
+    if (effectivePath === '/sitemap.xml' || xMatched === '/sitemap.xml') {
+      const baseUrl = 'https://fidetv.online';
+      const staticPages = [
+        { url: '', changefreq: 'daily', priority: '1.0' },
+        { url: '/news', changefreq: 'hourly', priority: '0.9' },
+        { url: '/live', changefreq: 'always', priority: '0.9' },
+        { url: '/fidesave', changefreq: 'weekly', priority: '0.8' },
+        { url: '/spaces', changefreq: 'daily', priority: '0.8' },
+        { url: '/about', changefreq: 'monthly', priority: '0.5' },
+        { url: '/contact', changefreq: 'monthly', priority: '0.5' }
+      ];
+
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+      xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+
+      for (const page of staticPages) {
+        xml += `  <url>\n`;
+        xml += `    <loc>${baseUrl}${page.url}</loc>\n`;
+        xml += `    <changefreq>${page.changefreq}</changefreq>\n`;
+        xml += `    <priority>${page.priority}</priority>\n`;
+        xml += `  </url>\n`;
+      }
+
+      for (const post of liveBlogPosts) {
+        const postUrl = `${baseUrl}/news/${post.slug || post.id}`;
+        const lastMod = post.updated_at || post.created_at || new Date().toISOString();
+        xml += `  <url>\n`;
+        xml += `    <loc>${postUrl}</loc>\n`;
+        xml += `    <lastmod>${new Date(lastMod).toISOString().split('T')[0]}</lastmod>\n`;
+        xml += `    <changefreq>weekly</changefreq>\n`;
+        xml += `    <priority>0.8</priority>\n`;
+        xml += `  </url>\n`;
+      }
+
+      xml += `</urlset>`;
+      res.setHeader('Content-Type', 'application/xml');
+      res.statusCode = 200;
+      res.end(xml);
+      return;
+    }
+
     // 1. Direct Serverless Handler for News & Blog (Guaranteed 100% on Vercel / Production Domains)
     if (effectivePath === '/api/news' || effectivePath.startsWith('/api/news')) {
       sendJson(res, 200, liveBlogPosts);

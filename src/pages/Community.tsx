@@ -1059,7 +1059,7 @@ export default function Community() {
                           value={partnerForm.email}
                           onChange={e => setPartnerForm(prev => ({ ...prev, email: e.target.value }))}
                           required
-                          placeholder="e.g. fidelis@fidetv.com"
+                          placeholder="e.g. fidelis@fidetv.online"
                           className="w-full bg-background border border-border-custom rounded-xl p-4 text-xs text-foreground focus:border-primary/50 transition-colors shadow-inner outline-none"
                         />
                       </div>

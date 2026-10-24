@@ -14,16 +14,16 @@ interface SEOProps {
 export const SEO = ({ 
   title, 
   description, 
-  image = "https://images.unsplash.com/photo-1478737270239-2f02b77fc618?q=85&w=1200&auto=format&fit=crop", 
-  url = typeof window !== 'undefined' ? window.location.href : 'https://fidetv.com',
+  image = "https://fidetv.online/icon.svg", 
+  url = typeof window !== 'undefined' ? window.location.href : 'https://fidetv.online',
   type = "website",
   publishedTime,
   author,
   tags = []
 }: SEOProps) => {
   const siteName = "FideTV Media";
-  const fullTitle = title ? `${title} – ${siteName}` : `${siteName} – 24/7 Live Streaming, Breaking News & Creator Hub`;
-  const metaDesc = description || "Explore 24/7 live broadcast channels, breaking media industry news, interactive audio spaces, and creator tools on FideTV Media.";
+  const fullTitle = title ? `${title} | FideTV Media` : "FideTV Media | Live Broadcasting, Creative Agency & Digital Innovation";
+  const metaDesc = description || "FideTV Media is a certified digital creative agency and live broadcasting hub. We offer 24/7 live streaming, professional video production, and custom web design for brands and communities.";
 
   const structuredData = type === 'article' ? {
     "@context": "https://schema.org",
@@ -41,18 +41,20 @@ export const SEO = ({
       "name": "FideTV Media Hub",
       "logo": {
         "@type": "ImageObject",
-        "url": "https://images.unsplash.com/photo-1478737270239-2f02b77fc618?q=85&w=200&auto=format&fit=crop"
+        "url": "https://fidetv.online/icon.svg"
       }
     }
   } : {
     "@context": "https://schema.org",
-    "@type": "WebSite",
+    "@type": "WebApplication",
     "name": siteName,
-    "url": url,
+    "url": "https://fidetv.online",
     "description": metaDesc,
+    "applicationCategory": "MultimediaApplication",
+    "operatingSystem": "All",
     "potentialAction": {
       "@type": "SearchAction",
-      "target": `${typeof window !== 'undefined' ? window.location.origin : ''}/news?search={search_term_string}`,
+      "target": "https://fidetv.online/news?search={search_term_string}",
       "query-input": "required name=search_term_string"
     }
   };
