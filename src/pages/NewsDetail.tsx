@@ -353,7 +353,7 @@ export default function NewsDetail() {
           </span>
           <div className="flex items-center space-x-1.5 text-foreground/60 text-[10px] font-black uppercase tracking-widest">
             <Calendar className="w-3 h-3 text-primary" />
-            <span>{format(new Date(item.created_at), 'MMMM dd, yyyy')}</span>
+            <span>{format(new Date(item.created_at), 'EEEE, MMMM dd, yyyy')}</span>
           </div>
           {(item as any).read_time && (
             <span className="text-[10px] font-bold text-foreground/60 bg-surface px-2.5 py-1 rounded-full border border-border-custom">

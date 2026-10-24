@@ -1494,7 +1494,7 @@ export default function Home() {
                   <div className="p-6 space-y-3 flex flex-col flex-grow">
                     <div className="flex items-center space-x-2 text-[9px] uppercase font-bold tracking-widest text-text-muted">
                       <Calendar className="w-3.5 h-3.5 text-primary" />
-                      <span>{format(new Date(item.created_at), 'MMM dd, yyyy')}</span>
+                      <span>{format(new Date(item.created_at), 'EEEE, MMMM dd, yyyy')}</span>
                     </div>
                     <h4 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-tight">
                       {item.title}

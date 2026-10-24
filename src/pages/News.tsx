@@ -24,6 +24,7 @@ import { parseResponseJson } from '@/lib/api';
 import AUTO_BLOGS from '@/data/auto_blogs.json';
 import { safeLocalStorage } from '@/lib/storage';
 import { getHighQualityImage } from '@/lib/utils';
+import { useNewsSync } from '@/hooks/useNewsSync';
 
 const STATIC_RELEASE_POST: NewsType = {
   id: 'fidetv-release-v2',
@@ -78,125 +79,25 @@ const CATEGORIES = [
 ];
 
 export default function News() {
-  const [news, setNews] = useState<NewsType[]>(() => {
-    return ((AUTO_BLOGS as any[]) || [STATIC_RELEASE_POST]);
-  });
-  const [loading, setLoading] = useState(false);
+  const { news, isSyncing, refreshNews } = useNewsSync();
+  const [filteredNews, setFilteredNews] = useState<NewsType[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncStatusMsg, setSyncStatusMsg] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<string | null>(new Date().toISOString());
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchNews().then(() => {
-      fetch('/api/blog/auto-generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data && data.success && Array.isArray(data.posts) && data.posts.length > 0) {
-            // Deduplicate posts
-            const uniqueMap = new Map<string, NewsType>();
-            for (const item of data.posts) {
-              const key = item.slug || item.id || (item.title ? item.title.toLowerCase().trim() : Math.random().toString());
-              if (!uniqueMap.has(key)) {
-                uniqueMap.set(key, item);
-              }
-            }
-            const cleanPosts = Array.from(uniqueMap.values());
-            setNews(cleanPosts);
-            try {
-              safeLocalStorage.setItem('fidetv_live_blogs_v3', JSON.stringify(cleanPosts));
-            } catch {}
-          }
-        })
-        .catch(() => {});
-    });
-  }, [selectedCategory]);
-
-  const fetchNews = async () => {
-    // 1. Start with AUTO_BLOGS as absolute source of truth for cover images and content
-    let combinedNews: NewsType[] = [...(AUTO_BLOGS as any[])];
-
-    // 2. Fetch from our automated blog API (Production & Local)
-    try {
-      const url = selectedCategory && selectedCategory !== 'All' 
-        ? `/api/blog/posts?category=${encodeURIComponent(selectedCategory)}` 
-        : '/api/blog/posts';
-      const res = await fetch(url);
-      const data = await parseResponseJson(res);
-      if (data && Array.isArray(data.posts) && data.posts.length > 0) {
-        combinedNews = [...data.posts, ...combinedNews];
-        if (data.lastSync) {
-          setLastUpdated(data.lastSync);
-        }
-      }
-    } catch (err) {
-      console.warn('[News] AutoBlog API fetch notice:', err);
-    }
-
-    // 3. Fetch from Supabase (if available) and merge
-    try {
-      let query = supabase
-        .from('news')
-        .select('*, profiles(username, avatar_url)')
-        .eq('is_published', true)
-        .order('created_at', { ascending: false });
-
-      if (selectedCategory !== 'All') {
-        query = query.eq('category', selectedCategory);
-      }
-
-      const { data: dbData } = await query;
-      if (dbData && Array.isArray(dbData)) {
-        combinedNews = [...dbData, ...combinedNews];
-      }
-    } catch (dbErr) {
-      console.warn('[News] Supabase fetch notice:', dbErr);
-    }
-
-    // 4. Ensure static release post is present if matching category
-    if (selectedCategory === 'All' || selectedCategory === 'Platform Updates') {
-      const hasStatic = combinedNews.some(n => n.slug === 'major-release-v2' || n.id === 'fidetv-release-v2');
-      if (!hasStatic) {
-        combinedNews.push(STATIC_RELEASE_POST);
-      }
-    }
-
-    // Filter by selected category if set
+    // Filter logic whenever news or filters change
+    let filtered = [...news];
     if (selectedCategory !== 'All') {
       const catLower = selectedCategory.toLowerCase();
-      combinedNews = combinedNews.filter(n => n.category?.toLowerCase() === catLower);
+      filtered = filtered.filter(n => n.category?.toLowerCase() === catLower);
     }
-
-    // Strict Deduplication by slug, id, or normalized title
-    const uniqueMap = new Map<string, NewsType>();
-    for (const item of combinedNews) {
-      const key = item.slug || item.id || (item.title ? item.title.toLowerCase().trim() : Math.random().toString());
-      if (!uniqueMap.has(key)) {
-        uniqueMap.set(key, item);
-      }
+    if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        filtered = filtered.filter(n => n.title.toLowerCase().includes(q) || n.excerpt?.toLowerCase().includes(q));
     }
-    combinedNews = Array.from(uniqueMap.values());
-
-    // Sort by created_at descending
-    combinedNews.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-    setNews(combinedNews);
-    setLoading(false);
-  };
-
-  const filteredNews = news.filter(item => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    const titleMatch = item.title?.toLowerCase().includes(q);
-    const descMatch = (item.excerpt || item.description || '')?.toLowerCase().includes(q);
-    const tagMatch = item.tags?.some(t => t.toLowerCase().includes(q));
-    const catMatch = item.category?.toLowerCase().includes(q);
-    return titleMatch || descMatch || tagMatch || catMatch;
-  });
+    setFilteredNews(filtered);
+  }, [news, selectedCategory, searchQuery]);
 
   const featuredPost = filteredNews.length > 0 ? filteredNews[0] : null;
   const standardPosts = filteredNews.length > 1 ? filteredNews.slice(1) : [];
@@ -272,7 +173,7 @@ export default function News() {
         <AdBanner placement="News Page Top" />
       </div>
 
-      {loading ? (
+      {isSyncing ? (
         <div className="space-y-8">
           <div className="glass rounded-[2.5rem] h-96 animate-pulse" />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -288,10 +189,10 @@ export default function News() {
           <p className="text-text-muted text-sm mt-2 max-w-md mx-auto">
             {searchQuery 
               ? `No stories matched "${searchQuery}". Try a different keyword or reset filters.`
-              : 'Our automated news wire is refreshing. Click "Auto-Update News" above to fetch latest stories.'}
+              : 'Our automated news wire is refreshing.'}
           </p>
           <button
-            onClick={fetchNews}
+            onClick={() => refreshNews()}
             className="mt-6 inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary-hover transition-all cursor-pointer"
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -441,7 +342,7 @@ export default function News() {
                       <div className="flex items-center space-x-3 text-[10px] uppercase font-bold tracking-wider text-text-muted">
                         <div className="flex items-center space-x-1">
                           <Calendar className="w-3 h-3 text-primary" />
-                          <span>{format(new Date(item.created_at), 'MMMM dd, yyyy')}</span>
+                          <span>{format(new Date(item.created_at), 'EEEE, MMMM dd, yyyy')}</span>
                         </div>
                         {(item as any).source_name && (
                           <>

@@ -216,7 +216,7 @@ export async function probeImageUrl(url: string, timeoutMs = 3000): Promise<bool
       validateStatus: (status) => status >= 200 && status < 400
     });
 
-    const contentType = resp.headers['content-type'] || '';
+    const contentType = (resp.headers['content-type'] as string) || '';
     if (contentType.startsWith('image/')) {
       return true;
     }
@@ -231,7 +231,7 @@ export async function probeImageUrl(url: string, timeoutMs = 3000): Promise<bool
         },
         validateStatus: (status) => (status >= 200 && status < 400) || status === 206
       });
-      const contentType = getResp.headers['content-type'] || '';
+      const contentType = (getResp.headers['content-type'] as string) || '';
       return contentType.startsWith('image/');
     } catch {
       return false;
