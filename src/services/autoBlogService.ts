@@ -814,7 +814,11 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
               image_urls: newPost.image_urls || [],
               is_published: true,
               created_at: newPost.created_at,
-              author_id: newPost.author_id
+              author_id: newPost.author_id,
+              read_time: newPost.read_time,
+              source_name: newPost.source_name,
+              source_url: newPost.source_url,
+              region: newPost.region
             }, { onConflict: 'id' });
           } catch (dbErr: any) {
             console.error('[AutoBlogService] Supabase news upsert FAILED:', dbErr);
@@ -839,7 +843,11 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
               image_url: post.image_url,
               image_urls: post.image_urls || [post.image_url],
               is_published: true,
-              created_at: post.created_at
+              created_at: post.created_at,
+              read_time: post.read_time,
+              source_name: post.source_name,
+              source_url: post.source_url,
+              region: post.region
             }, { onConflict: 'id' });
           }
 
