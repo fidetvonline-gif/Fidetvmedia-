@@ -183,8 +183,9 @@ export async function initApp(startServer = true) {
   // High-priority sitemap route to prevent SPA catch-all interference
   app.get("/sitemap.xml", async (req, res) => {
     try {
-      // Force canonical domain for production sitemap submission consistency
+      // Always use fidetv.online as the canonical host for sitemap links
       const host = 'fidetv.online';
+        
       const xml = generateSitemapXml('https://' + host);
       res.type('application/xml');
       res.send(xml);
@@ -2416,11 +2417,28 @@ export async function initApp(startServer = true) {
   // Automated Blog & News Endpoints
   apiRouter.get("/news", async (req, res) => {
     try {
-      const postsData = autoBlogService.getAllPosts({ limit: 30 });
+      // Small optimization: if posts are very few, try a fast pull from DB
+      const currentPosts = autoBlogService.getAllPosts({ limit: 10 });
+      if (currentPosts.posts.length < 5) {
+        await autoBlogService.pullFromSupabase();
+      }
+      
+      const postsData = autoBlogService.getAllPosts({ 
+        limit: req.query.limit ? parseInt(req.query.limit as string, 10) : 40 
+      });
       res.json(postsData.posts);
     } catch (error) {
       console.warn('[API /news] Handled gracefully:', error);
       res.json([]);
+    }
+  });
+
+  apiRouter.get("/news/nigeria", async (req, res) => {
+    try {
+      const posts = await autoBlogService.getNigeriaNews(req.query.refresh === 'true');
+      res.json(posts);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || 'Failed to fetch Nigeria news' });
     }
   });
 
@@ -2554,22 +2572,50 @@ export async function initApp(startServer = true) {
     });
     
     app.use(vite.middlewares);
-  } else if (!isVercel) {
+  } else {
     // In production, files are in 'dist' directory relative to the project root
+    // On Vercel, we need to be careful about path resolution
     const distPath = path.join(process.cwd(), 'dist');
-    console.log(`[Production] Serving static files from: ${distPath}`);
-    app.use(express.static(distPath));
+    const indexHtmlPath = path.join(distPath, 'index.html');
     
-    // Catch-all for SPA in production
-    app.get(/(.*)/, (req, res) => {
+    console.log(`[Production] Serving static files from: ${distPath}`);
+    app.use(express.static(distPath, {
+      index: false // Don't serve index.html automatically, we'll handle it below
+    }));
+    
+    // Catch-all for SPA in production - Must be AFTER all other routes
+    // Express 5: Wildcard '*' as a string is no longer supported, use regex instead.
+    app.get(/.*/, async (req, res) => {
       // If API route not found, return 404 json
-      if (req.path.startsWith('/api')) {
+      if (req.path.startsWith('/api/')) {
         console.warn(`[API 404] ${req.method} ${req.path}`);
         return res.status(404).json({ success: false, error: "API route not found" });
       }
       
-      console.log(`[SPA Fallback] Serving index.html for: ${req.path}`);
-      res.sendFile(path.join(distPath, 'index.html'));
+      // Prevent infinite loops or serving index.html for missing assets
+      if (req.path.includes('.') && !req.path.endsWith('.html')) {
+        return res.status(404).end();
+      }
+
+      try {
+        // Verify index.html exists before sending
+        await fs.access(indexHtmlPath);
+        console.log(`[SPA Fallback] Serving index.html for: ${req.path}`);
+        res.sendFile(indexHtmlPath);
+      } catch (err) {
+        console.error(`[SPA Fallback Error] index.html not found at ${indexHtmlPath}. Falling back to basic HTML.`);
+        res.status(404).send(`
+          <!DOCTYPE html>
+          <html lang="en">
+          <head><meta charset="UTF-8"><title>FideTV - Error</title></head>
+          <body style="font-family:sans-serif;text-align:center;padding:50px;">
+            <h1>Page Not Found</h1>
+            <p>The application is still starting up or a file is missing. Please refresh in a moment.</p>
+            <a href="/">Go to Home</a>
+          </body>
+          </html>
+        `);
+      }
     });
   }
 

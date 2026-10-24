@@ -2,7 +2,8 @@
   "functions": {
     "api/server.ts": {
       "maxDuration": 60,
-      "memory": 1024
+      "memory": 1024,
+      "includeFiles": "dist/**"
     }
   },
   "rewrites": [
@@ -15,8 +16,8 @@
       "destination": "/api/server"
     },
     {
-      "source": "/((?!api/|sitemap.xml|robots.txt).*)$",
-      "destination": "/index.html"
+      "source": "/((?!api/|sitemap.xml|robots.txt|assets/|.*\\.(?:ico|png|jpg|jpeg|svg|js|css|json|webmanifest)$).*)$",
+      "destination": "/api/server"
     }
   ]
 }

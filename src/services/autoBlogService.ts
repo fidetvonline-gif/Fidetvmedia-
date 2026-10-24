@@ -115,13 +115,16 @@ export class AutoBlogService {
   public async init() {
     console.log('[AutoBlogService] Initializing automated blog news & sync engine...');
     await this.loadPersistedPosts();
+    
+    // Always pull latest from Supabase immediately on startup to ensure we aren't using stale bundled data
+    await this.pullFromSupabase().catch(err => console.error('[AutoBlogService] Startup DB pull failed:', err));
 
-    // Run initial sync cycle in background to pull Supabase rows and enrich feed
+    // Run full sync cycle (RSS + DB) in background
     setTimeout(() => {
       this.syncLatestNews().catch(err => {
-        console.error('[AutoBlogService] Initial sync error:', err);
+        console.error('[AutoBlogService] Initial full sync error:', err);
       });
-    }, 1500);
+    }, 5000);
 
     // Schedule periodic automatic update every 30 minutes
     if (!this.syncIntervalHandle) {
@@ -131,6 +134,74 @@ export class AutoBlogService {
           console.error('[AutoBlogService] Scheduled sync error:', err);
         });
       }, 30 * 60 * 1000);
+    }
+  }
+
+  /**
+   * Fast synchronization from Supabase database only (no external feed scraping).
+   * Ensures the local posts array matches the database state.
+   */
+  public async pullFromSupabase(): Promise<number> {
+    if (!this.supabase) return 0;
+    
+    try {
+      const { data: dbRows, error: dbError } = await this.supabase
+        .from('news')
+        .select('*')
+        .eq('is_published', true)
+        .order('created_at', { ascending: false })
+        .limit(60);
+
+      if (dbError) throw dbError;
+      if (!dbRows || !Array.isArray(dbRows)) return 0;
+
+      let syncedCount = 0;
+      for (const row of dbRows) {
+        const rowSlug = row.slug || this.generateSlug(row.title) || row.id;
+        
+        const formattedDbPost: AutoBlogPost = {
+          id: row.id,
+          slug: rowSlug,
+          title: row.title,
+          excerpt: row.excerpt || row.description || (row.content ? row.content.substring(0, 160) + '...' : ''),
+          description: row.description || row.excerpt || '',
+          content: row.content || '',
+          category: row.category || 'News',
+          tags: row.tags || ['Broadcasting', 'News'],
+          image_url: row.image_url || 'https://images.unsplash.com/photo-1478737270239-2f02b77fc618?q=80&w=800',
+          image_urls: row.image_urls || (row.image_url ? [row.image_url] : []),
+          read_time: row.read_time || '4 min read',
+          source_name: row.source_name || 'FideTV Media',
+          author_id: row.author_id || 'fidetv_admin',
+          is_published: true,
+          created_at: row.created_at || new Date().toISOString(),
+          profiles: {
+            username: 'FideTV News Desk',
+            avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=FideTV_NewsDesk',
+            role: 'Official Editor'
+          }
+        };
+
+        const existingIdx = this.posts.findIndex(p => p.id === row.id || p.slug === rowSlug);
+        if (existingIdx >= 0) {
+          // Update existing
+          this.posts[existingIdx] = { ...this.posts[existingIdx], ...formattedDbPost };
+        } else {
+          // Add new
+          this.posts.unshift(formattedDbPost);
+          syncedCount++;
+        }
+      }
+
+      // Sort and limit
+      this.posts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      if (this.posts.length > 60) this.posts = this.posts.slice(0, 60);
+      
+      this.lastSyncTime = new Date().toISOString();
+      return syncedCount;
+    } catch (err: any) {
+      console.error('[AutoBlogService] pullFromSupabase error:', err.message);
+      return 0;
     }
   }
 
