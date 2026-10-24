@@ -105,20 +105,21 @@ export default function NewsDetail() {
     }
 
     try {
-      // 0. Immediate match from bundled AUTO_BLOGS and localStorage (Instant on real domain)
+      // 0. Immediate match from bundled AUTO_BLOGS (Absolute source of truth for cover images)
       let localMatch: any = null;
-      try {
-        const local = safeLocalStorage.getItem('fidetv_live_blogs');
-        if (local) {
-          const parsed = JSON.parse(local);
-          if (Array.isArray(parsed)) {
-            localMatch = parsed.find((p: any) => p.slug === slug || p.id === slug);
-          }
-        }
-      } catch {}
-
-      if (!localMatch && Array.isArray(AUTO_BLOGS)) {
+      if (Array.isArray(AUTO_BLOGS)) {
         localMatch = (AUTO_BLOGS as any[]).find(p => p.slug === slug || p.id === slug);
+      }
+      if (!localMatch) {
+        try {
+          const local = safeLocalStorage.getItem('fidetv_live_blogs_v3');
+          if (local) {
+            const parsed = JSON.parse(local);
+            if (Array.isArray(parsed)) {
+              localMatch = parsed.find((p: any) => p.slug === slug || p.id === slug);
+            }
+          }
+        } catch {}
       }
 
       if (localMatch) {

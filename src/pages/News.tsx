@@ -79,13 +79,6 @@ const CATEGORIES = [
 
 export default function News() {
   const [news, setNews] = useState<NewsType[]>(() => {
-    try {
-      const local = safeLocalStorage.getItem('fidetv_live_blogs');
-      if (local) {
-        const parsed = JSON.parse(local);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {}
     return ((AUTO_BLOGS as any[]) || [STATIC_RELEASE_POST]);
   });
   const [loading, setLoading] = useState(false);
@@ -115,7 +108,7 @@ export default function News() {
             const cleanPosts = Array.from(uniqueMap.values());
             setNews(cleanPosts);
             try {
-              safeLocalStorage.setItem('fidetv_live_blogs', JSON.stringify(cleanPosts));
+              safeLocalStorage.setItem('fidetv_live_blogs_v3', JSON.stringify(cleanPosts));
             } catch {}
           }
         })
@@ -124,22 +117,8 @@ export default function News() {
   }, [selectedCategory]);
 
   const fetchNews = async () => {
-    let combinedNews: NewsType[] = [];
-
-    // 1. Start with bundled latest auto-blogs and localStorage
-    try {
-      const local = safeLocalStorage.getItem('fidetv_live_blogs');
-      if (local) {
-        const parsed = JSON.parse(local);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          combinedNews = [...parsed];
-        }
-      }
-    } catch {}
-
-    if (combinedNews.length === 0 && Array.isArray(AUTO_BLOGS) && AUTO_BLOGS.length > 0) {
-      combinedNews = [...(AUTO_BLOGS as any[])];
-    }
+    // 1. Start with AUTO_BLOGS as absolute source of truth for cover images and content
+    let combinedNews: NewsType[] = [...(AUTO_BLOGS as any[])];
 
     // 2. Fetch from our automated blog API (Production & Local)
     try {
