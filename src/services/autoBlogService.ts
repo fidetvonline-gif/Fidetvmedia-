@@ -4,6 +4,7 @@ import { GoogleGenAI } from '@google/genai';
 import fs from 'fs/promises';
 import path from 'path';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { validateAndEnrichNewsCover, getContentSpecificImage } from '../../server/media/newsImageValidator.js';
 
 export interface AutoBlogPost {
   id: string;
@@ -19,6 +20,7 @@ export interface AutoBlogPost {
   read_time: string;
   source_name: string;
   source_url?: string;
+  region?: string;
   author_id: string;
   is_published: boolean;
   created_at: string;
@@ -37,80 +39,60 @@ interface RawFeedItem {
   pubDate: string;
   sourceName: string;
   defaultCategory: string;
+  region?: string;
   imageUrl?: string;
 }
-
-const CATEGORY_FALLBACK_IMAGES: Record<string, string[]> = {
-  'Broadcasting & Streaming': [
-    'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=85&w=1600&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1516280440614-37939bbacd81?q=85&w=1600&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1478737270239-2f02b77fc618?q=85&w=1600&auto=format&fit=crop'
-  ],
-  'Technology & AI': [
-    'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=85&w=1600&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=85&w=1600&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1531482615713-2afd69097998?q=85&w=1600&auto=format&fit=crop'
-  ],
-  'Media & Entertainment': [
-    'https://images.unsplash.com/photo-1485846234645-a62644f84728?q=85&w=1600&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=85&w=1600&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1522869635100-9f4c5e86aa37?q=85&w=1600&auto=format&fit=crop'
-  ],
-  'Global News & Culture': [
-    'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=85&w=1600&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=85&w=1600&auto=format&fit=crop'
-  ],
-  'Creator Economy & Production': [
-    'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?q=85&w=1600&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?q=85&w=1600&auto=format&fit=crop'
-  ],
-  'Sports & Live Events': [
-    'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=85&w=1600&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=85&w=1600&auto=format&fit=crop'
-  ]
-};
 
 const NEWS_SOURCES = [
   {
     name: 'Channels Television Nigeria',
     url: 'https://www.channelstv.com/feed/',
-    defaultCategory: 'Global News & Culture'
+    defaultCategory: 'Global News & Culture',
+    region: 'Nigeria'
   },
   {
     name: 'Vanguard Nigeria News',
     url: 'https://www.vanguardngr.com/feed/',
-    defaultCategory: 'Global News & Culture'
+    defaultCategory: 'Global News & Culture',
+    region: 'Nigeria'
+  },
+  {
+    name: 'Punch Nigeria Wire',
+    url: 'https://punchng.com/feed/',
+    defaultCategory: 'Global News & Culture',
+    region: 'Nigeria'
   },
   {
     name: 'Tech & Digital Innovation',
     url: 'http://feeds.bbci.co.uk/news/technology/rss.xml',
-    defaultCategory: 'Technology & AI'
+    defaultCategory: 'Technology & AI',
+    region: 'Global'
   },
   {
     name: 'Entertainment & Arts Wire',
     url: 'http://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml',
-    defaultCategory: 'Media & Entertainment'
-  },
-  {
-    name: 'Global Broadcasting & World',
-    url: 'http://feeds.bbci.co.uk/news/world/rss.xml',
-    defaultCategory: 'Global News & Culture'
+    defaultCategory: 'Media & Entertainment',
+    region: 'Global'
   },
   {
     name: 'Media Tech Disruptions',
     url: 'https://techcrunch.com/feed/',
-    defaultCategory: 'Broadcasting & Streaming'
+    defaultCategory: 'Broadcasting & Streaming',
+    region: 'Global'
   }
 ];
 
 export class AutoBlogService {
   private static instance: AutoBlogService | null = null;
   private posts: AutoBlogPost[] = [];
+  private nigeriaNewsCache: AutoBlogPost[] = [];
+  private lastNigeriaFetchTime: string | null = null;
   private supabase: SupabaseClient | null = null;
   private isSyncing = false;
   private lastSyncTime: string | null = null;
   private storageFilePath: string;
   private syncIntervalHandle: NodeJS.Timeout | null = null;
+  private lastPingReport: any = null;
 
   constructor(supabaseClient: SupabaseClient | null = null) {
     this.supabase = supabaseClient;
@@ -126,26 +108,29 @@ export class AutoBlogService {
     return AutoBlogService.instance;
   }
 
+  public setSupabaseClient(client: SupabaseClient) {
+    this.supabase = client;
+  }
+
   public async init() {
-    console.log('[AutoBlogService] Initializing automated blog news engine...');
+    console.log('[AutoBlogService] Initializing automated blog news & sync engine...');
     await this.loadPersistedPosts();
 
-    // If no posts or fewer than 6, run initial sync immediately in the background
-    if (this.posts.length < 6) {
-      console.log('[AutoBlogService] Insufficient cached blog posts. Triggering initial news sync...');
+    // Run initial sync cycle in background to pull Supabase rows and enrich feed
+    setTimeout(() => {
       this.syncLatestNews().catch(err => {
         console.error('[AutoBlogService] Initial sync error:', err);
       });
-    }
+    }, 1500);
 
-    // Schedule periodic automatic update every 60 minutes
+    // Schedule periodic automatic update every 30 minutes
     if (!this.syncIntervalHandle) {
       this.syncIntervalHandle = setInterval(() => {
         console.log('[AutoBlogService] Triggering scheduled automated news update cycle...');
         this.syncLatestNews().catch(err => {
           console.error('[AutoBlogService] Scheduled sync error:', err);
         });
-      }, 60 * 60 * 1000);
+      }, 30 * 60 * 1000);
     }
   }
 
@@ -166,15 +151,14 @@ export class AutoBlogService {
         return;
       }
     } catch {
-      // File does not exist or invalid, initialize with empty or defaults
+      // Disk file empty or missing
     }
 
-    // If file was empty or missing, seed with comprehensive initial posts
     this.posts = this.getSeedBlogPosts();
     await this.persistPosts();
   }
 
-  private async persistPosts() {
+  public async persistPosts() {
     try {
       const dir = path.dirname(this.storageFilePath);
       await fs.mkdir(dir, { recursive: true });
@@ -182,11 +166,6 @@ export class AutoBlogService {
     } catch (err) {
       console.error('[AutoBlogService] Failed to persist posts to disk:', err);
     }
-  }
-
-  private getRandomImage(category: string): string {
-    const images = CATEGORY_FALLBACK_IMAGES[category] || CATEGORY_FALLBACK_IMAGES['Broadcasting & Streaming'];
-    return images[Math.floor(Math.random() * images.length)];
   }
 
   private generateSlug(title: string): string {
@@ -219,7 +198,7 @@ export class AutoBlogService {
         const response = await axios.get(source.url, {
           timeout: 8000,
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) FideTV-NewsBot/2.0'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) FideTV-NewsBot/3.0'
           }
         });
 
@@ -229,21 +208,19 @@ export class AutoBlogService {
         const $ = cheerio.load(xml, { xmlMode: true });
 
         $('item').each((i, el) => {
-          if (i >= 5) return; // Take top 5 per feed
+          if (i >= 5) return; // Top 5 per feed
 
           const title = $(el).find('title').first().text();
           const link = $(el).find('link').first().text();
           const desc = $(el).find('description').first().text();
           const pubDate = $(el).find('pubDate').first().text();
 
-          // Try to get image from media:content, media:thumbnail or enclosure
           let imageUrl = $(el).find('media\\:content, content').attr('url') ||
                           $(el).find('media\\:thumbnail, thumbnail').attr('url') ||
                           $(el).find('enclosure[type^="image"]').attr('url') ||
                           '';
 
           if (!imageUrl) {
-            // Check inside description for <img>
             const imgMatch = desc.match(/<img[^>]+src="([^">]+)"/i);
             if (imgMatch && imgMatch[1]) {
               imageUrl = imgMatch[1];
@@ -261,6 +238,7 @@ export class AutoBlogService {
               pubDate: pubDate || new Date().toISOString(),
               sourceName: source.name,
               defaultCategory: source.defaultCategory,
+              region: source.region,
               imageUrl: imageUrl.trim() || undefined
             });
           }
@@ -273,18 +251,128 @@ export class AutoBlogService {
     return rawItems;
   }
 
+  /**
+   * Dedicated news aggregation filtered specifically by region ('Nigeria')
+   */
+  public async getNigeriaNews(forceRefresh = false): Promise<AutoBlogPost[]> {
+    const now = Date.now();
+    const cacheAge = this.lastNigeriaFetchTime ? now - new Date(this.lastNigeriaFetchTime).getTime() : Infinity;
+
+    // Use cache if under 5 minutes old and forceRefresh is false
+    if (!forceRefresh && this.nigeriaNewsCache.length > 0 && cacheAge < 5 * 60 * 1000) {
+      return this.nigeriaNewsCache;
+    }
+
+    console.log('[AutoBlogService] Fetching & aggregating region-filtered Nigeria news feed...');
+    const nigeriaItems: AutoBlogPost[] = [];
+
+    // 1. First include any posts from our main synchronized posts that are tagged Nigeria or from Nigerian sources/topics
+    for (const post of this.posts) {
+      const isNigeria =
+        post.region === 'Nigeria' ||
+        post.source_name?.toLowerCase().includes('nigeria') ||
+        post.source_name?.toLowerCase().includes('channels') ||
+        post.source_name?.toLowerCase().includes('vanguard') ||
+        post.title?.toLowerCase().includes('nigeria') ||
+        post.title?.toLowerCase().includes('tinubu') ||
+        post.title?.toLowerCase().includes('atiku') ||
+        post.title?.toLowerCase().includes('akwa ibom') ||
+        post.title?.toLowerCase().includes('nnpc') ||
+        post.title?.toLowerCase().includes('enugu') ||
+        post.title?.toLowerCase().includes('abuja') ||
+        post.tags?.some(t => t.toLowerCase().includes('nigeria'));
+
+      if (isNigeria) {
+        nigeriaItems.push(post);
+      }
+    }
+
+    // 2. Fetch live wire from external Nigeria news sources
+    const nigerianSources = NEWS_SOURCES.filter(s => s.region === 'Nigeria');
+    for (const src of nigerianSources) {
+      try {
+        const resp = await axios.get(src.url, {
+          timeout: 6000,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) FideTV-NigeriaWire/3.0'
+          }
+        });
+        const $ = cheerio.load(resp.data, { xmlMode: true });
+
+        const items = $('item').slice(0, 6).toArray();
+        for (const el of items) {
+          const title = this.cleanHtml($(el).find('title').first().text());
+          const link = $(el).find('link').first().text().trim();
+          const desc = this.cleanHtml($(el).find('description').first().text());
+          const pubDate = $(el).find('pubDate').first().text().trim();
+
+          let imageUrl = $(el).find('media\\:content, content').attr('url') ||
+                          $(el).find('media\\:thumbnail, thumbnail').attr('url') ||
+                          $(el).find('enclosure[type^="image"]').attr('url') || '';
+
+          if (!imageUrl) {
+            const imgMatch = desc.match(/<img[^>]+src="([^">]+)"/i);
+            if (imgMatch && imgMatch[1]) imageUrl = imgMatch[1];
+          }
+
+          if (title && title.length > 12) {
+            const slug = this.generateSlug(title);
+            const exists = nigeriaItems.some(n => n.slug === slug || n.title.toLowerCase() === title.toLowerCase());
+            if (!exists) {
+              // Validate cover image with our dedicated utility
+              const validated = await validateAndEnrichNewsCover(imageUrl, title, desc, 'Global News & Culture');
+              const post: AutoBlogPost = {
+                id: `ng-feed-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                slug,
+                title,
+                excerpt: desc ? desc.substring(0, 160) + '...' : 'Breaking regional report from Nigeria.',
+                description: desc || '',
+                content: desc || '',
+                category: 'Global News & Culture',
+                tags: ['Nigeria', 'RegionalNews', 'AfricaWire', 'FideTV'],
+                image_url: validated.validUrl,
+                image_urls: [validated.validUrl],
+                read_time: '3 min read',
+                source_name: src.name,
+                source_url: link,
+                region: 'Nigeria',
+                author_id: 'fidetv-newsbot',
+                is_published: true,
+                created_at: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
+                profiles: {
+                  username: 'Nigeria Regional Bureau',
+                  avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=NigeriaNewsDesk',
+                  role: 'Regional Wire Desk'
+                }
+              };
+              nigeriaItems.push(post);
+            }
+          }
+        }
+      } catch (err: any) {
+        console.warn(`[AutoBlogService] Error fetching Nigeria wire ${src.name}:`, err.message);
+      }
+    }
+
+    // 3. Deduplicate by slug or title
+    const uniqueMap = new Map<string, AutoBlogPost>();
+    for (const item of nigeriaItems) {
+      const key = item.slug || item.id || item.title.toLowerCase().trim();
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, item);
+      }
+    }
+
+    const result = Array.from(uniqueMap.values()).slice(0, 15);
+    this.nigeriaNewsCache = result;
+    this.lastNigeriaFetchTime = new Date().toISOString();
+    return result;
+  }
+
   private isValidGeminiKey(key?: string): boolean {
     if (!key) return false;
     const cleaned = key.trim().replace(/^['"]|['"]$/g, '');
-    if (
-      cleaned === '' ||
-      cleaned.toLowerCase().includes('placeholder') ||
-      cleaned.toLowerCase().includes('your_') ||
-      cleaned.length < 15
-    ) {
-      return false;
-    }
-    return true;
+    return cleaned !== '' && !cleaned.toLowerCase().includes('placeholder') && cleaned.length >= 15;
   }
 
   private async generateWithGemini(rawItem: RawFeedItem): Promise<{
@@ -311,15 +399,16 @@ export class AutoBlogService {
       });
 
       const prompt = `You are the Lead Digital Media Editor and Journalist for FideTV Media Hub.
-FideTV is a 24/7 digital broadcasting platform, live streaming hub, creator community, and modern media network.
+FideTV is a 24/7 digital broadcasting platform, live streaming hub, and modern African & international media network.
 
 Analyze this breaking news story:
 Headline: "${rawItem.title}"
 Source: "${rawItem.sourceName}"
 Snippet: "${rawItem.description}"
 Category Suggestion: "${rawItem.defaultCategory}"
+Region: "${rawItem.region || 'Global'}"
 
-Write a comprehensive, original, high-quality editorial blog post for FideTV's blog audience.
+Write a comprehensive, original, high-quality editorial blog post for FideTV's audience.
 The post must be written in rich Markdown with informative subheadings, industry analysis, broadcasting/digital media implications, and a bulleted "Key Takeaways" section.
 
 Output ONLY valid JSON in this exact structure without markdown fences:
@@ -359,51 +448,12 @@ Output ONLY valid JSON in this exact structure without markdown fences:
         };
       }
     } catch (aiErr: any) {
-      console.warn('[AutoBlogService] Gemini generation fallback:', aiErr.message);
+      console.warn('[AutoBlogService] Gemini generation notice:', aiErr.message);
     }
     return null;
   }
 
-  private async scrapeArticleDetail(url: string): Promise<{ highResImage?: string; paragraphs: string[] } | null> {
-    try {
-      const cleanUrl = url.split('?')[0];
-      const resp = await axios.get(cleanUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 FideTV-NewsBot/3.0'
-        },
-        timeout: 6000
-      });
-      const $ = cheerio.load(resp.data);
-      let ogImg = $('meta[property="og:image"]').attr('content') ||
-                  $('meta[name="twitter:image:src"]').attr('content') ||
-                  $('figure img').first().attr('src') ||
-                  '';
-      if (ogImg) {
-        ogImg = ogImg
-          .replace(/\/standard\/\d+\//, '/standard/1280/')
-          .replace(/\/cpsprodpb\/[a-z0-9]+\/live\//, '/cpsprodpb/1200/live/')
-          .replace(/\/branded_news\/\d+\//, '/branded_news/1200/');
-      }
-      const paragraphs: string[] = [];
-      $('article p, [data-component="text-block"] p, main p').each((_, el) => {
-        const text = $(el).text().trim();
-        if (
-          text.length > 25 &&
-          !text.includes('Follow BBC') &&
-          !text.includes('Sign up for our') &&
-          !text.includes('Image source,') &&
-          !text.toLowerCase().startsWith('image caption')
-        ) {
-          paragraphs.push(text);
-        }
-      });
-      return { highResImage: ogImg || undefined, paragraphs };
-    } catch {
-      return null;
-    }
-  }
-
-  private synthesizeFallbackPost(rawItem: RawFeedItem, fullParas?: string[]): {
+  private synthesizeFallbackPost(rawItem: RawFeedItem): {
     title: string;
     excerpt: string;
     content: string;
@@ -414,70 +464,9 @@ Output ONLY valid JSON in this exact structure without markdown fences:
     const title = rawItem.title;
     const category = rawItem.defaultCategory;
     const snippet = rawItem.description || 'Breaking coverage on major industry developments.';
-    let excerpt = snippet.length > 170 ? snippet.substring(0, 167) + '...' : snippet;
+    const excerpt = snippet.length > 170 ? snippet.substring(0, 167) + '...' : snippet;
 
-    let content = '';
-    let readTime = '4 min read';
-
-    if (fullParas && fullParas.length >= 3) {
-      const lead = fullParas.slice(0, 2).join('\n\n');
-      const middleStory = fullParas.slice(2, Math.floor(fullParas.length * 0.65)).join('\n\n');
-      const detailBackground = fullParas.slice(Math.floor(fullParas.length * 0.65), fullParas.length - 2).join('\n\n');
-      const concluding = fullParas.slice(fullParas.length - 2).join('\n\n');
-
-      if (fullParas[0]) {
-        excerpt = fullParas[0].length > 170 ? fullParas[0].substring(0, 167) + '...' : fullParas[0];
-      }
-
-      const words = fullParas.join(' ').split(/\s+/).length;
-      readTime = `${Math.max(3, Math.ceil(words / 200))} min read`;
-
-      content = `${lead}
-
----
-
-### 📰 The Full Developing Story & Context
-
-${middleStory}
-
----
-
-### 🔍 In-Depth Background & Statements
-
-${detailBackground}
-
----
-
-### 📡 Industry & Broadcast Perspective
-
-From a digital media infrastructure viewpoint, updates of this magnitude demonstrate the critical importance of adaptable, high-capacity broadcasting systems. Modern media operations like FideTV are actively observing these trends to ensure creators, audiences, and remote teams stay equipped with resilient, low-latency tools:
-
-* **Real-time Distribution**: The shift towards decentralized, multi-channel broadcast architectures.
-* **Creator Democratization**: Lowering the barrier for independent journalists and production studios to broadcast globally.
-* **Audience Interactivity**: Moving beyond passive viewing to synchronized voice spaces, collaborative commentary, and community notice walls.
-
----
-
-### 🎙️ Perspectives & What Comes Next
-
-${concluding}
-
----
-
-### 💡 FideTV Editorial Commentary
-
-At **FideTV Media**, our commitment is to provide transparent, continuous insights into the evolving landscape of broadcasting, streaming tech, and digital storytelling. Whether tracking new AI-assisted production pipelines or global entertainment dynamics, we aim to keep our community informed and ahead of the curve.
-
----
-
-### 📌 Key Takeaways
-
-1. **Impact**: Significant immediate relevance for digital media practitioners, creators, and audiences.
-2. **Key Insight**: ${snippet.substring(0, 100)}...
-3. **Next Steps**: Continued observation of follow-up announcements and technical standards rollouts.
-4. **Source Reference**: Live wire coverage courtesy of *${rawItem.sourceName}*.`;
-    } else {
-      content = `In a fast-moving development across the international media landscape, **${title}** has emerged as a focal point for industry observers, digital broadcasters, and creative professionals worldwide.
+    const content = `In a fast-moving development across the media and cultural landscape, **${title}** has emerged as a focal point for observers and audiences.
 
 ---
 
@@ -485,7 +474,7 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
 
 ${snippet}
 
-As reported via ${rawItem.sourceName}, this event reflects broader shifts currently impacting how media is distributed, consumed, and experienced in real-time environments.
+As reported via **${rawItem.sourceName}**, this event reflects broader shifts currently impacting how news and information are distributed, consumed, and experienced in real-time environments.
 
 ---
 
@@ -510,7 +499,6 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
 2. **Key Insight**: ${snippet.substring(0, 100)}...
 3. **Next Steps**: Continued observation of follow-up announcements.
 4. **Source Reference**: Live wire coverage courtesy of *${rawItem.sourceName}*.`;
-    }
 
     const tags = [
       category.split(' ')[0].replace(/[^a-zA-Z]/g, ''),
@@ -519,6 +507,7 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
       'LiveUpdates',
       'FideTVNews'
     ];
+    if (rawItem.region) tags.push(rawItem.region);
 
     return {
       title,
@@ -526,69 +515,188 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
       content,
       category,
       tags,
-      read_time: readTime
+      read_time: '4 min read'
     };
   }
 
+  /**
+   * Ping Search Engine Indexing Services (Google, Bing, IndexNow) whenever
+   * news content is published or updated.
+   */
+  public async pingSearchEngineIndexing(sitemapUrl = 'https://fidetv.com/sitemap.xml'): Promise<any> {
+    const results: any = {
+      timestamp: new Date().toISOString(),
+      sitemapUrl,
+      targets: {}
+    };
+
+    // 1. Bing Sitemap Ping
+    try {
+      const bingPing = `https://www.bing.com/ping?sitemap=${encodeURIComponent(sitemapUrl)}`;
+      const bingResp = await axios.get(bingPing, { timeout: 5000, validateStatus: () => true });
+      results.targets.bing = { status: bingResp.status, success: bingResp.status >= 200 && bingResp.status < 400 };
+    } catch (e: any) {
+      results.targets.bing = { status: 'error', error: e.message };
+    }
+
+    // 2. Google Sitemap Ping (handled safely)
+    try {
+      const googlePing = `https://www.google.com/ping?sitemap=${encodeURIComponent(sitemapUrl)}`;
+      const googleResp = await axios.get(googlePing, { timeout: 5000, validateStatus: () => true });
+      results.targets.google = { status: googleResp.status, success: googleResp.status >= 200 && googleResp.status < 400 };
+    } catch (e: any) {
+      results.targets.google = { status: 'error', error: e.message };
+    }
+
+    // 3. IndexNow Notification
+    try {
+      const indexNowUrl = 'https://api.indexnow.org/indexnow';
+      const indexNowResp = await axios.post(indexNowUrl, {
+        host: 'fidetv.com',
+        key: 'fidetv_seo_key_2026',
+        urlList: [sitemapUrl, 'https://fidetv.com/news']
+      }, { timeout: 5000, validateStatus: () => true });
+      results.targets.indexNow = { status: indexNowResp.status, success: indexNowResp.status >= 200 && indexNowResp.status < 400 };
+    } catch (e: any) {
+      results.targets.indexNow = { status: 'error', error: e.message };
+    }
+
+    this.lastPingReport = results;
+    console.log('[AutoBlogService] Search engine indexing ping dispatched:', JSON.stringify(results.targets));
+    return results;
+  }
+
+  /**
+   * Centralized synchronization service:
+   * 1. Ingests fresh live feeds with validated, non-repetitive imagery.
+   * 2. Synchronizes bidirectionally with Supabase database (fixing empty slugs & validating image URLs).
+   * 3. Broadcasts real-time events to all active clients.
+   * 4. Updates disk persistence.
+   * 5. Pings search engine indexing.
+   */
   public async syncLatestNews(): Promise<{
     addedCount: number;
+    dbSyncedCount: number;
     totalPosts: number;
     lastSync: string;
+    pingReport?: any;
   }> {
     if (this.isSyncing) {
       return {
         addedCount: 0,
+        dbSyncedCount: 0,
         totalPosts: this.posts.length,
         lastSync: this.lastSyncTime || new Date().toISOString()
       };
     }
 
     this.isSyncing = true;
-    console.log('[AutoBlogService] Ingesting news feeds and writing automated blog posts...');
+    console.log('[AutoBlogService] Starting centralized news synchronization cycle...');
 
     let addedCount = 0;
+    let dbSyncedCount = 0;
+
     try {
+      // Step A: Pull all existing news rows from Supabase database to ensure exact parity
+      if (this.supabase) {
+        try {
+          const { data: dbRows, error: dbError } = await this.supabase
+            .from('news')
+            .select('*')
+            .eq('is_published', true)
+            .order('created_at', { ascending: false });
+
+          if (!dbError && Array.isArray(dbRows)) {
+            for (const row of dbRows) {
+              const rowSlug = row.slug || this.generateSlug(row.title) || row.id;
+
+              // Validate/enrich cover image
+              const validatedImage = await validateAndEnrichNewsCover(
+                row.image_url,
+                row.title,
+                row.content || row.description,
+                row.category
+              );
+
+              // Update in database if slug was missing or image was improved
+              if (!row.slug || (validatedImage.validUrl !== row.image_url && !row.image_url)) {
+                await this.supabase
+                  .from('news')
+                  .update({
+                    slug: rowSlug,
+                    image_url: validatedImage.validUrl,
+                    image_urls: [validatedImage.validUrl]
+                  })
+                  .eq('id', row.id);
+              }
+
+              const formattedDbPost: AutoBlogPost = {
+                id: row.id,
+                slug: rowSlug,
+                title: row.title,
+                excerpt: row.excerpt || row.description || (row.content ? row.content.substring(0, 160) + '...' : ''),
+                description: row.description || row.excerpt || '',
+                content: row.content || '',
+                category: row.category || 'News',
+                tags: row.tags || ['Broadcasting', 'News'],
+                image_url: validatedImage.validUrl,
+                image_urls: [validatedImage.validUrl],
+                read_time: '4 min read',
+                source_name: 'FideTV Media',
+                author_id: row.author_id || 'fidetv_admin',
+                is_published: true,
+                created_at: row.created_at || new Date().toISOString(),
+                profiles: {
+                  username: 'FideTV News Desk',
+                  avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=FideTV_NewsDesk',
+                  role: 'Official Editor'
+                }
+              };
+
+              // Merge into this.posts if not present
+              const existingIdx = this.posts.findIndex(p => p.id === row.id || p.slug === rowSlug);
+              if (existingIdx >= 0) {
+                this.posts[existingIdx] = { ...this.posts[existingIdx], ...formattedDbPost };
+              } else {
+                this.posts.unshift(formattedDbPost);
+                dbSyncedCount++;
+              }
+            }
+            console.log(`[AutoBlogService] Synchronized ${dbRows.length} items from Supabase database.`);
+          }
+        } catch (dbErr: any) {
+          console.warn('[AutoBlogService] Supabase pull error:', dbErr.message);
+        }
+      }
+
+      // Step B: Ingest candidate news items from live feeds
       const rawItems = await this.fetchRawFeeds();
-      console.log(`[AutoBlogService] Fetched ${rawItems.length} candidate news items from live feeds.`);
+      console.log(`[AutoBlogService] Processing ${rawItems.length} candidate news items from live feeds...`);
 
       for (const item of rawItems) {
-        // Stop if we already added enough in this cycle
         if (addedCount >= 4) break;
 
         const tempSlug = this.generateSlug(item.title);
-
-        // Check if already posted
         const alreadyExists = this.posts.some(
           p => p.slug === tempSlug || p.title.toLowerCase() === item.title.toLowerCase()
         );
         if (alreadyExists) continue;
 
-        let highResImage = item.imageUrl;
-        let fullParas: string[] = [];
+        // Image validation utility to ensure valid, non-random, content-specific imagery
+        const validatedCover = await validateAndEnrichNewsCover(
+          item.imageUrl,
+          item.title,
+          item.description,
+          item.defaultCategory
+        );
 
-        if (item.link) {
-          const detail = await this.scrapeArticleDetail(item.link);
-          if (detail) {
-            if (detail.highResImage) highResImage = detail.highResImage;
-            if (detail.paragraphs && detail.paragraphs.length >= 3) {
-              fullParas = detail.paragraphs;
-            }
-          }
-        }
-
-        if (highResImage && (highResImage.includes('bbci.co.uk') || highResImage.includes('bbc.co.uk'))) {
-          highResImage = '';
-        }
-
-        // Try AI generation first, fallback to editorial synthesis
         let generated = await this.generateWithGemini(item);
         if (!generated) {
-          generated = this.synthesizeFallbackPost(item, fullParas);
+          generated = this.synthesizeFallbackPost(item);
         }
 
         const id = `fidetv-blog-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
         const slug = this.generateSlug(generated.title) || tempSlug;
-        const imageUrl = highResImage || this.getRandomImage(generated.category);
 
         const newPost: AutoBlogPost = {
           id,
@@ -599,11 +707,12 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
           content: generated.content,
           category: generated.category,
           tags: generated.tags,
-          image_url: imageUrl,
-          image_urls: [imageUrl],
+          image_url: validatedCover.validUrl,
+          image_urls: [validatedCover.validUrl],
           read_time: generated.read_time,
           source_name: item.sourceName,
           source_url: item.link,
+          region: item.region || 'Global',
           author_id: 'fidetv-newsbot',
           is_published: true,
           created_at: new Date().toISOString(),
@@ -617,7 +726,7 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
         this.posts.unshift(newPost);
         addedCount++;
 
-        // Sync with Supabase if available
+        // Sync new post to Supabase database
         if (this.supabase) {
           try {
             await this.supabase.from('news').upsert({
@@ -640,14 +749,56 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
         }
       }
 
-      // Keep maximum 50 most recent blog posts
-      if (this.posts.length > 50) {
-        this.posts = this.posts.slice(0, 50);
+      // Step C: Push any posts from this.posts that are missing in Supabase
+      if (this.supabase) {
+        try {
+          const syncCandidates = this.posts.slice(0, 15);
+          for (const post of syncCandidates) {
+            await this.supabase.from('news').upsert({
+              id: post.id,
+              slug: post.slug,
+              title: post.title,
+              excerpt: post.excerpt,
+              description: post.description,
+              content: post.content,
+              category: post.category,
+              tags: post.tags,
+              image_url: post.image_url,
+              image_urls: post.image_urls || [post.image_url],
+              is_published: true,
+              created_at: post.created_at
+            }, { onConflict: 'slug' });
+          }
+
+          // Broadcast real-time update
+          try {
+            await this.supabase.channel('fidetv-news-realtime').send({
+              type: 'broadcast',
+              event: 'news-updated',
+              payload: { timestamp: new Date().toISOString(), totalPosts: this.posts.length }
+            });
+          } catch (bErr) {
+            // Ignore broadcast fallback
+          }
+        } catch (syncDbErr: any) {
+          console.warn('[AutoBlogService] Mass sync to Supabase notice:', syncDbErr.message);
+        }
+      }
+
+      // Keep maximum 60 most recent posts
+      if (this.posts.length > 60) {
+        this.posts = this.posts.slice(0, 60);
       }
 
       await this.persistPosts();
       this.lastSyncTime = new Date().toISOString();
-      console.log(`[AutoBlogService] Completed sync cycle. Added ${addedCount} new posts. Total active: ${this.posts.length}`);
+
+      // Step D: Trigger dynamic search engine indexing ping
+      this.pingSearchEngineIndexing().catch(err => {
+        console.warn('[AutoBlogService] Indexing ping notice:', err.message);
+      });
+
+      console.log(`[AutoBlogService] Sync cycle complete. Added ${addedCount} feed posts, synced ${dbSyncedCount} DB posts. Total active: ${this.posts.length}`);
     } catch (err: any) {
       console.error('[AutoBlogService] Sync error:', err);
     } finally {
@@ -656,8 +807,10 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
 
     return {
       addedCount,
+      dbSyncedCount,
       totalPosts: this.posts.length,
-      lastSync: this.lastSyncTime || new Date().toISOString()
+      lastSync: this.lastSyncTime || new Date().toISOString(),
+      pingReport: this.lastPingReport
     };
   }
 
@@ -737,7 +890,9 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
       lastSync: this.lastSyncTime,
       totalPosts: this.posts.length,
       sourcesCount: NEWS_SOURCES.length,
-      syncIntervalMinutes: 60
+      nigeriaNewsCount: this.nigeriaNewsCache.length,
+      lastPingReport: this.lastPingReport,
+      syncIntervalMinutes: 30
     };
   }
 
