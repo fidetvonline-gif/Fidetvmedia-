@@ -11,6 +11,7 @@ import TourGuide from './TourGuide';
 import LiveEventBanner from '@/components/LiveEventBanner';
 import PromotionPopup from '@/components/PromotionPopup';
 import FeaturedChannelPopup from '@/components/FeaturedChannelPopup';
+import MobileBottomNav from '@/components/MobileBottomNav';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -279,110 +280,173 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               )}
             </div>
 
-            {/* Mobile Menu Button */}
+            {/* Mobile Actions - Simplified top nav for mobile */}
             <div className="md:hidden flex items-center gap-2">
               <button
                 onClick={toggleTheme}
-                className="p-2 text-foreground"
+                className="p-2.5 bg-surface rounded-2xl text-foreground border border-border-custom shadow-sm active:scale-95 transition-all"
+                title="Toggle Theme"
               >
                 {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
               </button>
-              <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="p-2 text-foreground"
-              >
-                {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-              </button>
+              {user ? (
+                <Link to="/profile" className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 overflow-hidden shadow-sm active:scale-95 transition-all">
+                  {user.user_metadata?.avatar_url ? (
+                    <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-5 h-5 text-primary" />
+                  )}
+                </Link>
+              ) : (
+                <Link to="/auth" className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-2xl shadow-lg active:scale-95 transition-all">
+                  Sign In
+                </Link>
+              )}
             </div>
           </div>
         </div>
       </nav>
 
-      {/* Mobile Menu Overlay */}
+      {/* Mobile Menu Overlay - Refined as a Modern Side Sheet */}
       <AnimatePresence>
         {isMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, x: '10%' }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: '10%' }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[9990] bg-background md:hidden pt-40 px-8 flex flex-col gap-8 overflow-y-auto"
-          >
-            <nav className="flex flex-col gap-6">
-              {navLinks.map((link, idx) => (
-                <motion.div
-                  key={link.path}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.03 }}
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMenuOpen(false)}
+              className="fixed inset-0 z-[9990] bg-black/60 backdrop-blur-sm md:hidden"
+            />
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed top-0 right-0 bottom-0 w-[85%] max-w-[400px] z-[9999] bg-background border-l border-border-custom md:hidden shadow-[-20px_0_40px_rgba(0,0,0,0.5)] flex flex-col"
+            >
+              <div className="p-8 flex items-center justify-between border-b border-border-custom bg-surface/50 backdrop-blur-md">
+                <div className="flex items-center gap-3">
+                  <FideTvLogo className="w-8 h-8" />
+                  <span className="font-display font-black text-xl">FideTV Menu</span>
+                </div>
+                <button 
+                  onClick={() => setIsMenuOpen(false)}
+                  className="p-3 bg-foreground/5 rounded-2xl text-foreground hover:bg-foreground/10 transition-all active:scale-90"
                 >
-                  <Link
-                    to={link.path}
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                    }}
-                    className="flex items-center gap-4 text-3xl font-display font-black text-foreground hover:text-primary transition-all active:scale-95 origin-left"
-                  >
-                    {link.icon && <link.icon className="w-6 h-6 text-primary" />}
-                    {link.name}
-                  </Link>
-                </motion.div>
-              ))}
-              
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: navLinks.length * 0.03 }}
-                className="pt-8 mt-8 border-t border-border-custom space-y-6"
-              >
-                {!isStandalone && (
-                  <Link
-                    to="/download"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="flex items-center gap-4 text-xl font-bold text-foreground/70"
-                  >
-                    <DownloadCloud className="w-6 h-6 text-primary" />
-                    Download App
-                  </Link>
-                )}
-                
-                {user ? (
-                  <>
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <nav className="flex-grow overflow-y-auto p-6 space-y-2">
+                <div className="pb-4 mb-4 border-b border-border-custom">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-4 px-2">Core Destinations</p>
+                  <div className="grid grid-cols-1 gap-1">
+                    {navLinks.slice(0, 5).map((link) => (
+                      <Link
+                        key={link.path}
+                        to={link.path}
+                        onClick={() => setIsMenuOpen(false)}
+                        className={cn(
+                          "flex items-center gap-4 p-4 rounded-2xl font-bold transition-all active:scale-95",
+                          location.pathname === link.path 
+                            ? "bg-primary text-white shadow-lg shadow-primary/20" 
+                            : "text-foreground/70 hover:bg-surface hover:text-foreground"
+                        )}
+                      >
+                        {link.icon && <link.icon className={cn("w-5 h-5", location.pathname === link.path ? "text-white" : "text-primary")} />}
+                        <span className="text-lg tracking-tight">{link.name}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-text-muted mb-4 px-2">More Options</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {navLinks.slice(5).map((link) => (
+                      <Link
+                        key={link.path}
+                        to={link.path}
+                        onClick={() => setIsMenuOpen(false)}
+                        className={cn(
+                          "flex flex-col gap-3 p-4 rounded-2xl border border-border-custom transition-all active:scale-95",
+                          location.pathname === link.path 
+                            ? "bg-surface text-primary border-primary/30" 
+                            : "bg-surface/30 text-foreground/70 hover:bg-surface hover:text-foreground"
+                        )}
+                      >
+                        {link.icon && <link.icon className="w-5 h-5 text-primary" />}
+                        <span className="text-sm font-bold truncate">{link.name}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-8 space-y-4">
+                  {!isStandalone && (
                     <Link
-                      to="/profile"
+                      to="/download"
                       onClick={() => setIsMenuOpen(false)}
-                      className="flex items-center gap-4 text-xl font-bold text-foreground/70"
+                      className="flex items-center gap-4 p-4 rounded-2xl bg-surface-bright border border-border-custom text-foreground/70 font-bold"
                     >
-                      <User className="w-6 h-6 text-primary" />
-                      My Profile
+                      <DownloadCloud className="w-6 h-6 text-primary" />
+                      <span>Professional App</span>
                     </Link>
-                    <button
-                      onClick={() => {
-                        handleSignOut();
-                        setIsMenuOpen(false);
-                      }}
-                      className="flex items-center gap-4 text-xl font-bold text-red-500"
-                    >
-                      <LogOut className="w-6 h-6" />
-                      Sign Out
-                    </button>
-                  </>
-                ) : (
-                  <Link
-                    to="/auth"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="w-full py-4 bg-primary text-white font-bold rounded-2xl text-center shadow-lg shadow-primary/20"
-                  >
-                    Sign In to FideTV
-                  </Link>
-                )}
-              </motion.div>
-            </nav>
-          </motion.div>
+                  )}
+                  
+                  {user ? (
+                    <div className="grid grid-cols-1 gap-2 pt-4">
+                      <Link
+                        to="/profile"
+                        onClick={() => setIsMenuOpen(false)}
+                        className="flex items-center gap-4 p-4 rounded-2xl bg-surface border border-border-custom text-foreground/70 font-bold"
+                      >
+                        <User className="w-6 h-6 text-primary" />
+                        My Account
+                      </Link>
+                      <button
+                        onClick={() => {
+                          handleSignOut();
+                          setIsMenuOpen(false);
+                        }}
+                        className="flex items-center gap-4 p-4 rounded-2xl bg-red-500/10 text-red-500 font-bold border border-red-500/20"
+                      >
+                        <LogOut className="w-6 h-6" />
+                        Sign Out
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="pt-4">
+                      <Link
+                        to="/auth"
+                        onClick={() => setIsMenuOpen(false)}
+                        className="block w-full py-5 bg-primary text-white font-black uppercase tracking-widest rounded-[2rem] text-center shadow-2xl shadow-primary/30 active:scale-95 transition-all"
+                      >
+                        Join FideTV Studio
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </nav>
+
+              <div className="p-8 border-t border-border-custom bg-surface/30">
+                <div className="flex items-center justify-center gap-2 opacity-50">
+                  <FideTvLogo className="w-4 h-4" />
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em]">&copy; 2026 FideTV Official</p>
+                </div>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 
-      <main className={cn("flex-grow pt-[88px] lg:pt-[88px]", location.pathname === '/live' && "pt-[80px] lg:pt-[80px]")}>
+      <MobileBottomNav onActionClick={() => setIsMenuOpen(true)} />
+
+      <main className={cn(
+        "flex-grow pt-[88px] lg:pt-[88px] pb-[80px] md:pb-0", 
+        location.pathname === '/live' && "pt-[80px] lg:pt-[80px]"
+      )}>
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}

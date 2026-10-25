@@ -83,26 +83,29 @@ class NewsSyncService {
     }
 
     try {
-      // Create real-time channel
+      // Create real-time channel as requested ('realtime')
       this.channel = supabase
-        .channel('fidetv-news-realtime')
+        .channel('realtime')
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'news' },
           (payload: any) => {
-            console.log('[NewsSyncService] Realtime DB change received:', payload.eventType, payload.new?.title);
+            console.log('[NewsSyncService] Realtime DB change received on "news" table:', payload.eventType, payload.new?.title);
             this.handleRealtimeEvent(payload);
           }
         )
         .on('broadcast', { event: 'news-updated' }, (payload: any) => {
-          console.log('[NewsSyncService] Broadcast news update received:', payload);
-          this.refreshNews();
+          console.log('[NewsSyncService] Broadcast news-updated received:', payload);
+          this.refreshNews(true);
         })
         .subscribe((status: string) => {
-          console.log('[NewsSyncService] Supabase Realtime subscription status:', status);
+          console.log('[NewsSyncService] Supabase "realtime" channel status:', status);
+          if (status === 'SUBSCRIBED') {
+            console.log('[NewsSyncService] Successfully connected to live news wire.');
+          }
         });
     } catch (err) {
-      console.warn('[NewsSyncService] Realtime subscription init error:', err);
+      console.error('[NewsSyncService] Critical Realtime subscription error:', err);
     }
   }
 
@@ -110,22 +113,38 @@ class NewsSyncService {
     const { eventType, new: newRecord, old: oldRecord } = payload;
 
     if (eventType === 'INSERT' && newRecord) {
+      if (newRecord.is_published === false) return;
+      console.log('[NewsSyncService] Handling INSERT event for:', newRecord.title);
       const formatted: NewsType = this.formatDbRecord(newRecord);
-      // Prepend or replace if already exists
+      
+      // Ensure we don't have duplicates
       const filtered = this.currentNews.filter(n => n.id !== formatted.id && n.slug !== formatted.slug);
       this.currentNews = [formatted, ...filtered];
+      
+      // Persist locally
+      this.persistToCache();
       this.notifyListeners();
     } else if (eventType === 'UPDATE' && newRecord) {
-      const formatted: NewsType = this.formatDbRecord(newRecord);
-      this.currentNews = this.currentNews.map(n => 
-        (n.id === formatted.id || (formatted.slug && n.slug === formatted.slug)) ? formatted : n
-      );
+      if (newRecord.is_published === false) {
+        // If it was published but now unpublished, remove it
+        this.currentNews = this.currentNews.filter(n => n.id !== newRecord.id);
+      } else {
+        console.log('[NewsSyncService] Handling UPDATE event for:', newRecord.title);
+        const formatted: NewsType = this.formatDbRecord(newRecord);
+        this.currentNews = this.currentNews.map(n => 
+          (n.id === formatted.id || (formatted.slug && n.slug === formatted.slug)) ? formatted : n
+        );
+      }
+      this.persistToCache();
       this.notifyListeners();
     } else if (eventType === 'DELETE' && oldRecord) {
+      console.log('[NewsSyncService] Handling DELETE event for ID:', oldRecord.id);
       this.currentNews = this.currentNews.filter(n => n.id !== oldRecord.id);
+      this.persistToCache();
       this.notifyListeners();
     } else {
-      this.refreshNews();
+      console.log('[NewsSyncService] Unknown realtime event type, triggering full refresh.');
+      this.refreshNews(true);
     }
   }
 
@@ -152,14 +171,23 @@ class NewsSyncService {
     };
   }
 
+  private persistToCache() {
+    try {
+      safeLocalStorage.setItem('fidetv_live_blogs_v3', JSON.stringify(this.currentNews));
+    } catch (e) {
+      // silent fail
+    }
+  }
+
   /**
    * Fetch and synchronize news from both server API and Supabase
    */
   public async refreshNews(force = false): Promise<NewsType[]> {
-    if (this.isSyncing) return this.currentNews;
+    if (this.isSyncing && !force) return this.currentNews;
     this.isSyncing = true;
 
     try {
+      console.log(`[NewsSyncService] Syncing news wire (force=${force})...`);
       // 1. Fetch from unified backend news endpoint (which merges auto_blogs & database)
       let combined: NewsType[] = [];
       try {
@@ -175,18 +203,27 @@ class NewsSyncService {
         console.warn('[NewsSyncService] Backend /api/news warning:', e);
       }
 
-      // 2. No redundant Supabase fetch needed; /api/news handles consolidation.
-
-      // 3. Fallback to bundled data if empty
-      if (combined.length === 0) {
+      // 2. Fallback to bundled data if empty
+      if (combined.length === 0 && this.currentNews.length === 0) {
         combined = (AUTO_BLOGS as any[]) || [];
       }
 
-      // 4. Strict deduplication by slug, id, and normalized title
-      const uniqueMap = new Map<string, NewsType>();
-      for (const item of combined) {
-        const key = item.slug || item.id || (item.title ? item.title.toLowerCase().trim() : Math.random().toString());
-        if (!uniqueMap.has(key)) {
+      // 3. Strict deduplication by slug, id, and normalized title
+      if (combined.length > 0) {
+        const uniqueMap = new Map<string, NewsType>();
+        
+        // Add existing news first if not forcing
+        if (!force) {
+          for (const item of this.currentNews) {
+            const key = item.slug || item.id;
+            if (key) uniqueMap.set(key, item);
+          }
+        }
+
+        // Add fresh items (overwriting if needed)
+        for (const item of combined) {
+          const key = item.slug || item.id || (item.title ? item.title.toLowerCase().trim() : Math.random().toString());
+          
           // Ensure image_url is properly validated and high-resolution
           const finalItem = {
             ...item,
@@ -194,18 +231,18 @@ class NewsSyncService {
           };
           uniqueMap.set(key, finalItem);
         }
+
+        const deduplicated = Array.from(uniqueMap.values());
+        // Sort by created_at descending
+        deduplicated.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        
+        this.currentNews = deduplicated;
+        this.lastSyncTime = new Date().toISOString();
+        this.persistToCache();
       }
 
-      const deduplicated = Array.from(uniqueMap.values());
-      this.currentNews = deduplicated;
-      this.lastSyncTime = new Date().toISOString();
-
-      try {
-        safeLocalStorage.setItem('fidetv_live_blogs_v3', JSON.stringify(deduplicated));
-      } catch {}
-
       this.notifyListeners();
-      return deduplicated;
+      return this.currentNews;
     } finally {
       this.isSyncing = false;
     }

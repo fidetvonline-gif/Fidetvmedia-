@@ -86,7 +86,6 @@ export default function News() {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    // Filter logic whenever news or filters change
     let filtered = [...news];
     if (selectedCategory !== 'All') {
       const catLower = selectedCategory.toLowerCase();
@@ -103,321 +102,283 @@ export default function News() {
   const standardPosts = filteredNews.length > 1 ? filteredNews.slice(1) : [];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-8 mb-12">
-        <div className="space-y-4">
-          <div className="inline-flex items-center space-x-2.5 px-3.5 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary font-black uppercase tracking-[0.25em] text-xs">
-            <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-400" />
-            <span>FideTV Automated News & Blog Wire</span>
-          </div>
-          <h1 className="text-4xl sm:text-6xl md:text-7xl font-display font-medium text-foreground tracking-tighter">
-            FideTV <span className="text-primary">Blog Studio.</span>
-          </h1>
-          <p className="max-w-xl text-text-muted text-base sm:text-lg font-light leading-relaxed">
-            Continuously updated editorial news on media production, broadcasting breakthroughs, creator tools, and real-time industry intelligence.
-          </p>
-        </div>
-
-        {/* Live Auto-Update Status & Quick Refresh */}
-        <div className="flex items-center gap-3 self-stretch lg:self-auto justify-between lg:justify-end">
-          <div className="flex items-center space-x-2 px-3.5 py-2 rounded-xl glass border border-border-custom text-xs text-text-muted">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-            <span className="text-emerald-400 font-semibold">Live Auto-Sync</span>
-            <span className="text-text-muted/60">•</span>
-            <span>{lastSyncTime ? `Updated ${formatDistanceToNow(new Date(lastSyncTime), { addSuffix: true })}` : 'Auto-polling active'}</span>
-          </div>
-          <button
-            onClick={() => refreshNews(true)}
-            disabled={isSyncing}
-            className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
-            title="Force refresh news now"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-            <span>{isSyncing ? 'Syncing...' : 'Sync Now'}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Search & Category Filter Navigation */}
-      <div className="mb-12 space-y-5">
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-          {/* Search Box */}
-          <div className="relative w-full md:max-w-md">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search news, topics, tags..."
-              className="w-full pl-11 pr-4 py-3 rounded-2xl glass border border-border-custom bg-surface/50 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-text-muted/60"
+    <div className="min-h-screen bg-background pb-32">
+      {/* Cinematic Editorial Header */}
+      <section className="relative h-[70vh] flex items-center justify-center overflow-hidden border-b border-border-custom">
+         <div className="absolute inset-0 z-0">
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/60 to-background z-10" />
+            <motion.div 
+              initial={{ scale: 1.1, opacity: 0 }}
+              animate={{ scale: 1, opacity: 0.15 }}
+              transition={{ duration: 2 }}
+              className="w-full h-full bg-[url('https://images.unsplash.com/photo-1504711432869-53c267e15303?q=80&w=1200')] bg-cover bg-center grayscale filter blur-sm"
             />
-            {searchQuery && (
-              <button 
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-text-muted hover:text-foreground px-2 py-1"
-              >
-                Clear
-              </button>
-            )}
-          </div>
+         </div>
 
-          <div className="flex items-center space-x-2 text-xs text-text-muted self-end md:self-center">
-            <TrendingUp className="w-3.5 h-3.5 text-primary" />
-            <span>Showing {filteredNews.length} articles</span>
-          </div>
-        </div>
-
-        {/* Category Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                selectedCategory === cat
-                  ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-[1.02]'
-                  : 'glass text-text-muted hover:text-foreground hover:bg-surface-bright border-border-custom'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Inline Ads */}
-      <div className="mb-14 space-y-8">
-        <DisplayInlineAds />
-        <AdBanner placement="News Page Top" />
-      </div>
-
-      {isSyncing ? (
-        <div className="space-y-8">
-          <div className="glass rounded-[2.5rem] h-96 animate-pulse" />
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="glass rounded-[2.5rem] h-80 animate-pulse" />
-            ))}
-          </div>
-        </div>
-      ) : filteredNews.length === 0 ? (
-        <div className="text-center py-28 glass rounded-[3rem] border border-dashed border-border-custom mt-8 p-8">
-          <Newspaper className="w-16 h-16 text-text-muted mx-auto mb-5 opacity-60" />
-          <h2 className="text-2xl font-display font-medium text-foreground">No articles found</h2>
-          <p className="text-text-muted text-sm mt-2 max-w-md mx-auto">
-            {searchQuery 
-              ? `No stories matched "${searchQuery}". Try a different keyword or reset filters.`
-              : 'Our automated news wire is refreshing.'}
-          </p>
-          <button
-            onClick={() => refreshNews()}
-            className="mt-6 inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary-hover transition-all cursor-pointer"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Refresh News Now</span>
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-12">
-          {/* Featured Breaking News Hero Card */}
-          {featuredPost && (
+         <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-8">
             <motion.div
-              initial={{ opacity: 0, y: 15 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="group relative glass rounded-[2.5rem] overflow-hidden border border-border-custom hover:border-primary/40 transition-all duration-500 shadow-2xl"
+              className="inline-flex items-center space-x-3 px-5 py-2 rounded-full glass border border-primary/20 text-primary font-black uppercase tracking-[0.3em] text-[10px]"
             >
-              <Link 
-                to={`/news/${featuredPost.slug || featuredPost.id}`} 
-                className="absolute inset-0 z-20" 
-                aria-label={`Read ${featuredPost.title}`} 
-              />
-              <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[420px]">
-                <div className="lg:col-span-7 relative overflow-hidden bg-surface aspect-[16/10] lg:aspect-auto">
-                  <img
-                    src={getHighQualityImage(featuredPost.image_url, featuredPost.category, featuredPost.title)}
-                    alt={featuredPost.title}
-                    loading="eager"
-                    fetchPriority="high"
-                    referrerPolicy="no-referrer"
-                    onError={(e) => {
-                      e.currentTarget.onerror = null;
-                      e.currentTarget.src = getClientContentImage(featuredPost.title, featuredPost.category);
-                    }}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent lg:hidden" />
-                  <div className="absolute top-6 left-6 flex items-center space-x-2 z-10">
-                    <span className="bg-primary text-white text-[10px] font-black uppercase tracking-wider px-3.5 py-1.5 rounded-full shadow-lg flex items-center space-x-1.5">
-                      <Flame className="w-3 h-3 text-amber-300" />
-                      <span>{featuredPost.category || 'Featured Story'}</span>
-                    </span>
-                    {(featuredPost as any).read_time && (
-                      <span className="glass backdrop-blur-md text-foreground text-[10px] font-bold px-3 py-1.5 rounded-full border border-border-custom flex items-center space-x-1">
-                        <Clock className="w-3 h-3 text-text-muted" />
-                        <span>{(featuredPost as any).read_time}</span>
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="lg:col-span-5 p-8 sm:p-10 flex flex-col justify-between space-y-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-3 text-[11px] uppercase font-bold tracking-wider text-text-muted">
-                      <div className="flex items-center space-x-1.5">
-                        <Calendar className="w-3.5 h-3.5 text-primary" />
-                        <span>{format(new Date(featuredPost.created_at), 'MMMM dd, yyyy')}</span>
-                      </div>
-                      <span>•</span>
-                      <span className="text-emerald-400">Breaking Wire</span>
-                    </div>
-
-                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-display text-foreground group-hover:text-primary transition-colors leading-tight">
-                      {featuredPost.title}
-                    </h2>
-
-                    <p className="text-text-muted text-sm sm:text-base line-clamp-3 leading-relaxed">
-                      {featuredPost.excerpt || featuredPost.description}
-                    </p>
-
-                    {featuredPost.tags && featuredPost.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 pt-2">
-                        {featuredPost.tags.slice(0, 4).map((tag, i) => (
-                          <span key={i} className="text-[10px] font-medium px-2.5 py-1 rounded-md bg-surface-bright text-text-muted border border-border-custom/60 flex items-center space-x-1">
-                            <Tag className="w-2.5 h-2.5 text-primary" />
-                            <span>#{tag}</span>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="pt-6 border-t border-border-custom flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <img
-                        src={featuredPost.profiles?.avatar_url || 'https://api.dicebear.com/7.x/bottts/svg?seed=FideTV_NewsDesk'}
-                        alt={featuredPost.profiles?.username || 'Author'}
-                        className="w-9 h-9 rounded-full bg-surface border border-border-custom"
-                      />
-                      <div>
-                        <div className="text-xs font-bold text-foreground">
-                          {featuredPost.profiles?.username || 'FideTV News Desk'}
-                        </div>
-                        <div className="text-[10px] text-text-muted">
-                          {(featuredPost as any).source_name || 'Automated Editorial Wire'}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="inline-flex items-center space-x-2 text-primary font-bold text-xs group-hover:translate-x-1 transition-transform">
-                      <span>Read Story</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <Sparkles className="w-4 h-4 text-emerald-400" />
+              <span>Premium Editorial Wire</span>
             </motion.div>
-          )}
 
-          {/* Standard Blog Article Grid */}
-          {standardPosts.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {standardPosts.map((item, idx) => (
-                <motion.div
-                  key={item.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ delay: (idx % 6) * 0.08 }}
-                  viewport={{ once: true }}
-                  className="group glass rounded-[2.5rem] overflow-hidden border border-border-custom hover:border-primary/40 hover:bg-surface-bright transition-all duration-500 relative flex flex-col shadow-lg"
+            <motion.h1 
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="text-5xl sm:text-7xl md:text-9xl font-display font-black text-foreground tracking-tighter leading-tight"
+            >
+              FideTV <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-emerald-400 to-primary-hover animate-pulse">Journal.</span>
+            </motion.h1>
+
+            <motion.p 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="max-w-2xl mx-auto text-text-muted text-lg sm:text-xl font-light leading-relaxed italic"
+            >
+              "The definitive record of Sub-Saharan digital media evolution, broadcasting breakthroughs, and industrial creative intelligence."
+            </motion.p>
+         </div>
+
+         {/* Floating Category Nav */}
+         <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-30 w-full max-w-4xl px-4">
+            <div className="glass p-2 rounded-[2rem] border border-border-custom shadow-2xl flex items-center gap-2 overflow-x-auto scrollbar-none no-scrollbar">
+               {CATEGORIES.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={cn(
+                    "px-6 py-3 rounded-[1.5rem] text-[11px] font-black uppercase tracking-widest whitespace-nowrap transition-all duration-300",
+                    selectedCategory === cat
+                      ? "bg-primary text-white shadow-xl shadow-primary/30 scale-105"
+                      : "text-text-muted hover:text-foreground hover:bg-surface-bright"
+                  )}
                 >
-                  <Link 
-                    to={`/news/${item.slug || item.id}`} 
-                    className="absolute inset-0 z-20" 
-                    aria-label={`Read ${item.title}`} 
-                  />
-                  <div className="flex flex-col h-full relative z-10 pointer-events-none">
-                    <div className="relative aspect-[16/10] overflow-hidden bg-surface">
-                      {(item.image_url || (item as any).cover_image) ? (
-                        <img 
-                          src={getHighQualityImage(item.image_url || (item as any).cover_image, item.category, item.title)} 
-                          alt={item.title} 
-                          loading="lazy"
-                          referrerPolicy="no-referrer"
-                          onError={(e) => {
-                            e.currentTarget.onerror = null;
-                            e.currentTarget.src = getClientContentImage(item.title, item.category);
-                          }}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-surface">
-                          <Newspaper className="w-12 h-12 text-text-muted" />
-                        </div>
-                      )}
-                      <div className="absolute top-5 left-5 right-5 flex items-center justify-between z-30 pointer-events-auto">
-                        <span className="bg-primary/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full border border-border-custom shadow-lg">
-                          {item.category || 'Editorial'}
-                        </span>
-                        {(item as any).read_time && (
-                          <span className="glass backdrop-blur-md text-foreground text-[10px] font-bold px-2.5 py-1 rounded-full border border-border-custom">
-                            {(item as any).read_time}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="p-7 space-y-4 flex flex-col flex-grow">
-                      <div className="flex items-center space-x-3 text-[10px] uppercase font-bold tracking-wider text-text-muted">
-                        <div className="flex items-center space-x-1">
-                          <Calendar className="w-3 h-3 text-primary" />
-                          <span>{format(new Date(item.created_at), 'EEEE, MMMM dd, yyyy')}</span>
-                        </div>
-                        {(item as any).source_name && (
-                          <>
-                            <span>•</span>
-                            <span className="truncate max-w-[120px]">{(item as any).source_name}</span>
-                          </>
-                        )}
-                      </div>
-
-                      <h3 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug">
-                        {item.title}
-                      </h3>
-
-                      <p className="text-text-muted text-xs sm:text-sm line-clamp-3 leading-relaxed flex-grow">
-                        {item.excerpt || item.description}
-                      </p>
-
-                      {item.tags && item.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 pt-1">
-                          {item.tags.slice(0, 3).map((tag, ti) => (
-                            <span key={ti} className="text-[9px] font-medium px-2 py-0.5 rounded bg-surface text-text-muted border border-border-custom/50">
-                              #{tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
-                      <div className="pt-5 flex items-center justify-between border-t border-border-custom">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
-                            {item.profiles?.username?.[0] || 'F'}
-                          </div>
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted truncate max-w-[110px]">
-                            {item.profiles?.username || 'News Desk'}
-                          </span>
-                        </div>
-                        <ArrowRight className="w-4 h-4 text-text-muted group-hover:text-primary group-hover:translate-x-1 transition-all" />
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
+                  {cat}
+                </button>
               ))}
             </div>
-          )}
+         </div>
+      </section>
+
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12 -mt-8 relative z-40">
+        {/* Status Bar */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-16 px-4">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search the archive..."
+                className="pl-12 pr-6 py-4 rounded-2xl glass border border-border-custom w-full md:w-80 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all font-medium"
+              />
+            </div>
+            <div className="hidden lg:flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-bright/50 border border-border-custom text-[10px] font-black uppercase tracking-widest text-text-muted">
+               <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+               <span>{filteredNews.length} Reports Found</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+             <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl glass border border-emerald-500/20 text-[10px] font-bold text-emerald-400 uppercase tracking-widest">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                Live Sync Active
+             </div>
+             <button
+              onClick={() => refreshNews(true)}
+              disabled={isSyncing}
+              className="p-3 rounded-2xl glass border border-border-custom text-primary hover:bg-primary hover:text-white transition-all active:scale-90"
+            >
+              <RefreshCw className={cn("w-5 h-5", isSyncing && "animate-spin")} />
+            </button>
+          </div>
         </div>
-      )}
+
+        {isSyncing && filteredNews.length === 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div key={i} className="aspect-[4/5] rounded-[3rem] glass animate-pulse" />
+            ))}
+          </div>
+        ) : filteredNews.length === 0 ? (
+          <div className="text-center py-40 glass rounded-[4rem] border border-dashed border-border-custom">
+             <Newspaper className="w-20 h-20 text-text-muted mx-auto mb-8 opacity-20" />
+             <h2 className="text-3xl font-display font-black text-foreground">No matches in our wire.</h2>
+             <p className="text-text-muted mt-4 max-w-md mx-auto">Try adjusting your filters or checking back in a few minutes.</p>
+             <button onClick={() => { setSelectedCategory('All'); setSearchQuery(''); }} className="mt-10 px-8 py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-xs">Reset Filters</button>
+          </div>
+        ) : (
+          <div className="space-y-20">
+            {/* The Dynamic Magazine Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-10">
+               {/* Featured Hero (Lg) */}
+               {featuredPost && (
+                 <motion.div 
+                   layoutId={featuredPost.id}
+                   initial={{ opacity: 0, y: 30 }}
+                   whileInView={{ opacity: 1, y: 0 }}
+                   viewport={{ once: true }}
+                   className="md:col-span-12 lg:col-span-8 group"
+                 >
+                   <Link to={`/news/${featuredPost.slug || featuredPost.id}`} className="block relative aspect-[16/9] lg:aspect-[21/9] rounded-[3rem] overflow-hidden border border-border-custom shadow-2xl bg-surface">
+                      <img 
+                        src={getHighQualityImage(featuredPost.image_url, featuredPost.category, featuredPost.title)} 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[2s] ease-out"
+                        alt={featuredPost.title}
+                        onError={(e) => { e.currentTarget.src = getClientContentImage(featuredPost.title, featuredPost.category); }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-8 sm:p-16 space-y-6">
+                         <div className="flex flex-wrap items-center gap-4">
+                            <span className="px-4 py-1.5 rounded-full bg-primary text-white text-[10px] font-black uppercase tracking-[0.2em] shadow-lg">
+                               {featuredPost.category}
+                            </span>
+                            <span className="flex items-center gap-2 text-white/60 text-[10px] font-black uppercase tracking-widest">
+                               <Clock className="w-3.5 h-3.5" /> {(featuredPost as any).read_time || '5 MIN READ'}
+                            </span>
+                         </div>
+                         <h2 className="text-3xl sm:text-5xl lg:text-6xl font-display font-black text-white leading-tight tracking-tighter group-hover:text-primary transition-colors duration-500">
+                            {featuredPost.title}
+                         </h2>
+                         <p className="max-w-3xl text-white/70 text-base sm:text-xl line-clamp-2 font-light">
+                            {featuredPost.excerpt}
+                         </p>
+                         <div className="pt-4 flex items-center justify-between border-t border-white/10">
+                            <div className="flex items-center gap-3">
+                               <img src={featuredPost.profiles?.avatar_url || 'https://api.dicebear.com/7.x/bottts/svg?seed=FideTV'} className="w-10 h-10 rounded-full border border-white/20" />
+                               <div>
+                                  <p className="text-white text-xs font-black uppercase tracking-widest">{featuredPost.profiles?.username || 'News Desk'}</p>
+                                  <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">{format(new Date(featuredPost.created_at), 'MMMM dd, yyyy')}</p>
+                               </div>
+                            </div>
+                            <div className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center text-white group-hover:bg-primary group-hover:border-primary transition-all duration-500">
+                               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                            </div>
+                         </div>
+                      </div>
+                   </Link>
+                 </motion.div>
+               )}
+
+               {/* Side Compacts (Md) */}
+               <div className="md:col-span-12 lg:col-span-4 flex flex-col gap-10">
+                  {standardPosts.slice(0, 2).map((item, i) => (
+                    <motion.div 
+                      key={item.id}
+                      initial={{ opacity: 0, x: 20 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.1 }}
+                      viewport={{ once: true }}
+                      className="group flex-grow"
+                    >
+                      <Link to={`/news/${item.slug || item.id}`} className="block h-full relative rounded-[2.5rem] overflow-hidden border border-border-custom bg-surface p-6 space-y-6 hover:border-primary/40 transition-all duration-500 hover:shadow-2xl">
+                         <div className="aspect-[16/9] rounded-[2rem] overflow-hidden">
+                            <img 
+                              src={getHighQualityImage(item.image_url, item.category, item.title)} 
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000"
+                              alt={item.title}
+                              onError={(e) => { e.currentTarget.src = getClientContentImage(item.title, item.category); }}
+                            />
+                         </div>
+                         <div className="space-y-4">
+                            <span className="text-[9px] font-black uppercase tracking-[0.25em] text-primary">{item.category}</span>
+                            <h3 className="text-2xl font-display font-bold text-foreground leading-tight line-clamp-3 group-hover:text-primary transition-colors">
+                               {item.title}
+                            </h3>
+                            <div className="flex items-center justify-between pt-4 border-t border-border-custom">
+                               <span className="text-[10px] font-bold text-text-muted uppercase">{(item as any).source_name || 'FideTV Wire'}</span>
+                               <ArrowRight className="w-4 h-4 text-primary group-hover:translate-x-1 transition-transform" />
+                            </div>
+                         </div>
+                      </Link>
+                    </motion.div>
+                  ))}
+               </div>
+            </div>
+
+            {/* Premium Mid-Page Ad Break */}
+            <div className="py-10">
+               <AdBanner placement="Blog Grid Mid" />
+            </div>
+
+            {/* Standard Grid Layout */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
+               {standardPosts.slice(2).map((item, idx) => (
+                 <motion.div
+                   key={item.id}
+                   initial={{ opacity: 0, y: 20 }}
+                   whileInView={{ opacity: 1, y: 0 }}
+                   transition={{ delay: (idx % 3) * 0.1 }}
+                   viewport={{ once: true }}
+                   className="group flex flex-col space-y-6"
+                 >
+                   <Link to={`/news/${item.slug || item.id}`} className="block relative aspect-square rounded-[3rem] overflow-hidden border border-border-custom bg-surface shadow-lg group-hover:shadow-2xl transition-all duration-700">
+                      <img 
+                        src={getHighQualityImage(item.image_url, item.category, item.title)} 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"
+                        alt={item.title}
+                        onError={(e) => { e.currentTarget.src = getClientContentImage(item.title, item.category); }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                      <div className="absolute top-6 left-6">
+                         <div className="glass px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-foreground border border-white/10 shadow-xl">
+                            {item.category}
+                         </div>
+                      </div>
+                   </Link>
+                   
+                   <div className="px-2 space-y-4">
+                      <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-text-muted/60">
+                         <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> {format(new Date(item.created_at), 'MMM dd, yyyy')}</span>
+                         <span>•</span>
+                         <span>{(item as any).read_time || '4 MIN READ'}</span>
+                      </div>
+                      <Link to={`/news/${item.slug || item.id}`}>
+                        <h3 className="text-2xl font-display font-bold text-foreground leading-snug group-hover:text-primary transition-colors line-clamp-2">
+                           {item.title}
+                        </h3>
+                      </Link>
+                      <p className="text-text-muted text-sm line-clamp-3 leading-relaxed font-light">
+                         {item.excerpt || item.description}
+                      </p>
+                      <div className="pt-4 flex items-center justify-between">
+                         <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-[9px] font-black text-primary uppercase">
+                               {item.profiles?.username?.[0] || 'F'}
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">{item.profiles?.username || 'Wire Desk'}</span>
+                         </div>
+                         <Link to={`/news/${item.slug || item.id}`} className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2 group/btn">
+                            Read Story <ArrowRight className="w-3 h-3 group-hover/btn:translate-x-1 transition-transform" />
+                         </Link>
+                      </div>
+                   </div>
+                 </motion.div>
+               ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Floating Refresh Indicator */}
+      <AnimatePresence>
+         {isSyncing && (
+           <motion.div 
+             initial={{ y: 100, opacity: 0 }}
+             animate={{ y: 0, opacity: 1 }}
+             exit={{ y: 100, opacity: 0 }}
+             className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] glass px-6 py-3 rounded-full border border-primary/30 flex items-center gap-3 shadow-2xl"
+           >
+              <RefreshCw className="w-4 h-4 text-primary animate-spin" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-foreground">Synchronizing live editorial feeds...</span>
+           </motion.div>
+         )}
+      </AnimatePresence>
     </div>
   );
 }

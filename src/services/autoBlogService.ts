@@ -95,6 +95,7 @@ export class AutoBlogService {
   private storageFilePath: string;
   private syncIntervalHandle: NodeJS.Timeout | null = null;
   private lastPingReport: any = null;
+  private channel: any = null;
 
   constructor(supabaseClient: SupabaseClient | null = null) {
     this.supabase = supabaseClient;
@@ -136,6 +137,31 @@ export class AutoBlogService {
           console.error('[AutoBlogService] Scheduled sync error:', err);
         });
       }, 30 * 60 * 1000);
+    }
+
+    // Initialize real-time listener to keep server cache in sync with DB
+    this.setupRealtimeListener();
+  }
+
+  private setupRealtimeListener() {
+    if (!this.supabase) return;
+
+    try {
+      console.log('[AutoBlogService] Setting up server-side real-time listener for "news" table...');
+      this.channel = this.supabase
+        .channel('server-news-sync')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'news' },
+          async (payload: any) => {
+            console.log('[AutoBlogService] Real-time DB change detected on server:', payload.eventType);
+            // Refresh from DB to ensure we have the latest sorted state
+            await this.pullFromSupabase();
+          }
+        )
+        .subscribe();
+    } catch (err) {
+      console.error('[AutoBlogService] Real-time setup failed:', err);
     }
   }
 
@@ -1034,10 +1060,23 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
         if (addedCount >= 8) break;
 
         const tempSlug = this.generateSlug(item.title);
-        const alreadyExists = this.posts.some(
-          p => p.slug === tempSlug || p.title.toLowerCase() === item.title.toLowerCase()
-        );
-        if (alreadyExists) continue;
+        const normalizedIncoming = item.title.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+        const incomingWords = item.title.toLowerCase().split(/\s+/).slice(0, 5).join(' ');
+
+        const alreadyExists = this.posts.some(p => {
+          const normalizedExisting = p.title.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+          const existingWords = p.title.toLowerCase().split(/\s+/).slice(0, 5).join(' ');
+          
+          return p.slug === tempSlug || 
+                 p.id === item.link || 
+                 normalizedExisting === normalizedIncoming ||
+                 (incomingWords.length > 10 && existingWords === incomingWords);
+        });
+        
+        if (alreadyExists) {
+          console.log(`[AutoBlogService] Skipping duplicate news: "${item.title}"`);
+          continue;
+        }
 
         // Image validation utility to ensure valid, non-random, content-specific imagery
         const validatedCover = await validateAndEnrichNewsCover(
