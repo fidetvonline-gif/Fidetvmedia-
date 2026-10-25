@@ -2623,7 +2623,7 @@ export async function initApp(startServer = true) {
     
     // Catch-all for SPA in production - Must be AFTER all other routes
     // Express 5 compatible catch-all route syntax
-    app.get('{/*path}', async (req, res) => {
+    app.get('*', async (req, res) => {
       // If API route not found, return 404 json
       if (req.path.startsWith('/api/')) {
         console.warn(`[API 404] ${req.method} ${req.path}`);

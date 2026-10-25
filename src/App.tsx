@@ -82,7 +82,11 @@ function AnalyticsTracker() {
         msg.includes('prevented') ||
         msg.includes('user agent') ||
         msg.includes('error 0') ||
-        msg.includes('ns_error_dom_media_abort_err')
+        msg.includes('ns_error_dom_media_abort_err') ||
+        msg.includes('websocket') ||
+        msg.includes('vite') ||
+        msg.includes('createwebsocket') ||
+        (stack && stack.includes('@vite/client'))
       ) {
         return;
       }
