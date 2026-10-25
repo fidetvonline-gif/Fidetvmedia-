@@ -24,6 +24,7 @@ import { parseResponseJson } from '@/lib/api';
 import AUTO_BLOGS from '@/data/auto_blogs.json';
 import { safeLocalStorage } from '@/lib/storage';
 import { getHighQualityImage } from '@/lib/utils';
+import { getClientContentImage } from '@/lib/imageValidator';
 import { useNewsSync } from '@/hooks/useNewsSync';
 
 const STATIC_RELEASE_POST: NewsType = {
@@ -79,11 +80,10 @@ const CATEGORIES = [
 ];
 
 export default function News() {
-  const { news, isSyncing, refreshNews } = useNewsSync();
+  const { news, isSyncing, refreshNews, lastSyncTime } = useNewsSync();
   const [filteredNews, setFilteredNews] = useState<NewsType[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
   useEffect(() => {
     // Filter logic whenever news or filters change
@@ -117,6 +117,25 @@ export default function News() {
           <p className="max-w-xl text-text-muted text-base sm:text-lg font-light leading-relaxed">
             Continuously updated editorial news on media production, broadcasting breakthroughs, creator tools, and real-time industry intelligence.
           </p>
+        </div>
+
+        {/* Live Auto-Update Status & Quick Refresh */}
+        <div className="flex items-center gap-3 self-stretch lg:self-auto justify-between lg:justify-end">
+          <div className="flex items-center space-x-2 px-3.5 py-2 rounded-xl glass border border-border-custom text-xs text-text-muted">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+            <span className="text-emerald-400 font-semibold">Live Auto-Sync</span>
+            <span className="text-text-muted/60">•</span>
+            <span>{lastSyncTime ? `Updated ${formatDistanceToNow(new Date(lastSyncTime), { addSuffix: true })}` : 'Auto-polling active'}</span>
+          </div>
+          <button
+            onClick={() => refreshNews(true)}
+            disabled={isSyncing}
+            className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
+            title="Force refresh news now"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+            <span>{isSyncing ? 'Syncing...' : 'Sync Now'}</span>
+          </button>
         </div>
       </div>
 
@@ -216,10 +235,15 @@ export default function News() {
               <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[420px]">
                 <div className="lg:col-span-7 relative overflow-hidden bg-surface aspect-[16/10] lg:aspect-auto">
                   <img
-                    src={getHighQualityImage(featuredPost.image_url)}
+                    src={getHighQualityImage(featuredPost.image_url, featuredPost.category, featuredPost.title)}
                     alt={featuredPost.title}
                     loading="eager"
                     fetchPriority="high"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = getClientContentImage(featuredPost.title, featuredPost.category);
+                    }}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent lg:hidden" />
@@ -316,9 +340,14 @@ export default function News() {
                     <div className="relative aspect-[16/10] overflow-hidden bg-surface">
                       {(item.image_url || (item as any).cover_image) ? (
                         <img 
-                          src={getHighQualityImage(item.image_url || (item as any).cover_image)} 
+                          src={getHighQualityImage(item.image_url || (item as any).cover_image, item.category, item.title)} 
                           alt={item.title} 
                           loading="lazy"
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = getClientContentImage(item.title, item.category);
+                          }}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
                         />
                       ) : (

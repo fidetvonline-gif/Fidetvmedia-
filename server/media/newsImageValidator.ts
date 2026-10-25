@@ -185,10 +185,21 @@ export function getContentSpecificImage(title: string = '', content: string = ''
   return imagePool[index];
 }
 
+export function extractYouTubeThumbnail(url?: string): string | null {
+  if (!url || typeof url !== 'string') return null;
+  const embedMatch = url.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/i);
+  if (embedMatch && embedMatch[1]) return `https://img.youtube.com/vi/${embedMatch[1]}/hqdefault.jpg`;
+  const watchMatch = url.match(/youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/i);
+  if (watchMatch && watchMatch[1]) return `https://img.youtube.com/vi/${watchMatch[1]}/hqdefault.jpg`;
+  const shortMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/i);
+  if (shortMatch && shortMatch[1]) return `https://img.youtube.com/vi/${shortMatch[1]}/hqdefault.jpg`;
+  return null;
+}
+
 /**
  * Fast network probe to check if a URL is reachable and serves an image
  */
-export async function probeImageUrl(url: string, timeoutMs = 3000): Promise<boolean> {
+export async function probeImageUrl(url: string, timeoutMs = 3500): Promise<boolean> {
   if (!url || typeof url !== 'string') return false;
   const trimmed = url.trim();
 
@@ -197,21 +208,46 @@ export async function probeImageUrl(url: string, timeoutMs = 3000): Promise<bool
 
   // Reject known broken, placeholder or low-res avatar generators used as article covers
   if (
-    trimmed.includes('ichef.bbci.co.uk') ||
-    trimmed.includes('bbci.co.uk') ||
     trimmed.includes('dicebear.com') ||
     trimmed.includes('placeholder') ||
     trimmed.includes('1x1') ||
-    trimmed.endsWith('.svg')
+    trimmed.endsWith('.svg') ||
+    trimmed.toLowerCase().includes('punch-logo') ||
+    trimmed.toLowerCase().includes('default-avatar')
   ) {
     return false;
+  }
+
+  // Trusted news domains and image CDNs that browsers load cleanly with referrerPolicy="no-referrer"
+  if (
+    trimmed.includes('ichef.bbci.co.uk') ||
+    trimmed.includes('img.youtube.com') ||
+    trimmed.includes('i.ytimg.com') ||
+    trimmed.includes('channelstv.com/wp-content/uploads/') ||
+    trimmed.includes('vanguardngr.com/wp-content/uploads/') ||
+    trimmed.includes('cdn.vanguardngr.com') ||
+    trimmed.includes('techcrunch.com/wp-content/uploads/') ||
+    trimmed.includes('supabase.co/storage') ||
+    trimmed.includes('postimg.cc') ||
+    trimmed.includes('image2url.com')
+  ) {
+    return true;
+  }
+
+  // Punch images that are not logos
+  if (
+    (trimmed.includes('punchng.com/wp-content/uploads/') || trimmed.includes('cdn.punchng.com/wp-content/uploads/')) &&
+    !trimmed.includes('punch-logo') &&
+    !trimmed.includes('500x179')
+  ) {
+    return true;
   }
 
   try {
     const resp = await axios.head(trimmed, {
       timeout: timeoutMs,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) FideTV-ImageValidator/2.0'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 FideTV-ImageValidator/3.0'
       },
       validateStatus: (status) => status >= 200 && status < 400
     });
@@ -221,13 +257,12 @@ export async function probeImageUrl(url: string, timeoutMs = 3000): Promise<bool
       return true;
     }
   } catch (headErr) {
-    // Some image servers (like CDNs or Supabase storage) reject HEAD but accept GET range 0-100
     try {
       const getResp = await axios.get(trimmed, {
         timeout: timeoutMs,
         headers: {
           Range: 'bytes=0-1024',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) FideTV-ImageValidator/2.0'
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 FideTV-ImageValidator/3.0'
         },
         validateStatus: (status) => (status >= 200 && status < 400) || status === 206
       });
@@ -249,7 +284,7 @@ export interface ValidatedImageResult {
 
 /**
  * Validates news cover image candidate against network availability and content relevance.
- * Guarantees a valid, content-specific, non-random image for every news item.
+ * Guarantees a real, content-specific, non-random image for every news item.
  */
 export async function validateAndEnrichNewsCover(
   candidateUrl?: string,
@@ -259,20 +294,74 @@ export async function validateAndEnrichNewsCover(
 ): Promise<ValidatedImageResult> {
   const theme = detectArticleTheme(title, content, category);
 
-  // If a candidate URL exists, test its validity
-  if (candidateUrl && candidateUrl.trim().length > 10) {
-    const cleanUrl = candidateUrl.trim();
-    const isValid = await probeImageUrl(cleanUrl);
-    if (isValid) {
+  // If candidate is a YouTube video URL, convert to thumbnail immediately
+  if (candidateUrl && (candidateUrl.includes('youtube.com') || candidateUrl.includes('youtu.be'))) {
+    const ytThumb = extractYouTubeThumbnail(candidateUrl);
+    if (ytThumb) {
       return {
-        validUrl: cleanUrl,
+        validUrl: ytThumb,
         isOriginal: true,
         theme
       };
     }
   }
 
-  // Fallback: Pick content-specific high-resolution image deterministically based on title
+  // If candidate is BBC, upgrade resolution
+  if (candidateUrl && candidateUrl.includes('ichef.bbci.co.uk')) {
+    const upgraded = candidateUrl
+      .replace(/\/ace\/standard\/\d+\//, '/ace/standard/976/')
+      .replace(/\/cpsprodpb\/[a-z0-9]+\/live\//, '/cpsprodpb/1200/live/')
+      .replace(/\/branded_news\/\d+\//, '/branded_news/1200/');
+    return {
+      validUrl: upgraded,
+      isOriginal: true,
+      theme
+    };
+  }
+
+  // Check if candidate URL is an actual news image
+  if (candidateUrl && candidateUrl.trim().length > 10) {
+    const cleanUrl = candidateUrl.trim();
+    
+    // Explicitly reject publisher logos or generic placeholders
+    const isLogo = 
+      cleanUrl.toLowerCase().includes('punch-logo') ||
+      cleanUrl.toLowerCase().includes('logo-500x179') ||
+      cleanUrl.toLowerCase().includes('default-avatar') ||
+      cleanUrl.toLowerCase().includes('dicebear.com');
+
+    if (!isLogo) {
+      // If from a trusted news source, accept directly
+      if (
+        cleanUrl.includes('channelstv.com') ||
+        cleanUrl.includes('vanguardngr.com') ||
+        cleanUrl.includes('punchng.com') ||
+        cleanUrl.includes('techcrunch.com') ||
+        cleanUrl.includes('ichef.bbci.co.uk') ||
+        cleanUrl.includes('img.youtube.com') ||
+        cleanUrl.includes('postimg.cc') ||
+        cleanUrl.includes('image2url.com') ||
+        cleanUrl.includes('supabase.co')
+      ) {
+        return {
+          validUrl: cleanUrl,
+          isOriginal: true,
+          theme
+        };
+      }
+
+      const isValid = await probeImageUrl(cleanUrl);
+      if (isValid) {
+        return {
+          validUrl: cleanUrl,
+          isOriginal: true,
+          theme
+        };
+      }
+    }
+  }
+
+  // Fallback ONLY when candidateUrl is truly absent or an invalid logo
   const contextualUrl = getContentSpecificImage(title, content, category);
   return {
     validUrl: contextualUrl,

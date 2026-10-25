@@ -1,4 +1,4 @@
-// server.app.ts
+// server.ts
 import * as cheerio_static from "cheerio";
 import * as ruhend_static from "ruhend-scraper";
 import * as btch_static from "btch-downloader";
@@ -1266,13 +1266,13 @@ var NEWS_SOURCES = [
   },
   {
     name: "Tech & Digital Innovation",
-    url: "http://feeds.bbci.co.uk/news/technology/rss.xml",
+    url: "https://feeds.bbci.co.uk/news/technology/rss.xml",
     defaultCategory: "Technology & AI",
     region: "Global"
   },
   {
     name: "Entertainment & Arts Wire",
-    url: "http://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml",
+    url: "https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml",
     defaultCategory: "Media & Entertainment",
     region: "Global"
   },
@@ -1327,6 +1327,14 @@ var AutoBlogService = class _AutoBlogService {
         });
       }, 30 * 60 * 1e3);
     }
+  }
+  /**
+   * Check whether the cached news is stale (older than maxAgeMinutes, or never synced)
+   */
+  isStale(maxAgeMinutes = 15) {
+    if (!this.lastSyncTime) return true;
+    const ageMs = Date.now() - new Date(this.lastSyncTime).getTime();
+    return ageMs > maxAgeMinutes * 60 * 1e3;
   }
   /**
    * Fast synchronization from Supabase database only (no external feed scraping).
@@ -1508,7 +1516,7 @@ var AutoBlogService = class _AutoBlogService {
             if (!exists) {
               const validated = await validateAndEnrichNewsCover(imageUrl, title, desc, "Global News & Culture");
               const post = {
-                id: `ng-feed-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                id: crypto.randomUUID(),
                 slug,
                 title,
                 excerpt: desc ? desc.substring(0, 160) + "..." : "Breaking regional report from Nigeria.",
@@ -1593,7 +1601,7 @@ Output ONLY valid JSON in this exact structure without markdown fences:
   "content": "Full markdown content with ## Introduction, ## The Developing Story, ## Industry & Broadcast Impact, ## The FideTV Editorial Perspective, and ## Key Takeaways (bullet points)."
 }`;
       const response = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
+        model: "gemini-2.5-flash",
         contents: prompt,
         config: {
           maxOutputTokens: 1200,
@@ -1794,7 +1802,7 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
       const rawItems = await this.fetchRawFeeds();
       console.log(`[AutoBlogService] Processing ${rawItems.length} candidate news items from live feeds...`);
       for (const item of rawItems) {
-        if (addedCount >= 4) break;
+        if (addedCount >= 8) break;
         const tempSlug = this.generateSlug(item.title);
         const alreadyExists = this.posts.some(
           (p) => p.slug === tempSlug || p.title.toLowerCase() === item.title.toLowerCase()
@@ -1811,7 +1819,10 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
           generated = this.synthesizeFallbackPost(item);
         }
         const id = crypto.randomUUID();
-        const slug = this.generateSlug(generated.title) || tempSlug;
+        let slug = this.generateSlug(generated.title) || tempSlug;
+        if (this.posts.some((p) => p.slug === slug)) {
+          slug = `${slug}-${Date.now().toString(36).substring(4)}`;
+        }
         const newPost = {
           id,
           slug,
@@ -2143,7 +2154,7 @@ FideTV's live sports lineup offers continuous coverage, highlighting both premie
   }
 };
 
-// server.app.ts
+// server.ts
 import multer from "multer";
 import fs2 from "fs/promises";
 import rateLimit from "express-rate-limit";
@@ -3415,7 +3426,7 @@ router.post("/create-token", async (req, res) => {
 });
 var meetingRoutes_default = router;
 
-// server.app.ts
+// server.ts
 process.on("unhandledRejection", (reason) => {
   console.error("[Unhandled Rejection]", reason);
 });
@@ -3444,8 +3455,17 @@ var getSafeClientIp = (req) => {
 };
 var apiLimiter = isVercel ? (req, res, next) => next() : rateLimit({
   windowMs: 15 * 60 * 1e3,
-  max: 1e3,
-  message: "Too many requests from this IP, please try again after 15 minutes",
+  max: 3e3,
+  skip: (req) => {
+    const p = req.path || "";
+    return req.method === "GET" && (p.startsWith("/news") || p.startsWith("/channels") || p.startsWith("/blog") || p.startsWith("/health"));
+  },
+  message: {
+    success: false,
+    error: "Too many requests from this IP, please try again after 15 minutes",
+    windowMinutes: 15,
+    retryAfterSeconds: 900
+  },
   standardHeaders: true,
   legacyHeaders: false,
   validate: false,
@@ -5319,17 +5339,38 @@ async function initApp(startServer = true) {
   app.use("/api", apiRouter);
   apiRouter.get("/news", async (req, res) => {
     try {
-      const currentPosts = autoBlogService.getAllPosts({ limit: 10 });
-      if (currentPosts.posts.length < 5) {
-        await autoBlogService.pullFromSupabase();
+      const forceRefresh = req.query.refresh === "true";
+      const isStale = autoBlogService.isStale(15);
+      const currentPosts = autoBlogService.getAllPosts({ limit: 5 });
+      if (forceRefresh || currentPosts.posts.length < 5) {
+        console.log("[API /news] Immediate sync triggered (forceRefresh or low count)...");
+        await autoBlogService.syncLatestNews().catch((err) => console.warn("[API /news] Sync warning:", err.message));
+      } else if (isStale) {
+        console.log("[API /news] News cache is stale (>15 mins). Scheduling background sync...");
+        autoBlogService.syncLatestNews().catch((err) => console.warn("[API /news] Background sync warning:", err.message));
       }
-      const postsData = autoBlogService.getAllPosts({
-        limit: req.query.limit ? parseInt(req.query.limit, 10) : 40
-      });
+      const limit = req.query.limit ? parseInt(req.query.limit, 10) : 40;
+      const postsData = autoBlogService.getAllPosts({ limit });
       res.json(postsData.posts);
     } catch (error) {
       console.warn("[API /news] Handled gracefully:", error);
       res.json([]);
+    }
+  });
+  apiRouter.all("/news/sync", async (req, res) => {
+    try {
+      console.log("[API /news/sync] Triggering manual news sync from live feeds and database...");
+      const syncResult = await autoBlogService.syncLatestNews();
+      const updatedPosts = autoBlogService.getAllPosts({ limit: 40 });
+      res.json({
+        success: true,
+        message: `Successfully updated news (${syncResult.addedCount} new articles ingested).`,
+        ...syncResult,
+        posts: updatedPosts.posts
+      });
+    } catch (error) {
+      console.error("[API /news/sync] Error:", error);
+      res.status(500).json({ success: false, error: error.message || "Failed to sync news" });
     }
   });
   apiRouter.get("/news/nigeria", async (req, res) => {
@@ -5433,8 +5474,7 @@ async function initApp(startServer = true) {
     }
     return `I heard your command "${text}". Fide's voice assistant is running in clean offline mode. Add your Gemini API key in Settings > Secrets to activate live AI discussions!`;
   }
-  const isTsxDev = process.execArgv.some((arg) => arg.startsWith("--") && arg.includes("tsx"));
-  if (isTsxDev && process.env.NODE_ENV !== "production" && process.env.APP_IS_BUNDLED !== "true") {
+  if (process.env.NODE_ENV !== "production") {
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: {
@@ -5526,8 +5566,8 @@ if (!isVercel) {
     console.error("Critical failure during app initialization:", err);
   });
 }
-var server_app_default = app;
+var server_default = app;
 export {
-  server_app_default as default,
+  server_default as default,
   initApp
 };

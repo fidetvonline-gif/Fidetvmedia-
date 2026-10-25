@@ -57,8 +57,23 @@ const apiLimiter = isVercel
   ? (req: any, res: any, next: any) => next()
   : rateLimit({
       windowMs: 15 * 60 * 1000,
-      max: 1000,
-      message: "Too many requests from this IP, please try again after 15 minutes",
+      max: 3000,
+      skip: (req) => {
+        // Exclude public read-only content so visitors never get blocked viewing news or streams
+        const p = req.path || '';
+        return req.method === 'GET' && (
+          p.startsWith('/news') || 
+          p.startsWith('/channels') || 
+          p.startsWith('/blog') || 
+          p.startsWith('/health')
+        );
+      },
+      message: { 
+        success: false, 
+        error: "Too many requests from this IP, please try again after 15 minutes",
+        windowMinutes: 15,
+        retryAfterSeconds: 900
+      },
       standardHeaders: true,
       legacyHeaders: false,
       validate: false,
@@ -2417,19 +2432,42 @@ export async function initApp(startServer = true) {
   // Automated Blog & News Endpoints
   apiRouter.get("/news", async (req, res) => {
     try {
-      // Small optimization: if posts are very few, try a fast pull from DB
-      const currentPosts = autoBlogService.getAllPosts({ limit: 10 });
-      if (currentPosts.posts.length < 5) {
-        await autoBlogService.pullFromSupabase();
+      const forceRefresh = req.query.refresh === 'true';
+      const isStale = autoBlogService.isStale(15);
+      const currentPosts = autoBlogService.getAllPosts({ limit: 5 });
+
+      if (forceRefresh || currentPosts.posts.length < 5) {
+        console.log('[API /news] Immediate sync triggered (forceRefresh or low count)...');
+        await autoBlogService.syncLatestNews().catch(err => console.warn('[API /news] Sync warning:', err.message));
+      } else if (isStale) {
+        console.log('[API /news] News cache is stale (>15 mins). Scheduling background sync...');
+        autoBlogService.syncLatestNews().catch(err => console.warn('[API /news] Background sync warning:', err.message));
       }
       
-      const postsData = autoBlogService.getAllPosts({ 
-        limit: req.query.limit ? parseInt(req.query.limit as string, 10) : 40 
-      });
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 40;
+      const postsData = autoBlogService.getAllPosts({ limit });
       res.json(postsData.posts);
     } catch (error) {
       console.warn('[API /news] Handled gracefully:', error);
       res.json([]);
+    }
+  });
+
+  // Dedicated sync endpoint for client triggers, webhooks, or admin actions
+  apiRouter.all("/news/sync", async (req, res) => {
+    try {
+      console.log('[API /news/sync] Triggering manual news sync from live feeds and database...');
+      const syncResult = await autoBlogService.syncLatestNews();
+      const updatedPosts = autoBlogService.getAllPosts({ limit: 40 });
+      res.json({
+        success: true,
+        message: `Successfully updated news (${syncResult.addedCount} new articles ingested).`,
+        ...syncResult,
+        posts: updatedPosts.posts
+      });
+    } catch (error: any) {
+      console.error('[API /news/sync] Error:', error);
+      res.status(500).json({ success: false, error: error.message || 'Failed to sync news' });
     }
   });
 

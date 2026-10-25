@@ -41,6 +41,8 @@ interface RawFeedItem {
   defaultCategory: string;
   region?: string;
   imageUrl?: string;
+  paragraphs?: string[];
+  fullContent?: string;
 }
 
 const NEWS_SOURCES = [
@@ -64,13 +66,13 @@ const NEWS_SOURCES = [
   },
   {
     name: 'Tech & Digital Innovation',
-    url: 'http://feeds.bbci.co.uk/news/technology/rss.xml',
+    url: 'https://feeds.bbci.co.uk/news/technology/rss.xml',
     defaultCategory: 'Technology & AI',
     region: 'Global'
   },
   {
     name: 'Entertainment & Arts Wire',
-    url: 'http://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml',
+    url: 'https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml',
     defaultCategory: 'Media & Entertainment',
     region: 'Global'
   },
@@ -135,6 +137,15 @@ export class AutoBlogService {
         });
       }, 30 * 60 * 1000);
     }
+  }
+
+  /**
+   * Check whether the cached news is stale (older than maxAgeMinutes, or never synced)
+   */
+  public isStale(maxAgeMinutes = 15): boolean {
+    if (!this.lastSyncTime) return true;
+    const ageMs = Date.now() - new Date(this.lastSyncTime).getTime();
+    return ageMs > maxAgeMinutes * 60 * 1000;
   }
 
   /**
@@ -261,6 +272,96 @@ export class AutoBlogService {
       .trim();
   }
 
+  /**
+   * Scrapes an article webpage to extract authentic news photo and full multi-paragraph reporting.
+   */
+  public async scrapeWebArticle(url: string): Promise<{ imageUrl?: string; paragraphs: string[] }> {
+    const result: { imageUrl?: string; paragraphs: string[] } = { paragraphs: [] };
+    if (!url || !url.startsWith('http')) return result;
+
+    try {
+      const cleanUrl = url.split('?')[0];
+      const resp = await axios.get(cleanUrl, {
+        timeout: 7000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 FideTV-NewsBot/3.0',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+        }
+      });
+
+      if (!resp.data || typeof resp.data !== 'string') return result;
+      const $page = cheerio.load(resp.data);
+
+      // 1. Extract authentic news photo
+      let ogImg = $page('meta[property="og:image"]').attr('content') ||
+                  $page('meta[name="twitter:image:src"]').attr('content') ||
+                  $page('meta[name="twitter:image"]').attr('content') ||
+                  $page('.post-content figure img').first().attr('src') ||
+                  $page('article figure img').first().attr('src') ||
+                  $page('.entry-content figure img').first().attr('src') ||
+                  $page('figure img').first().attr('src') ||
+                  '';
+
+      if (ogImg) {
+        ogImg = ogImg.trim();
+        if (ogImg.includes('ichef.bbci.co.uk')) {
+          ogImg = ogImg
+            .replace(/\/ace\/standard\/\d+\//, '/ace/standard/1200/')
+            .replace(/\/cpsprodpb\/[a-z0-9]+\/live\//, '/cpsprodpb/1200/live/')
+            .replace(/\/branded_news\/\d+\//, '/branded_news/1200/');
+        }
+        const isLogo = ogImg.toLowerCase().includes('punch-logo') ||
+                       ogImg.toLowerCase().includes('logo-500x179') ||
+                       ogImg.toLowerCase().includes('default-avatar') ||
+                       ogImg.toLowerCase().includes('1x1');
+        if (!isLogo && ogImg.startsWith('http')) {
+          result.imageUrl = ogImg;
+        }
+      }
+
+      // 2. Extract full multi-paragraph reporting text
+      const selectors = [
+        '.post-content p',
+        'article p',
+        '[data-component="text-block"] p',
+        '.entry-content p',
+        'main article p',
+        '.story-body p',
+        '.article__body p',
+        'main p'
+      ];
+
+      for (const sel of selectors) {
+        if (result.paragraphs.length >= 4) break;
+        $page(sel).each((_, el) => {
+          const text = $page(el).text().trim();
+          if (
+            text.length > 25 &&
+            !text.toLowerCase().startsWith('file photo') &&
+            !text.toLowerCase().startsWith('photo:') &&
+            !text.toLowerCase().startsWith('image caption') &&
+            !text.includes('All rights reserved') &&
+            !text.includes('Contact:') &&
+            !text.includes('Follow BBC') &&
+            !text.includes('Sign up for our') &&
+            !text.includes('Download the BBC') &&
+            !text.includes('Image source,') &&
+            !text.includes('Get in touch') &&
+            !text.includes('Listen to the latest') &&
+            !text.includes('Read More:') &&
+            !text.includes('advertisement')
+          ) {
+            result.paragraphs.push(text);
+          }
+        });
+      }
+    } catch {
+      // Quiet fallback
+    }
+
+    return result;
+  }
+
   public async fetchRawFeeds(): Promise<RawFeedItem[]> {
     const rawItems: RawFeedItem[] = [];
 
@@ -269,7 +370,7 @@ export class AutoBlogService {
         const response = await axios.get(source.url, {
           timeout: 8000,
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) FideTV-NewsBot/3.0'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 FideTV-NewsBot/3.0'
           }
         });
 
@@ -277,25 +378,81 @@ export class AutoBlogService {
         if (!xml || typeof xml !== 'string') continue;
 
         const $ = cheerio.load(xml, { xmlMode: true });
+        const items = $('item').slice(0, 5).toArray();
 
-        $('item').each((i, el) => {
-          if (i >= 5) return; // Top 5 per feed
-
+        for (const el of items) {
           const title = $(el).find('title').first().text();
           const link = $(el).find('link').first().text();
           const desc = $(el).find('description').first().text();
           const pubDate = $(el).find('pubDate').first().text();
+          const rawXml = $(el).html() || '';
 
-          let imageUrl = $(el).find('media\\:content, content').attr('url') ||
-                          $(el).find('media\\:thumbnail, thumbnail').attr('url') ||
-                          $(el).find('enclosure[type^="image"]').attr('url') ||
-                          '';
+          let imageUrl = '';
+          const paragraphs: string[] = [];
+
+          // A. Channels TV media:featured
+          const featuredMatch = rawXml.match(/<media:featured[^>]+url="([^">]+)"/i);
+          if (featuredMatch && featuredMatch[1]) {
+            imageUrl = featuredMatch[1];
+          }
+
+          // B. media:content, media:thumbnail, enclosure
+          if (!imageUrl) {
+            imageUrl = $(el).find('media\\:content, content').attr('url') ||
+                       $(el).find('media\\:thumbnail, thumbnail').attr('url') ||
+                       $(el).find('enclosure[type^="image"]').attr('url') ||
+                       '';
+          }
 
           if (!imageUrl) {
-            const imgMatch = desc.match(/<img[^>]+src="([^">]+)"/i);
-            if (imgMatch && imgMatch[1]) {
-              imageUrl = imgMatch[1];
+            const bbcMatch = rawXml.match(/<media:thumbnail[^>]+url="([^">]+)"/i);
+            if (bbcMatch && bbcMatch[1]) {
+              imageUrl = bbcMatch[1].replace(/\/standard\/\d+\//, '/standard/976/');
             }
+          }
+
+          // C. Content:encoded (Channels TV, Vanguard, etc.)
+          const contentEncoded = $(el).find('content\\:encoded').text();
+          if (contentEncoded) {
+            const $content = cheerio.load(contentEncoded);
+            if (!imageUrl) {
+              const contentImg = $content('img').first().attr('src');
+              if (contentImg && !contentImg.includes('logo') && !contentImg.includes('1x1')) {
+                imageUrl = contentImg;
+              }
+            }
+            $content('p').each((_, p) => {
+              const t = $content(p).text().trim();
+              if (t.length > 20 && !t.includes('Vanguard News') && !t.includes('All rights reserved')) {
+                paragraphs.push(t);
+              }
+            });
+          }
+
+          // D. If paragraphs or genuine image is still missing or is a generic logo, scrape article webpage
+          const isLogoImg = imageUrl.toLowerCase().includes('punch-logo') || imageUrl.toLowerCase().includes('500x179');
+          if ((paragraphs.length < 3 || !imageUrl || isLogoImg) && link) {
+            const scraped = await this.scrapeWebArticle(link);
+            if (scraped.imageUrl && (!imageUrl || isLogoImg)) {
+              imageUrl = scraped.imageUrl;
+            }
+            if (scraped.paragraphs.length > paragraphs.length) {
+              paragraphs.length = 0;
+              paragraphs.push(...scraped.paragraphs);
+            }
+          }
+
+          // E. YouTube embed thumbnail check
+          if (imageUrl && (imageUrl.includes('youtube.com') || imageUrl.includes('youtu.be'))) {
+            const ytMatch = imageUrl.match(/(?:youtube\.com\/(?:embed\/|watch\?v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+            if (ytMatch && ytMatch[1]) {
+              imageUrl = `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`;
+            }
+          }
+
+          // Reject logos
+          if (imageUrl && (imageUrl.includes('punch-logo') || imageUrl.includes('500x179'))) {
+            imageUrl = '';
           }
 
           const cleanedTitle = this.cleanHtml(title);
@@ -310,10 +467,12 @@ export class AutoBlogService {
               sourceName: source.name,
               defaultCategory: source.defaultCategory,
               region: source.region,
-              imageUrl: imageUrl.trim() || undefined
+              imageUrl: imageUrl.trim() || undefined,
+              paragraphs: paragraphs.length > 0 ? paragraphs : undefined,
+              fullContent: paragraphs.length > 0 ? paragraphs.join('\n\n') : cleanedDesc
             });
           }
-        });
+        }
       } catch (feedErr: any) {
         console.warn(`[AutoBlogService] Failed to fetch feed ${source.name}:`, feedErr.message);
       }
@@ -363,9 +522,9 @@ export class AutoBlogService {
     for (const src of nigerianSources) {
       try {
         const resp = await axios.get(src.url, {
-          timeout: 6000,
+          timeout: 7000,
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) FideTV-NigeriaWire/3.0'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 FideTV-NigeriaWire/3.0'
           }
         });
         const $ = cheerio.load(resp.data, { xmlMode: true });
@@ -376,14 +535,62 @@ export class AutoBlogService {
           const link = $(el).find('link').first().text().trim();
           const desc = this.cleanHtml($(el).find('description').first().text());
           const pubDate = $(el).find('pubDate').first().text().trim();
+          const rawXml = $(el).html() || '';
 
-          let imageUrl = $(el).find('media\\:content, content').attr('url') ||
-                          $(el).find('media\\:thumbnail, thumbnail').attr('url') ||
-                          $(el).find('enclosure[type^="image"]').attr('url') || '';
+          let imageUrl = '';
+          const paragraphs: string[] = [];
 
+          // A. Channels TV media:featured
+          const featuredMatch = rawXml.match(/<media:featured[^>]+url="([^">]+)"/i);
+          if (featuredMatch && featuredMatch[1]) {
+            imageUrl = featuredMatch[1];
+          }
+
+          // B. media:content, media:thumbnail, enclosure
           if (!imageUrl) {
-            const imgMatch = desc.match(/<img[^>]+src="([^">]+)"/i);
-            if (imgMatch && imgMatch[1]) imageUrl = imgMatch[1];
+            imageUrl = $(el).find('media\\:content, content').attr('url') ||
+                       $(el).find('media\\:thumbnail, thumbnail').attr('url') ||
+                       $(el).find('enclosure[type^="image"]').attr('url') || '';
+          }
+
+          // C. Content:encoded (Channels TV, Vanguard)
+          const contentEncoded = $(el).find('content\\:encoded').text();
+          if (contentEncoded) {
+            const $content = cheerio.load(contentEncoded);
+            if (!imageUrl) {
+              const contentImg = $content('img').first().attr('src');
+              if (contentImg && !contentImg.includes('logo') && !contentImg.includes('1x1')) {
+                imageUrl = contentImg;
+              }
+            }
+            $content('p').each((_, p) => {
+              const t = $content(p).text().trim();
+              if (t.length > 20 && !t.includes('Vanguard News') && !t.includes('All rights reserved')) {
+                paragraphs.push(t);
+              }
+            });
+          }
+
+          // D. Scrape webpage if needed for full paragraphs or real photo
+          const isLogoImg = imageUrl.toLowerCase().includes('punch-logo') || imageUrl.toLowerCase().includes('500x179');
+          if ((paragraphs.length < 3 || !imageUrl || isLogoImg) && link) {
+            const scraped = await this.scrapeWebArticle(link);
+            if (scraped.imageUrl && (!imageUrl || isLogoImg)) {
+              imageUrl = scraped.imageUrl;
+            }
+            if (scraped.paragraphs.length > paragraphs.length) {
+              paragraphs.length = 0;
+              paragraphs.push(...scraped.paragraphs);
+            }
+          }
+
+          if (imageUrl && (imageUrl.includes('youtube.com') || imageUrl.includes('youtu.be'))) {
+            const ytMatch = imageUrl.match(/(?:youtube\.com\/(?:embed\/|watch\?v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+            if (ytMatch && ytMatch[1]) imageUrl = `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`;
+          }
+
+          if (imageUrl && (imageUrl.includes('punch-logo') || imageUrl.includes('500x179'))) {
+            imageUrl = '';
           }
 
           if (title && title.length > 12) {
@@ -392,18 +599,35 @@ export class AutoBlogService {
             if (!exists) {
               // Validate cover image with our dedicated utility
               const validated = await validateAndEnrichNewsCover(imageUrl, title, desc, 'Global News & Culture');
-              const post: AutoBlogPost = {
-                id: `ng-feed-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-                slug,
+              
+              // Build raw item for full synthesis
+              const rawNigeriaItem: RawFeedItem = {
                 title,
-                excerpt: desc ? desc.substring(0, 160) + '...' : 'Breaking regional report from Nigeria.',
-                description: desc || '',
-                content: desc || '',
+                link,
+                description: desc,
+                pubDate: pubDate || new Date().toISOString(),
+                sourceName: src.name,
+                defaultCategory: 'Global News & Culture',
+                region: 'Nigeria',
+                imageUrl: validated.validUrl,
+                paragraphs: paragraphs.length > 0 ? paragraphs : undefined,
+                fullContent: paragraphs.length > 0 ? paragraphs.join('\n\n') : desc
+              };
+
+              const synthesized = this.synthesizeFallbackPost(rawNigeriaItem);
+
+              const post: AutoBlogPost = {
+                id: crypto.randomUUID(),
+                slug,
+                title: synthesized.title,
+                excerpt: synthesized.excerpt,
+                description: synthesized.excerpt,
+                content: synthesized.content,
                 category: 'Global News & Culture',
-                tags: ['Nigeria', 'RegionalNews', 'AfricaWire', 'FideTV'],
+                tags: synthesized.tags,
                 image_url: validated.validUrl,
                 image_urls: [validated.validUrl],
-                read_time: '3 min read',
+                read_time: synthesized.read_time,
                 source_name: src.name,
                 source_url: link,
                 region: 'Nigeria',
@@ -469,34 +693,50 @@ export class AutoBlogService {
         }
       });
 
+      const fullSourceText = rawItem.paragraphs && rawItem.paragraphs.length > 0
+        ? rawItem.paragraphs.join('\n\n')
+        : (rawItem.fullContent || rawItem.description);
+
       const prompt = `You are the Lead Digital Media Editor and Journalist for FideTV Media Hub.
 FideTV is a 24/7 digital broadcasting platform, live streaming hub, and modern African & international media network.
 
-Analyze this breaking news story:
+Analyze this breaking news story and its FULL wire reporting:
 Headline: "${rawItem.title}"
 Source: "${rawItem.sourceName}"
-Snippet: "${rawItem.description}"
 Category Suggestion: "${rawItem.defaultCategory}"
 Region: "${rawItem.region || 'Global'}"
 
-Write a comprehensive, original, high-quality editorial blog post for FideTV's audience.
-The post must be written in rich Markdown with informative subheadings, industry analysis, broadcasting/digital media implications, and a bulleted "Key Takeaways" section.
+FULL WIRE REPORTING:
+"""
+${fullSourceText}
+"""
+
+CRITICAL INSTRUCTIONS:
+1. Write a comprehensive, FULL-LENGTH journalistic news report in Markdown for FideTV's audience.
+2. DO NOT summarize into a short brief. You MUST preserve ALL verified facts, official statements, direct quotes, chronological background, and key details from the original wire text.
+3. Structure the article with clear sections:
+   - ## Introduction & The Breaking Context
+   - ## The Full Developing Story
+   - ## In-Depth Background & Statements
+   - ## Broadcast & Digital Media Perspective
+   - ## FideTV Editorial Commentary
+   - ## Key Takeaways (bulleted fact sheet)
 
 Output ONLY valid JSON in this exact structure without markdown fences:
 {
   "title": "A punchy, captivating journalistic headline",
-  "excerpt": "A crisp, compelling 2-sentence summary hook",
+  "excerpt": "A crisp, compelling 2-sentence summary hook (under 180 chars)",
   "category": "Broadcasting & Streaming | Technology & AI | Media & Entertainment | Global News & Culture | Creator Economy & Production | Sports & Live Events",
   "tags": ["tag1", "tag2", "tag3", "tag4"],
-  "read_time": "4 min read",
-  "content": "Full markdown content with ## Introduction, ## The Developing Story, ## Industry & Broadcast Impact, ## The FideTV Editorial Perspective, and ## Key Takeaways (bullet points)."
+  "read_time": "5 min read",
+  "content": "Full Markdown article text containing all sections and complete reporting."
 }`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
+        model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
-          maxOutputTokens: 1200,
+          maxOutputTokens: 2500,
           temperature: 0.7,
           responseMimeType: 'application/json'
         }
@@ -508,14 +748,14 @@ Output ONLY valid JSON in this exact structure without markdown fences:
       const cleanJson = responseText.replace(/^```json\s*/i, '').replace(/```$/i, '').trim();
       const parsed = JSON.parse(cleanJson);
 
-      if (parsed.title && parsed.content) {
+      if (parsed.title && parsed.content && parsed.content.length > 300) {
         return {
           title: parsed.title,
           excerpt: parsed.excerpt || rawItem.description.substring(0, 160) + '...',
           content: parsed.content,
           category: parsed.category || rawItem.defaultCategory,
           tags: Array.isArray(parsed.tags) ? parsed.tags : ['DigitalMedia', 'Broadcasting', 'News'],
-          read_time: parsed.read_time || '4 min read'
+          read_time: parsed.read_time || '5 min read'
         };
       }
     } catch (aiErr: any) {
@@ -534,18 +774,65 @@ Output ONLY valid JSON in this exact structure without markdown fences:
   } {
     const title = rawItem.title;
     const category = rawItem.defaultCategory;
-    const snippet = rawItem.description || 'Breaking coverage on major industry developments.';
-    const excerpt = snippet.length > 170 ? snippet.substring(0, 167) + '...' : snippet;
+    const paras = rawItem.paragraphs && rawItem.paragraphs.length > 0 ? rawItem.paragraphs : [rawItem.description];
+    
+    // Accurate read time calculation
+    const totalWordCount = paras.join(' ').split(/\s+/).length;
+    const readTimeMinutes = Math.max(3, Math.ceil(totalWordCount / 200));
+    const read_time = `${readTimeMinutes} min read`;
 
-    const content = `In a fast-moving development across the media and cultural landscape, **${title}** has emerged as a focal point for observers and audiences.
+    // High quality excerpt from lead paragraph
+    const leadPara = paras[0] || rawItem.description || 'Breaking coverage on major industry developments.';
+    const excerpt = leadPara.length > 180 ? leadPara.substring(0, 177) + '...' : leadPara;
+
+    let content: string;
+    if (paras.length >= 3) {
+      const lead = paras.slice(0, 2).join('\n\n');
+      const middleStory = paras.slice(2, Math.floor(paras.length * 0.65)).join('\n\n');
+      const deepDetails = paras.slice(Math.floor(paras.length * 0.65), Math.max(paras.length - 2, 2)).join('\n\n');
+      const concluding = paras.slice(Math.max(paras.length - 2, 2)).join('\n\n');
+
+      content = `${lead}
 
 ---
 
-### 🌐 The Developing Story
+### 📰 The Full Developing Story & Context
 
-${snippet}
+${middleStory}
 
-As reported via **${rawItem.sourceName}**, this event reflects broader shifts currently impacting how news and information are distributed, consumed, and experienced in real-time environments.
+---
+
+### 🔍 Background, Statements & Official Perspectives
+
+${deepDetails || concluding}
+
+${concluding && deepDetails ? `\n\n---\n\n### 🎙️ Perspectives & What Comes Next\n\n${concluding}` : ''}
+
+---
+
+### 📡 Industry & Broadcast Perspective
+
+From a digital media infrastructure viewpoint, major developments like this illustrate the speed with which breaking events reverberate across national and international broadcast channels:
+* **Live Wire Distribution**: Real-time multi-platform reporting delivering instantaneous updates to viewers.
+* **In-Depth Journalistic Context**: Bringing verified facts, official statements, and unfiltered context over brief summaries.
+* **Community Engagement**: Enabling audiences to follow continuous updates and engage through digital broadcasts.
+
+---
+
+### 💡 FideTV Media Editorial Note
+
+At **FideTV Media**, our mission is to deliver comprehensive, unfiltered news covering international media, industry icons, technology, and broadcasting breakthroughs. Whether tracking pivotal governance milestones, cultural shifts, or technological infrastructure, we keep our community equipped with timely, high-fidelity reporting.
+
+---
+
+### 📌 Key Story Takeaways
+
+1. **Primary Subject**: ${title}
+2. **Category Focus**: ${category}
+3. **Reading Time**: ${read_time}
+4. **Source Attribution**: Reporting verified via *${rawItem.sourceName}* original coverage.`;
+    } else {
+      content = `${paras.join('\n\n')}
 
 ---
 
@@ -553,7 +840,6 @@ As reported via **${rawItem.sourceName}**, this event reflects broader shifts cu
 
 From a digital media infrastructure viewpoint, updates of this magnitude demonstrate the critical importance of adaptable, high-capacity broadcasting systems:
 * **Real-time Distribution**: The shift towards decentralized, multi-channel broadcast architectures.
-* **Creator Democratization**: Lowering the barrier for independent journalists and production studios to broadcast globally.
 * **Audience Interactivity**: Synchronized voice spaces and collaborative commentary.
 
 ---
@@ -567,9 +853,9 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
 ### 📌 Key Takeaways
 
 1. **Impact**: Significant immediate relevance for digital media practitioners, creators, and audiences.
-2. **Key Insight**: ${snippet.substring(0, 100)}...
-3. **Next Steps**: Continued observation of follow-up announcements.
-4. **Source Reference**: Live wire coverage courtesy of *${rawItem.sourceName}*.`;
+2. **Key Insight**: ${leadPara.substring(0, 120)}...
+3. **Source Reference**: Live wire coverage courtesy of *${rawItem.sourceName}*.`;
+    }
 
     const tags = [
       category.split(' ')[0].replace(/[^a-zA-Z]/g, ''),
@@ -586,7 +872,7 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
       content,
       category,
       tags,
-      read_time: '4 min read'
+      read_time
     };
   }
 
@@ -745,7 +1031,7 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
       console.log(`[AutoBlogService] Processing ${rawItems.length} candidate news items from live feeds...`);
 
       for (const item of rawItems) {
-        if (addedCount >= 4) break;
+        if (addedCount >= 8) break;
 
         const tempSlug = this.generateSlug(item.title);
         const alreadyExists = this.posts.some(
@@ -767,7 +1053,10 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
         }
 
         const id = crypto.randomUUID();
-        const slug = this.generateSlug(generated.title) || tempSlug;
+        let slug = this.generateSlug(generated.title) || tempSlug;
+        if (this.posts.some(p => p.slug === slug)) {
+          slug = `${slug}-${Date.now().toString(36).substring(4)}`;
+        }
 
         const newPost: AutoBlogPost = {
           id,

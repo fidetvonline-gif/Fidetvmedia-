@@ -5,6 +5,7 @@ import { motion, useScroll, useTransform, AnimatePresence } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Play, Calendar, Users, ArrowRight, Video, Zap, CheckCircle, Flame, Sparkles, Globe, Shield, X, MessageSquare, Newspaper, Monitor, Smartphone, BarChart3, Radio, Heart, Phone, Award, Instagram, Linkedin, ExternalLink, Tv, Headphones, DownloadCloud, Download, Link as LinkIcon } from 'lucide-react';
 import { cn, getHighQualityImage } from '@/lib/utils';
+import { getClientContentImage } from '@/lib/imageValidator';
 import { supabase } from '@/lib/supabase';
 import ReactPlayer from 'react-player';
 import { PortfolioItem, News } from '@/types';
@@ -1480,9 +1481,14 @@ export default function Home() {
                 <div className="flex flex-col h-full relative z-10">
                   <div className="aspect-[16/10] overflow-hidden relative bg-background">
                     <img 
-                      src={getHighQualityImage(item.image_url || (item as any).cover_image)} 
+                      src={getHighQualityImage(item.image_url || (item as any).cover_image, item.category, item.title)} 
                       alt={item.title} 
                       loading="lazy"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = getClientContentImage(item.title, item.category);
+                      }}
                       className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-500 opacity-90" 
                     />
                     <div className="absolute top-4 left-4 z-30">

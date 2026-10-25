@@ -38,6 +38,6 @@ export function useNewsSync(initialData?: NewsType[]) {
     isSyncing,
     lastSyncTime,
     triggerSync,
-    refreshNews: () => newsSyncService.refreshNews()
+    refreshNews: (force?: boolean) => newsSyncService.refreshNews(force)
   };
 }

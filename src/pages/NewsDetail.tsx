@@ -9,6 +9,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
 import ReactPlayer from 'react-player';
 import { cn, getHighQualityImage } from '@/lib/utils';
+import { getClientContentImage } from '@/lib/imageValidator';
 import AUTO_BLOGS from '@/data/auto_blogs.json';
 import { safeLocalStorage } from '@/lib/storage';
 
@@ -409,10 +410,15 @@ export default function NewsDetail() {
       {(item.image_url || (item as any).cover_image) && (
         <div className="rounded-[2.5rem] sm:rounded-[3rem] overflow-hidden mb-16 border border-border-custom aspect-video shadow-2xl relative group bg-surface">
           <img 
-            src={getHighQualityImage(item.image_url || (item as any).cover_image)} 
+            src={getHighQualityImage(item.image_url || (item as any).cover_image, item.category, item.title)} 
             alt={item.title} 
             loading="eager"
             fetchPriority="high"
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = getClientContentImage(item.title, item.category);
+            }}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" 
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
@@ -577,7 +583,17 @@ export default function NewsDetail() {
                 {relatedNews.map((news) => (
                   <Link key={news.id} to={`/news/${news.slug}`} className="group block space-y-3">
                     <div className="aspect-video rounded-2xl overflow-hidden border border-border-custom bg-surface relative">
-                      <img src={news.image_url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <img 
+                        src={getHighQualityImage(news.image_url, news.category, news.title)} 
+                        alt={news.title}
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = getClientContentImage(news.title, news.category);
+                        }}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                      />
                       <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-all" />
                     </div>
                     <div className="space-y-1">

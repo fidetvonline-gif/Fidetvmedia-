@@ -14,6 +14,8 @@ class NewsSyncService {
   private isInitialized = false;
   private isSyncing = false;
   private lastSyncTime: string | null = null;
+  private pollIntervalHandle: any = null;
+  private visibilityListenerAdded = false;
 
   private constructor() {
     this.currentNews = this.loadInitialNews();
@@ -42,13 +44,13 @@ class NewsSyncService {
   }
 
   /**
-   * Initializes real-time subscriptions with Supabase
+   * Initializes real-time subscriptions with Supabase & periodic auto-polling
    */
   public init() {
     if (this.isInitialized) return;
     this.isInitialized = true;
 
-    console.log('[NewsSyncService] Initializing real-time Supabase subscription...');
+    console.log('[NewsSyncService] Initializing news auto-updater and real-time subscription...');
 
     // Clear stale cache (older than 1 hour)
     try {
@@ -57,6 +59,28 @@ class NewsSyncService {
 
     // Perform initial fetch & sync
     this.refreshNews();
+
+    // 1. Auto-polling interval: fetch fresh articles every 2 minutes while page is open
+    if (!this.pollIntervalHandle && typeof window !== 'undefined') {
+      this.pollIntervalHandle = window.setInterval(() => {
+        this.refreshNews();
+      }, 120 * 1000);
+    }
+
+    // 2. Tab focus & visibility handler: refresh if inactive for >3 minutes
+    if (!this.visibilityListenerAdded && typeof document !== 'undefined') {
+      this.visibilityListenerAdded = true;
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          const now = Date.now();
+          const lastSync = this.lastSyncTime ? new Date(this.lastSyncTime).getTime() : 0;
+          if (now - lastSync > 3 * 60 * 1000) {
+            console.log('[NewsSyncService] Tab regained visibility, auto-refreshing news feed...');
+            this.refreshNews();
+          }
+        }
+      });
+    }
 
     try {
       // Create real-time channel
@@ -131,7 +155,7 @@ class NewsSyncService {
   /**
    * Fetch and synchronize news from both server API and Supabase
    */
-  public async refreshNews(): Promise<NewsType[]> {
+  public async refreshNews(force = false): Promise<NewsType[]> {
     if (this.isSyncing) return this.currentNews;
     this.isSyncing = true;
 
@@ -139,7 +163,8 @@ class NewsSyncService {
       // 1. Fetch from unified backend news endpoint (which merges auto_blogs & database)
       let combined: NewsType[] = [];
       try {
-        const res = await fetch('/api/news');
+        const url = force ? '/api/news?refresh=true' : '/api/news';
+        const res = await fetch(url);
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data) && data.length > 0) {
@@ -238,6 +263,10 @@ class NewsSyncService {
   }
 
   public destroy() {
+    if (this.pollIntervalHandle) {
+      clearInterval(this.pollIntervalHandle);
+      this.pollIntervalHandle = null;
+    }
     if (this.channel) {
       supabase.removeChannel(this.channel);
       this.channel = null;
