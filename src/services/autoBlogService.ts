@@ -127,14 +127,20 @@ export class AutoBlogService {
       // Always pull latest from Supabase immediately on startup to ensure we aren't using stale bundled data
       await this.pullFromSupabase().catch(err => console.error('[AutoBlogService] Startup DB pull failed:', err));
 
-      // Schedule periodic automatic update every 30 minutes (only in persistent environments)
+      // Trigger immediate background sync if stale or low post count
+      if (this.isStale(5) || this.posts.length < 10) {
+        console.log('[AutoBlogService] Initial news sync triggered on startup...');
+        this.syncLatestNews().catch(err => console.warn('[AutoBlogService] Initial sync notice:', err.message));
+      }
+
+      // Schedule periodic automatic update every 5 minutes (proactive wire update)
       if (!this.syncIntervalHandle && typeof setInterval !== 'undefined' && !process.env.VERCEL) {
         this.syncIntervalHandle = setInterval(() => {
-          console.log('[AutoBlogService] Triggering scheduled automated news update cycle...');
+          console.log('[AutoBlogService] Triggering scheduled automated news update cycle (5m)...');
           this.syncLatestNews().catch(err => {
             console.error('[AutoBlogService] Scheduled sync error:', err);
           });
-        }, 30 * 60 * 1000);
+        }, 5 * 60 * 1000);
       }
 
       // Initialize real-time listener to keep server cache in sync with DB

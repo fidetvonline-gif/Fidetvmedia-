@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, PlayCircle, Users, Briefcase, Info, Mail, LayoutDashboard, LogOut, User, Headset, Home as HomeIcon, DownloadCloud, Sun, Moon, Megaphone, Construction } from 'lucide-react';
+import { Menu, X, PlayCircle, Users, Briefcase, Info, Mail, LayoutDashboard, LogOut, User, Headset, Home as HomeIcon, DownloadCloud, Sun, Moon, Megaphone, Construction, Newspaper } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { safeLocalStorage } from '@/lib/storage';
 import { cn } from '@/lib/utils';
@@ -186,8 +186,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { name: 'Home', path: '/', icon: HomeIcon },
     { name: 'Live', path: '/live', icon: PlayCircle, id: 'nav-live' },
     { name: 'Content', path: '/content', icon: LayoutDashboard, id: 'nav-content' },
-    { name: 'Journal', path: '/news', icon: LayoutDashboard },
-    { name: 'Community', path: '/community', icon: Users, id: 'nav-community' },
+    { name: 'News', path: '/news', icon: Newspaper },
     { name: 'Spaces', path: '/spaces', icon: Headset },
     { name: 'Services', path: '/services', icon: Briefcase },
     { name: 'Fidesave', path: '/fidesave', icon: DownloadCloud },
@@ -481,10 +480,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <ul className="space-y-3 text-sm text-foreground/60">
                   <li><Link to="/live" className="hover:text-primary transition-colors">Live Events</Link></li>
                   <li><Link to="/content" className="hover:text-primary transition-colors">Content Hub</Link></li>
-                  <li><Link to="/news" className="hover:text-primary transition-colors">FideTV Journal</Link></li>
+                  <li><Link to="/news" className="hover:text-primary transition-colors">FideTV News</Link></li>
+                  <li><Link to="/spaces" className="hover:text-primary transition-colors">Audio Spaces</Link></li>
                   <li><Link to="/fidesave" className="hover:text-primary transition-colors">Fidesave Downloader</Link></li>
                   <li><Link to="/advertise" className="hover:text-primary transition-colors">Advertise with Us</Link></li>
-                  <li><Link to="/community" className="hover:text-primary transition-colors">Community Hub</Link></li>
                   <li><Link to="/portfolio" className="hover:text-primary transition-colors">Production Portfolio</Link></li>
                 </ul>
               </div>

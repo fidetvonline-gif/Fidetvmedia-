@@ -3,7 +3,7 @@ import { parseResponseJson } from '@/lib/api';
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Play, Calendar, Users, ArrowRight, Video, Zap, CheckCircle, Flame, Sparkles, Globe, Shield, X, MessageSquare, Newspaper, Monitor, Smartphone, BarChart3, Radio, Heart, Phone, Award, Instagram, Linkedin, ExternalLink, Tv, Headphones, DownloadCloud, Download, Link as LinkIcon } from 'lucide-react';
+import { Play, Calendar, Users, ArrowRight, Video, Zap, CheckCircle, Flame, Sparkles, Globe, Shield, X, MessageSquare, Newspaper, Monitor, Smartphone, BarChart3, Radio, Heart, Phone, Award, Instagram, Linkedin, ExternalLink, Tv, Headphones, DownloadCloud, Download, Link as LinkIcon, Clock } from 'lucide-react';
 import { cn, getHighQualityImage } from '@/lib/utils';
 import { getClientContentImage } from '@/lib/imageValidator';
 import { supabase } from '@/lib/supabase';
@@ -18,7 +18,7 @@ import LiveEventBanner from '@/components/LiveEventBanner';
 import DisplayInlineAds from '@/components/DisplayInlineAds';
 import { YouTubeVideoPlayer } from '@/components/YouTubeVideoPlayer';
 
-import { ReferralLeaderboard } from '@/components/ReferralLeaderboard';
+import { newsSyncService } from '@/services/newsSyncService';
 import AUTO_BLOGS from '@/data/auto_blogs.json';
 
 const Player = ReactPlayer as any;
@@ -44,7 +44,11 @@ export default function Home() {
   const [smedanUrl, setSmedanUrl] = useState('');
   const [playingVideo, setPlayingVideo] = useState<PortfolioItem | null>(null);
   const [featuredPortfolio, setFeaturedPortfolio] = useState<PortfolioItem[]>([]);
-  const [latestNews, setLatestNews] = useState<News[]>((AUTO_BLOGS as any[]).slice(0, 3));
+  const [latestNews, setLatestNews] = useState<News[]>(() => {
+    const cached = newsSyncService.getNews();
+    if (cached && cached.length > 0) return cached.slice(0, 3);
+    return (AUTO_BLOGS as any[]).slice(0, 3);
+  });
   const [displayedChannels, setDisplayedChannels] = useState<any[]>([]);
   const [displayedVideos, setDisplayedVideos] = useState<PortfolioItem[]>([]);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -116,9 +120,17 @@ export default function Home() {
       })
       .subscribe();
 
+    newsSyncService.init();
+    const unsubNews = newsSyncService.subscribe((updatedNews) => {
+      if (updatedNews && updatedNews.length > 0) {
+        setLatestNews(updatedNews.slice(0, 3));
+      }
+    });
+
     return () => {
       subscription?.unsubscribe();
       supabase.removeChannel(channelListener);
+      unsubNews();
     };
   }, []);
 
@@ -196,7 +208,12 @@ export default function Home() {
 
   const fetchLatestNews = async () => {
     try {
-      const response = await fetch('/api/news');
+      const liveItems = await newsSyncService.refreshNews();
+      if (liveItems && liveItems.length > 0) {
+        setLatestNews(liveItems.slice(0, 3));
+        return;
+      }
+      const response = await fetch('/api/news', { cache: 'no-store' });
       const data = await parseResponseJson(response);
       if (Array.isArray(data) && data.length > 0) {
         setLatestNews(data.slice(0, 3).map((item: any) => ({
@@ -211,12 +228,9 @@ export default function Home() {
           created_at: item.created_at || item.publishedAt || new Date().toISOString(),
           profiles: item.profiles || { username: 'FideTV News Desk' }
         })) as News[]);
-      } else {
-        setLatestNews((AUTO_BLOGS as any[]).slice(0, 3));
       }
     } catch (err) {
-      console.warn('News fetch warning (using bundled news):', err);
-      setLatestNews((AUTO_BLOGS as any[]).slice(0, 3));
+      console.warn('News fetch notice:', err);
     }
   };
 
@@ -441,144 +455,148 @@ export default function Home() {
       <div className="absolute bottom-[10%] left-[-10%] w-[500px] h-[500px] bg-primary/4 rounded-full blur-[150px] pointer-events-none" />
 
       {/* Hero Section */}
-      <section className="relative min-h-[92vh] flex items-center pt-28 pb-20 px-4 sm:px-6 lg:px-8 border-b border-border-custom">
-        <motion.div style={{ y: yBg, opacity: opacityHero }} className="absolute inset-0 z-0 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-b from-background via-background/95 to-background z-10" />
+      <section className="relative min-h-[85vh] flex items-center pt-24 pb-20 px-4 sm:px-6 lg:px-8 border-b border-border-custom overflow-hidden">
+        {/* Ambient Video & Gradient Background */}
+        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+          <div className="absolute inset-0 bg-gradient-to-b from-background/85 via-background/90 to-background z-10" />
           <video 
             ref={videoRef}
             src="https://cdn.coverr.co/videos/coverr-camera-recording-a-music-festival-4663/1080p.mp4"
-            autoPlay
+            autoPlay 
             loop 
             muted 
             playsInline
-            className="w-full h-full object-cover opacity-15 mix-blend-luminosity scale-105"
+            className="w-full h-full object-cover opacity-10 mix-blend-luminosity scale-105"
           />
-        </motion.div>
+        </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto w-full">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
-            <div className="lg:col-span-7 flex flex-col justify-center">
-              {/* Soft, beautiful introduction pills / agency keywords */}
-              <motion.div
-                initial={{ opacity: 0, y: -15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8 }}
-                className="flex flex-wrap gap-2.5 mb-8"
-              >
-                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-[11px] font-bold uppercase tracking-wider text-primary shadow-sm">
-                  <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-                  Digital Creative Agency
-                </span>
-                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-bright/80 border border-border-custom text-[11px] font-bold uppercase tracking-wider text-foreground backdrop-blur-md shadow-sm">
-                  <Globe className="w-3.5 h-3.5 text-primary" />
-                  Digital Branding
-                </span>
-                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-bright/80 border border-border-custom text-[11px] font-bold uppercase tracking-wider text-foreground backdrop-blur-md shadow-sm">
-                  <Radio className="w-3.5 h-3.5 text-red-500 animate-pulse animate-duration-1000" />
-                  Media Affiliate
-                </span>
-              </motion.div>
-              
-              {/* Elegant, clear, high-contrast Agency display headline */}
-              <motion.h1
-                initial={{ opacity: 0, y: 25 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-                className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-display font-black leading-none text-foreground tracking-tight mb-8"
-              >
-                Design. <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-[#e0650d] to-primary">Stream.</span> Grow.
-              </motion.h1>
-
-              {/* Simple, natural, and layman-friendly sub-headline */}
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3, duration: 1 }}
-                className="text-base sm:text-lg md:text-xl text-text-muted font-sans font-normal max-w-3xl leading-relaxed mb-12"
-              >
-                FideTV is a certified digital creative agency, branding hub, and trusted media affiliate. You can watch any of our active live channels right here on our site, view ongoing broadcasts, or hire our friendly team to design a fast website and shoot stunning videos for your next big project. No confusing technical words—just simple, exceptional quality.
-              </motion.p>
-
-              {/* Interactive intuitive action path */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5, duration: 1 }}
-                className="flex flex-wrap gap-4 items-center"
-              >
-                {!user ? (
-                  <Link
-                    to="/auth"
-                    id="cta-sign-in"
-                    className="group px-7 py-4.5 bg-gradient-to-r from-primary to-[#e0650d] text-white font-extrabold text-center rounded-2xl hover:opacity-95 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-primary/20 flex items-center justify-center space-x-3 uppercase tracking-wider text-xs"
-                  >
-                    <span>Create Account / Sign In</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </Link>
-                ) : (
-                  <Link
-                    to="/profile"
-                    id="cta-view-profile"
-                    className="group px-7 py-4.5 bg-gradient-to-r from-emerald-500 to-green-600 text-white font-extrabold text-center rounded-2xl hover:opacity-95 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-green-500/20 flex items-center justify-center space-x-3 uppercase tracking-wider text-xs"
-                  >
-                    <span>Go to My Profile</span>
-                    <Users className="w-4 h-4 text-white" />
-                  </Link>
-                )}
-
-                <Link
-                  to="/services"
-                  className="px-6 py-4.5 bg-surface border border-border-custom hover:border-primary/30 text-foreground font-bold rounded-2xl transition-all shadow-sm flex items-center justify-center space-x-2"
-                >
-                  <span>Services We Offer</span>
-                </Link>
-                <Link
-                  to="/spaces"
-                  className="group px-6 py-4.5 bg-surface border border-border-custom hover:border-primary/30 text-foreground font-bold rounded-2xl transition-all shadow-sm flex items-center justify-center space-x-2"
-                >
-                  <Headphones className="w-4 h-4 text-primary" />
-                  <span>Join Spaces</span>
-                </Link>
-                
-                <Link 
-                  to="/live"
-                  className="group px-6 py-4.5 bg-surface border border-border-custom hover:border-[#e0650d]/40 text-foreground text-center font-bold rounded-2xl transition-all shadow-sm flex items-center justify-center space-x-2.5 relative overflow-hidden"
-                >
-                  <span className="absolute left-0 top-0 w-1 h-full bg-red-500 animate-pulse" />
-                  <span className="w-2 h-2 rounded-full bg-red-500" />
-                  <span>Watch Live Channels</span>
-                  <Play className="w-3.5 h-3.5 fill-current text-primary group-hover:scale-110 transition-transform" />
-                </Link>
-              </motion.div>
-            </div>
-
-            {/* Premium Dynamic Side Image placeholder / Hero Image */}
-            <div className="lg:col-span-5 flex justify-center w-full mt-10 lg:mt-0">
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.4, duration: 1 }}
-                className="relative w-full max-w-[440px] aspect-[4/5] rounded-[2.5rem] overflow-hidden border border-border-custom bg-surface shadow-2xl group"
-              >
-                <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent z-10 pointer-events-none opacity-80" />
-                <OptimizedImage 
-                  src={heroImageUrl}
-                  alt="FideTV Media Agency Creative Hub" 
-                  className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-1000"
-                />
-                
-                {/* Micro overlay indicators */}
-                <div className="absolute bottom-6 left-6 right-6 z-20 p-4.5 rounded-2xl bg-background/90 backdrop-blur-md border border-border-custom shadow-lg flex items-center justify-between">
-                  <div className="space-y-1">
-                    <span className="text-[9px] font-black uppercase text-primary tracking-widest block">Global Broadcast</span>
-                    <span className="text-xs font-bold text-foreground">Connecting Africa to the World</span>
-                  </div>
-                  <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
-                    <Sparkles className="w-4 h-4 text-primary animate-pulse" />
-                  </div>
+        <div className="max-w-7xl mx-auto w-full relative z-20">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+            {/* Left Content Column */}
+            <motion.div 
+              variants={staggerContainer}
+              initial="hidden"
+              animate="visible"
+              className="lg:col-span-7 space-y-6"
+            >
+              <motion.div variants={fadeInUp}>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-wider">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  <span>Dynamic Live Streaming & Media Hub</span>
                 </div>
               </motion.div>
-            </div>
+
+              <motion.h1 
+                variants={fadeInUp}
+                className="text-4xl sm:text-6xl lg:text-7xl font-display font-black tracking-tight leading-[1.05] text-foreground"
+              >
+                Design. <span className="text-primary italic">Stream.</span> <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#e0650d]">Grow.</span>
+              </motion.h1>
+
+              <motion.p 
+                variants={fadeInUp}
+                className="text-base sm:text-lg text-text-muted font-normal leading-relaxed max-w-xl"
+              >
+                Nigeria&apos;s premier digital broadcasting network and creative agency. Explore 25+ round-the-clock live channels, instant news wire updates, audio spaces, and certified media production.
+              </motion.p>
+
+              <motion.div variants={fadeInUp} className="flex flex-wrap items-center gap-4 pt-2">
+                <Link
+                  to="/live"
+                  id="hero-watch-live-btn"
+                  className="px-8 py-4 bg-primary text-white font-bold text-xs uppercase tracking-wider rounded-2xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/25 flex items-center gap-3 active:scale-95 group"
+                >
+                  <span className="w-2 h-2 rounded-full bg-red-400 animate-ping" />
+                  <span>Watch Live</span>
+                  <Play className="w-4 h-4 fill-current group-hover:scale-110 transition-transform" />
+                </Link>
+
+                <Link
+                  to="/news"
+                  id="hero-explore-news-btn"
+                  className="px-8 py-4 bg-surface hover:bg-surface-bright border border-border-custom text-foreground font-bold text-xs uppercase tracking-wider rounded-2xl transition-all shadow-sm flex items-center gap-2 active:scale-95 group"
+                >
+                  <Newspaper className="w-4 h-4 text-primary" />
+                  <span>Explore News</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </motion.div>
+
+              <motion.div 
+                variants={fadeInUp}
+                className="pt-6 border-t border-border-custom/60 grid grid-cols-3 gap-6 max-w-lg"
+              >
+                <div>
+                  <p className="text-2xl sm:text-3xl font-display font-black text-foreground">25+</p>
+                  <p className="text-[10px] uppercase font-bold tracking-widest text-text-muted mt-0.5">Live Channels</p>
+                </div>
+                <div>
+                  <p className="text-2xl sm:text-3xl font-display font-black text-primary">50k+</p>
+                  <p className="text-[10px] uppercase font-bold tracking-widest text-text-muted mt-0.5">Active Viewers</p>
+                </div>
+                <div>
+                  <p className="text-2xl sm:text-3xl font-display font-black text-emerald-500">100%</p>
+                  <p className="text-[10px] uppercase font-bold tracking-widest text-text-muted mt-0.5">CAC Verified</p>
+                </div>
+              </motion.div>
+            </motion.div>
+
+            {/* Right Media Column */}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="lg:col-span-5 relative"
+            >
+              <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 via-orange-500/10 to-emerald-500/15 blur-2xl rounded-[3rem] pointer-events-none" />
+              <div className="relative bg-surface border border-border-custom rounded-[2.5rem] p-4 sm:p-5 shadow-2xl overflow-hidden group">
+                <div className="relative aspect-[16/10] sm:aspect-[4/3] rounded-[2rem] overflow-hidden bg-background">
+                  <img 
+                    src={heroImageUrl || "https://images.unsplash.com/photo-1598899134739-24c46f58b8c0?q=80&w=1200"} 
+                    alt="FideTV Broadcast & Studio" 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-90"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent" />
+                  
+                  {/* Overlay Badges */}
+                  <div className="absolute top-4 left-4 flex items-center gap-2">
+                    <span className="px-3 py-1 rounded-full bg-red-600/90 text-white text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-lg backdrop-blur-md">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                      ON AIR
+                    </span>
+                    <span className="px-3 py-1 rounded-full bg-background/80 text-foreground text-[10px] font-bold uppercase tracking-wider backdrop-blur-md border border-border-custom">
+                      FideTV 24/7
+                    </span>
+                  </div>
+
+                  <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-black text-white uppercase tracking-wider drop-shadow-md">Live Studio Broadcast</p>
+                      <p className="text-[10px] text-white/70 drop-shadow">Broadcasting live from Lagos, Nigeria</p>
+                    </div>
+                    <Link
+                      to="/live"
+                      className="w-11 h-11 rounded-2xl bg-primary text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-lg shadow-primary/30"
+                      aria-label="Play Live Stream"
+                    >
+                      <Play className="w-5 h-5 fill-current ml-0.5" />
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Quick Action Strip under card */}
+                <div className="mt-4 pt-3 border-t border-border-custom/50 flex items-center justify-between px-2 text-xs text-text-muted">
+                  <div className="flex items-center gap-2">
+                    <Radio className="w-3.5 h-3.5 text-primary animate-pulse" />
+                    <span className="font-bold text-foreground text-[11px]">Continuous Feed</span>
+                  </div>
+                  <Link to="/spaces" className="text-primary hover:underline font-bold text-[11px] flex items-center gap-1">
+                    <span>Audio Spaces</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </Link>
+                </div>
+              </div>
+            </motion.div>
           </div>
         </div>
       </section>
@@ -827,7 +845,7 @@ export default function Home() {
                     Voice Conversations <span className="font-light italic text-text-muted/75">happening now.</span>
                   </h2>
                   <p className="text-text-muted text-sm max-w-xl">
-                    Step into our audio spaces to engage in live discussions, host meetings, or connect with our community through real-time voice chat. Join the conversation effortlessly from anywhere on our platform.
+                    Step into our audio spaces to engage in live discussions, host meetings, or connect with live audiences through real-time voice chat. Join the conversation effortlessly from anywhere on our platform.
                   </p>
                   <Link
                     to="/spaces"
@@ -938,7 +956,7 @@ export default function Home() {
                 Featured Work <span className="font-light italic text-text-muted/75">& Videos.</span>
               </h2>
               <p className="text-text-muted text-sm max-w-xl">
-                Take a quick look at some of our favorite recordings, event coverage, interviews, and community segments.
+                Take a quick look at some of our favorite recordings, event coverage, interviews, and broadcast segments.
               </p>
             </div>
             
@@ -1361,7 +1379,7 @@ export default function Home() {
                   Advertise on <span className="text-primary italic">FideTV.</span>
                 </h2>
                 <p className="text-text-muted text-lg leading-relaxed max-w-xl">
-                  Connect your brand with a rapidly growing community of viewers, content creators, and local businesses. We offer premium ad placements that guarantee visibility and impact.
+                  Connect your brand with a rapidly growing audience of viewers, content creators, and local businesses. We offer premium ad placements that guarantee visibility and impact.
                 </p>
               </div>
 
@@ -1436,33 +1454,19 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Referral Leaderboard Section */}
-      <section className="py-24 relative overflow-hidden bg-surface-bright/20 border-t border-border-custom">
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-[600px] bg-primary/3 rounded-[100%] blur-[120px] pointer-events-none" />
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-          >
-            <ReferralLeaderboard />
-          </motion.div>
-        </div>
-      </section>
 
       {/* Blog & News Segment */}
       {latestNews.length > 0 && (
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-24">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6">
             <div className="space-y-3">
-              <span className="text-[10px] font-bold text-primary uppercase tracking-[0.4em] block">Our Blog</span>
+              <span className="text-[10px] font-bold text-primary uppercase tracking-[0.4em] block">Live Wire & Dispatches</span>
               <h3 className="text-3xl sm:text-5xl font-display font-black text-foreground tracking-tight">
-                Studio News <span className="font-light italic text-text-muted/70">& Updates.</span>
+                FideTV News <span className="font-light italic text-text-muted/70">& Updates.</span>
               </h3>
             </div>
             <Link to="/news" className="group flex items-center space-x-2 bg-surface hover:bg-surface-bright border border-border-custom px-6 py-3 rounded-xl text-xs font-bold text-foreground transition-colors">
-              <span>Read All Articles</span>
+              <span>Explore All News</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>

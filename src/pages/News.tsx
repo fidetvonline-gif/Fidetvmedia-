@@ -68,16 +68,47 @@ We are dedicated to building a supportive, highly specialized network for global
   } as any
 };
 
-const CATEGORIES = [
+const CORE_CATEGORIES = [
   'All',
-  'Broadcasting & Streaming',
+  'Breaking & Global',
+  'Broadcasting & Media',
   'Technology & AI',
-  'Media & Entertainment',
-  'Global News & Culture',
-  'Creator Economy & Production',
+  'Entertainment & Culture',
+  'Creator Economy',
   'Sports & Live Events',
   'Platform Updates'
 ];
+
+const matchesCategory = (category: string | undefined, selected: string) => {
+  if (selected === 'All') return true;
+  if (!category) return false;
+  const c = category.toLowerCase().trim();
+  const s = selected.toLowerCase().trim();
+  if (c === s) return true;
+  if (s.includes(c) || c.includes(s)) return true;
+  if (s.includes('breaking') || s.includes('global')) {
+    if (c.includes('global') || c.includes('world') || c.includes('news') || c.includes('nigeria') || c.includes('politics') || c.includes('africa')) return true;
+  }
+  if (s.includes('broadcasting') || s.includes('media')) {
+    if (c.includes('broadcast') || c.includes('stream') || c.includes('tv') || c.includes('media') || c.includes('journal')) return true;
+  }
+  if (s.includes('tech') || s.includes('ai')) {
+    if (c.includes('tech') || c.includes('ai') || c.includes('digital') || c.includes('software')) return true;
+  }
+  if (s.includes('entertainment') || s.includes('culture')) {
+    if (c.includes('entertainment') || c.includes('music') || c.includes('movie') || c.includes('culture') || c.includes('lifestyle')) return true;
+  }
+  if (s.includes('sports')) {
+    if (c.includes('sport') || c.includes('football') || c.includes('fifa') || c.includes('match')) return true;
+  }
+  if (s.includes('creator')) {
+    if (c.includes('creator') || c.includes('production') || c.includes('video') || c.includes('studio')) return true;
+  }
+  if (s.includes('platform')) {
+    if (c.includes('platform') || c.includes('update') || c.includes('release')) return true;
+  }
+  return false;
+};
 
 export default function News() {
   const { news, isSyncing, refreshNews, lastSyncTime } = useNewsSync();
@@ -85,11 +116,21 @@ export default function News() {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Collect any unique categories from incoming news
+  const dynamicCategories = React.useMemo(() => {
+    const set = new Set<string>(CORE_CATEGORIES);
+    for (const item of news) {
+      if (item.category && item.category.trim() && !set.has(item.category)) {
+        if (item.category.length < 24) set.add(item.category);
+      }
+    }
+    return Array.from(set);
+  }, [news]);
+
   useEffect(() => {
     let filtered = [...news];
     if (selectedCategory !== 'All') {
-      const catLower = selectedCategory.toLowerCase();
-      filtered = filtered.filter(n => n.category?.toLowerCase() === catLower);
+      filtered = filtered.filter(n => matchesCategory(n.category, selectedCategory));
     }
     if (searchQuery) {
         const q = searchQuery.toLowerCase();
@@ -116,7 +157,7 @@ export default function News() {
               transition={{ delay: 0.1 }}
               className="text-4xl sm:text-6xl md:text-7xl font-display font-black text-foreground tracking-tighter leading-tight"
             >
-              FideTV <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-emerald-400 to-primary-hover animate-pulse">Journal.</span>
+              FideTV <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-emerald-400 to-primary-hover animate-pulse">News.</span>
             </motion.h1>
 
             <motion.p 
@@ -125,21 +166,21 @@ export default function News() {
               transition={{ delay: 0.3 }}
               className="max-w-xl mx-auto text-text-muted text-xs sm:text-sm font-light leading-relaxed italic"
             >
-              "Tracking the evolution of digital media and broadcasting breakthroughs."
+              "Real-time broadcasting wire, digital media evolutions, and breaking global updates."
             </motion.p>
          </div>
 
          {/* Category Nav */}
-         <div className="relative z-30 w-full max-w-4xl px-4">
-            <div className="glass p-2 rounded-[2rem] border border-border-custom shadow-xl flex items-center justify-center gap-2 overflow-x-auto scrollbar-none no-scrollbar">
-               {CATEGORIES.map((cat) => (
+         <div className="relative z-30 w-full max-w-5xl px-4">
+            <div className="glass p-2 rounded-2xl border border-border-custom shadow-xl flex items-center justify-start md:justify-center gap-2 overflow-x-auto scrollbar-none no-scrollbar">
+               {dynamicCategories.map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
                   className={cn(
-                    "px-6 py-2.5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all duration-300",
+                    "px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all duration-200",
                     selectedCategory === cat
-                      ? "bg-primary text-white shadow-xl shadow-primary/30 scale-105"
+                      ? "bg-primary text-white shadow-lg shadow-primary/25 scale-102"
                       : "text-text-muted hover:text-foreground hover:bg-surface-bright"
                   )}
                 >
@@ -276,7 +317,12 @@ export default function News() {
                             />
                          </div>
                          <div className="space-y-4">
-                            <span className="text-[9px] font-black uppercase tracking-[0.25em] text-primary">{item.category}</span>
+                            <div className="flex items-center justify-between">
+                               <span className="text-[9px] font-black uppercase tracking-[0.25em] text-primary">{item.category}</span>
+                               <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                                  <Clock className="w-3 h-3 text-primary" /> {format(new Date(item.created_at), 'MMM dd, yyyy')}
+                               </span>
+                            </div>
                             <h3 className="text-2xl font-display font-bold text-foreground leading-tight line-clamp-3 group-hover:text-primary transition-colors">
                                {item.title}
                             </h3>

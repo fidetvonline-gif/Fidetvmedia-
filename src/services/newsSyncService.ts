@@ -215,36 +215,38 @@ class NewsSyncService {
 
     try {
       console.log(`[NewsSyncService] Syncing news wire (force=${force})...`);
-      // 1. Fetch from Supabase database directly + unified backend news endpoint
       let combined: NewsType[] = [];
+      
+      // 1. Fetch from Supabase database directly
       try {
         const { data: dbNews, error: dbError } = await supabase
           .from('news')
-          .select('*, profiles:author_id(username, avatar_url)')
-          .order('created_at', { ascending: false });
+          .select('*')
+          .eq('is_published', true)
+          .order('created_at', { ascending: false })
+          .limit(60);
         if (!dbError && dbNews && dbNews.length > 0) {
-          combined = dbNews.map(r => this.formatDbRecord(r));
+          combined.push(...dbNews.map(r => this.formatDbRecord(r)));
         }
       } catch (e) {
         console.warn('[NewsSyncService] Supabase direct fetch warning:', e);
       }
 
-      if (combined.length === 0) {
-        try {
-          const url = force ? '/api/news?refresh=true' : '/api/news';
-          const res = await fetch(url);
-          if (res.ok) {
-            const data = await res.json();
-            if (Array.isArray(data) && data.length > 0) {
-              combined = data;
-            }
+      // 2. Fetch from backend /api/news endpoint to catch latest live feed dispatches
+      try {
+        const url = force ? '/api/news?refresh=true' : '/api/news';
+        const res = await fetch(url, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            combined.push(...data.map((r: any) => this.formatDbRecord(r)));
           }
-        } catch (e) {
-          console.warn('[NewsSyncService] Backend /api/news warning:', e);
         }
+      } catch (e) {
+        console.warn('[NewsSyncService] Backend /api/news warning:', e);
       }
 
-      // 2. Fallback to bundled data if empty
+      // 3. Fallback to bundled data if completely empty
       if (combined.length === 0 && this.currentNews.length === 0) {
         combined = (AUTO_BLOGS as any[]) || [];
       }

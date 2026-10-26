@@ -4,7 +4,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { News, Comment } from '@/types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Calendar, User, ArrowLeft, Share2, Bookmark, Heart, MessageCircle, Send, Award, Clock } from 'lucide-react';
+import { Calendar, User, ArrowLeft, Share2, Bookmark, Heart, MessageCircle, Send, Award, Clock, Newspaper } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
 import ReactPlayer from 'react-player';
@@ -12,6 +12,7 @@ import { cn, getHighQualityImage } from '@/lib/utils';
 import { getClientContentImage } from '@/lib/imageValidator';
 import AUTO_BLOGS from '@/data/auto_blogs.json';
 import { safeLocalStorage } from '@/lib/storage';
+import { newsSyncService } from '@/services/newsSyncService';
 
 const Player = ReactPlayer as any;
 
@@ -61,6 +62,7 @@ export default function NewsDetail() {
   const navigate = useNavigate();
   const [item, setItem] = useState<News | null>(null);
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [relatedNews, setRelatedNews] = useState<News[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
@@ -105,8 +107,14 @@ export default function NewsDetail() {
     }
   }, [slug]);
 
+  const normalizeSlug = (s: string) => {
+    return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  };
+
   const fetchNewsDetail = async () => {
     setLoading(true);
+    setNotFound(false);
+    
     if (slug === 'major-release-v2' || slug === 'fidetv-release-v2') {
       setItem(STATIC_RELEASE_POST);
       setLikesCount(142);
@@ -116,65 +124,129 @@ export default function NewsDetail() {
     }
 
     try {
-      let localMatch: any = null;
-      if (Array.isArray(AUTO_BLOGS)) {
-        localMatch = (AUTO_BLOGS as any[]).find(p => p.slug === slug || p.id === slug);
+      const targetSlug = slug || '';
+      const normalizedTarget = normalizeSlug(targetSlug);
+
+      // 1. Instant in-memory check from NewsSyncService (already in memory on client)
+      const liveArticles = newsSyncService.getNews();
+      let match = liveArticles.find(p => 
+        p.slug === targetSlug || 
+        p.id === targetSlug || 
+        (p.slug && normalizeSlug(p.slug) === normalizedTarget) ||
+        (p.title && normalizeSlug(p.title) === normalizedTarget)
+      );
+
+      // 2. Check AUTO_BLOGS seed/bundled data
+      if (!match && Array.isArray(AUTO_BLOGS)) {
+        match = (AUTO_BLOGS as any[]).find(p => 
+          p.slug === targetSlug || 
+          p.id === targetSlug || 
+          (p.slug && normalizeSlug(p.slug) === normalizedTarget) ||
+          (p.title && normalizeSlug(p.title) === normalizedTarget)
+        );
       }
-      if (!localMatch) {
+
+      // 3. Check client localStorage cache
+      if (!match) {
         try {
           const local = safeLocalStorage.getItem('fidetv_live_blogs_v3');
           if (local) {
             const parsed = JSON.parse(local);
             if (Array.isArray(parsed)) {
-              localMatch = parsed.find((p: any) => p.slug === slug || p.id === slug);
+              match = parsed.find((p: any) => 
+                p.slug === targetSlug || 
+                p.id === targetSlug || 
+                (p.slug && normalizeSlug(p.slug) === normalizedTarget) ||
+                (p.title && normalizeSlug(p.title) === normalizedTarget)
+              );
             }
           }
         } catch {}
       }
 
-      if (localMatch) {
-        setItem(localMatch);
-        const related = ((AUTO_BLOGS as any[]) || []).filter(p => p.id !== localMatch.id).slice(0, 3);
+      if (match) {
+        setItem(match);
+        const related = (liveArticles.length > 0 ? liveArticles : (AUTO_BLOGS as any[]))
+          .filter(p => p.id !== match.id)
+          .slice(0, 3);
         setRelatedNews(related);
         setLoading(false);
-        fetchComments(localMatch.id);
-        fetchLikes(localMatch.id);
+        fetchComments(match.id);
+        fetchLikes(match.id);
         return;
       }
 
+      // 4. Query backend unified API (/api/news/posts/:slug or /api/blog/posts/:slug)
       try {
-        const apiRes = await fetch(`/api/news/posts/${encodeURIComponent(slug!)}`);
-        if (apiRes.ok) {
-          const apiData = await apiRes.json();
-          if (apiData && apiData.post) {
-            setItem(apiData.post);
-            setRelatedNews(apiData.relatedPosts || []);
-            fetchComments(apiData.post.id);
-            fetchLikes(apiData.post.id);
-            setLoading(false);
-            return;
+        const endpoints = [
+          `/api/news/posts/${encodeURIComponent(targetSlug)}`,
+          `/api/news/${encodeURIComponent(targetSlug)}`,
+          `/api/blog/posts/${encodeURIComponent(targetSlug)}`
+        ];
+        for (const ep of endpoints) {
+          const apiRes = await fetch(ep);
+          if (apiRes.ok) {
+            const apiData = await apiRes.json();
+            if (apiData && apiData.post) {
+              setItem(apiData.post);
+              setRelatedNews(apiData.relatedPosts || []);
+              fetchComments(apiData.post.id);
+              fetchLikes(apiData.post.id);
+              setLoading(false);
+              return;
+            }
           }
         }
-      } catch {}
-
-      const { data, error } = await supabase
-        .from('news')
-        .select('*, profiles(username, avatar_url)')
-        .or(`slug.eq.${slug},id.eq.${slug}`)
-        .maybeSingle();
-      
-      if (data) {
-        setItem(data as any);
-        fetchComments(data.id);
-        fetchLikes(data.id);
-        fetchRelatedNews(data.id);
-        setLoading(false);
-        return;
+      } catch (err) {
+        console.warn('[NewsDetail] API fetch warning:', err);
       }
 
-      navigate('/news');
+      // 5. Query Supabase database directly
+      try {
+        const { data: dbData, error: dbError } = await supabase
+          .from('news')
+          .select('*')
+          .or(`slug.eq.${targetSlug},id.eq.${targetSlug}`)
+          .maybeSingle();
+
+        if (dbData && !dbError) {
+          const formatted: News = {
+            id: dbData.id,
+            slug: dbData.slug || dbData.id,
+            title: dbData.title,
+            excerpt: dbData.excerpt || dbData.description || '',
+            description: dbData.description || dbData.excerpt || '',
+            content: dbData.content || dbData.description || dbData.excerpt || '',
+            category: dbData.category || 'News',
+            tags: dbData.tags || ['Broadcasting', 'News'],
+            image_url: dbData.image_url || getHighQualityImage(undefined, dbData.category, dbData.title),
+            image_urls: dbData.image_urls || (dbData.image_url ? [dbData.image_url] : []),
+            author_id: dbData.author_id || 'fidetv_admin',
+            is_published: true,
+            created_at: dbData.created_at || new Date().toISOString(),
+            profiles: {
+              id: dbData.author_id || 'fidetv_admin',
+              username: 'FideTV News Desk',
+              avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=FideTV_NewsDesk',
+              created_at: dbData.created_at || new Date().toISOString()
+            }
+          };
+          setItem(formatted);
+          fetchComments(dbData.id);
+          fetchLikes(dbData.id);
+          fetchRelatedNews(dbData.id);
+          setLoading(false);
+          return;
+        }
+      } catch (dbErr) {
+        console.warn('[NewsDetail] Supabase direct query warning:', dbErr);
+      }
+
+      // If not found across all tiers, show friendly not-found state instead of jarring redirect
+      setNotFound(true);
     } catch (err) {
-      navigate('/news');
+      console.error('[NewsDetail] Unexpected error in fetchNewsDetail:', err);
+      setNotFound(true);
     } finally {
       setLoading(false);
     }
@@ -239,13 +311,38 @@ export default function NewsDetail() {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8 space-y-12">
-       <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-       <p className="text-foreground font-black uppercase tracking-[0.3em] text-xs">Loading Immersion...</p>
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8 space-y-6">
+       <div className="w-12 h-12 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+       <p className="text-foreground/70 font-bold uppercase tracking-[0.25em] text-[11px]">Loading Article Details...</p>
     </div>
   );
 
-  if (!item) return null;
+  if (notFound || !item) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center space-y-6">
+        <div className="w-20 h-20 rounded-3xl glass border border-border-custom flex items-center justify-center text-primary shadow-xl">
+          <Newspaper className="w-10 h-10 opacity-70" />
+        </div>
+        <div className="space-y-2 max-w-md">
+          <h2 className="text-2xl sm:text-3xl font-display font-black text-foreground">Article Not Found</h2>
+          <p className="text-text-muted text-sm leading-relaxed">
+            This story might have been updated or moved. Browse through our real-time news archive to read the latest updates.
+          </p>
+        </div>
+        <Link
+          to="/news"
+          className="px-6 py-3.5 bg-primary text-white text-xs font-black uppercase tracking-wider rounded-2xl hover:bg-emerald-500 shadow-xl shadow-primary/20 transition-all flex items-center gap-2"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to All News</span>
+        </Link>
+      </div>
+    );
+  }
+
+  const articleContent = (item.content && item.content.trim().length > 40)
+    ? item.content
+    : `${item.excerpt || item.description}\n\n---\n\n### 📰 Story Overview & Background\n\n${item.description || item.excerpt || 'Official reporting from the FideTV News Desk.'}\n\n---\n\n### 📡 Editorial Dispatch & Broadcast Notes\n\n* **Category**: ${item.category || 'News'}\n* **Source**: FideTV News Desk Network\n* **Broadcast Availability**: Continuous stream coverage and live viewer commentary available in the FideTV Live section.`;
 
   return (
     <div className="min-h-screen bg-background">
@@ -274,7 +371,7 @@ export default function NewsDetail() {
                  animate={{ opacity: 1, x: 0 }}
                  className="flex flex-wrap items-center gap-4"
                >
-                  <Link to="/news" className="glass p-3 rounded-2xl text-white hover:bg-primary transition-all shadow-2xl">
+                  <Link to="/news" className="glass p-3 rounded-2xl text-white hover:bg-primary transition-all shadow-2xl" aria-label="Back to news">
                      <ArrowLeft className="w-5 h-5" />
                   </Link>
                   <span className="bg-primary px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-xl">
@@ -302,7 +399,7 @@ export default function NewsDetail() {
                >
                   <div className="flex items-center gap-4">
                      <div className="w-14 h-14 rounded-2xl border border-white/20 overflow-hidden shadow-2xl">
-                        <img src={item.profiles?.avatar_url || 'https://api.dicebear.com/7.x/bottts/svg?seed=FideTV'} className="w-full h-full object-cover" />
+                        <img src={item.profiles?.avatar_url || 'https://api.dicebear.com/7.x/bottts/svg?seed=FideTV'} className="w-full h-full object-cover" alt="Author" />
                      </div>
                      <div>
                         <p className="text-white font-black uppercase tracking-widest text-sm">{item.profiles?.username || 'News Desk'}</p>
@@ -324,55 +421,59 @@ export default function NewsDetail() {
       </header>
 
       {/* Main Content Area */}
-      <main className="max-w-4xl mx-auto px-6 py-24 space-y-20">
+      <main className="max-w-4xl mx-auto px-6 py-20 space-y-16">
          {/* Lead Paragraph */}
          <section className="relative">
-            <div className="absolute -left-12 top-0 text-7xl font-display font-black text-primary/10 select-none">“</div>
-            <p className="text-2xl sm:text-3xl font-light text-foreground leading-relaxed italic border-l-4 border-primary pl-8">
-               {item.excerpt || item.description}
-            </p>
+            <div className="p-8 sm:p-10 rounded-3xl bg-surface border border-border-custom shadow-sm space-y-3">
+               <p className="text-xl sm:text-2xl font-light text-foreground leading-relaxed italic">
+                  "{item.excerpt || item.description}"
+               </p>
+            </div>
          </section>
 
          {/* Article Body */}
          <article className="news-content prose prose-invert prose-lg max-w-none">
             <ReactMarkdown
               components={{
-                h2: ({ node, ...props }) => <h2 className="text-3xl md:text-5xl font-display font-black text-foreground mt-20 mb-10 tracking-tighter" {...props} />,
-                h3: ({ node, ...props }) => <h3 className="text-2xl font-display font-bold text-primary mt-12 mb-6" {...props} />,
-                p: ({ node, ...props }) => <p className="text-foreground/80 text-xl leading-relaxed mb-8 font-light" {...props} />,
-                img: ({ node, ...props }) => <img className="rounded-[3rem] w-full shadow-2xl border border-border-custom my-16" {...props as any} />,
+                h2: ({ node, ...props }) => <h2 className="text-2xl md:text-4xl font-display font-black text-foreground mt-16 mb-8 tracking-tight" {...props} />,
+                h3: ({ node, ...props }) => <h3 className="text-xl md:text-2xl font-display font-bold text-primary mt-10 mb-4" {...props} />,
+                p: ({ node, ...props }) => <p className="text-foreground/80 text-lg leading-relaxed mb-6 font-light" {...props} />,
+                img: ({ node, ...props }) => <img className="rounded-3xl w-full shadow-2xl border border-border-custom my-12" {...props as any} />,
                 blockquote: ({ node, ...props }) => (
-                  <blockquote className="border-l-0 bg-surface p-12 rounded-[3rem] text-2xl font-display font-light italic text-foreground shadow-inner my-16 border border-border-custom" {...props} />
+                  <blockquote className="border-l-0 bg-surface p-8 sm:p-10 rounded-3xl text-xl font-display font-light italic text-foreground shadow-sm my-12 border border-border-custom" {...props} />
                 ),
-                hr: () => <hr className="my-20 border-border-custom opacity-50" />,
+                hr: () => <hr className="my-16 border-border-custom opacity-40" />,
                 a: ({ node, ...props }) => {
                    const url = props.href || '';
-                   if (Player.canPlay(url)) return <div className="my-16 rounded-[3rem] overflow-hidden aspect-video bg-black shadow-2xl"><Player url={url} width="100%" height="100%" controls /></div>;
-                   return <a className="text-primary font-black underline underline-offset-8 hover:text-emerald-400 transition-colors" {...props} />;
+                   if (Player.canPlay(url)) return <div className="my-12 rounded-3xl overflow-hidden aspect-video bg-black shadow-2xl"><Player url={url} width="100%" height="100%" controls /></div>;
+                   return <a className="text-primary font-bold underline underline-offset-4 hover:text-emerald-400 transition-colors" {...props} />;
                 }
               }}
             >
-              {item.content}
+              {articleContent}
             </ReactMarkdown>
          </article>
 
          {/* Interactive Footer Actions */}
-         <footer className="pt-20 border-t border-border-custom space-y-16">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-8">
-               <div className="flex items-center gap-6">
-                  <button onClick={handleLike} className="flex items-center gap-3 px-8 py-4 rounded-3xl glass border border-primary/20 text-primary font-black uppercase tracking-widest text-xs active:scale-95 transition-all">
-                     <Heart className={cn("w-5 h-5", isLiked && "fill-current")} />
+         <footer className="pt-16 border-t border-border-custom space-y-12">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+               <div className="flex items-center gap-4">
+                  <button onClick={handleLike} className="flex items-center gap-3 px-6 py-3 rounded-2xl glass border border-primary/20 text-primary font-bold uppercase tracking-wider text-xs active:scale-95 transition-all">
+                     <Heart className={cn("w-4 h-4", isLiked && "fill-current")} />
                      <span>{likesCount} Encores</span>
                   </button>
-                  <button onClick={handleShare} className="p-4 rounded-3xl glass border border-border-custom text-foreground/40 hover:text-primary transition-all">
-                     <Share2 className="w-5 h-5" />
+                  <button onClick={handleShare} className="p-3 rounded-2xl glass border border-border-custom text-foreground/50 hover:text-primary transition-all">
+                     <Share2 className="w-4 h-4" />
                   </button>
                </div>
                
-               <div className="flex items-center gap-4">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Tagged in:</span>
-                  {Array.from(new Set(item.tags || [])).slice(0, 3).map(tag => (
-                    <span key={tag} className="px-3 py-1 rounded-lg bg-surface-bright text-[10px] font-bold text-foreground/60 border border-border-custom">#{tag}</span>
+               <div className="flex items-center gap-2 text-xs text-text-muted">
+                  <span className="font-semibold uppercase tracking-wider text-[10px]">Tags:</span>
+                  {Array.from(new Set(item.tags || [])).slice(0, 4).map((tag, idx, arr) => (
+                    <React.Fragment key={tag}>
+                      <span className="font-medium text-foreground/75">#{tag}</span>
+                      {idx < arr.length - 1 && <span aria-hidden="true" className="opacity-40">·</span>}
+                    </React.Fragment>
                   ))}
                </div>
             </div>

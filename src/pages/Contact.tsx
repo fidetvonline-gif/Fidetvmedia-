@@ -12,13 +12,13 @@ export default function Contact() {
     { label: 'Call Us', value: '08124323608', icon: Phone, action: 'tel:08124323608' },
   ];
 
-  const communities = [
+  const networkChannels = [
     { name: 'Official YouTube Channel', platform: 'YouTube', url: 'https://youtube.com/@fidetvmedia?si=JkdixDjpkGPah9ay' },
-    { name: 'Official Community', platform: 'Facebook', url: 'https://facebook.com/groups/958459511868313/' },
-    { name: 'Buy and Sell', platform: 'Facebook', url: 'https://facebook.com/groups/2465411650373677/' },
+    { name: 'Official Facebook Group', platform: 'Facebook', url: 'https://facebook.com/groups/958459511868313/' },
+    { name: 'Buy and Sell Forum', platform: 'Facebook', url: 'https://facebook.com/groups/2465411650373677/' },
     { name: 'Earn with FIDE TV', platform: 'Facebook', url: 'https://facebook.com/groups/245037673094842/' },
     { name: 'WhatsApp Channel', platform: 'WhatsApp', url: 'https://whatsapp.com/channel/0029Vae55YE1XquWMXqb1u1a' },
-    { name: 'WhatsApp Community', platform: 'WhatsApp', url: 'https://chat.whatsapp.com/F9R8jKYTJD7LOX2rB0sAgT' },
+    { name: 'WhatsApp Group', platform: 'WhatsApp', url: 'https://chat.whatsapp.com/F9R8jKYTJD7LOX2rB0sAgT' },
   ];
 
   return (
@@ -101,7 +101,7 @@ export default function Contact() {
         </div>
       </section>
 
-      {/* Communities Section */}
+      {/* Official Network Channels */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-48">
         <div className="space-y-20">
           <div className="flex flex-col sm:flex-row justify-between items-end gap-8">
@@ -115,20 +115,20 @@ export default function Contact() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {communities.map((community, i) => (
+            {networkChannels.map((channel, i) => (
               <a
                 key={i}
-                href={community.url}
+                href={channel.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group p-10 bg-surface rounded-[3rem] hover:border-primary/30 hover:bg-surface-bright transition-all duration-500 flex items-center justify-between border-border-custom shadow-xl shadow-black/5"
               >
                 <div className="space-y-3">
                   <div className="flex items-center space-x-3">
-                    <span className="text-[10px] uppercase font-black tracking-[0.5em] text-primary">{community.platform}</span>
+                    <span className="text-[10px] uppercase font-black tracking-[0.5em] text-primary">{channel.platform}</span>
                     <div className="w-1.5 h-1.5 bg-primary/20 rounded-full" />
                   </div>
-                  <h3 className="text-2xl font-display font-bold text-foreground group-hover:text-primary transition-colors italic tracking-tight">{community.name}</h3>
+                  <h3 className="text-2xl font-display font-bold text-foreground group-hover:text-primary transition-colors italic tracking-tight">{channel.name}</h3>
                 </div>
                 <div className="w-16 h-16 rounded-full bg-background flex items-center justify-center group-hover:bg-primary group-hover:text-white text-foreground/40 transition-all shadow-lg border border-border-custom group-hover:scale-110">
                   <ArrowUpRight className="w-8 h-8" />

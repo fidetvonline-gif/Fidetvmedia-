@@ -175,10 +175,10 @@ export default function App() {
             <Route path="/portfolio" element={<Navigate to="/content" replace />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/live" element={<Live />} />
-            <Route path="/community" element={<Community />} />
-            <Route path="/community/:id" element={<CommunityDetail />} />
+            <Route path="/community" element={<Navigate to="/" replace />} />
+            <Route path="/community/:id" element={<Navigate to="/" replace />} />
             <Route path="/blog" element={<Navigate to="/news" replace />} />
-            <Route path="/news/:slug" element={<Navigate to="/news" replace />} />
+            <Route path="/blog/:slug" element={<Navigate to="/news" replace />} />
             <Route path="/news" element={<News />} />
             <Route path="/news/:slug" element={<NewsDetail />} />
             <Route path="/booking" element={<Booking />} />

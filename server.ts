@@ -2486,8 +2486,9 @@ export async function initApp(startServer = true) {
     }
   });
 
-  apiRouter.get("/blog/posts", (req, res) => {
+  const handleGetPosts = (req: express.Request, res: express.Response) => {
     try {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
       const { category, search, page, limit } = req.query;
       const result = autoBlogService.getAllPosts({
         category: category as string,
@@ -2497,49 +2498,108 @@ export async function initApp(startServer = true) {
       });
       res.json(result);
     } catch (error: any) {
-      console.error('[API /blog/posts] Error:', error);
-      res.status(500).json({ error: error.message || 'Failed to fetch blog posts' });
+      console.error('[API /news/posts] Error:', error);
+      res.status(500).json({ error: error.message || 'Failed to fetch news posts' });
     }
-  });
+  };
 
-  apiRouter.get("/blog/posts/:slug", (req, res) => {
+  apiRouter.get("/news/posts", handleGetPosts);
+  apiRouter.get("/blog/posts", handleGetPosts);
+
+  const handleGetPostBySlug = async (req: express.Request, res: express.Response) => {
     try {
-      const { slug } = req.params;
-      const result = autoBlogService.getPostBySlugOrId(slug);
+      const slugParam = req.params.slug;
+      const slug = Array.isArray(slugParam) ? slugParam[0] : (slugParam || '');
+      if (!slug) return res.status(400).json({ error: 'Slug is required' });
+
+      let result = autoBlogService.getPostBySlugOrId(slug);
+      
+      // Fallback to Supabase if not found in memory
+      if (!result.post) {
+        const adminClient = getSupabaseAdmin();
+        if (adminClient) {
+          try {
+            const { data: dbRow } = await adminClient
+              .from('news')
+              .select('*')
+              .or(`slug.eq.${slug},id.eq.${slug}`)
+              .maybeSingle();
+
+            if (dbRow) {
+              const formattedPost = {
+                id: dbRow.id,
+                slug: dbRow.slug || dbRow.id,
+                title: dbRow.title,
+                excerpt: dbRow.excerpt || dbRow.description || (dbRow.content ? dbRow.content.substring(0, 160) + '...' : ''),
+                description: dbRow.description || dbRow.excerpt || '',
+                content: dbRow.content || dbRow.description || dbRow.excerpt || '',
+                category: dbRow.category || 'News',
+                tags: dbRow.tags || ['Broadcasting', 'News'],
+                image_url: dbRow.image_url || 'https://images.unsplash.com/photo-1478737270239-2f02b77fc618?q=80&w=800',
+                image_urls: dbRow.image_urls || (dbRow.image_url ? [dbRow.image_url] : []),
+                read_time: dbRow.read_time || '4 min read',
+                source_name: dbRow.source_name || 'FideTV Media',
+                author_id: dbRow.author_id || 'fidetv_admin',
+                is_published: true,
+                created_at: dbRow.created_at || new Date().toISOString(),
+                profiles: {
+                  username: 'FideTV News Desk',
+                  avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=FideTV_NewsDesk'
+                }
+              };
+              const related = autoBlogService.getAllPosts({ limit: 4 }).posts.filter((p: any) => p.id !== formattedPost.id).slice(0, 3);
+              return res.json({ post: formattedPost, relatedPosts: related });
+            }
+          } catch (dbErr) {
+            console.warn('[API /news/posts/:slug] Supabase fallback warning:', dbErr);
+          }
+        }
+      }
+
       if (!result.post) {
         return res.status(404).json({ error: 'Post not found' });
       }
       res.json(result);
     } catch (error: any) {
-      console.error('[API /blog/posts/:slug] Error:', error);
-      res.status(500).json({ error: error.message || 'Failed to fetch blog post' });
+      console.error('[API /news/posts/:slug] Error:', error);
+      res.status(500).json({ error: error.message || 'Failed to fetch news article' });
     }
-  });
+  };
 
-  apiRouter.post("/blog/auto-generate", async (req, res) => {
+  apiRouter.get("/news/posts/:slug", handleGetPostBySlug);
+  apiRouter.get("/news/:slug", handleGetPostBySlug);
+  apiRouter.get("/blog/posts/:slug", handleGetPostBySlug);
+
+  const handleAutoGenerate = async (req: express.Request, res: express.Response) => {
     try {
-      console.log('[API] Manual/Admin trigger: Ingesting news & writing blog posts...');
+      console.log('[API] Manual/Admin trigger: Ingesting news & writing news posts...');
       const syncResult = await autoBlogService.syncLatestNews();
       const updatedPosts = autoBlogService.getAllPosts({ limit: 20 });
       res.json({
         success: true,
-        message: `Successfully ingested news and updated blog feed (${syncResult.addedCount} new posts).`,
+        message: `Successfully ingested news and updated news feed (${syncResult.addedCount} new posts).`,
         ...syncResult,
         posts: updatedPosts.posts
       });
     } catch (error: any) {
-      console.error('[API /blog/auto-generate] Error:', error);
-      res.status(500).json({ success: false, error: error.message || 'Failed to generate blog posts' });
+      console.error('[API /news/auto-generate] Error:', error);
+      res.status(500).json({ success: false, error: error.message || 'Failed to generate news posts' });
     }
-  });
+  };
 
-  apiRouter.get("/blog/status", (req, res) => {
+  apiRouter.post("/news/auto-generate", handleAutoGenerate);
+  apiRouter.post("/blog/auto-generate", handleAutoGenerate);
+
+  const handleGetStatus = (req: express.Request, res: express.Response) => {
     try {
       res.json(autoBlogService.getStatus());
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
-  });
+  };
+
+  apiRouter.get("/news/status", handleGetStatus);
+  apiRouter.get("/blog/status", handleGetStatus);
 
   apiRouter.get("/channels", async (req, res) => {
     try {
