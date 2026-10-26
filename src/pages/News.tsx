@@ -104,46 +104,40 @@ export default function News() {
   return (
     <div className="min-h-screen bg-background pb-32">
       {/* Cinematic Editorial Header */}
-      <section className="relative h-[35vh] flex items-center justify-center overflow-hidden border-b border-border-custom">
-         <div className="absolute inset-0 z-0">
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/80 to-background z-10" />
-            <motion.div 
-              initial={{ scale: 1.1, opacity: 0 }}
-              animate={{ scale: 1, opacity: 0.1 }}
-              transition={{ duration: 2 }}
-              className="w-full h-full bg-[url('https://images.unsplash.com/photo-1504711432869-53c267e15303?q=80&w=1200')] bg-cover bg-center grayscale filter blur-sm"
-            />
+      <section className="relative py-12 sm:py-20 flex flex-col items-center justify-center border-b border-border-custom bg-background">
+         <div className="absolute inset-0 z-0 opacity-15">
+            <div className="w-full h-full bg-[url('https://images.unsplash.com/photo-1504711432869-53c267e15303?q=80&w=1200')] bg-cover bg-center grayscale filter blur-sm" />
          </div>
 
-         <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4">
+         <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4 mb-10">
             <motion.h1 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="text-5xl sm:text-7xl md:text-8xl font-display font-black text-foreground tracking-tighter leading-tight"
+              className="text-4xl sm:text-6xl md:text-7xl font-display font-black text-foreground tracking-tighter leading-tight"
             >
-              FideTV <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-emerald-400 to-primary-hover animate-pulse">Blog.</span>
+              FideTV <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-emerald-400 to-primary-hover animate-pulse">Journal.</span>
             </motion.h1>
 
             <motion.p 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
-              className="max-w-xl mx-auto text-text-muted text-base sm:text-lg font-light leading-relaxed italic"
+              className="max-w-xl mx-auto text-text-muted text-xs sm:text-sm font-light leading-relaxed italic"
             >
               "Tracking the evolution of digital media and broadcasting breakthroughs."
             </motion.p>
          </div>
 
-         {/* Floating Category Nav */}
-         <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-30 w-full max-w-4xl px-4">
-            <div className="glass p-2 rounded-[2rem] border border-border-custom shadow-2xl flex items-center gap-2 overflow-x-auto scrollbar-none no-scrollbar">
+         {/* Category Nav */}
+         <div className="relative z-30 w-full max-w-4xl px-4">
+            <div className="glass p-2 rounded-[2rem] border border-border-custom shadow-xl flex items-center justify-center gap-2 overflow-x-auto scrollbar-none no-scrollbar">
                {CATEGORIES.map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
                   className={cn(
-                    "px-6 py-3 rounded-[1.5rem] text-[11px] font-black uppercase tracking-widest whitespace-nowrap transition-all duration-300",
+                    "px-6 py-2.5 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all duration-300",
                     selectedCategory === cat
                       ? "bg-primary text-white shadow-xl shadow-primary/30 scale-105"
                       : "text-text-muted hover:text-foreground hover:bg-surface-bright"
@@ -156,7 +150,7 @@ export default function News() {
          </div>
       </section>
 
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12 -mt-8 relative z-40">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12 mt-12 relative z-40">
         {/* Status Bar */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-16 px-4">
           <div className="flex items-center gap-4">

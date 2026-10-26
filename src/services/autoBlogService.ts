@@ -185,7 +185,7 @@ export class AutoBlogService {
   /**
    * Check whether the cached news is stale (older than maxAgeMinutes, or never synced)
    */
-  public isStale(maxAgeMinutes = 15): boolean {
+  public isStale(maxAgeMinutes = 2): boolean {
     if (!this.lastSyncTime) return true;
     const ageMs = Date.now() - new Date(this.lastSyncTime).getTime();
     return ageMs > maxAgeMinutes * 60 * 1000;
@@ -238,8 +238,7 @@ export class AutoBlogService {
           created_at: row.created_at || new Date().toISOString(),
           profiles: {
             username: 'FideTV News Desk',
-            avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=FideTV_NewsDesk',
-            role: 'Official Editor'
+            avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=FideTV_NewsDesk'
           }
         };
 
@@ -716,8 +715,7 @@ export class AutoBlogService {
                 created_at: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
                 profiles: {
                   username: 'Nigeria Regional Bureau',
-                  avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=NigeriaNewsDesk',
-                  role: 'Regional Wire Desk'
+                  avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=NigeriaNewsDesk'
                 }
               };
               nigeriaItems.push(post);
@@ -1085,8 +1083,7 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
                 created_at: row.created_at || new Date().toISOString(),
                 profiles: {
                   username: 'FideTV News Desk',
-                  avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=FideTV_NewsDesk',
-                  role: 'Official Editor'
+                  avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=FideTV_NewsDesk'
                 }
               };
 
@@ -1172,7 +1169,6 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
           profiles: {
             username: 'FideTV News Desk',
             avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=FideTV_NewsDesk',
-            role: 'Automated News Curator'
           }
         };
 
@@ -1403,7 +1399,6 @@ We are dedicated to building a supportive, highly specialized network for global
         profiles: {
           username: 'fidetv_admin',
           avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=fidetv_admin',
-          role: 'Editor-in-Chief'
         }
       },
       {
@@ -1447,7 +1442,6 @@ At FideTV, our objective is to fuse 24/7 IPTV continuous channels with participa
         profiles: {
           username: 'FideTV News Desk',
           avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=FideTV_Tech',
-          role: 'Tech & Broadcasting Bureau'
         }
       },
       {
@@ -1485,7 +1479,6 @@ FideTV continues to lead this movement by offering free channel ingestion, autom
         profiles: {
           username: 'FideTV News Desk',
           avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=FideTV_Creators',
-          role: 'Production Correspondent'
         }
       },
       {
@@ -1521,7 +1514,6 @@ FideTV's live sports lineup offers continuous coverage, highlighting both premie
         profiles: {
           username: 'FideTV Sports Desk',
           avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=FideTV_Sports',
-          role: 'Sports Bureau Chief'
         }
       }
     ];

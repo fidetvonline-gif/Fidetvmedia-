@@ -60,11 +60,11 @@ class NewsSyncService {
     // Perform initial fetch & sync
     this.refreshNews();
 
-    // 1. Auto-polling interval: fetch fresh articles every 2 minutes while page is open
+    // 1. Auto-polling interval: fetch fresh articles every 60 seconds while page is open
     if (!this.pollIntervalHandle && typeof window !== 'undefined') {
       this.pollIntervalHandle = window.setInterval(() => {
         this.refreshNews();
-      }, 120 * 1000);
+      }, 60 * 1000);
     }
 
     // 2. Tab focus & visibility handler: refresh if inactive for >3 minutes
@@ -215,19 +215,33 @@ class NewsSyncService {
 
     try {
       console.log(`[NewsSyncService] Syncing news wire (force=${force})...`);
-      // 1. Fetch from unified backend news endpoint (which merges auto_blogs & database)
+      // 1. Fetch from Supabase database directly + unified backend news endpoint
       let combined: NewsType[] = [];
       try {
-        const url = force ? '/api/news?refresh=true' : '/api/news';
-        const res = await fetch(url);
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            combined = data;
-          }
+        const { data: dbNews, error: dbError } = await supabase
+          .from('news')
+          .select('*, profiles:author_id(username, avatar_url)')
+          .order('created_at', { ascending: false });
+        if (!dbError && dbNews && dbNews.length > 0) {
+          combined = dbNews.map(r => this.formatDbRecord(r));
         }
       } catch (e) {
-        console.warn('[NewsSyncService] Backend /api/news warning:', e);
+        console.warn('[NewsSyncService] Supabase direct fetch warning:', e);
+      }
+
+      if (combined.length === 0) {
+        try {
+          const url = force ? '/api/news?refresh=true' : '/api/news';
+          const res = await fetch(url);
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data) && data.length > 0) {
+              combined = data;
+            }
+          }
+        } catch (e) {
+          console.warn('[NewsSyncService] Backend /api/news warning:', e);
+        }
       }
 
       // 2. Fallback to bundled data if empty

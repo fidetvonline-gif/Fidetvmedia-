@@ -2437,7 +2437,7 @@ export async function initApp(startServer = true) {
       await autoBlogService.ensureInitialized();
       
       const forceRefresh = req.query.refresh === 'true';
-      const isStale = autoBlogService.isStale(10); // Check if stale (> 10 mins)
+      const isStale = autoBlogService.isStale(2); // Check if stale (> 2 mins)
       const currentPosts = autoBlogService.getAllPosts({ limit: 5 });
 
       if (forceRefresh || currentPosts.posts.length < 5) {
