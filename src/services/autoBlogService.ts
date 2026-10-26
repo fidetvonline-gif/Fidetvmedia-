@@ -238,11 +238,25 @@ export class AutoBlogService {
       
       // Broadcast update to all connected clients immediately
       if (syncedCount > 0) {
-        this.supabase.channel('realtime').send({
-          type: 'broadcast',
-          event: 'news-updated',
-          payload: { count: syncedCount, timestamp: this.lastSyncTime }
-        }).catch(err => console.warn('[AutoBlogService] Broadcast failed:', err.message));
+        console.log(`[AutoBlogService] Broadcasting ${syncedCount} new articles to 'realtime' channel...`);
+        const broadcastChannel = this.supabase.channel('realtime');
+        broadcastChannel.subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            broadcastChannel.send({
+              type: 'broadcast',
+              event: 'news-updated',
+              payload: { 
+                count: syncedCount, 
+                timestamp: this.lastSyncTime,
+                message: 'New articles have been synchronized'
+              }
+            }).then(() => {
+              console.log('[AutoBlogService] Broadcast sent successfully.');
+            }).catch(err => {
+              console.warn('[AutoBlogService] Broadcast send failed:', err.message);
+            });
+          }
+        });
       }
 
       return syncedCount;

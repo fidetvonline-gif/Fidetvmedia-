@@ -84,30 +84,57 @@ class NewsSyncService {
 
     try {
       // Create real-time channel as requested ('realtime')
+      // We use a robust subscription strategy to ensure both DB changes and broadcasts are captured
+      console.log('[NewsSyncService] Establishing connection to "realtime" channel...');
+      
       this.channel = supabase
-        .channel('realtime')
+        .channel('realtime', {
+          config: {
+            broadcast: { self: true },
+            presence: { key: 'news-viewer' }
+          }
+        })
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'news' },
           (payload: any) => {
-            console.log('[NewsSyncService] Realtime DB change received on "news" table:', payload.eventType, payload.new?.title);
+            console.log('%c[NewsSyncService] DB EVENT RECEIVED:', 'color: #10b981; font-weight: bold;', payload.eventType, payload.new?.title);
             this.handleRealtimeEvent(payload);
           }
         )
         .on('broadcast', { event: 'news-updated' }, (payload: any) => {
-          console.log('[NewsSyncService] Broadcast news-updated received:', payload);
+          console.log('%c[NewsSyncService] BROADCAST RECEIVED:', 'color: #3b82f6; font-weight: bold;', payload);
+          // When a broadcast is received, it means the server has finished a sync cycle
+          // We trigger a refresh to get the latest data from the API
           this.refreshNews(true);
         })
-        .subscribe((status: string) => {
-          console.log('[NewsSyncService] Supabase "realtime" channel status:', status);
+        .subscribe((status: string, err?: any) => {
           if (status === 'SUBSCRIBED') {
-            console.log('[NewsSyncService] Successfully connected to live news wire.');
+            console.log('%c[NewsSyncService] Real-time connection established successfully.', 'color: #10b981;');
+          } else if (status === 'CLOSED') {
+            console.warn('[NewsSyncService] Real-time connection closed.');
+          } else if (status === 'CHANNEL_ERROR') {
+            console.error('[NewsSyncService] Real-time channel error:', err);
+            // Fallback: increase polling frequency if realtime is broken
+            this.setupFallbackPolling(30000);
           }
         });
     } catch (err) {
-      console.error('[NewsSyncService] Critical Realtime subscription error:', err);
+      console.error('[NewsSyncService] Critical Realtime setup error:', err);
+      this.setupFallbackPolling(60000);
     }
   }
+
+  private setupFallbackPolling(ms: number) {
+    if (this.pollIntervalHandle) {
+      clearInterval(this.pollIntervalHandle);
+    }
+    this.pollIntervalHandle = setInterval(() => {
+      console.log('[NewsSyncService] Fallback polling triggered...');
+      this.refreshNews();
+    }, ms);
+  }
+
 
   private handleRealtimeEvent(payload: any) {
     const { eventType, new: newRecord, old: oldRecord } = payload;

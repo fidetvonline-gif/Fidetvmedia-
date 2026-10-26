@@ -2432,6 +2432,7 @@ export async function initApp(startServer = true) {
   // Automated Blog & News Endpoints
   apiRouter.get("/news", async (req, res) => {
     try {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
       const forceRefresh = req.query.refresh === 'true';
       const isStale = autoBlogService.isStale(2);
       const currentPosts = autoBlogService.getAllPosts({ limit: 5 });
@@ -2456,6 +2457,7 @@ export async function initApp(startServer = true) {
   // Dedicated sync endpoint for client triggers, webhooks, or admin actions
   apiRouter.all("/news/sync", async (req, res) => {
     try {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
       console.log('[API /news/sync] Triggering manual news sync from live feeds and database...');
       const syncResult = await autoBlogService.syncLatestNews();
       const updatedPosts = autoBlogService.getAllPosts({ limit: 40 });
@@ -2473,6 +2475,7 @@ export async function initApp(startServer = true) {
 
   apiRouter.get("/news/nigeria", async (req, res) => {
     try {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
       const posts = await autoBlogService.getNigeriaNews(req.query.refresh === 'true');
       res.json(posts);
     } catch (error: any) {

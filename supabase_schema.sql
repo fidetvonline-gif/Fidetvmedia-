@@ -160,3 +160,8 @@ CREATE POLICY "Public read access for events" ON events FOR SELECT USING (true);
 CREATE POLICY "Public read access for site_settings" ON site_settings FOR SELECT USING (true);
 CREATE POLICY "Public read access for communities" ON communities FOR SELECT USING (true);
 CREATE POLICY "Public read access for ad_units" ON ad_units FOR SELECT USING (is_active = true);
+
+-- 11. Enable Realtime for the news table
+-- CRITICAL: For immediate synchronization across the domain, ensure the 'news' table
+-- is added to the supabase_realtime publication. Run this in the Supabase SQL Editor:
+-- ALTER PUBLICATION supabase_realtime ADD TABLE news;
