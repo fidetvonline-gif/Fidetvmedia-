@@ -1461,7 +1461,7 @@ export default function Home() {
                 Studio News <span className="font-light italic text-text-muted/70">& Updates.</span>
               </h3>
             </div>
-            <Link to="/news" className="group flex items-center space-x-2 bg-surface hover:bg-surface-bright border border-border-custom px-6 py-3 rounded-xl text-xs font-bold text-foreground transition-colors">
+            <Link to="/blog" className="group flex items-center space-x-2 bg-surface hover:bg-surface-bright border border-border-custom px-6 py-3 rounded-xl text-xs font-bold text-foreground transition-colors">
               <span>Read All Articles</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
@@ -1477,7 +1477,7 @@ export default function Home() {
                 transition={{ delay: i * 0.1 }}
                 className="group flex flex-col bg-surface border border-border-custom rounded-3xl overflow-hidden hover:shadow-lg hover:border-primary/20 transition-all duration-300 relative"
               >
-                <Link to={`/news/${item.slug || item.id}`} className="absolute inset-0 z-20" aria-label={`Read ${item.title}`} />
+                <Link to={`/blog/${item.slug || item.id}`} className="absolute inset-0 z-20" aria-label={`Read ${item.title}`} />
                 <div className="flex flex-col h-full relative z-10">
                   <div className="aspect-[16/10] overflow-hidden relative bg-background">
                     <img 

@@ -3308,7 +3308,7 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                     </div>
                     <div className="flex space-x-2">
                        <Link 
-                         to={`/news/${n.slug}`} 
+                         to={`/blog/${n.slug}`} 
                          target="_blank" 
                          className="p-2 text-foreground/40 hover:text-primary bg-background rounded-lg transition-colors shadow-inner"
                          title="View Live"

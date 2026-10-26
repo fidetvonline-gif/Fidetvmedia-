@@ -172,9 +172,9 @@ export default function NewsDetail() {
         return;
       }
 
-      navigate('/news');
+      navigate('/blog');
     } catch (err) {
-      navigate('/news');
+      navigate('/blog');
     } finally {
       setLoading(false);
     }
@@ -274,7 +274,7 @@ export default function NewsDetail() {
                  animate={{ opacity: 1, x: 0 }}
                  className="flex flex-wrap items-center gap-4"
                >
-                  <Link to="/news" className="glass p-3 rounded-2xl text-white hover:bg-primary transition-all shadow-2xl">
+                  <Link to="/blog" className="glass p-3 rounded-2xl text-white hover:bg-primary transition-all shadow-2xl">
                      <ArrowLeft className="w-5 h-5" />
                   </Link>
                   <span className="bg-primary px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-xl">
@@ -386,7 +386,7 @@ export default function NewsDetail() {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
                      {relatedNews.map(news => (
-                       <Link key={news.id} to={`/news/${news.slug}`} className="group space-y-4">
+                       <Link key={news.id} to={`/blog/${news.slug}`} className="group space-y-4">
                           <div className="aspect-video rounded-2xl overflow-hidden border border-border-custom bg-surface relative">
                              <img src={getHighQualityImage(news.image_url, news.category, news.title)} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
                           </div>

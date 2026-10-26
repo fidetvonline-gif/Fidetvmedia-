@@ -198,6 +198,7 @@ export class AutoBlogService {
   public async pullFromSupabase(): Promise<number> {
     if (!this.supabase) return 0;
     
+    let syncedCount = 0;
     try {
       const { data: dbRows, error: dbError } = await this.supabase
         .from('news')
@@ -990,7 +991,7 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
       const indexNowResp = await axios.post(indexNowUrl, {
         host: 'fidetv.online',
         key: 'fidetv_seo_key_2026',
-        urlList: [sitemapUrl, 'https://fidetv.online/news']
+        urlList: [sitemapUrl, 'https://fidetv.online/blog']
       }, { timeout: 5000, validateStatus: () => true });
       results.targets.indexNow = { status: indexNowResp.status, success: indexNowResp.status >= 200 && indexNowResp.status < 400 };
     } catch (e: any) {

@@ -62,9 +62,8 @@ const apiLimiter = isVercel
         // Exclude public read-only content so visitors never get blocked viewing news or streams
         const p = req.path || '';
         return req.method === 'GET' && (
-          p.startsWith('/news') || 
-          p.startsWith('/channels') || 
           p.startsWith('/blog') || 
+          p.startsWith('/channels') || 
           p.startsWith('/health')
         );
       },
@@ -158,7 +157,7 @@ export async function initApp(startServer = true) {
     const baseUrl = hostUrl.startsWith('http') ? hostUrl : `https://${hostUrl}`;
     const staticPages = [
       { url: '', changefreq: 'daily', priority: '1.0' },
-      { url: '/news', changefreq: 'hourly', priority: '0.9' },
+      { url: '/blog', changefreq: 'hourly', priority: '0.9' },
       { url: '/live', changefreq: 'always', priority: '0.9' },
       { url: '/fidesave', changefreq: 'weekly', priority: '0.8' },
       { url: '/spaces', changefreq: 'daily', priority: '0.8' },
@@ -181,7 +180,7 @@ export async function initApp(startServer = true) {
     }
 
     for (const post of posts) {
-      const postUrl = `${baseUrl}/news/${post.slug || post.id}`;
+      const postUrl = `${baseUrl}/blog/${post.slug || post.id}`;
       const lastMod = post.updated_at || post.created_at || new Date().toISOString();
       xml += `  <url>\n`;
       xml += `    <loc>${postUrl}</loc>\n`;
