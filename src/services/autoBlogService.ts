@@ -115,32 +115,49 @@ export class AutoBlogService {
     this.supabase = client;
   }
 
+  private initializedPromise: Promise<void> | null = null;
+
   public async init() {
-    console.log('[AutoBlogService] Initializing automated blog news & sync engine...');
-    await this.loadPersistedPosts();
+    if (this.initializedPromise) return this.initializedPromise;
     
-    // Always pull latest from Supabase immediately on startup to ensure we aren't using stale bundled data
-    await this.pullFromSupabase().catch(err => console.error('[AutoBlogService] Startup DB pull failed:', err));
+    this.initializedPromise = (async () => {
+      console.log('[AutoBlogService] Initializing automated blog news & sync engine...');
+      await this.loadPersistedPosts();
+      
+      // Always pull latest from Supabase immediately on startup to ensure we aren't using stale bundled data
+      await this.pullFromSupabase().catch(err => console.error('[AutoBlogService] Startup DB pull failed:', err));
 
-    // Run full sync cycle (RSS + DB) in background
-    setTimeout(() => {
-      this.syncLatestNews().catch(err => {
-        console.error('[AutoBlogService] Initial full sync error:', err);
-      });
-    }, 5000);
+      // Schedule periodic automatic update every 30 minutes (only in persistent environments)
+      if (!this.syncIntervalHandle && typeof setInterval !== 'undefined' && !process.env.VERCEL) {
+        this.syncIntervalHandle = setInterval(() => {
+          console.log('[AutoBlogService] Triggering scheduled automated news update cycle...');
+          this.syncLatestNews().catch(err => {
+            console.error('[AutoBlogService] Scheduled sync error:', err);
+          });
+        }, 30 * 60 * 1000);
+      }
 
-    // Schedule periodic automatic update every 30 minutes
-    if (!this.syncIntervalHandle) {
-      this.syncIntervalHandle = setInterval(() => {
-        console.log('[AutoBlogService] Triggering scheduled automated news update cycle...');
-        this.syncLatestNews().catch(err => {
-          console.error('[AutoBlogService] Scheduled sync error:', err);
-        });
-      }, 30 * 60 * 1000);
+      // Initialize real-time listener to keep server cache in sync with DB
+      this.setupRealtimeListener();
+    })();
+
+    return this.initializedPromise;
+  }
+
+  /**
+   * Ensures that the service has pulled latest data from Supabase at least once.
+   * Crucial for serverless environments.
+   */
+  public async ensureInitialized() {
+    if (!this.initializedPromise) {
+      await this.init();
     }
-
-    // Initialize real-time listener to keep server cache in sync with DB
-    this.setupRealtimeListener();
+    await this.initializedPromise;
+    
+    // If we have very few posts, force one more pull to be safe
+    if (this.posts.length < 5) {
+      await this.pullFromSupabase().catch(() => {});
+    }
   }
 
   private setupRealtimeListener() {
@@ -192,7 +209,13 @@ export class AutoBlogService {
       if (dbError) throw dbError;
       if (!dbRows || !Array.isArray(dbRows)) return 0;
 
-      let syncedCount = 0;
+      // If we got a healthy amount of rows from the DB, we should ensure we aren't 
+      // mixing them with old bundled/seeded data that might have different IDs
+      if (dbRows.length > 5) {
+        // Find seeded posts and remove them if they overlap or are very old
+        this.posts = this.posts.filter(p => !p.id.startsWith('fidetv-release') && !p.id.startsWith('fidetv-auto'));
+      }
+
       for (const row of dbRows) {
         const rowSlug = row.slug || this.generateSlug(row.title) || row.id;
         
@@ -221,18 +244,24 @@ export class AutoBlogService {
 
         const existingIdx = this.posts.findIndex(p => p.id === row.id || p.slug === rowSlug);
         if (existingIdx >= 0) {
-          // Update existing
           this.posts[existingIdx] = { ...this.posts[existingIdx], ...formattedDbPost };
         } else {
-          // Add new
           this.posts.unshift(formattedDbPost);
           syncedCount++;
         }
       }
 
-      // Sort and limit
+      // Final sort and limit
       this.posts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      if (this.posts.length > 60) this.posts = this.posts.slice(0, 60);
+      
+      // Deduplicate by slug to be extra safe
+      const uniqueMap = new Map();
+      this.posts.forEach(p => {
+        if (!uniqueMap.has(p.slug)) uniqueMap.set(p.slug, p);
+      });
+      this.posts = Array.from(uniqueMap.values());
+
+      if (this.posts.length > 100) this.posts = this.posts.slice(0, 100);
       
       this.lastSyncTime = new Date().toISOString();
       

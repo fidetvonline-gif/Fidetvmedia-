@@ -2433,8 +2433,12 @@ export async function initApp(startServer = true) {
   apiRouter.get("/news", async (req, res) => {
     try {
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      
+      // Ensure we have pulled latest from Supabase before serving
+      await autoBlogService.ensureInitialized();
+      
       const forceRefresh = req.query.refresh === 'true';
-      const isStale = autoBlogService.isStale(2);
+      const isStale = autoBlogService.isStale(10); // Check if stale (> 10 mins)
       const currentPosts = autoBlogService.getAllPosts({ limit: 5 });
 
       if (forceRefresh || currentPosts.posts.length < 5) {

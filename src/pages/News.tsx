@@ -104,43 +104,34 @@ export default function News() {
   return (
     <div className="min-h-screen bg-background pb-32">
       {/* Cinematic Editorial Header */}
-      <section className="relative h-[70vh] flex items-center justify-center overflow-hidden border-b border-border-custom">
+      <section className="relative h-[35vh] flex items-center justify-center overflow-hidden border-b border-border-custom">
          <div className="absolute inset-0 z-0">
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/60 to-background z-10" />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/80 to-background z-10" />
             <motion.div 
               initial={{ scale: 1.1, opacity: 0 }}
-              animate={{ scale: 1, opacity: 0.15 }}
+              animate={{ scale: 1, opacity: 0.1 }}
               transition={{ duration: 2 }}
               className="w-full h-full bg-[url('https://images.unsplash.com/photo-1504711432869-53c267e15303?q=80&w=1200')] bg-cover bg-center grayscale filter blur-sm"
             />
          </div>
 
-         <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-8">
-            <motion.div
+         <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4">
+            <motion.h1 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="inline-flex items-center space-x-3 px-5 py-2 rounded-full glass border border-primary/20 text-primary font-black uppercase tracking-[0.3em] text-[10px]"
+              transition={{ delay: 0.1 }}
+              className="text-5xl sm:text-7xl md:text-8xl font-display font-black text-foreground tracking-tighter leading-tight"
             >
-              <Sparkles className="w-4 h-4 text-emerald-400" />
-              <span>Premium Editorial Wire</span>
-            </motion.div>
-
-            <motion.h1 
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="text-5xl sm:text-7xl md:text-9xl font-display font-black text-foreground tracking-tighter leading-tight"
-            >
-              FideTV <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-emerald-400 to-primary-hover animate-pulse">Journal.</span>
+              FideTV <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-emerald-400 to-primary-hover animate-pulse">Blog.</span>
             </motion.h1>
 
             <motion.p 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              className="max-w-2xl mx-auto text-text-muted text-lg sm:text-xl font-light leading-relaxed italic"
+              transition={{ delay: 0.3 }}
+              className="max-w-xl mx-auto text-text-muted text-base sm:text-lg font-light leading-relaxed italic"
             >
-              "The definitive record of Sub-Saharan digital media evolution, broadcasting breakthroughs, and industrial creative intelligence."
+              "Tracking the evolution of digital media and broadcasting breakthroughs."
             </motion.p>
          </div>
 
