@@ -235,6 +235,16 @@ export class AutoBlogService {
       if (this.posts.length > 60) this.posts = this.posts.slice(0, 60);
       
       this.lastSyncTime = new Date().toISOString();
+      
+      // Broadcast update to all connected clients immediately
+      if (syncedCount > 0) {
+        this.supabase.channel('realtime').send({
+          type: 'broadcast',
+          event: 'news-updated',
+          payload: { count: syncedCount, timestamp: this.lastSyncTime }
+        }).catch(err => console.warn('[AutoBlogService] Broadcast failed:', err.message));
+      }
+
       return syncedCount;
     } catch (err: any) {
       console.error('[AutoBlogService] pullFromSupabase error:', err.message);
@@ -1137,7 +1147,7 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
               description: newPost.description || '',
               content: newPost.content || '',
               category: newPost.category || 'News',
-              tags: newPost.tags || [],
+              tags: Array.from(new Set(newPost.tags || [])),
               image_url: newPost.image_url || '',
               image_urls: newPost.image_urls || [],
               is_published: true,
@@ -1167,7 +1177,7 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
               description: post.description,
               content: post.content,
               category: post.category,
-              tags: post.tags,
+              tags: Array.from(new Set(post.tags || [])),
               image_url: post.image_url,
               image_urls: post.image_urls || [post.image_url],
               is_published: true,
@@ -1181,7 +1191,7 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
 
           // Broadcast real-time update
           try {
-            await this.supabase.channel('fidetv-news-realtime').send({
+            await this.supabase.channel('realtime').send({
               type: 'broadcast',
               event: 'news-updated',
               payload: { timestamp: new Date().toISOString(), totalPosts: this.posts.length }

@@ -4,7 +4,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { News, Comment } from '@/types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Calendar, User, ArrowLeft, Share2, Bookmark, Heart, MessageCircle, Send, Award } from 'lucide-react';
+import { Calendar, User, ArrowLeft, Share2, Bookmark, Heart, MessageCircle, Send, Award, Clock } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
 import ReactPlayer from 'react-player';
@@ -371,7 +371,7 @@ export default function NewsDetail() {
                
                <div className="flex items-center gap-4">
                   <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Tagged in:</span>
-                  {(item.tags || []).slice(0, 3).map(tag => (
+                  {Array.from(new Set(item.tags || [])).slice(0, 3).map(tag => (
                     <span key={tag} className="px-3 py-1 rounded-lg bg-surface-bright text-[10px] font-bold text-foreground/60 border border-border-custom">#{tag}</span>
                   ))}
                </div>

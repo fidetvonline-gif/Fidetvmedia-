@@ -2,6 +2,11 @@
   "version": 2,
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/server.js" },
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
-  ]
+    { "source": "/sitemap.xml", "destination": "/server.js" },
+    { "source": "/robots.txt", "destination": "/robots.txt" },
+    { "source": "/icon.svg", "destination": "/icon.svg" },
+    { "source": "/((?!api/|sitemap.xml|robots.txt|icon.svg|assets/).*)", "destination": "/index.html" }
+  ],
+  "cleanUrls": true,
+  "trailingSlash": false
 }

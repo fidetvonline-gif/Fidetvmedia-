@@ -23,7 +23,7 @@ import DisplayInlineAds from '@/components/DisplayInlineAds';
 import { parseResponseJson } from '@/lib/api';
 import AUTO_BLOGS from '@/data/auto_blogs.json';
 import { safeLocalStorage } from '@/lib/storage';
-import { getHighQualityImage } from '@/lib/utils';
+import { cn, getHighQualityImage } from '@/lib/utils';
 import { getClientContentImage } from '@/lib/imageValidator';
 import { useNewsSync } from '@/hooks/useNewsSync';
 
@@ -238,6 +238,11 @@ export default function News() {
                             <span className="px-4 py-1.5 rounded-full bg-primary text-white text-[10px] font-black uppercase tracking-[0.2em] shadow-lg">
                                {featuredPost.category}
                             </span>
+                            {new Date().getTime() - new Date(featuredPost.created_at).getTime() < 3600000 && (
+                              <span className="px-4 py-1.5 rounded-full bg-emerald-500 text-white text-[10px] font-black uppercase tracking-[0.2em] shadow-lg animate-pulse">
+                                JUST IN
+                              </span>
+                            )}
                             <span className="flex items-center gap-2 text-white/60 text-[10px] font-black uppercase tracking-widest">
                                <Clock className="w-3.5 h-3.5" /> {(featuredPost as any).read_time || '5 MIN READ'}
                             </span>
@@ -269,7 +274,7 @@ export default function News() {
                <div className="md:col-span-12 lg:col-span-4 flex flex-col gap-10">
                   {standardPosts.slice(0, 2).map((item, i) => (
                     <motion.div 
-                      key={item.id}
+                      key={`${item.id}-${i}`}
                       initial={{ opacity: 0, x: 20 }}
                       whileInView={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.1 }}
@@ -310,7 +315,7 @@ export default function News() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
                {standardPosts.slice(2).map((item, idx) => (
                  <motion.div
-                   key={item.id}
+                   key={`${item.id}-${idx}`}
                    initial={{ opacity: 0, y: 20 }}
                    whileInView={{ opacity: 1, y: 0 }}
                    transition={{ delay: (idx % 3) * 0.1 }}
@@ -336,6 +341,12 @@ export default function News() {
                       <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-text-muted/60">
                          <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> {format(new Date(item.created_at), 'MMM dd, yyyy')}</span>
                          <span>•</span>
+                         {new Date().getTime() - new Date(item.created_at).getTime() < 3600000 && (
+                           <>
+                             <span className="text-emerald-400 animate-pulse">JUST IN</span>
+                             <span>•</span>
+                           </>
+                         )}
                          <span>{(item as any).read_time || '4 MIN READ'}</span>
                       </div>
                       <Link to={`/news/${item.slug || item.id}`}>

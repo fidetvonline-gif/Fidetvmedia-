@@ -158,7 +158,7 @@ class NewsSyncService {
       description: record.description || record.excerpt || '',
       content: record.content || '',
       category: record.category || 'News',
-      tags: record.tags || ['Broadcasting', 'News'],
+      tags: Array.from(new Set(record.tags || ['Broadcasting', 'News'])),
       image_url: record.image_url || getHighQualityImage(undefined, record.category, record.title),
       image_urls: record.image_urls || (record.image_url ? [record.image_url] : []),
       author_id: record.author_id || 'fidetv_admin',

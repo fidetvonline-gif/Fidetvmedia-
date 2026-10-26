@@ -2433,14 +2433,14 @@ export async function initApp(startServer = true) {
   apiRouter.get("/news", async (req, res) => {
     try {
       const forceRefresh = req.query.refresh === 'true';
-      const isStale = autoBlogService.isStale(15);
+      const isStale = autoBlogService.isStale(2);
       const currentPosts = autoBlogService.getAllPosts({ limit: 5 });
 
       if (forceRefresh || currentPosts.posts.length < 5) {
         console.log('[API /news] Immediate sync triggered (forceRefresh or low count)...');
         await autoBlogService.syncLatestNews().catch(err => console.warn('[API /news] Sync warning:', err.message));
       } else if (isStale) {
-        console.log('[API /news] News cache is stale (>15 mins). Scheduling background sync...');
+        console.log('[API /news] News cache is stale (>2 mins). Scheduling background sync...');
         autoBlogService.syncLatestNews().catch(err => console.warn('[API /news] Background sync warning:', err.message));
       }
       
