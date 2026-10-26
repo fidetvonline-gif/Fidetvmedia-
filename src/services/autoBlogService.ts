@@ -559,7 +559,11 @@ export class AutoBlogService {
           }
         }
       } catch (feedErr: any) {
-        console.warn(`[AutoBlogService] Failed to fetch feed ${source.name}:`, feedErr.message);
+        if (feedErr.response?.status === 429) {
+          // Rate limited (429), skip quietly
+        } else {
+          console.warn(`[AutoBlogService] Failed to fetch feed ${source.name}:`, feedErr.message);
+        }
       }
     }
 
@@ -1131,7 +1135,6 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
         });
         
         if (alreadyExists) {
-          console.log(`[AutoBlogService] Skipping duplicate news: "${item.title}"`);
           continue;
         }
 

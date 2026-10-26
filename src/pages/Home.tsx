@@ -832,37 +832,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Spaces / Voice Room Section */}
-      <section className="py-24 bg-surface-bright/20 border-b border-border-custom relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-surface rounded-3xl border border-border-custom p-8 md:p-12 shadow-lg flex flex-col md:flex-row items-center gap-8 md:gap-12">
-              <div className="flex-1 space-y-4">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-bold uppercase tracking-wider">
-                      <Headphones className="w-3.5 h-3.5" />
-                      Live Audio Spaces
-                  </div>
-                  <h2 className="text-3xl sm:text-5xl font-display font-black text-foreground tracking-tight leading-none">
-                    Voice Conversations <span className="font-light italic text-text-muted/75">happening now.</span>
-                  </h2>
-                  <p className="text-text-muted text-sm max-w-xl">
-                    Step into our audio spaces to engage in live discussions, host meetings, or connect with live audiences through real-time voice chat. Join the conversation effortlessly from anywhere on our platform.
-                  </p>
-                  <Link
-                    to="/spaces"
-                    className="inline-flex items-center gap-2 px-6 py-3.5 bg-primary hover:bg-primary/95 text-white font-bold rounded-xl transition-all shadow-lg shadow-primary/20"
-                  >
-                    Explore Audio Spaces
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
-              </div>
-              <div className="flex-shrink-0 hidden md:block">
-                  <div className="w-32 h-32 bg-gradient-to-br from-primary to-orange-500 text-white rounded-3xl flex items-center justify-center shadow-xl shadow-primary/20">
-                      <Headphones className="w-16 h-16" />
-                  </div>
-              </div>
-          </div>
-        </div>
-      </section>
 
       {/* Fidesave Section */}
       <section className="py-24 bg-background relative overflow-hidden">

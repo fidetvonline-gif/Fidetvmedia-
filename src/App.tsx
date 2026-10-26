@@ -187,7 +187,7 @@ export default function App() {
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/profile/:username" element={<Profile />} />
-            <Route path="/spaces" element={<Spaces />} />
+            <Route path="/spaces" element={<Navigate to="/" replace />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/debug" element={<Debug />} />
