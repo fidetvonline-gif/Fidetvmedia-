@@ -1106,7 +1106,7 @@ export default function Admin() {
     setIsAutoSyncing(true);
     setAutoSyncMsg('Ingesting news feeds & generating new blog posts...');
     try {
-      const res = await fetch('/api/blog/auto-generate', { method: 'POST' });
+      const res = await fetch('/api/news/auto-generate', { method: 'POST' });
       const data = await parseResponseJson(res);
       if (data.success) {
         setAutoSyncMsg(data.message || 'Auto-blog sync completed!');
@@ -1127,7 +1127,7 @@ export default function Admin() {
   const fetchNews = async () => {
     let combinedNews: any[] = [];
     try {
-      const res = await fetch('/api/blog/posts');
+      const res = await fetch('/api/news/posts');
       const data = await parseResponseJson(res);
       if (data && Array.isArray(data.posts)) {
         combinedNews = data.posts;
@@ -3308,7 +3308,7 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                     </div>
                     <div className="flex space-x-2">
                        <Link 
-                         to={`/blog/${n.slug}`} 
+                         to={`/news/${n.slug}`} 
                          target="_blank" 
                          className="p-2 text-foreground/40 hover:text-primary bg-background rounded-lg transition-colors shadow-inner"
                          title="View Live"

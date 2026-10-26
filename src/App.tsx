@@ -177,8 +177,8 @@ export default function App() {
             <Route path="/live" element={<Live />} />
             <Route path="/community" element={<Community />} />
             <Route path="/community/:id" element={<CommunityDetail />} />
-            <Route path="/blog" element={<News />} />
-            <Route path="/blog/:slug" element={<NewsDetail />} />
+            <Route path="/blog" element={<Navigate to="/news" replace />} />
+            <Route path="/news/:slug" element={<Navigate to="/news" replace />} />
             <Route path="/news" element={<News />} />
             <Route path="/news/:slug" element={<NewsDetail />} />
             <Route path="/booking" element={<Booking />} />

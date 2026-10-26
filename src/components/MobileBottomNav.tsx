@@ -8,7 +8,7 @@ const MOBILE_NAV_ITEMS = [
   { name: 'Home', path: '/', icon: Home },
   { name: 'Live', path: '/live', icon: PlayCircle },
   { name: 'Action', path: '#', isAction: true },
-  { name: 'Blog', path: '/blog', icon: Newspaper },
+  { name: 'Journal', path: '/news', icon: Newspaper },
   { name: 'Community', path: '/community', icon: Users },
 ];
 

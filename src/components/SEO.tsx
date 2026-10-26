@@ -54,7 +54,7 @@ export const SEO = ({
     "operatingSystem": "All",
     "potentialAction": {
       "@type": "SearchAction",
-      "target": "https://fidetv.online/blog?search={search_term_string}",
+      "target": "https://fidetv.online/news?search={search_term_string}",
       "query-input": "required name=search_term_string"
     }
   };

@@ -211,7 +211,7 @@ export default function News() {
                    viewport={{ once: true }}
                    className="md:col-span-12 lg:col-span-8 group"
                  >
-                   <Link to={`/blog/${featuredPost.slug || featuredPost.id}`} className="block relative aspect-[16/9] lg:aspect-[21/9] rounded-[3rem] overflow-hidden border border-border-custom shadow-2xl bg-surface">
+                   <Link to={`/news/${featuredPost.slug || featuredPost.id}`} className="block relative aspect-[16/9] lg:aspect-[21/9] rounded-[3rem] overflow-hidden border border-border-custom shadow-2xl bg-surface">
                       <img 
                         src={getHighQualityImage(featuredPost.image_url, featuredPost.category, featuredPost.title)} 
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[2s] ease-out"
@@ -266,7 +266,7 @@ export default function News() {
                       viewport={{ once: true }}
                       className="group flex-grow"
                     >
-                      <Link to={`/blog/${item.slug || item.id}`} className="block h-full relative rounded-[2.5rem] overflow-hidden border border-border-custom bg-surface p-6 space-y-6 hover:border-primary/40 transition-all duration-500 hover:shadow-2xl">
+                      <Link to={`/news/${item.slug || item.id}`} className="block h-full relative rounded-[2.5rem] overflow-hidden border border-border-custom bg-surface p-6 space-y-6 hover:border-primary/40 transition-all duration-500 hover:shadow-2xl">
                          <div className="aspect-[16/9] rounded-[2rem] overflow-hidden">
                             <img 
                               src={getHighQualityImage(item.image_url, item.category, item.title)} 
@@ -307,7 +307,7 @@ export default function News() {
                    viewport={{ once: true }}
                    className="group flex flex-col space-y-6"
                  >
-                   <Link to={`/blog/${item.slug || item.id}`} className="block relative aspect-square rounded-[3rem] overflow-hidden border border-border-custom bg-surface shadow-lg group-hover:shadow-2xl transition-all duration-700">
+                   <Link to={`/news/${item.slug || item.id}`} className="block relative aspect-square rounded-[3rem] overflow-hidden border border-border-custom bg-surface shadow-lg group-hover:shadow-2xl transition-all duration-700">
                       <img 
                         src={getHighQualityImage(item.image_url, item.category, item.title)} 
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"
@@ -334,7 +334,7 @@ export default function News() {
                          )}
                          <span>{(item as any).read_time || '4 MIN READ'}</span>
                       </div>
-                      <Link to={`/blog/${item.slug || item.id}`}>
+                      <Link to={`/news/${item.slug || item.id}`}>
                         <h3 className="text-2xl font-display font-bold text-foreground leading-snug group-hover:text-primary transition-colors line-clamp-2">
                            {item.title}
                         </h3>
@@ -349,7 +349,7 @@ export default function News() {
                             </div>
                             <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">{item.profiles?.username || 'Wire Desk'}</span>
                          </div>
-                         <Link to={`/blog/${item.slug || item.id}`} className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2 group/btn">
+                         <Link to={`/news/${item.slug || item.id}`} className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2 group/btn">
                             Read Story <ArrowRight className="w-3 h-3 group-hover/btn:translate-x-1 transition-transform" />
                          </Link>
                       </div>

@@ -1,9 +1,5 @@
 {
   "version": 2,
-   "redirects": [
-    { "source": "/news", "destination": "/blog", "permanent": true },
-    { "source": "/news/:slug", "destination": "/blog/:slug", "permanent": true }
-  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/server.js" },
     { "source": "/sitemap.xml", "destination": "/server.js" },

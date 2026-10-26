@@ -140,7 +140,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const checkProfile = async (userId: string, email?: string) => {
     // Only check if not on public paths
-    const publicPaths = ['/', '/blog', '/auth', '/onboarding', '/policies', '/about', '/contact', '/services', '/admin', '/profile', '/download', '/advertise', '/spaces', '/community', '/content'];
+    const publicPaths = ['/', '/news', '/auth', '/onboarding', '/policies', '/about', '/contact', '/services', '/admin', '/profile', '/download', '/advertise', '/spaces', '/community', '/content'];
     const isPublicPath = publicPaths.some(path => location.pathname === path || (path !== '/' && (location.pathname.startsWith(path) || location.pathname.startsWith('/news'))));
     
     // Update Admin status always if it's the admin email
@@ -186,7 +186,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { name: 'Home', path: '/', icon: HomeIcon },
     { name: 'Live', path: '/live', icon: PlayCircle, id: 'nav-live' },
     { name: 'Content', path: '/content', icon: LayoutDashboard, id: 'nav-content' },
-    { name: 'Journal', path: '/blog', icon: LayoutDashboard },
+    { name: 'Journal', path: '/news', icon: LayoutDashboard },
     { name: 'Community', path: '/community', icon: Users, id: 'nav-community' },
     { name: 'Spaces', path: '/spaces', icon: Headset },
     { name: 'Services', path: '/services', icon: Briefcase },
@@ -481,7 +481,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <ul className="space-y-3 text-sm text-foreground/60">
                   <li><Link to="/live" className="hover:text-primary transition-colors">Live Events</Link></li>
                   <li><Link to="/content" className="hover:text-primary transition-colors">Content Hub</Link></li>
-                  <li><Link to="/blog" className="hover:text-primary transition-colors">FideTV Journal</Link></li>
+                  <li><Link to="/news" className="hover:text-primary transition-colors">FideTV Journal</Link></li>
                   <li><Link to="/fidesave" className="hover:text-primary transition-colors">Fidesave Downloader</Link></li>
                   <li><Link to="/advertise" className="hover:text-primary transition-colors">Advertise with Us</Link></li>
                   <li><Link to="/community" className="hover:text-primary transition-colors">Community Hub</Link></li>
