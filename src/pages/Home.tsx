@@ -455,7 +455,7 @@ export default function Home() {
       <div className="absolute bottom-[10%] left-[-10%] w-[500px] h-[500px] bg-primary/4 rounded-full blur-[150px] pointer-events-none" />
 
       {/* Hero Section */}
-      <section className="relative min-h-[85vh] flex items-center pt-24 pb-20 px-4 sm:px-6 lg:px-8 border-b border-border-custom overflow-hidden">
+      <section className="relative min-h-[85vh] flex items-center pt-12 pb-20 px-4 sm:px-6 lg:px-8 border-b border-border-custom overflow-hidden">
         {/* Ambient Video & Gradient Background */}
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
           <div className="absolute inset-0 bg-gradient-to-b from-background/85 via-background/90 to-background z-10" />
@@ -541,12 +541,12 @@ export default function Home() {
               className="lg:col-span-5 relative"
             >
               <div className="absolute -inset-4 bg-gradient-to-r from-primary/25 via-orange-500/15 to-emerald-500/20 blur-3xl rounded-[3rem] pointer-events-none" />
-              <div className="relative bg-surface border border-border-custom rounded-[2.5rem] p-4 sm:p-5 shadow-2xl overflow-hidden group">
+              <div className="relative overflow-hidden group">
                 <div className="relative aspect-[16/10] sm:aspect-[4/3] rounded-[2rem] overflow-hidden bg-background">
                   <img 
                     src={heroImageUrl || "https://images.unsplash.com/photo-1598899134739-24c46f58b8c0?q=80&w=1200"} 
                     alt="FideTV Broadcast & Studio" 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-90"
+                    className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700 opacity-90"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent" />
                   
