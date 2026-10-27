@@ -7,9 +7,8 @@
     { "source": "/sitemap.xml", "destination": "/server.js" },
     { "source": "/robots.txt", "destination": "/robots.txt" },
     { "source": "/icon.svg", "destination": "/icon.svg" },
-    { "source": "/((?!api/|sitemap.xml|robots.txt|icon.svg|assets/).*)", "destination": "/index.html" }
+    { "source": "/(.*)", "destination": "/index.html" }
   ],
-  "cleanUrls": true,
   "trailingSlash": false,
   "headers": [
     {
