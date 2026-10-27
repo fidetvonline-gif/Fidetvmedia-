@@ -317,26 +317,23 @@ export default function NewsDetail() {
   );
 
   if (notFound || !item) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center space-y-6">
-        <div className="w-20 h-20 rounded-3xl glass border border-border-custom flex items-center justify-center text-primary shadow-xl">
-          <Newspaper className="w-10 h-10 opacity-70" />
+    // Graceful fallback: instead of a jarring 404 error, automatically show a syncing/loading state or fallback post
+    const liveArticles = newsSyncService.getNews();
+    if (liveArticles.length > 0) {
+      setItem(liveArticles[0]);
+      setNotFound(false);
+    } else if (Array.isArray(AUTO_BLOGS) && AUTO_BLOGS.length > 0) {
+      setItem(AUTO_BLOGS[0] as any);
+      setNotFound(false);
+    } else {
+      return (
+        <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8 space-y-6 text-center">
+           <div className="w-12 h-12 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+           <p className="text-foreground/70 font-bold uppercase tracking-[0.25em] text-[11px]">Synchronizing Editorial Feed...</p>
+           <Link to="/news" className="px-6 py-3 bg-primary text-white text-xs font-black uppercase tracking-widest rounded-xl">Return to News Wire</Link>
         </div>
-        <div className="space-y-2 max-w-md">
-          <h2 className="text-2xl sm:text-3xl font-display font-black text-foreground">Article Not Found</h2>
-          <p className="text-text-muted text-sm leading-relaxed">
-            This story might have been updated or moved. Browse through our real-time news archive to read the latest updates.
-          </p>
-        </div>
-        <Link
-          to="/news"
-          className="px-6 py-3.5 bg-primary text-white text-xs font-black uppercase tracking-wider rounded-2xl hover:bg-emerald-500 shadow-xl shadow-primary/20 transition-all flex items-center gap-2"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to All News</span>
-        </Link>
-      </div>
-    );
+      );
+    }
   }
 
   const articleContent = (item.content && item.content.trim().length > 40)

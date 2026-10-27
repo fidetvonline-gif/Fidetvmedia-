@@ -216,12 +216,7 @@ export class AutoBlogService {
       if (dbError) throw dbError;
       if (!dbRows || !Array.isArray(dbRows)) return 0;
 
-      // If we got a healthy amount of rows from the DB, we should ensure we aren't 
-      // mixing them with old bundled/seeded data that might have different IDs
-      if (dbRows.length > 5) {
-        // Find seeded posts and remove them if they overlap or are very old
-        this.posts = this.posts.filter(p => !p.id.startsWith('fidetv-release') && !p.id.startsWith('fidetv-auto'));
-      }
+      // Merge DB rows into posts without filtering out local posts
 
       for (const row of dbRows) {
         const rowSlug = row.slug || this.generateSlug(row.title) || row.id;

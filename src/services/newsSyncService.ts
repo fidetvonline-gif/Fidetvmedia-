@@ -60,11 +60,6 @@ class NewsSyncService {
 
     console.log('[NewsSyncService] Initializing news auto-updater and real-time subscription...');
 
-    // Clear stale cache (older than 1 hour)
-    try {
-      safeLocalStorage.removeItem('fidetv_live_blogs_v3');
-    } catch {}
-
     // Perform initial fetch & sync
     this.refreshNews();
 
@@ -263,12 +258,10 @@ class NewsSyncService {
       if (combined.length > 0) {
         const uniqueMap = new Map<string, NewsType>();
         
-        // Add existing news first if not forcing
-        if (!force) {
-          for (const item of this.currentNews) {
-            const key = item.slug || item.id;
-            if (key) uniqueMap.set(key, item);
-          }
+        // Always add existing news first so posts never disappear
+        for (const item of this.currentNews) {
+          const key = item.slug || item.id || (item.title ? item.title.toLowerCase().trim() : '');
+          if (key) uniqueMap.set(key, item);
         }
 
         // Add fresh items (overwriting if needed)

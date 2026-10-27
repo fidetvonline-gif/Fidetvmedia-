@@ -50,39 +50,45 @@ export default function PostCard({ post, onDelete, onUpdate }: { post: Post, onD
   };
 
   const handleLike = async () => {
-    if (!user) return;
+    if (!user) {
+      alert("Please sign in to react to posts.");
+      return;
+    }
 
     if (isLiked) {
+      setIsLiked(false);
+      setLikesCount(prev => Math.max(0, prev - 1));
       const { error } = await supabase
         .from('post_likes')
         .delete()
         .eq('post_id', post.id)
         .eq('user_id', user.id);
       
-      if (!error) {
-        setIsLiked(false);
-        setLikesCount(prev => prev - 1);
+      if (error) {
+        console.error("Like delete error:", error);
       }
     } else {
+      setIsLiked(true);
+      setLikesCount(prev => prev + 1);
       const { error } = await supabase
         .from('post_likes')
         .insert({ post_id: post.id, user_id: user.id });
       
-      if (!error) {
-        setIsLiked(true);
-        setLikesCount(prev => prev + 1);
-
-        // Create notification for post owner
+      if (error) {
+        console.error("Like insert error:", error);
+      } else {
         if (post.author_id !== user.id) {
-          await supabase
-            .from('notifications')
-            .insert({
-              recipient_id: post.author_id,
-              actor_id: user.id,
-              type: 'like',
-              resource_id: post.id,
-              read: false
-            });
+          try {
+            await supabase
+              .from('notifications')
+              .insert({
+                recipient_id: post.author_id,
+                actor_id: user.id,
+                type: 'like',
+                resource_id: post.id,
+                read: false
+              });
+          } catch {}
         }
       }
     }

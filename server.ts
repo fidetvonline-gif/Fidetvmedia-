@@ -2724,15 +2724,23 @@ export async function initApp(startServer = true) {
         console.log(`[SPA Fallback] Serving index.html for: ${req.path}`);
         res.sendFile(indexHtmlPath);
       } catch (err) {
-        console.error(`[SPA Fallback Error] index.html not found at ${indexHtmlPath}. Falling back to basic HTML.`);
-        res.status(404).send(`
+        console.warn(`[SPA Fallback Notice] index.html not yet built or found at ${indexHtmlPath}. Serving dynamic bootstrap shell.`);
+        res.status(200).send(`
           <!DOCTYPE html>
           <html lang="en">
-          <head><meta charset="UTF-8"><title>FideTV - Error</title></head>
-          <body style="font-family:sans-serif;text-align:center;padding:50px;">
-            <h1>Page Not Found</h1>
-            <p>The application is still starting up or a file is missing. Please refresh in a moment.</p>
-            <a href="/">Go to Home</a>
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>FideTV Media Hub</title>
+            <script type="module" src="/src/main.tsx"></script>
+          </head>
+          <body style="background:#09090b;color:#f8fafc;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+            <div style="text-align:center;padding:2rem;">
+              <div style="width:40px;height:40px;border:3px solid #10b981;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 1rem;"></div>
+              <h2 style="font-size:1.25rem;font-weight:bold;">Loading FideTV Hub...</h2>
+              <p style="font-size:0.875rem;color:#94a3b8;margin-top:0.5rem;">Synchronizing streams & editorial feeds...</p>
+            </div>
+            <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
           </body>
           </html>
         `);
