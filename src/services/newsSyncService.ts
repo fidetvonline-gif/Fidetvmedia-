@@ -29,18 +29,26 @@ class NewsSyncService {
   }
 
   private loadInitialNews(): NewsType[] {
+    const seed = (AUTO_BLOGS as any[]) || [];
     try {
       const cached = safeLocalStorage.getItem('fidetv_live_blogs_v3');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          const combined = [...parsed, ...seed];
+          const map = new Map();
+          for (const item of combined) {
+            if (item && item.id && !map.has(item.id)) {
+              map.set(item.id, item);
+            }
+          }
+          return Array.from(map.values());
         }
       }
     } catch {
       // Fallback
     }
-    return (AUTO_BLOGS as any[]) || [];
+    return seed;
   }
 
   /**

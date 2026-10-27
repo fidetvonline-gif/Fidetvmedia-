@@ -4163,6 +4163,60 @@ INSERT INTO public.site_settings (key, value) VALUES ('showreel_url', 'https://w
                               <label className="text-[8px] font-black uppercase text-foreground/20 ml-2">Permalink Slug</label>
                               <input value={slug} onChange={e => setSlug(e.target.value)} placeholder="url-friendly-slug" className="w-full bg-background border border-border-custom rounded-xl p-3 text-foreground text-[10px] font-mono shadow-inner" />
                            </div>
+
+                           <div className="space-y-2">
+                              <label className="text-[8px] font-black uppercase text-foreground/20 ml-2">Article Tags</label>
+                              <div className="flex gap-2">
+                                 <input 
+                                   type="text" 
+                                   id="new-tag-input"
+                                   placeholder="Add tag (e.g. Breaking)" 
+                                   className="flex-grow bg-background border border-border-custom rounded-xl p-3 text-foreground text-[10px] shadow-inner outline-none focus:border-primary/50"
+                                   onKeyDown={(e) => {
+                                     if (e.key === 'Enter') {
+                                       e.preventDefault();
+                                       const val = (e.target as HTMLInputElement).value.trim();
+                                       if (val && !blogTags.includes(val)) {
+                                         setBlogTags([...blogTags, val]);
+                                         (e.target as HTMLInputElement).value = '';
+                                       }
+                                     }
+                                   }}
+                                 />
+                                 <button 
+                                   type="button" 
+                                   onClick={() => {
+                                     const inputEl = document.getElementById('new-tag-input') as HTMLInputElement;
+                                     if (inputEl && inputEl.value.trim()) {
+                                       const val = inputEl.value.trim();
+                                       if (!blogTags.includes(val)) {
+                                         setBlogTags([...blogTags, val]);
+                                         inputEl.value = '';
+                                       }
+                                     }
+                                   }}
+                                   className="px-4 py-3 bg-primary/10 border border-primary/20 text-primary text-[10px] font-bold uppercase rounded-xl hover:bg-primary hover:text-white transition-all"
+                                 >
+                                   Add
+                                 </button>
+                              </div>
+                              {blogTags.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 pt-2">
+                                   {blogTags.map((tag, idx) => (
+                                     <span key={idx} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-background border border-border-custom text-[10px] font-bold text-foreground">
+                                        <span>#{tag}</span>
+                                        <button 
+                                          type="button"
+                                          onClick={() => setBlogTags(blogTags.filter((_, i) => i !== idx))}
+                                          className="text-foreground/40 hover:text-red-500 font-bold"
+                                        >
+                                          ×
+                                        </button>
+                                     </span>
+                                   ))}
+                                </div>
+                              )}
+                           </div>
                         </div>
 
                         <div className="space-y-4">

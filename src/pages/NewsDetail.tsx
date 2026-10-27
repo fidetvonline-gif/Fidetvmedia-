@@ -127,7 +127,7 @@ export default function NewsDetail() {
       const targetSlug = slug || '';
       const normalizedTarget = normalizeSlug(targetSlug);
 
-      // 1. Instant in-memory check from NewsSyncService (already in memory on client)
+      // 1. Instant in-memory check from NewsSyncService
       const liveArticles = newsSyncService.getNews();
       let match = liveArticles.find(p => 
         p.slug === targetSlug || 
@@ -176,7 +176,7 @@ export default function NewsDetail() {
         return;
       }
 
-      // 4. Query backend unified API (/api/news/posts/:slug or /api/blog/posts/:slug)
+      // 4. Query backend unified API
       try {
         const endpoints = [
           `/api/news/posts/${encodeURIComponent(targetSlug)}`,
@@ -242,7 +242,6 @@ export default function NewsDetail() {
         console.warn('[NewsDetail] Supabase direct query warning:', dbErr);
       }
 
-      // If not found across all tiers, show friendly not-found state instead of jarring redirect
       setNotFound(true);
     } catch (err) {
       console.error('[NewsDetail] Unexpected error in fetchNewsDetail:', err);
@@ -345,84 +344,83 @@ export default function NewsDetail() {
     : `${item.excerpt || item.description}\n\n---\n\n### 📰 Story Overview & Background\n\n${item.description || item.excerpt || 'Official reporting from the FideTV News Desk.'}\n\n---\n\n### 📡 Editorial Dispatch & Broadcast Notes\n\n* **Category**: ${item.category || 'News'}\n* **Source**: FideTV News Desk Network\n* **Broadcast Availability**: Continuous stream coverage and live viewer commentary available in the FideTV Live section.`;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-32">
       <SEO title={item.title} description={item.excerpt || item.description} />
       
-      {/* Immersive Cinematic Header */}
-      <header className="relative h-[85vh] w-full overflow-hidden border-b border-border-custom">
+      {/* Scroll Progress Bar */}
+      <div className="fixed top-0 left-0 right-0 h-1 bg-primary z-50 transition-all duration-150" style={{ width: `${scrollProgress}%` }} />
+
+      {/* Clean Modern Editorial Header & Cover Image Layout */}
+      <header className="max-w-4xl mx-auto px-4 sm:px-6 pt-12 sm:pt-20 space-y-8">
+         {/* Navigation & Category Bar */}
+         <div className="flex flex-wrap items-center justify-between gap-4">
+            <Link to="/news" className="glass px-4 py-2.5 rounded-2xl text-foreground hover:bg-primary hover:text-white transition-all shadow-md flex items-center gap-2 text-xs font-bold uppercase tracking-wider">
+               <ArrowLeft className="w-4 h-4" />
+               <span>Back to News</span>
+            </Link>
+            
+            <div className="flex items-center gap-3">
+               <span className="bg-primary px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-lg">
+                  {item.category}
+               </span>
+               <div className="glass px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.15em] text-text-muted border border-border-custom flex items-center gap-2">
+                  <Clock className="w-3.5 h-3.5 text-primary" /> {(item as any).read_time || '5 MIN READ'}
+               </div>
+            </div>
+         </div>
+
+         {/* Article Title */}
+         <motion.h1 
+           initial={{ opacity: 0, y: 20 }}
+           animate={{ opacity: 1, y: 0 }}
+           className="text-3xl sm:text-5xl lg:text-6xl font-display font-black text-foreground leading-[1.1] tracking-tight"
+         >
+            {item.title}
+         </motion.h1>
+
+         {/* Author & Share Bar */}
+         <div className="flex flex-wrap items-center justify-between gap-4 py-6 border-y border-border-custom">
+            <div className="flex items-center gap-4">
+               <div className="w-12 h-12 rounded-2xl border border-border-custom overflow-hidden shadow-lg">
+                  <img src={item.profiles?.avatar_url || 'https://api.dicebear.com/7.x/bottts/svg?seed=FideTV'} className="w-full h-full object-cover" alt="Author" />
+               </div>
+               <div>
+                  <p className="text-foreground font-black uppercase tracking-widest text-xs">{item.profiles?.username || 'FideTV News Desk'}</p>
+                  <p className="text-text-muted text-[10px] font-bold uppercase tracking-[0.15em]">{format(new Date(item.created_at), 'MMMM dd, yyyy')}</p>
+               </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+               <button onClick={handleLike} className={cn("glass p-3 rounded-2xl transition-all active:scale-90 flex items-center gap-2 text-xs font-bold", isLiked ? "text-red-500 bg-red-500/10 border-red-500/20" : "text-text-muted hover:text-foreground border-border-custom")}>
+                  <Heart className={cn("w-4 h-4", isLiked && "fill-current")} />
+                  <span>{likesCount}</span>
+               </button>
+               <button onClick={handleShare} className="glass p-3 rounded-2xl text-text-muted hover:text-foreground border border-border-custom transition-all active:scale-90 flex items-center gap-2 text-xs font-bold">
+                  <Share2 className="w-4 h-4" />
+                  <span>Share</span>
+               </button>
+            </div>
+         </div>
+
+         {/* Cover Photo Container (Fully Visible, Zero Overlap) */}
          <motion.div 
-           initial={{ scale: 1.1 }}
-           animate={{ scale: 1 }}
-           transition={{ duration: 1.5, ease: "easeOut" }}
-           className="absolute inset-0 z-0"
+           initial={{ opacity: 0, scale: 0.98 }}
+           animate={{ opacity: 1, scale: 1 }}
+           transition={{ duration: 0.5 }}
+           className="w-full aspect-[16/9] sm:aspect-[21/9] rounded-[2.5rem] overflow-hidden border border-border-custom shadow-2xl bg-surface relative"
          >
             <img 
               src={getHighQualityImage(item.image_url || (item as any).cover_image, item.category, item.title)} 
               className="w-full h-full object-cover"
               alt={item.title}
+              onError={(e) => { e.currentTarget.src = getClientContentImage(item.title, item.category); }}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-black/20" />
          </motion.div>
-
-         <div className="absolute inset-0 z-10 flex flex-col justify-end">
-            <div className="max-w-6xl mx-auto px-6 pb-20 w-full space-y-8">
-               <motion.div 
-                 initial={{ opacity: 0, x: -20 }}
-                 animate={{ opacity: 1, x: 0 }}
-                 className="flex flex-wrap items-center gap-4"
-               >
-                  <Link to="/news" className="glass p-3 rounded-2xl text-white hover:bg-primary transition-all shadow-2xl" aria-label="Back to news">
-                     <ArrowLeft className="w-5 h-5" />
-                  </Link>
-                  <span className="bg-primary px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-xl">
-                     {item.category}
-                  </span>
-                  <div className="glass px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.15em] text-white/80 border border-white/10 flex items-center gap-2">
-                     <Clock className="w-3.5 h-3.5" /> {(item as any).read_time || '5 MIN READ'}
-                  </div>
-               </motion.div>
-
-               <motion.h1 
-                 initial={{ opacity: 0, y: 30 }}
-                 animate={{ opacity: 1, y: 0 }}
-                 transition={{ delay: 0.2 }}
-                 className="text-4xl md:text-7xl lg:text-8xl font-display font-black text-white leading-[1.05] tracking-tighter"
-               >
-                  {item.title}
-               </motion.h1>
-
-               <motion.div 
-                 initial={{ opacity: 0 }}
-                 animate={{ opacity: 1 }}
-                 transition={{ delay: 0.4 }}
-                 className="flex items-center justify-between pt-12 border-t border-white/10"
-               >
-                  <div className="flex items-center gap-4">
-                     <div className="w-14 h-14 rounded-2xl border border-white/20 overflow-hidden shadow-2xl">
-                        <img src={item.profiles?.avatar_url || 'https://api.dicebear.com/7.x/bottts/svg?seed=FideTV'} className="w-full h-full object-cover" alt="Author" />
-                     </div>
-                     <div>
-                        <p className="text-white font-black uppercase tracking-widest text-sm">{item.profiles?.username || 'News Desk'}</p>
-                        <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.2em]">{format(new Date(item.created_at), 'MMMM dd, yyyy')}</p>
-                     </div>
-                  </div>
-
-                  <div className="hidden sm:flex items-center gap-4">
-                     <button onClick={handleLike} className={cn("glass p-4 rounded-2xl transition-all active:scale-90", isLiked ? "text-red-500 bg-red-500/10 border-red-500/20" : "text-white/60 hover:text-white border-white/10")}>
-                        <Heart className={cn("w-6 h-6", isLiked && "fill-current")} />
-                     </button>
-                     <button onClick={handleShare} className="glass p-4 rounded-2xl text-white/60 hover:text-white border-white/10 transition-all active:scale-90">
-                        <Share2 className="w-6 h-6" />
-                     </button>
-                  </div>
-               </motion.div>
-            </div>
-         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="max-w-4xl mx-auto px-6 py-20 space-y-16">
-         {/* Lead Paragraph */}
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-12 space-y-16">
+         {/* Lead Paragraph / Excerpt */}
          <section className="relative">
             <div className="p-8 sm:p-10 rounded-3xl bg-surface border border-border-custom shadow-sm space-y-3">
                <p className="text-xl sm:text-2xl font-light text-foreground leading-relaxed italic">
@@ -437,126 +435,109 @@ export default function NewsDetail() {
               components={{
                 h2: ({ node, ...props }) => <h2 className="text-2xl md:text-4xl font-display font-black text-foreground mt-16 mb-8 tracking-tight" {...props} />,
                 h3: ({ node, ...props }) => <h3 className="text-xl md:text-2xl font-display font-bold text-primary mt-10 mb-4" {...props} />,
-                p: ({ node, ...props }) => <p className="text-foreground/80 text-lg leading-relaxed mb-6 font-light" {...props} />,
-                img: ({ node, ...props }) => <img className="rounded-3xl w-full shadow-2xl border border-border-custom my-12" {...props as any} />,
-                blockquote: ({ node, ...props }) => (
-                  <blockquote className="border-l-0 bg-surface p-8 sm:p-10 rounded-3xl text-xl font-display font-light italic text-foreground shadow-sm my-12 border border-border-custom" {...props} />
-                ),
-                hr: () => <hr className="my-16 border-border-custom opacity-40" />,
-                a: ({ node, ...props }) => {
-                   const url = props.href || '';
-                   if (Player.canPlay(url)) return <div className="my-12 rounded-3xl overflow-hidden aspect-video bg-black shadow-2xl"><Player url={url} width="100%" height="100%" controls /></div>;
-                   return <a className="text-primary font-bold underline underline-offset-4 hover:text-emerald-400 transition-colors" {...props} />;
-                }
+                p: ({ node, ...props }) => <p className="text-foreground/85 text-lg leading-relaxed mb-6 font-light" {...props} />,
+                ul: ({ node, ...props }) => <ul className="list-disc pl-6 space-y-2 text-foreground/85 my-6" {...props} />,
+                ol: ({ node, ...props }) => <ol className="list-decimal pl-6 space-y-2 text-foreground/85 my-6" {...props} />,
+                li: ({ node, ...props }) => <li className="text-foreground/85 text-base font-light" {...props} />,
+                blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-primary pl-6 py-2 my-8 italic text-foreground/90 font-medium bg-surface/50 rounded-r-2xl" {...props} />,
+                strong: ({ node, ...props }) => <strong className="font-bold text-foreground" {...props} />,
+                a: ({ node, ...props }) => <a className="text-primary hover:underline font-bold" target="_blank" rel="noopener noreferrer" {...props} />
               }}
             >
-              {articleContent}
+               {articleContent}
             </ReactMarkdown>
          </article>
 
-         {/* Interactive Footer Actions */}
-         <footer className="pt-16 border-t border-border-custom space-y-12">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-               <div className="flex items-center gap-4">
-                  <button onClick={handleLike} className="flex items-center gap-3 px-6 py-3 rounded-2xl glass border border-primary/20 text-primary font-bold uppercase tracking-wider text-xs active:scale-95 transition-all">
-                     <Heart className={cn("w-4 h-4", isLiked && "fill-current")} />
-                     <span>{likesCount} Encores</span>
-                  </button>
-                  <button onClick={handleShare} className="p-3 rounded-2xl glass border border-border-custom text-foreground/50 hover:text-primary transition-all">
-                     <Share2 className="w-4 h-4" />
-                  </button>
-               </div>
-               
-               <div className="flex items-center gap-2 text-xs text-text-muted">
-                  <span className="font-semibold uppercase tracking-wider text-[10px]">Tags:</span>
-                  {Array.from(new Set(item.tags || [])).slice(0, 4).map((tag, idx, arr) => (
-                    <React.Fragment key={tag}>
-                      <span className="font-medium text-foreground/75">#{tag}</span>
-                      {idx < arr.length - 1 && <span aria-hidden="true" className="opacity-40">·</span>}
-                    </React.Fragment>
-                  ))}
-               </div>
+         {/* Interactive Reactions & Share Bar */}
+         <div className="pt-10 border-t border-border-custom flex flex-wrap items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+               <button onClick={handleLike} className={cn("px-6 py-3.5 rounded-2xl glass border flex items-center gap-2 font-bold text-xs uppercase tracking-wider transition-all", isLiked ? "text-red-500 bg-red-500/10 border-red-500/30" : "text-foreground border-border-custom hover:bg-surface-bright")}>
+                  <Heart className={cn("w-4 h-4", isLiked && "fill-current")} />
+                  <span>{likesCount} Likes</span>
+               </button>
+               <button onClick={handleShare} className="px-6 py-3.5 rounded-2xl glass border border-border-custom text-foreground hover:bg-surface-bright flex items-center gap-2 font-bold text-xs uppercase tracking-wider transition-all">
+                  <Share2 className="w-4 h-4" />
+                  <span>Share Story</span>
+               </button>
             </div>
+            <div className="text-text-muted text-[10px] font-black uppercase tracking-widest">
+               FideTV Editorial Wire Desk
+            </div>
+         </div>
 
-            {/* Premium Related Engine */}
-            {relatedNews.length > 0 && (
-               <section className="space-y-12">
-                  <div className="flex items-center gap-4">
-                     <h3 className="text-xs font-black uppercase tracking-[0.4em] text-text-muted">Further Reading</h3>
-                     <div className="h-px bg-border-custom flex-grow" />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
-                     {relatedNews.map(news => (
-                       <Link key={news.id} to={`/news/${news.slug}`} className="group space-y-4">
-                          <div className="aspect-video rounded-2xl overflow-hidden border border-border-custom bg-surface relative">
-                             <img src={getHighQualityImage(news.image_url, news.category, news.title)} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
-                          </div>
-                          <h4 className="text-lg font-display font-bold text-foreground leading-tight group-hover:text-primary transition-colors line-clamp-2">{news.title}</h4>
-                       </Link>
-                     ))}
-                  </div>
-               </section>
+         {/* Comments Section */}
+         <section className="space-y-8 pt-10 border-t border-border-custom">
+            <h3 className="text-2xl font-display font-black text-foreground flex items-center gap-3">
+               <MessageCircle className="w-6 h-6 text-primary" />
+               <span>Discussion ({comments.length})</span>
+            </h3>
+
+            {user ? (
+              <form onSubmit={handleComment} className="space-y-4">
+                 <textarea
+                   value={newComment}
+                   onChange={(e) => setNewComment(e.target.value)}
+                   placeholder="Share your perspective on this report..."
+                   rows={3}
+                   className="w-full p-4 rounded-2xl glass border border-border-custom text-foreground text-sm focus:ring-2 focus:ring-primary/20 outline-none resize-none"
+                 />
+                 <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={submittingComment || !newComment.trim()}
+                      className="px-6 py-3 bg-primary text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-emerald-500 shadow-lg transition-all flex items-center gap-2 disabled:opacity-50"
+                    >
+                      <Send className="w-4 h-4" />
+                      <span>Post Comment</span>
+                    </button>
+                 </div>
+              </form>
+            ) : (
+              <div className="p-6 rounded-2xl glass border border-border-custom text-center space-y-3">
+                 <p className="text-text-muted text-sm">Sign in to join the conversation and leave comments.</p>
+                 <Link to="/auth" className="inline-block px-6 py-3 bg-primary text-white text-xs font-black uppercase tracking-widest rounded-xl">Sign In</Link>
+              </div>
             )}
 
-            {/* Cinematic Comments */}
-            <section className="space-y-12">
-               <h3 className="text-2xl font-display font-black text-foreground tracking-tight flex items-center gap-4">
-                  Community Discourse <span className="text-primary/30 font-light">({comments.length})</span>
-               </h3>
-               
-               {user ? (
-                 <form onSubmit={handleComment} className="relative group">
-                    <textarea 
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      placeholder="Contribute to the conversation..."
-                      className="w-full bg-surface border border-border-custom rounded-[2.5rem] p-10 text-xl font-light focus:border-primary/40 outline-none transition-all min-h-[180px] shadow-inner"
-                    />
-                    <button 
-                      disabled={submittingComment || !newComment.trim()}
-                      className="absolute bottom-8 right-8 px-10 py-4 bg-primary text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-2xl shadow-primary/30 hover:scale-105 active:scale-95 transition-all"
-                    >
-                       Dispatch Perspective
-                    </button>
-                 </form>
-               ) : (
-                 <div className="p-16 rounded-[3rem] border border-dashed border-border-custom text-center space-y-6 bg-surface/30">
-                    <p className="text-text-muted text-lg italic font-light">Community perspective requires authentication.</p>
-                    <Link to="/auth" className="inline-block px-12 py-5 bg-primary text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-xl">Identify Yourself</Link>
+            <div className="space-y-4">
+               {comments.map((comment) => (
+                 <div key={comment.id} className="p-6 rounded-2xl glass border border-border-custom space-y-3">
+                    <div className="flex items-center justify-between">
+                       <div className="flex items-center gap-3">
+                          <img src={comment.profiles?.avatar_url || 'https://api.dicebear.com/7.x/bottts/svg?seed=user'} className="w-8 h-8 rounded-full border border-border-custom" alt="User" />
+                          <span className="text-xs font-black text-foreground uppercase">{comment.profiles?.username || 'Viewer'}</span>
+                       </div>
+                       <span className="text-[10px] text-text-muted">{formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}</span>
+                    </div>
+                    <p className="text-sm text-foreground/90 font-light">{comment.content}</p>
                  </div>
-               )}
+               ))}
+            </div>
+         </section>
 
-               <div className="space-y-8">
-                  {comments.map(c => (
-                    <motion.div key={c.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} className="flex gap-8 group">
-                       <div className="w-16 h-16 rounded-2xl bg-surface border border-border-custom overflow-hidden shrink-0 shadow-lg">
-                          <img src={c.profiles?.avatar_url || 'https://api.dicebear.com/7.x/bottts/svg?seed=User'} className="w-full h-full object-cover" />
-                       </div>
-                       <div className="flex-grow space-y-4">
-                          <div className="flex items-center justify-between">
-                             <div className="flex items-center gap-2">
-                                <span className="font-black text-foreground uppercase tracking-widest text-xs">{c.profiles?.username}</span>
-                                {c.profiles?.is_verified && <Award className="w-4 h-4 text-emerald-400" />}
-                             </div>
-                             <span className="text-[10px] font-bold text-text-muted/60 uppercase">{formatDistanceToNow(new Date(c.created_at))} ago</span>
-                          </div>
-                          <div className="bg-surface/50 border border-border-custom p-8 rounded-[2rem] shadow-sm italic text-foreground/70 leading-relaxed text-lg">
-                             "{c.content}"
-                          </div>
-                       </div>
-                    </motion.div>
-                  ))}
-               </div>
-            </section>
-         </footer>
+         {/* Related Stories */}
+         {relatedNews.length > 0 && (
+           <section className="space-y-8 pt-16 border-t border-border-custom">
+              <h3 className="text-2xl font-display font-black text-foreground">Related Reports</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                 {relatedNews.map((rel) => (
+                   <Link key={rel.id} to={`/news/${rel.slug || rel.id}`} className="group block rounded-3xl glass border border-border-custom overflow-hidden p-5 space-y-4 hover:border-primary/40 transition-all">
+                      <div className="aspect-[16/10] rounded-2xl overflow-hidden">
+                         <img 
+                           src={getHighQualityImage(rel.image_url, rel.category, rel.title)} 
+                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                           alt={rel.title}
+                           onError={(e) => { e.currentTarget.src = getClientContentImage(rel.title, rel.category); }}
+                         />
+                      </div>
+                      <span className="text-[9px] font-black uppercase tracking-widest text-primary">{rel.category}</span>
+                      <h4 className="text-base font-display font-bold text-foreground group-hover:text-primary transition-colors line-clamp-2">{rel.title}</h4>
+                   </Link>
+                 ))}
+              </div>
+           </section>
+         )}
       </main>
-
-      <div className="fixed top-0 left-0 right-0 z-[6000] h-1 bg-border-custom/30">
-         <motion.div 
-           className="h-full bg-gradient-to-r from-primary to-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.5)]"
-           style={{ width: `${scrollProgress}%` }}
-         />
-      </div>
     </div>
   );
 }
