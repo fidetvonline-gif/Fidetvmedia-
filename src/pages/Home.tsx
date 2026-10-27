@@ -477,48 +477,40 @@ export default function Home() {
               variants={staggerContainer}
               initial="hidden"
               animate="visible"
-              className="lg:col-span-7 space-y-6"
+              className="lg:col-span-7 space-y-8"
             >
-              <motion.div variants={fadeInUp}>
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-wider">
-                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                  <span>Dynamic Live Streaming & Media Hub</span>
-                </div>
-              </motion.div>
-
               <motion.h1 
                 variants={fadeInUp}
                 className="text-4xl sm:text-6xl lg:text-7xl font-display font-black tracking-tight leading-[1.05] text-foreground"
               >
-                Design. <span className="text-primary italic">Stream.</span> <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#e0650d]">Grow.</span>
+                Design. <span className="text-primary italic">Stream.</span> <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-[#f27d26] to-[#e0650d]">Grow.</span>
               </motion.h1>
 
               <motion.p 
                 variants={fadeInUp}
-                className="text-base sm:text-lg text-text-muted font-normal leading-relaxed max-w-xl"
+                className="text-lg sm:text-xl text-text-muted font-normal leading-relaxed max-w-xl"
               >
-                Nigeria&apos;s premier digital broadcasting network and creative agency. Explore 25+ round-the-clock live channels, instant news wire updates, audio spaces, and certified media production.
+                Nigeria&apos;s premier digital broadcasting network and creative production agency. Delivering 25+ round-the-clock live TV channels, instant news wire updates, professional video production, and custom web experiences.
               </motion.p>
 
               <motion.div variants={fadeInUp} className="flex flex-wrap items-center gap-4 pt-2">
                 <Link
                   to="/live"
                   id="hero-watch-live-btn"
-                  className="px-8 py-4 bg-primary text-white font-bold text-xs uppercase tracking-wider rounded-2xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/25 flex items-center gap-3 active:scale-95 group"
+                  className="px-8 py-4 bg-primary text-white font-black text-xs uppercase tracking-wider rounded-2xl hover:bg-primary/90 transition-all shadow-xl shadow-primary/30 flex items-center gap-3 active:scale-95 group"
                 >
-                  <span className="w-2 h-2 rounded-full bg-red-400 animate-ping" />
-                  <span>Watch Live</span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping" />
+                  <span>Watch Live TV</span>
                   <Play className="w-4 h-4 fill-current group-hover:scale-110 transition-transform" />
                 </Link>
 
                 <Link
-                  to="/news"
-                  id="hero-explore-news-btn"
-                  className="px-8 py-4 bg-surface hover:bg-surface-bright border border-border-custom text-foreground font-bold text-xs uppercase tracking-wider rounded-2xl transition-all shadow-sm flex items-center gap-2 active:scale-95 group"
+                  to="/services"
+                  id="hero-services-btn"
+                  className="px-8 py-4 bg-surface hover:bg-surface-bright border border-border-custom text-foreground font-black text-xs uppercase tracking-wider rounded-2xl transition-all shadow-md flex items-center gap-2 active:scale-95 group"
                 >
-                  <Newspaper className="w-4 h-4 text-primary" />
-                  <span>Explore News</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  <span>Explore Services</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform text-primary" />
                 </Link>
               </motion.div>
 
@@ -548,7 +540,7 @@ export default function Home() {
               transition={{ duration: 0.8, delay: 0.2 }}
               className="lg:col-span-5 relative"
             >
-              <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 via-orange-500/10 to-emerald-500/15 blur-2xl rounded-[3rem] pointer-events-none" />
+              <div className="absolute -inset-4 bg-gradient-to-r from-primary/25 via-orange-500/15 to-emerald-500/20 blur-3xl rounded-[3rem] pointer-events-none" />
               <div className="relative bg-surface border border-border-custom rounded-[2.5rem] p-4 sm:p-5 shadow-2xl overflow-hidden group">
                 <div className="relative aspect-[16/10] sm:aspect-[4/3] rounded-[2rem] overflow-hidden bg-background">
                   <img 
@@ -560,7 +552,7 @@ export default function Home() {
                   
                   {/* Overlay Badges */}
                   <div className="absolute top-4 left-4 flex items-center gap-2">
-                    <span className="px-3 py-1 rounded-full bg-red-600/90 text-white text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-lg backdrop-blur-md">
+                    <span className="px-3 py-1 rounded-full bg-red-600 text-white text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-lg backdrop-blur-md">
                       <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
                       ON AIR
                     </span>
@@ -590,8 +582,8 @@ export default function Home() {
                     <Radio className="w-3.5 h-3.5 text-primary animate-pulse" />
                     <span className="font-bold text-foreground text-[11px]">Continuous Feed</span>
                   </div>
-                  <Link to="/spaces" className="text-primary hover:underline font-bold text-[11px] flex items-center gap-1">
-                    <span>Audio Spaces</span>
+                  <Link to="/services" className="text-primary hover:underline font-bold text-[11px] flex items-center gap-1">
+                    <span>Our Services</span>
                     <ArrowRight className="w-3 h-3" />
                   </Link>
                 </div>

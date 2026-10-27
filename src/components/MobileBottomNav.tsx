@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, PlayCircle, Newspaper, Headset, LayoutGrid, Sparkles } from 'lucide-react';
+import { Home, PlayCircle, Newspaper, Briefcase, LayoutGrid, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'motion/react';
 
@@ -9,7 +9,7 @@ const MOBILE_NAV_ITEMS = [
   { name: 'Live', path: '/live', icon: PlayCircle },
   { name: 'Action', path: '#', isAction: true },
   { name: 'News', path: '/news', icon: Newspaper },
-  { name: 'Spaces', path: '/spaces', icon: Headset },
+  { name: 'Services', path: '/services', icon: Briefcase },
 ];
 
 export default function MobileBottomNav({ onActionClick }: { onActionClick: () => void }) {
