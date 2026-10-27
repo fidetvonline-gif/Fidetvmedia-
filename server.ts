@@ -2676,6 +2676,23 @@ export async function initApp(startServer = true) {
     });
     
     app.use(vite.middlewares);
+
+    app.use(/(.*)/, async (req, res, next) => {
+      if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ success: false, error: "API route not found" });
+      }
+      if (req.path.includes('.') && !req.path.endsWith('.html')) {
+        return res.status(404).end();
+      }
+      try {
+        const indexPath = path.resolve(process.cwd(), 'index.html');
+        let html = await fs.readFile(indexPath, 'utf-8');
+        html = await vite.transformIndexHtml(req.url, html);
+        res.status(200).set({ 'Content-Type': 'text/html' }).send(html);
+      } catch (e) {
+        next(e);
+      }
+    });
   } else {
     // In production, files are in 'dist' directory relative to the project root
     // On Vercel, we need to be careful about path resolution
@@ -2689,7 +2706,7 @@ export async function initApp(startServer = true) {
     
     // Catch-all for SPA in production - Must be AFTER all other routes
     // Express 5 compatible catch-all route syntax
-    app.get('*', async (req, res) => {
+    app.get(/(.*)/, async (req, res) => {
       // If API route not found, return 404 json
       if (req.path.startsWith('/api/')) {
         console.warn(`[API 404] ${req.method} ${req.path}`);
