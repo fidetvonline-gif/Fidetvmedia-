@@ -1936,6 +1936,13 @@ export async function initApp(startServer = true) {
           const buffer = Buffer.concat(chunks);
           const content = buffer.toString('utf8');
           
+          // CRITICAL: Reject HTML error pages disguised as manifests
+          const lowerContent = content.trim().toLowerCase();
+          if (lowerContent.startsWith('<!doctype') || lowerContent.startsWith('<html') || lowerContent.includes('<title>error')) {
+            console.error(`[Proxy] Blocked HTML error page from stream provider for: ${streamUrl}`);
+            return res.status(502).send('Upstream stream provider returned an HTML error page.');
+          }
+
           if (!content.trim().startsWith('#EXTM3U')) {
             // Not a manifest, just send as-is
             res.setHeader('Content-Type', contentType || 'application/octet-stream');
