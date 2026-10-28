@@ -189,6 +189,9 @@ export default function Live() {
 
   const [visibleItemsPerCategory, setVisibleItemsPerCategory] = useState<Record<string, number>>({});
 
+  // Optimization: Pre-calculate default channel IDs
+  const defaultChannelIds = useMemo(() => new Set(DEFAULT_CHANNELS.map(c => c.id)), []);
+
   const filteredChannelsByCategory = useMemo(() => {
     const grouped: Record<string, any[]> = {};
     const query = searchQuery.toLowerCase();
@@ -203,8 +206,7 @@ export default function Live() {
         let cat = c.category || 'Live Channels';
         
         // If it's a default channel, move to Featured for prominence
-        const isDefault = DEFAULT_CHANNELS.some(dc => dc.id === c.id);
-        if (isDefault) {
+        if (defaultChannelIds.has(c.id)) {
           cat = 'Featured';
         }
 
@@ -214,10 +216,10 @@ export default function Live() {
     });
 
     return grouped;
-  }, [allChannels, searchQuery]);
+  }, [allChannels, searchQuery, defaultChannelIds]);
 
   const sortedCategoryKeys = useMemo(() => {
-    const important = ['Featured', 'Football', 'Sports', 'News', 'Movies', 'Entertainment', 'Nigerian TV'];
+    const important = ['Featured', 'Nigerian TV', 'African News', 'International News', 'Nollywood & African Movies', 'International Movies', 'Sports', 'Nigerian Music', 'African Music', 'Gospel Music', 'International Music'];
     return Object.keys(filteredChannelsByCategory).sort((a, b) => {
         const aIdx = important.indexOf(a);
         const bIdx = important.indexOf(b);

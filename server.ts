@@ -1873,7 +1873,7 @@ export async function initApp(startServer = true) {
         headers,
         timeout: 45000, // Increased for stability
         responseType: 'stream',
-        validateStatus: (status) => status < 500, 
+        validateStatus: (status) => status >= 200 && status < 300, 
         maxRedirects: 15
       });
       

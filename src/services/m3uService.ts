@@ -28,27 +28,39 @@ export class M3UService {
   private static normalizeCategory(name: string, groupTitle: string, country: string): string {
     const n = name.toLowerCase();
     const g = groupTitle ? groupTitle.toLowerCase() : '';
-    const combined = `${n} ${g}`;
+    const combined = `${n} ${g} ${country.toLowerCase()}`;
     
-    if (combined.includes('movie') || combined.includes('cinema') || combined.includes('film')) return 'Movies';
-    if (combined.includes('news')) return 'News';
+    // Explicit Keywords
+    const isNigerian = combined.includes('nigeria') || combined.includes(' ng ') || combined.includes('naija');
+    const isAfrican = isNigerian || combined.includes('africa') || combined.includes('ghana') || combined.includes('kenya') || combined.includes('south africa') || combined.includes(' za ') || combined.includes(' gh ') || combined.includes(' ke ');
+
+    // Nigerian TV
+    if (isNigerian && (combined.includes('tv') || combined.includes('news') || combined.includes('entertainment') || combined.includes('channel'))) return 'Nigerian TV';
+
+    // African News
+    if (combined.includes('news') || combined.includes('wire')) {
+      if (isAfrican && (combined.includes('africa') || combined.includes('nigeria') || combined.includes('ghana') || combined.includes('kenya'))) return 'African News';
+      return 'International News';
+    }
+
+    // Nollywood & African Movies
+    if (combined.includes('movie') || combined.includes('cinema') || combined.includes('film')) {
+      if ((isAfrican || combined.includes('nollywood')) && (combined.includes('africa') || combined.includes('nollywood') || combined.includes('nigeria'))) return 'Nollywood & African Movies';
+      return 'International Movies';
+    }
+
+    // Music Categories
+    if (combined.includes('music')) {
+      if (combined.includes('gospel') || combined.includes('worship')) return 'Gospel Music';
+      if (isNigerian) return 'Nigerian Music';
+      if (isAfrican) return 'African Music';
+      return 'International Music';
+    }
+
+    // Sports
     if (combined.includes('sport')) return 'Sports';
-    if (combined.includes('kids') || combined.includes('cartoon') || combined.includes('animation')) return 'Kids';
-    if (combined.includes('music')) return 'Music';
-    if (combined.includes('religious') || combined.includes('christian') || combined.includes('islamic') || combined.includes('catholic') || combined.includes('gospel')) return 'Religious';
-    if (combined.includes('doc')) return 'Documentary';
-    if (combined.includes('lifestyle') || combined.includes('fashion') || combined.includes('travel')) return 'Lifestyle';
-    if (combined.includes('action')) return 'Movies / Action';
-    if (combined.includes('comedy')) return 'Comedy';
-    if (combined.includes('drama')) return 'Drama';
-    if (combined.includes('entertainment')) return 'Entertainment';
-    
-    // Country specific overrides
-    if (country === 'NG') return 'Nigerian';
-    if (country === 'IN' && (combined.includes('movie') || combined.includes('cinema'))) return 'Indian Movies';
-    if (country === 'IN') return 'Indian';
-    if (country === 'PH') return 'Philippines';
-    
+
+    // Other/Default
     return 'General'; // Default
   }
 

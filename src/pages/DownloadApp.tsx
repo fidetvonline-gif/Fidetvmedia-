@@ -396,7 +396,7 @@ export default function DownloadApp() {
   };
 
   return (
-    <div className="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-24 mb-32">
+    <div className="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-24 mb-32 overflow-hidden">
        
       {/* Hero Section */}
       <section className="text-center max-w-3xl mx-auto space-y-8">
