@@ -18,16 +18,16 @@ export const normalizeChannelIdentifier = (channel: any) => {
 };
 
 export const mergeChannels = (defaultChannels: any[], dbChannels: any[]) => {
-    const merged = [...defaultChannels];
-    
-    dbChannels.forEach(dbCh => {
-        const normalizedDbId = normalizeChannelIdentifier(dbCh);
-        
-        const idx = merged.findIndex(c => {
-            const normalizedBaseId = normalizeChannelIdentifier(c);
-            return c.id === dbCh.id || normalizedBaseId === normalizedDbId;
-        });
+    const channelMap = new Map<string, any>();
 
+    // Add default channels
+    defaultChannels.forEach(c => {
+        channelMap.set(normalizeChannelIdentifier(c), c);
+    });
+    
+    // Add or merge db channels
+    dbChannels.forEach(dbCh => {
+        const id = normalizeChannelIdentifier(dbCh);
         const mapped = {
             id: dbCh.id,
             name: dbCh.name,
@@ -38,12 +38,13 @@ export const mergeChannels = (defaultChannels: any[], dbChannels: any[]) => {
             description: dbCh.description || 'Channel stream.',
             isLive: true
         };
-        
-        if (idx > -1) {
-            merged[idx] = { ...merged[idx], ...mapped };
+
+        if (channelMap.has(id)) {
+            channelMap.set(id, { ...channelMap.get(id), ...mapped });
         } else {
-            merged.push(mapped as any);
+            channelMap.set(id, mapped);
         }
     });
-    return merged;
+
+    return Array.from(channelMap.values());
 };

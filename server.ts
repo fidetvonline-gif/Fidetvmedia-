@@ -249,7 +249,7 @@ export async function initApp(startServer = true) {
       } finally {
         isAutomationRunning = false;
       }
-    }, 12 * 60 * 60 * 1000);
+    }, 2 * 60 * 60 * 1000);
   }
 
   const apiRouter = express.Router();
@@ -2449,7 +2449,7 @@ export async function initApp(startServer = true) {
 
       if (forceRefresh || currentPosts.posts.length < 5) {
         console.log('[API /news] Immediate sync triggered (forceRefresh or low count)...');
-        await autoBlogService.syncLatestNews().catch(err => console.warn('[API /news] Sync warning:', err.message));
+        autoBlogService.syncLatestNews().catch(err => console.warn('[API /news] Sync warning:', err.message));
       } else if (isStale) {
         console.log('[API /news] News cache is stale (>2 mins). Scheduling background sync...');
         autoBlogService.syncLatestNews().catch(err => console.warn('[API /news] Background sync warning:', err.message));

@@ -308,7 +308,7 @@ export class ChannelIngestionService {
           } else {
             report.offline++;
             const newFailureCount = (channel.failure_count || 0) + 1;
-            const failureThreshold = (7 * 24 * 4); 
+            const failureThreshold = 24; 
 
             if (newFailureCount >= failureThreshold) {
               toArchive.push(channel.id);

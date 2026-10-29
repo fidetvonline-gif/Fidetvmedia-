@@ -1182,8 +1182,8 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
         // Sync new post to Supabase database
         if (this.supabase) {
           try {
-            console.log('[AutoBlogService] Upserting to Supabase:', newPost.id, newPost.title);
-            await this.supabase.from('news').upsert({
+            console.log('[AutoBlogService] Upserting to Supabase:', newPost.id, newPost.title.substring(0, 50));
+            const { error: upsertError } = await this.supabase.from('news').upsert({
               id: newPost.id,
               slug: newPost.slug || newPost.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
               title: newPost.title,
@@ -1202,8 +1202,12 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
               source_url: newPost.source_url,
               region: newPost.region
             }, { onConflict: 'id' });
+            
+            if (upsertError) {
+              console.error(`[AutoBlogService] Supabase upsert error for ${newPost.id}:`, upsertError);
+            }
           } catch (dbErr: any) {
-            console.error('[AutoBlogService] Supabase news upsert FAILED:', dbErr);
+            console.error('[AutoBlogService] Supabase news upsert FAILED for:', newPost.title, dbErr);
           }
         }
       }
