@@ -127,20 +127,20 @@ export class AutoBlogService {
       // Always pull latest from Supabase immediately on startup to ensure we aren't using stale bundled data
       await this.pullFromSupabase().catch(err => console.error('[AutoBlogService] Startup DB pull failed:', err));
 
-      // Trigger immediate background sync if stale or low post count
-      if (this.isStale(5) || this.posts.length < 10) {
+      // Trigger immediate background sync if stale or low post count (more aggressive)
+      if (this.isStale(1) || this.posts.length < 10) {
         console.log('[AutoBlogService] Initial news sync triggered on startup...');
         this.syncLatestNews().catch(err => console.warn('[AutoBlogService] Initial sync notice:', err.message));
       }
 
-      // Schedule periodic automatic update every 5 minutes (proactive wire update)
+      // Schedule periodic automatic update every 2 minutes (more aggressive)
       if (!this.syncIntervalHandle && typeof setInterval !== 'undefined' && !process.env.VERCEL) {
         this.syncIntervalHandle = setInterval(() => {
-          console.log('[AutoBlogService] Triggering scheduled automated news update cycle (5m)...');
+          console.log('[AutoBlogService] Triggering scheduled automated news update cycle (2m)...');
           this.syncLatestNews().catch(err => {
             console.error('[AutoBlogService] Scheduled sync error:', err);
           });
-        }, 5 * 60 * 1000);
+        }, 2 * 60 * 1000);
       }
 
       // Initialize real-time listener to keep server cache in sync with DB
@@ -191,7 +191,7 @@ export class AutoBlogService {
   /**
    * Check whether the cached news is stale (older than maxAgeMinutes, or never synced)
    */
-  public isStale(maxAgeMinutes = 2): boolean {
+  public isStale(maxAgeMinutes = 1): boolean {
     if (!this.lastSyncTime) return true;
     const ageMs = Date.now() - new Date(this.lastSyncTime).getTime();
     return ageMs > maxAgeMinutes * 60 * 1000;
