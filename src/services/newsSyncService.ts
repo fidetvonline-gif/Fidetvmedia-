@@ -18,6 +18,7 @@ class NewsSyncService {
   private visibilityListenerAdded = false;
 
   private constructor() {
+    safeLocalStorage.removeItem('fidetv_live_blogs_v3');
     this.currentNews = this.loadInitialNews();
   }
 
@@ -63,11 +64,11 @@ class NewsSyncService {
     // Perform initial fetch & sync
     this.refreshNews();
 
-    // 1. Auto-polling interval: fetch fresh articles every 60 seconds while page is open
+    // 1. Auto-polling interval: fetch fresh articles every 10 seconds while page is open
     if (!this.pollIntervalHandle && typeof window !== 'undefined') {
       this.pollIntervalHandle = window.setInterval(() => {
         this.refreshNews();
-      }, 30 * 1000);
+      }, 10 * 1000);
     }
 
     // 2. Tab focus & visibility handler: refresh if inactive for >3 minutes
@@ -202,11 +203,7 @@ class NewsSyncService {
   }
 
   private persistToCache() {
-    try {
-      safeLocalStorage.setItem('fidetv_live_blogs_v3', JSON.stringify(this.currentNews));
-    } catch (e) {
-      // silent fail
-    }
+    // Disabled persistent caching for rapid updates
   }
 
   /**
