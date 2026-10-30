@@ -398,6 +398,22 @@ export class ChannelIngestionService {
     return this.runFullAutomation();
   }
 
+  /**
+   * Returns statistics on added channels
+   */
+  async getChannelStats() {
+    const { data, error } = await this.supabase
+      .from('tv_channels')
+      .select('name, country, category');
+    
+    if (error) throw error;
+    
+    const total = data.length;
+    const nigerian = data.filter(c => c.country?.toLowerCase().includes('nigeria') || c.category?.toLowerCase().includes('nigeria')).length;
+    
+    return { total, nigerian };
+  }
+
   private async updateChannel(id: string, data: any) {
     await this.supabase.from('discovered_channels').update(data).eq('id', id);
   }

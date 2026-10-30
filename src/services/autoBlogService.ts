@@ -1148,7 +1148,15 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
 
         const id = crypto.randomUUID();
         let slug = this.generateSlug(generated.title) || tempSlug;
-        if (this.posts.some(p => p.slug === slug)) {
+        
+        // Check for slug conflict in local cache AND Supabase
+        let slugExists = this.posts.some(p => p.slug === slug);
+        if (!slugExists && this.supabase) {
+          const { data } = await this.supabase.from('news').select('id').eq('slug', slug).maybeSingle();
+          if (data) slugExists = true;
+        }
+
+        if (slugExists) {
           slug = `${slug}-${Date.now().toString(36).substring(4)}`;
         }
 
@@ -1204,7 +1212,7 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
             }, { onConflict: 'id' });
             
             if (upsertError) {
-              console.error(`[AutoBlogService] Supabase upsert error for ${newPost.id}:`, upsertError);
+              console.error(`[AutoBlogService] Supabase upsert error for ${newPost.id} (slug: ${newPost.slug}):`, JSON.stringify(upsertError, null, 2));
             }
           } catch (dbErr: any) {
             console.error('[AutoBlogService] Supabase news upsert FAILED for:', newPost.title, dbErr);
