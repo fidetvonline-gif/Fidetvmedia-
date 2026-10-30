@@ -1113,7 +1113,7 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
       console.log(`[AutoBlogService] Processing ${rawItems.length} candidate news items from live feeds...`);
 
       for (const item of rawItems) {
-        if (addedCount >= 8) break;
+        if (addedCount >= 50) break;
 
         const tempSlug = this.generateSlug(item.title);
         const normalizedIncoming = item.title.toLowerCase().replace(/[^a-z0-9]/g, '').trim();

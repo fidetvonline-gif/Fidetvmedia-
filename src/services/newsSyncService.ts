@@ -67,7 +67,7 @@ class NewsSyncService {
     if (!this.pollIntervalHandle && typeof window !== 'undefined') {
       this.pollIntervalHandle = window.setInterval(() => {
         this.refreshNews();
-      }, 60 * 1000);
+      }, 30 * 1000);
     }
 
     // 2. Tab focus & visibility handler: refresh if inactive for >3 minutes
