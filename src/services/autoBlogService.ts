@@ -208,7 +208,7 @@ export class AutoBlogService {
     try {
       const { data: dbRows, error: dbError } = await this.supabase
         .from('news')
-        .select('*')
+        .select('id, slug, title, excerpt, description, content, category, tags, image_url, is_published, created_at, author_id')
         .eq('is_published', true)
         .order('created_at', { ascending: false })
         .limit(60);
@@ -1042,7 +1042,7 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
         try {
           const { data: dbRows, error: dbError } = await this.supabase
             .from('news')
-            .select('*')
+            .select('id, slug, title, excerpt, description, content, category, tags, image_url, is_published, created_at, author_id')
             .eq('is_published', true)
             .order('created_at', { ascending: false });
 
@@ -1204,14 +1204,12 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
               image_urls: newPost.image_urls || [],
               is_published: true,
               created_at: newPost.created_at,
-              author_id: newPost.author_id,
-              read_time: newPost.read_time,
-              source_name: newPost.source_name,
-              source_url: newPost.source_url,
-              region: newPost.region
+              author_id: newPost.author_id
             }, { onConflict: 'id' });
             
             if (upsertError) {
+              const logEntry = `[${new Date().toISOString()}] Supabase upsert error for ${newPost.id} (slug: ${newPost.slug}): ${JSON.stringify(upsertError, null, 2)}\n`;
+              fs.appendFile('upsert_errors.log', logEntry).catch(() => {});
               console.error(`[AutoBlogService] Supabase upsert error for ${newPost.id} (slug: ${newPost.slug}):`, JSON.stringify(upsertError, null, 2));
             }
           } catch (dbErr: any) {

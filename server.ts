@@ -253,6 +253,19 @@ export async function initApp(startServer = true) {
   }
 
   const apiRouter = express.Router();
+
+  // Add manual sync endpoint
+  apiRouter.post("/news/sync-manual", async (req, res) => {
+    console.log("[API] Manual news sync triggered.");
+    try {
+      const result = await autoBlogService.syncLatestNews();
+      res.json({ success: true, result });
+    } catch (err: any) {
+      console.error("[API] Manual sync error:", err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   apiRouter.use(express.json());
 
   apiRouter.use("/meeting", meetingRoutes);
@@ -2800,9 +2813,17 @@ export async function initApp(startServer = true) {
       });
     });
 
-    httpServer.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
+    try {
+      httpServer.listen(PORT, "0.0.0.0", () => {
+        console.log(`Server running on http://localhost:${PORT}`);
+      });
+    } catch (err: any) {
+      if (err.code === 'EADDRINUSE') {
+        console.error(`Port ${PORT} is already in use.`);
+      } else {
+        throw err;
+      }
+    }
   }
 }
 
