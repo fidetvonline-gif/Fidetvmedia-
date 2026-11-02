@@ -2647,6 +2647,9 @@ export async function initApp(startServer = true) {
     res.status(404).json({ success: false, error: `API route ${req.method} ${req.originalUrl} not found` });
   });
 
+  // Mount API router
+  app.use("/api", apiRouter);
+
   // Helper utilities for real-time Voice Assistant fallback and key validation
   function isValidGeminiKey(key: string | undefined): boolean {
     if (!key) return false;
