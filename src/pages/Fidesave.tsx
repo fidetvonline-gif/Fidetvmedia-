@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { SEO } from '@/components/SEO';
 import { 
   DownloadCloud, 
   Info
@@ -20,6 +21,11 @@ export default function Fidesave() {
 
   return (
     <div className="min-h-screen bg-background py-16 px-4 sm:px-6 lg:px-8">
+      <SEO 
+        title="FideSave – Universal Online Video & Media Downloader"
+        description="FideSave by FideTV Media: Fast, high-resolution online video and audio downloader supporting HD formats from all major web platforms."
+        url="/fidesave"
+      />
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
           <motion.div 

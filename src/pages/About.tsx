@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { SEO } from '@/components/SEO';
 import { motion } from 'motion/react';
 import { Award, Target, Eye, Users, Zap, Heart, CheckCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -42,6 +43,11 @@ export default function About() {
 
   return (
     <div className="py-24 space-y-32 mb-32 bg-background">
+      <SEO 
+        title="About FideTV Media – Certified Broadcasting & Digital Agency"
+        description="Learn about FideTV Media, a certified Nigerian and international digital broadcasting network, multimedia production house, and creative media agency."
+        url="/about"
+      />
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col lg:flex-row gap-20 items-center">
           <div className="lg:w-1/2 space-y-12">

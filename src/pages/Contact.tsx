@@ -1,4 +1,5 @@
 import React from 'react';
+import { SEO } from '@/components/SEO';
 import { motion } from 'motion/react';
 import { Phone, Mail, MapPin, MessageCircle, Send, ArrowUpRight, Facebook, Twitter, Smartphone } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -23,6 +24,11 @@ export default function Contact() {
 
   return (
     <div className="py-24 space-y-32 mb-32 bg-background">
+      <SEO 
+        title="Contact Us – Studio Inquiries & Media Network"
+        description="Get in touch with FideTV Media for broadcast inquiries, video production booking, advertising, sponsorships, and technical support."
+        url="/contact"
+      />
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col lg:flex-row gap-24">
           

@@ -1,3 +1,39 @@
+# FideTV Media robots.txt
+# Directives for Googlebot, Googlebot-News, Bing, and Search Engine Crawlers
+
+User-agent: Googlebot
+Allow: /
+Allow: /news/
+Allow: /news
+Allow: /live
+Allow: /content
+Allow: /services
+Allow: /about
+Allow: /contact
+Allow: /broadcast-hub
+Allow: /fidesave
+Allow: /downloader
+Disallow: /admin
+Disallow: /api/
+Disallow: /debug
+Disallow: /signal-debug
+
+User-agent: Googlebot-News
+Allow: /news/
+Allow: /news
+Disallow: /admin
+Disallow: /api/
+
+User-agent: Googlebot-Image
+Allow: /
+Allow: /icon.svg
+
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /api/
+Disallow: /debug
+Disallow: /signal-debug
+
 Sitemap: https://fidetv.online/sitemap.xml
+Host: https://fidetv.online

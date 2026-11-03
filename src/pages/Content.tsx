@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { SEO } from '@/components/SEO';
 import { motion, AnimatePresence } from 'motion/react';
 import { Play, ZoomIn, Filter, ArrowLeft, Search, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -119,6 +120,11 @@ export default function Content() {
 
   return (
     <div className="min-h-screen bg-background pb-40">
+      <SEO 
+        title="Content Portfolio – Video Releases, Films & Masterclasses"
+        description="Browse FideTV Media's official film and video production catalog, featuring documentaries, commercials, music videos, and creative broadcast releases."
+        url="/content"
+      />
       <style>{`
         .yt-grid-container {
           margin-top: 1rem !important;

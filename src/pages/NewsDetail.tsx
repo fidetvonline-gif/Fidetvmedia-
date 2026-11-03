@@ -342,7 +342,16 @@ export default function NewsDetail() {
 
   return (
     <div className="min-h-screen bg-background pb-32">
-      <SEO title={item.title} description={item.excerpt || item.description} />
+      <SEO 
+        title={item.title} 
+        description={item.excerpt || item.description}
+        image={item.image_url || 'https://fidetv.online/icon.svg'}
+        url={`/news/${item.slug || item.id}`}
+        type="article"
+        publishedTime={item.created_at}
+        author={item.profiles?.username || 'FideTV News Desk'}
+        tags={item.tags || []}
+      />
       
       {/* Scroll Progress Bar */}
       <div className="fixed top-0 left-0 right-0 h-1 bg-primary z-50 transition-all duration-150" style={{ width: `${scrollProgress}%` }} />

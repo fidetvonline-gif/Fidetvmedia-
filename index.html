@@ -3,36 +3,83 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="referrer" content="no-referrer" />
+    <meta name="referrer" content="origin-when-cross-origin" />
     <meta name="theme-color" content="#000000" />
-    <meta name="description" content="A full digital media platform featuring live streaming, media agency services, and an interactive community hub." />
+    <meta name="description" content="FideTV Media is a certified digital broadcasting network and creative agency. Watch 24/7 live streaming channels, explore breaking news, and access media production services." />
+    
+    <!-- Google Search Console & Robots Indexing -->
+    <meta name="google-site-verification" content="FNy00SQY1Ss0fEgt4zQ6WPAgqhICmlcDPmCNW23w5OI" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+    <meta name="googlebot-news" content="index, follow" />
+    
+    <link rel="canonical" href="https://fidetv.online" />
+    <link rel="sitemap" type="application/xml" title="Sitemap" href="https://fidetv.online/sitemap.xml" />
+    
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="FideTV" />
     <link rel="apple-touch-icon" href="/icon.svg" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-    <meta name="google-site-verification" content="FNy00SQY1Ss0fEgt4zQ6WPAgqhICmlcDPmCNW23w5OI" />
-    <link rel="canonical" href="https://fidetv.online" />
     
     <!-- OpenGraph Social Metadata -->
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="FideTV Media – Live Streaming & Digital Media Hub" />
-    <meta property="og:description" content="Watch live TV, explore trending news, and join our interactive media community on FideTV." />
+    <meta property="og:title" content="FideTV Media – Live Streaming & Digital Broadcasting Hub" />
+    <meta property="og:description" content="Watch 24/7 live TV channels, breaking news, video downloads, and digital media production on FideTV." />
     <meta property="og:url" content="https://fidetv.online" />
-    <meta property="og:site_name" content="FideTV" />
+    <meta property="og:site_name" content="FideTV Media" />
     <meta property="og:image" content="https://fidetv.online/icon.svg" />
 
     <!-- Twitter Social Metadata -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="FideTV Media – Live Streaming & Digital Media Hub" />
-    <meta name="twitter:description" content="Watch live TV, explore trending news, and join our interactive media community on FideTV." />
+    <meta name="twitter:title" content="FideTV Media – Live Streaming & Digital Broadcasting Hub" />
+    <meta name="twitter:description" content="Watch 24/7 live TV channels, breaking news, video downloads, and digital media production on FideTV." />
     <meta name="twitter:image" content="https://fidetv.online/icon.svg" />
 
-    <title>FideTV Media – Live Streaming & Digital Media Hub</title>
+    <!-- Google Structured Data (Schema.org JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "NewsMediaOrganization",
+          "@id": "https://fidetv.online/#organization",
+          "name": "FideTV Media",
+          "url": "https://fidetv.online",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://fidetv.online/icon.svg"
+          },
+          "sameAs": [
+            "https://twitter.com/fidetv",
+            "https://youtube.com/@fidetv"
+          ]
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://fidetv.online/#website",
+          "url": "https://fidetv.online",
+          "name": "FideTV Media",
+          "publisher": {
+            "@id": "https://fidetv.online/#organization"
+          },
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": {
+              "@type": "EntryPoint",
+              "urlTemplate": "https://fidetv.online/news?search={search_term_string}"
+            },
+            "query-input": "required name=search_term_string"
+          }
+        }
+      ]
+    }
+    </script>
+
+    <title>FideTV Media – Live Streaming & Digital Broadcasting Hub</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

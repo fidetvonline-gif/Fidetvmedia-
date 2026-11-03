@@ -152,24 +152,32 @@ export async function initApp(startServer = true) {
   const autoBlogService = AutoBlogService.getInstance(supabase);
   autoBlogService.init().catch(err => console.error("[AutoBlog] Init error:", err));
 
-  // Dynamic Sitemap Generator
+  // Dynamic Sitemap Generator for Google Search Console, Google News, and Bing
   const generateSitemapXml = (hostUrl: string) => {
     const baseUrl = hostUrl.startsWith('http') ? hostUrl : `https://${hostUrl}`;
     const staticPages = [
       { url: '', changefreq: 'daily', priority: '1.0' },
-      { url: '/blog', changefreq: 'hourly', priority: '0.9' },
+      { url: '/news', changefreq: 'always', priority: '1.0' },
       { url: '/live', changefreq: 'always', priority: '0.9' },
-      { url: '/fidesave', changefreq: 'weekly', priority: '0.8' },
-      { url: '/spaces', changefreq: 'daily', priority: '0.8' },
-      { url: '/about', changefreq: 'monthly', priority: '0.5' },
-      { url: '/contact', changefreq: 'monthly', priority: '0.5' }
+      { url: '/content', changefreq: 'daily', priority: '0.9' },
+      { url: '/services', changefreq: 'weekly', priority: '0.9' },
+      { url: '/broadcast-hub', changefreq: 'weekly', priority: '0.8' },
+      { url: '/fidesave', changefreq: 'daily', priority: '0.8' },
+      { url: '/downloader', changefreq: 'daily', priority: '0.8' },
+      { url: '/about', changefreq: 'monthly', priority: '0.6' },
+      { url: '/contact', changefreq: 'monthly', priority: '0.6' },
+      { url: '/partner', changefreq: 'monthly', priority: '0.6' },
+      { url: '/advertise', changefreq: 'monthly', priority: '0.6' },
+      { url: '/booking', changefreq: 'monthly', priority: '0.6' },
+      { url: '/policies', changefreq: 'yearly', priority: '0.4' }
     ];
 
-    const blogData = autoBlogService.getAllPosts({ limit: 100 });
+    const blogData = autoBlogService.getAllPosts({ limit: 1000 });
     const posts = blogData.posts || [];
 
     let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-    xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+    xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n`;
+    xml += `        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n`;
 
     for (const page of staticPages) {
       xml += `  <url>\n`;
@@ -180,13 +188,23 @@ export async function initApp(startServer = true) {
     }
 
     for (const post of posts) {
-      const postUrl = `${baseUrl}/blog/${post.slug || post.id}`;
+      const slug = post.slug || post.id;
+      const postUrl = `${baseUrl}/news/${encodeURIComponent(slug)}`;
       const lastMod = post.updated_at || post.created_at || new Date().toISOString();
+      const safeTitle = (post.title || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+      
       xml += `  <url>\n`;
       xml += `    <loc>${postUrl}</loc>\n`;
       xml += `    <lastmod>${new Date(lastMod).toISOString().split('T')[0]}</lastmod>\n`;
-      xml += `    <changefreq>weekly</changefreq>\n`;
-      xml += `    <priority>0.8</priority>\n`;
+      xml += `    <changefreq>daily</changefreq>\n`;
+      xml += `    <priority>0.85</priority>\n`;
+      if (post.image_url && post.image_url.startsWith('http')) {
+        const safeImg = post.image_url.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+        xml += `    <image:image>\n`;
+        xml += `      <image:loc>${safeImg}</image:loc>\n`;
+        xml += `      <image:title>${safeTitle}</image:title>\n`;
+        xml += `    </image:image>\n`;
+      }
       xml += `  </url>\n`;
     }
 
@@ -201,7 +219,8 @@ export async function initApp(startServer = true) {
       const host = 'fidetv.online';
         
       const xml = generateSitemapXml('https://' + host);
-      res.type('application/xml');
+      res.setHeader('Content-Type', 'application/xml');
+      res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=600');
       res.send(xml);
     } catch (err: any) {
       console.error('[Sitemap Error]', err);

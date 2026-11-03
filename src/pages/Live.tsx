@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { SEO } from '@/components/SEO';
 import { parseResponseJson } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 import LiveChat from '@/components/LiveChat';
@@ -343,6 +344,11 @@ export default function Live() {
 
   return (
     <div className="flex flex-col w-full min-h-screen bg-[#0a0a0f] text-white selection:bg-[#e24b4a] selection:text-white relative">
+      <SEO 
+        title="24/7 Live TV Channels & Streaming Broadcasts"
+        description="Stream 24/7 high-definition live television channels, sports, breaking news, entertainment, and cultural broadcasts on FideTV Live."
+        url="/live"
+      />
       {/* Mini Player Overlay */}
       <AnimatePresence>
         {scrolledPastPlayer && activeChannel && (

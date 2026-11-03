@@ -995,14 +995,25 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
       results.targets.google = { status: 'error', error: e.message };
     }
 
-    // 3. IndexNow Notification
+    // 3. IndexNow Notification (Instant crawl notification to Bing, Yandex, Seznam)
     try {
+      const recentUrls = this.posts.slice(0, 10).map(p => `https://fidetv.online/news/${encodeURIComponent(p.slug || p.id)}`);
+      const allUrls = Array.from(new Set([
+        sitemapUrl,
+        'https://fidetv.online',
+        'https://fidetv.online/news',
+        'https://fidetv.online/live',
+        'https://fidetv.online/content',
+        'https://fidetv.online/services',
+        ...recentUrls
+      ]));
+
       const indexNowUrl = 'https://api.indexnow.org/indexnow';
       const indexNowResp = await axios.post(indexNowUrl, {
         host: 'fidetv.online',
         key: 'fidetv_seo_key_2026',
-        urlList: [sitemapUrl, 'https://fidetv.online/blog']
-      }, { timeout: 5000, validateStatus: () => true });
+        urlList: allUrls
+      }, { timeout: 6000, validateStatus: () => true });
       results.targets.indexNow = { status: indexNowResp.status, success: indexNowResp.status >= 200 && indexNowResp.status < 400 };
     } catch (e: any) {
       results.targets.indexNow = { status: 'error', error: e.message };

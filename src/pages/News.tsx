@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { SEO } from '@/components/SEO';
 import { supabase } from '@/lib/supabase';
 import { News as NewsType } from '@/types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -104,6 +105,11 @@ export default function News() {
 
   return (
     <div className="min-h-screen bg-background pb-32">
+      <SEO 
+        title="Breaking News Wire & In-Depth Editorial Reporting"
+        description="Follow continuous live wire reporting, African and global news, broadcasting breakthroughs, and technology developments on FideTV News."
+        url="/news"
+      />
       {/* Breaking News Ribbon Ticker */}
       {breakingNews.length > 0 && (
         <div className="bg-surface border-b border-border-custom py-2.5 px-4 overflow-hidden relative z-50">

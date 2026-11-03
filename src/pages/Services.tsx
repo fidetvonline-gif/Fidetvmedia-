@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { SEO } from '@/components/SEO';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { Video, Play, Camera, Mic, Radio, Zap, ArrowRight, CheckCircle2, X, Monitor, Smartphone, Layout, Cpu, BarChart3, Globe } from 'lucide-react';
@@ -217,6 +218,11 @@ export default function Services() {
 
   return (
     <div className="py-24 space-y-32 mb-32 relative bg-background">
+      <SEO 
+        title="Media Production, Live Streaming & Agency Services"
+        description="Explore FideTV Media's professional services: 8K cinematic video production, multi-region live streaming broadcasts, web application development, and brand strategy."
+        url="/services"
+      />
       {/* Showreel Modal */}
       <AnimatePresence>
         {showShowreel && (
