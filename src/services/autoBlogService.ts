@@ -6,6 +6,11 @@ import path from 'path';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { validateAndEnrichNewsCover, getContentSpecificImage } from '../../server/media/newsImageValidator.js';
 
+const isValidUuid = (val?: string | null): boolean => {
+  if (!val) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+};
+
 export interface AutoBlogPost {
   id: string;
   slug: string;
@@ -133,17 +138,15 @@ export class AutoBlogService {
         this.syncLatestNews().catch(err => console.warn('[AutoBlogService] Initial sync notice:', err.message));
       }
 
-      // Schedule periodic automatic update every 2 minutes (more aggressive)
-      /*
-      if (!this.syncIntervalHandle && typeof setInterval !== 'undefined' && !process.env.VERCEL) {
+      // Schedule periodic automated news update cycle every 3 minutes
+      if (!this.syncIntervalHandle && typeof setInterval !== 'undefined') {
         this.syncIntervalHandle = setInterval(() => {
-          console.log('[AutoBlogService] Triggering scheduled automated news update cycle (2m)...');
+          console.log('[AutoBlogService] Triggering scheduled automated news update cycle (3m)...');
           this.syncLatestNews().catch(err => {
-            console.error('[AutoBlogService] Scheduled sync error:', err);
+            console.warn('[AutoBlogService] Scheduled sync notice:', err.message);
           });
-        }, 2 * 60 * 1000);
+        }, 3 * 60 * 1000);
       }
-      */
 
       // Initialize real-time listener to keep server cache in sync with DB
       this.setupRealtimeListener();
@@ -210,7 +213,7 @@ export class AutoBlogService {
     try {
       const { data: dbRows, error: dbError } = await this.supabase
         .from('news')
-        .select('id, slug, title, excerpt, description, content, category, tags, image_url, is_published, created_at, author_id')
+        .select('id, slug, title, excerpt, description, content, category, tags, image_url, image_urls, read_time, source_name, is_published, created_at, author_id')
         .eq('is_published', true)
         .order('created_at', { ascending: false })
         .limit(60);
@@ -1195,7 +1198,7 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
         if (this.supabase) {
           try {
             console.log('[AutoBlogService] Upserting to Supabase:', newPost.id, newPost.title.substring(0, 50));
-            const { error: upsertError } = await this.supabase.from('news').upsert({
+            const upsertPayload: Record<string, any> = {
               id: newPost.id,
               slug: newPost.slug || newPost.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
               title: newPost.title,
@@ -1208,16 +1211,24 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
               image_urls: newPost.image_urls || [],
               is_published: true,
               created_at: newPost.created_at,
-              author_id: newPost.author_id
-            }, { onConflict: 'id' });
+              read_time: newPost.read_time || '4 min read',
+              source_name: newPost.source_name || 'FideTV Media',
+              source_url: newPost.source_url || '',
+              region: newPost.region || 'Global'
+            };
+            if (isValidUuid(newPost.author_id)) {
+              upsertPayload.author_id = newPost.author_id;
+            }
+
+            const { error: upsertError } = await this.supabase.from('news').upsert(upsertPayload, { onConflict: 'id' });
             
             if (upsertError) {
               const logEntry = `[${new Date().toISOString()}] Supabase upsert error for ${newPost.id} (slug: ${newPost.slug}): ${JSON.stringify(upsertError, null, 2)}\n`;
               fs.appendFile('upsert_errors.log', logEntry).catch(() => {});
-              console.error(`[AutoBlogService] Supabase upsert error for ${newPost.id} (slug: ${newPost.slug}):`, JSON.stringify(upsertError, null, 2));
+              console.warn(`[AutoBlogService] Supabase upsert notice for ${newPost.id}:`, upsertError.message || upsertError);
             }
           } catch (dbErr: any) {
-            console.error('[AutoBlogService] Supabase news upsert FAILED for:', newPost.title, dbErr);
+            console.warn('[AutoBlogService] Supabase news upsert notice for:', newPost.title, dbErr.message || dbErr);
           }
         }
       }
@@ -1225,9 +1236,9 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
       // Step C: Push any posts from this.posts that are missing in Supabase
       if (this.supabase) {
         try {
-          const syncCandidates = this.posts.slice(0, 15);
+          const syncCandidates = this.posts.slice(0, 20);
           for (const post of syncCandidates) {
-            await this.supabase.from('news').upsert({
+            const candidatePayload: Record<string, any> = {
               id: post.id,
               slug: post.slug,
               title: post.title,
@@ -1244,7 +1255,11 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
               source_name: post.source_name,
               source_url: post.source_url,
               region: post.region
-            }, { onConflict: 'id' });
+            };
+            if (isValidUuid(post.author_id)) {
+              candidatePayload.author_id = post.author_id;
+            }
+            await this.supabase.from('news').upsert(candidatePayload, { onConflict: 'id' });
           }
 
           // Broadcast real-time update

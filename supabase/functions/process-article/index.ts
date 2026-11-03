@@ -35,17 +35,31 @@ Deno.serve(async (req) => {
     const content = $('article p').map((_, el) => $(el).text()).get().join('\n\n');
     const imageUrl = $('meta[property="og:image"]').attr('content') || '';
 
-    // 3. Save to 'news' table
+    const rawSlug = title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .substring(0, 80) || `article-${Date.now()}`;
+    const slug = `${rawSlug}-${Math.random().toString(36).substring(2, 7)}`;
+    const excerpt = content ? content.substring(0, 180).trim() + '...' : '';
+
+    // 3. Save to 'news' table (upsert by slug)
     const { error: insertError } = await supabase
       .from('news')
-      .insert({
+      .upsert({
         title,
-        content: content.substring(0, 5000), // Safety limit
-        image_url: imageUrl,
-        slug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        excerpt,
+        description: excerpt,
+        content: content.substring(0, 10000),
+        image_url: imageUrl || 'https://images.unsplash.com/photo-1478737270239-2f02b77fc618?q=80&w=800',
+        slug,
         is_published: true,
-        category: 'News'
-      });
+        category: 'Global News & Culture',
+        source_name: (article as any).source_name || 'FideTV Wire',
+        source_url: article.url,
+        read_time: '4 min read',
+        created_at: new Date().toISOString()
+      }, { onConflict: 'slug' });
 
     if (insertError) throw insertError;
 

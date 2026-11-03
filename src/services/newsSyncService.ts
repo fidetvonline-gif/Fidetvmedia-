@@ -116,16 +116,18 @@ class NewsSyncService {
           if (status === 'SUBSCRIBED') {
             console.log('%c[NewsSyncService] Real-time connection established successfully.', 'color: #10b981;');
           } else if (status === 'CLOSED') {
-            console.warn('[NewsSyncService] Real-time connection closed.');
+            console.warn('[NewsSyncService] Real-time connection closed, retrying...');
           } else if (status === 'CHANNEL_ERROR') {
-            console.error('[NewsSyncService] Real-time channel error:', err);
-            // Fallback: increase polling frequency if realtime is broken
-            this.setupFallbackPolling(30000);
+            // Socket closures (such as 1006 during idle/tab sleep) are normal transient events; handle gracefully
+            console.warn('[NewsSyncService] Real-time channel notice:', err?.message || err || 'socket reconnecting');
+            // Immediately refresh news and keep resilient fallback polling active
+            this.refreshNews();
+            this.setupFallbackPolling(20000);
           }
         });
-    } catch (err) {
-      console.error('[NewsSyncService] Critical Realtime setup error:', err);
-      this.setupFallbackPolling(60000);
+    } catch (err: any) {
+      console.warn('[NewsSyncService] Realtime setup notice (falling back to polling):', err?.message || err);
+      this.setupFallbackPolling(30000);
     }
   }
 
