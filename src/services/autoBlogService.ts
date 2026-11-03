@@ -100,11 +100,44 @@ export class AutoBlogService {
   private storageFilePath: string;
   private syncIntervalHandle: NodeJS.Timeout | null = null;
   private lastPingReport: any = null;
+  private resolvedAuthorUuid: string = '143abd8f-1acf-47ff-b24b-94f4c70f96cf';
   private channel: any = null;
 
   constructor(supabaseClient: SupabaseClient | null = null) {
     this.supabase = supabaseClient;
-    this.storageFilePath = path.resolve(process.cwd(), 'src/data/auto_blogs.json');
+    this.storageFilePath = path.resolve(process.cwd(), 'data', 'auto_blogs.json');
+  }
+
+
+  public async getValidAuthorUuid(): Promise<string> {
+    if (this.resolvedAuthorUuid && isValidUuid(this.resolvedAuthorUuid)) {
+      return this.resolvedAuthorUuid;
+    }
+    if (this.supabase) {
+      try {
+        const { data } = await this.supabase
+          .from('profiles')
+          .select('id')
+          .eq('username', 'fidetvonline')
+          .maybeSingle();
+        if (data?.id && isValidUuid(data.id)) {
+          this.resolvedAuthorUuid = data.id;
+          return this.resolvedAuthorUuid;
+        }
+        const { data: anyProfile } = await this.supabase
+          .from('profiles')
+          .select('id')
+          .limit(1)
+          .maybeSingle();
+        if (anyProfile?.id && isValidUuid(anyProfile.id)) {
+          this.resolvedAuthorUuid = anyProfile.id;
+          return this.resolvedAuthorUuid;
+        }
+      } catch {
+        // fallback
+      }
+    }
+    return '143abd8f-1acf-47ff-b24b-94f4c70f96cf';
   }
 
   public static getInstance(supabaseClient: SupabaseClient | null = null): AutoBlogService {
@@ -330,6 +363,10 @@ export class AutoBlogService {
       const dir = path.dirname(this.storageFilePath);
       await fs.mkdir(dir, { recursive: true });
       await fs.writeFile(this.storageFilePath, JSON.stringify(this.posts, null, 2), 'utf-8');
+
+      // Also persist to public/auto_blogs.json for static CDN access
+      const publicPath = path.resolve(process.cwd(), 'public/auto_blogs.json');
+      await fs.writeFile(publicPath, JSON.stringify(this.posts, null, 2), 'utf-8').catch(() => {});
     } catch (err) {
       console.error('[AutoBlogService] Failed to persist posts to disk:', err);
     }
@@ -1209,6 +1246,7 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
         if (this.supabase) {
           try {
             console.log('[AutoBlogService] Upserting to Supabase:', newPost.id, newPost.title.substring(0, 50));
+            const targetAuthorId = isValidUuid(newPost.author_id) ? newPost.author_id : (await this.getValidAuthorUuid());
             const upsertPayload: Record<string, any> = {
               id: newPost.id,
               slug: newPost.slug || newPost.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
@@ -1221,11 +1259,9 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
               image_url: newPost.image_url || '',
               image_urls: newPost.image_urls || [],
               is_published: true,
-              created_at: newPost.created_at
+              created_at: newPost.created_at,
+              author_id: targetAuthorId
             };
-            if (isValidUuid(newPost.author_id)) {
-              upsertPayload.author_id = newPost.author_id;
-            }
 
             const { error: upsertError } = await this.supabase.from('news').upsert(upsertPayload, { onConflict: 'id' });
             
@@ -1245,6 +1281,7 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
         try {
           const syncCandidates = this.posts.slice(0, 20);
           for (const post of syncCandidates) {
+            const targetAuthorId = isValidUuid(post.author_id) ? post.author_id : (await this.getValidAuthorUuid());
             const candidatePayload: Record<string, any> = {
               id: post.id,
               slug: post.slug,
@@ -1257,11 +1294,9 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
               image_url: post.image_url,
               image_urls: post.image_urls || [post.image_url],
               is_published: true,
-              created_at: post.created_at
+              created_at: post.created_at,
+              author_id: targetAuthorId
             };
-            if (isValidUuid(post.author_id)) {
-              candidatePayload.author_id = post.author_id;
-            }
             await this.supabase.from('news').upsert(candidatePayload, { onConflict: 'id' });
           }
 
@@ -1402,14 +1437,16 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
       }
       
       // Save to Supabase
+      const authorUuid = await this.getValidAuthorUuid();
       const { error } = await this.supabase
         .from('news')
         .insert({
           title: scraped.title,
           content: scraped.paragraphs.join('\n\n'),
+          excerpt: (scraped.paragraphs[0] || scraped.title).substring(0, 180),
           image_url: scraped.imageUrl,
-          source_name: sourceName,
-          source_url: url,
+          image_urls: scraped.imageUrl ? [scraped.imageUrl] : [],
+          author_id: authorUuid,
           is_published: true,
           slug: this.generateSlug(scraped.title)
         });

@@ -33,6 +33,30 @@ app.use(cors());
 app.set("trust proxy", 1);
 const PORT = 3000;
 
+// Top-level explicit routes for sitemap.xml and robots.txt to prevent SPA catch-all interference
+app.get("/sitemap.xml", (req, res) => {
+  res.setHeader("Content-Type", "application/xml; charset=utf-8");
+  res.setHeader("Cache-Control", "public, max-age=300, s-maxage=600");
+  const sitemapPath = path.resolve(process.cwd(), "public", "sitemap.xml");
+  res.sendFile(sitemapPath, (err) => {
+    if (err) {
+      res.status(404).send("<urlset></urlset>");
+    }
+  });
+});
+
+app.get("/robots.txt", (req, res) => {
+  res.setHeader("Content-Type", "text/plain; charset=utf-8");
+  res.setHeader("Cache-Control", "public, max-age=3600");
+  const robotsPath = path.resolve(process.cwd(), "public", "robots.txt");
+  res.sendFile(robotsPath, (err) => {
+    if (err) {
+      res.status(404).send("User-agent: *\nAllow: /\n");
+    }
+  });
+});
+
+
 // Check if we are running in a serverless environment (like Vercel)
 const isVercel = process.env.VERCEL === '1' || !!process.env.VERCEL_URL;
 
@@ -2622,10 +2646,6 @@ export async function initApp(startServer = true) {
     }
   };
 
-  apiRouter.get("/news/posts/:slug", handleGetPostBySlug);
-  apiRouter.get("/news/:slug", handleGetPostBySlug);
-  apiRouter.get("/blog/posts/:slug", handleGetPostBySlug);
-
   const handleAutoGenerate = async (req: express.Request, res: express.Response) => {
     try {
       console.log('[API] Manual/Admin trigger: Ingesting news & writing news posts...');
@@ -2643,9 +2663,6 @@ export async function initApp(startServer = true) {
     }
   };
 
-  apiRouter.post("/news/auto-generate", handleAutoGenerate);
-  apiRouter.post("/blog/auto-generate", handleAutoGenerate);
-
   const handleGetStatus = (req: express.Request, res: express.Response) => {
     try {
       res.json(autoBlogService.getStatus());
@@ -2656,6 +2673,12 @@ export async function initApp(startServer = true) {
 
   apiRouter.get("/news/status", handleGetStatus);
   apiRouter.get("/blog/status", handleGetStatus);
+  apiRouter.post("/news/auto-generate", handleAutoGenerate);
+  apiRouter.post("/blog/auto-generate", handleAutoGenerate);
+
+  apiRouter.get("/news/posts/:slug", handleGetPostBySlug);
+  apiRouter.get("/news/:slug", handleGetPostBySlug);
+  apiRouter.get("/blog/posts/:slug", handleGetPostBySlug);
 
   apiRouter.get("/channels", async (req, res) => {
     try {
