@@ -266,6 +266,18 @@ export async function initApp(startServer = true) {
     }
   });
 
+  apiRouter.post("/news/process", async (req, res) => {
+    const { url, sourceName } = req.body;
+    console.log("[API] News process triggered for:", url);
+    try {
+      const success = await autoBlogService.processAndSave(url, sourceName || 'Manual Process');
+      res.json({ success });
+    } catch (err: any) {
+      console.error("[API] News process error:", err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   apiRouter.use(express.json());
 
   apiRouter.use("/meeting", meetingRoutes);

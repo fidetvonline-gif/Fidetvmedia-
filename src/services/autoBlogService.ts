@@ -134,6 +134,7 @@ export class AutoBlogService {
       }
 
       // Schedule periodic automatic update every 2 minutes (more aggressive)
+      /*
       if (!this.syncIntervalHandle && typeof setInterval !== 'undefined' && !process.env.VERCEL) {
         this.syncIntervalHandle = setInterval(() => {
           console.log('[AutoBlogService] Triggering scheduled automated news update cycle (2m)...');
@@ -142,6 +143,7 @@ export class AutoBlogService {
           });
         }, 2 * 60 * 1000);
       }
+      */
 
       // Initialize real-time listener to keep server cache in sync with DB
       this.setupRealtimeListener();
@@ -355,8 +357,8 @@ export class AutoBlogService {
   /**
    * Scrapes an article webpage to extract authentic news photo and full multi-paragraph reporting.
    */
-  public async scrapeWebArticle(url: string): Promise<{ imageUrl?: string; paragraphs: string[] }> {
-    const result: { imageUrl?: string; paragraphs: string[] } = { paragraphs: [] };
+  public async scrapeWebArticle(url: string): Promise<{ title?: string; imageUrl?: string; paragraphs: string[] }> {
+    const result: { title?: string; imageUrl?: string; paragraphs: string[] } = { paragraphs: [] };
     if (!url || !url.startsWith('http')) return result;
 
     try {
@@ -371,6 +373,8 @@ export class AutoBlogService {
 
       if (!resp.data || typeof resp.data !== 'string') return result;
       const $page = cheerio.load(resp.data);
+      
+      result.title = $page('title').text() || $page('meta[property="og:title"]').attr('content') || undefined;
 
       // 1. Extract authentic news photo
       let ogImg = $page('meta[property="og:image"]').attr('content') ||
@@ -1367,6 +1371,38 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
       lastPingReport: this.lastPingReport,
       syncIntervalMinutes: 30
     };
+  }
+
+  public async processAndSave(url: string, sourceName: string): Promise<boolean> {
+    if (!this.supabase) return false;
+    console.log(`[AutoBlogService] Processing individual article: ${url} from ${sourceName}`);
+    try {
+      const scraped = await this.scrapeWebArticle(url);
+      if (!scraped.title) {
+        console.error("[AutoBlogService] Process error: No title found for", url);
+        return false;
+      }
+      
+      // Save to Supabase
+      const { error } = await this.supabase
+        .from('news')
+        .insert({
+          title: scraped.title,
+          content: scraped.paragraphs.join('\n\n'),
+          image_url: scraped.imageUrl,
+          source_name: sourceName,
+          source_url: url,
+          is_published: true,
+          slug: this.generateSlug(scraped.title)
+        });
+      
+      if (error) throw error;
+      
+      return true;
+    } catch (err) {
+      console.error("[AutoBlogService] Process error:", err);
+      return false;
+    }
   }
 
   private getSeedBlogPosts(): AutoBlogPost[] {
