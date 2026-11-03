@@ -219,12 +219,17 @@ export async function initApp(startServer = true) {
       const host = 'fidetv.online';
         
       const xml = generateSitemapXml('https://' + host);
-      res.setHeader('Content-Type', 'application/xml');
+      res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
       res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=600');
       res.send(xml);
+
+      // Keep static files fresh on disk for CDN/static hosts like Vercel
+      fs.writeFile(path.join(process.cwd(), 'public', 'sitemap.xml'), xml, 'utf8').catch(() => {});
+      fs.writeFile(path.join(process.cwd(), 'dist', 'sitemap.xml'), xml, 'utf8').catch(() => {});
     } catch (err: any) {
       console.error('[Sitemap Error]', err);
-      res.status(500).send('Error generating sitemap');
+      res.status(500).type('text/plain').send('Error generating sitemap');
     }
   });
 

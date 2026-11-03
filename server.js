@@ -37,23 +37,25 @@ var M3UService = class {
   static normalizeCategory(name, groupTitle, country) {
     const n = name.toLowerCase();
     const g = groupTitle ? groupTitle.toLowerCase() : "";
-    const combined = `${n} ${g}`;
-    if (combined.includes("movie") || combined.includes("cinema") || combined.includes("film")) return "Movies";
-    if (combined.includes("news")) return "News";
+    const combined = `${n} ${g} ${country.toLowerCase()}`;
+    const isNigerian = combined.includes("nigeria") || combined.includes(" ng ") || combined.includes("naija");
+    const isAfrican = isNigerian || combined.includes("africa") || combined.includes("ghana") || combined.includes("kenya") || combined.includes("south africa") || combined.includes(" za ") || combined.includes(" gh ") || combined.includes(" ke ");
+    if (isNigerian && (combined.includes("tv") || combined.includes("news") || combined.includes("entertainment") || combined.includes("channel"))) return "Nigerian TV";
+    if (combined.includes("news") || combined.includes("wire")) {
+      if (isAfrican && (combined.includes("africa") || combined.includes("nigeria") || combined.includes("ghana") || combined.includes("kenya"))) return "African News";
+      return "International News";
+    }
+    if (combined.includes("movie") || combined.includes("cinema") || combined.includes("film")) {
+      if ((isAfrican || combined.includes("nollywood")) && (combined.includes("africa") || combined.includes("nollywood") || combined.includes("nigeria"))) return "Nollywood & African Movies";
+      return "International Movies";
+    }
+    if (combined.includes("music")) {
+      if (combined.includes("gospel") || combined.includes("worship")) return "Gospel Music";
+      if (isNigerian) return "Nigerian Music";
+      if (isAfrican) return "African Music";
+      return "International Music";
+    }
     if (combined.includes("sport")) return "Sports";
-    if (combined.includes("kids") || combined.includes("cartoon") || combined.includes("animation")) return "Kids";
-    if (combined.includes("music")) return "Music";
-    if (combined.includes("religious") || combined.includes("christian") || combined.includes("islamic") || combined.includes("catholic") || combined.includes("gospel")) return "Religious";
-    if (combined.includes("doc")) return "Documentary";
-    if (combined.includes("lifestyle") || combined.includes("fashion") || combined.includes("travel")) return "Lifestyle";
-    if (combined.includes("action")) return "Movies / Action";
-    if (combined.includes("comedy")) return "Comedy";
-    if (combined.includes("drama")) return "Drama";
-    if (combined.includes("entertainment")) return "Entertainment";
-    if (country === "NG") return "Nigerian";
-    if (country === "IN" && (combined.includes("movie") || combined.includes("cinema"))) return "Indian Movies";
-    if (country === "IN") return "Indian";
-    if (country === "PH") return "Philippines";
     return "General";
   }
   /**
@@ -393,7 +395,7 @@ var ChannelIngestionService = class _ChannelIngestionService {
           } else {
             report.offline++;
             const newFailureCount = (channel.failure_count || 0) + 1;
-            const failureThreshold = 7 * 24 * 4;
+            const failureThreshold = 24;
             if (newFailureCount >= failureThreshold) {
               toArchive.push(channel.id);
               report.archived++;
@@ -465,6 +467,16 @@ var ChannelIngestionService = class _ChannelIngestionService {
    */
   async runHealthChecks(batchSize = 50) {
     return this.runFullAutomation();
+  }
+  /**
+   * Returns statistics on added channels
+   */
+  async getChannelStats() {
+    const { data, error } = await this.supabase.from("tv_channels").select("name, country, category");
+    if (error) throw error;
+    const total = data.length;
+    const nigerian = data.filter((c) => c.country?.toLowerCase().includes("nigeria") || c.category?.toLowerCase().includes("nigeria")).length;
+    return { total, nigerian };
   }
   async updateChannel(id, data) {
     await this.supabase.from("discovered_channels").update(data).eq("id", id);
@@ -1186,18 +1198,34 @@ function getContentSpecificImage(title = "", content = "", category = "") {
   const index = hash % imagePool.length;
   return imagePool[index];
 }
-async function probeImageUrl(url, timeoutMs = 3e3) {
+function extractYouTubeThumbnail(url) {
+  if (!url || typeof url !== "string") return null;
+  const embedMatch = url.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/i);
+  if (embedMatch && embedMatch[1]) return `https://img.youtube.com/vi/${embedMatch[1]}/hqdefault.jpg`;
+  const watchMatch = url.match(/youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/i);
+  if (watchMatch && watchMatch[1]) return `https://img.youtube.com/vi/${watchMatch[1]}/hqdefault.jpg`;
+  const shortMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/i);
+  if (shortMatch && shortMatch[1]) return `https://img.youtube.com/vi/${shortMatch[1]}/hqdefault.jpg`;
+  return null;
+}
+async function probeImageUrl(url, timeoutMs = 3500) {
   if (!url || typeof url !== "string") return false;
   const trimmed = url.trim();
   if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) return false;
-  if (trimmed.includes("ichef.bbci.co.uk") || trimmed.includes("bbci.co.uk") || trimmed.includes("dicebear.com") || trimmed.includes("placeholder") || trimmed.includes("1x1") || trimmed.endsWith(".svg")) {
+  if (trimmed.includes("dicebear.com") || trimmed.includes("placeholder") || trimmed.includes("1x1") || trimmed.endsWith(".svg") || trimmed.toLowerCase().includes("punch-logo") || trimmed.toLowerCase().includes("default-avatar")) {
     return false;
+  }
+  if (trimmed.includes("ichef.bbci.co.uk") || trimmed.includes("img.youtube.com") || trimmed.includes("i.ytimg.com") || trimmed.includes("channelstv.com/wp-content/uploads/") || trimmed.includes("vanguardngr.com/wp-content/uploads/") || trimmed.includes("cdn.vanguardngr.com") || trimmed.includes("techcrunch.com/wp-content/uploads/") || trimmed.includes("supabase.co/storage") || trimmed.includes("postimg.cc") || trimmed.includes("image2url.com")) {
+    return true;
+  }
+  if ((trimmed.includes("punchng.com/wp-content/uploads/") || trimmed.includes("cdn.punchng.com/wp-content/uploads/")) && !trimmed.includes("punch-logo") && !trimmed.includes("500x179")) {
+    return true;
   }
   try {
     const resp = await axios2.head(trimmed, {
       timeout: timeoutMs,
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) FideTV-ImageValidator/2.0"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 FideTV-ImageValidator/3.0"
       },
       validateStatus: (status) => status >= 200 && status < 400
     });
@@ -1211,7 +1239,7 @@ async function probeImageUrl(url, timeoutMs = 3e3) {
         timeout: timeoutMs,
         headers: {
           Range: "bytes=0-1024",
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) FideTV-ImageValidator/2.0"
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 FideTV-ImageValidator/3.0"
         },
         validateStatus: (status) => status >= 200 && status < 400 || status === 206
       });
@@ -1225,15 +1253,43 @@ async function probeImageUrl(url, timeoutMs = 3e3) {
 }
 async function validateAndEnrichNewsCover(candidateUrl, title = "", content = "", category = "") {
   const theme = detectArticleTheme(title, content, category);
-  if (candidateUrl && candidateUrl.trim().length > 10) {
-    const cleanUrl = candidateUrl.trim();
-    const isValid = await probeImageUrl(cleanUrl);
-    if (isValid) {
+  if (candidateUrl && (candidateUrl.includes("youtube.com") || candidateUrl.includes("youtu.be"))) {
+    const ytThumb = extractYouTubeThumbnail(candidateUrl);
+    if (ytThumb) {
       return {
-        validUrl: cleanUrl,
+        validUrl: ytThumb,
         isOriginal: true,
         theme
       };
+    }
+  }
+  if (candidateUrl && candidateUrl.includes("ichef.bbci.co.uk")) {
+    const upgraded = candidateUrl.replace(/\/ace\/standard\/\d+\//, "/ace/standard/976/").replace(/\/cpsprodpb\/[a-z0-9]+\/live\//, "/cpsprodpb/1200/live/").replace(/\/branded_news\/\d+\//, "/branded_news/1200/");
+    return {
+      validUrl: upgraded,
+      isOriginal: true,
+      theme
+    };
+  }
+  if (candidateUrl && candidateUrl.trim().length > 10) {
+    const cleanUrl = candidateUrl.trim();
+    const isLogo = cleanUrl.toLowerCase().includes("punch-logo") || cleanUrl.toLowerCase().includes("logo-500x179") || cleanUrl.toLowerCase().includes("default-avatar") || cleanUrl.toLowerCase().includes("dicebear.com");
+    if (!isLogo) {
+      if (cleanUrl.includes("channelstv.com") || cleanUrl.includes("vanguardngr.com") || cleanUrl.includes("punchng.com") || cleanUrl.includes("techcrunch.com") || cleanUrl.includes("ichef.bbci.co.uk") || cleanUrl.includes("img.youtube.com") || cleanUrl.includes("postimg.cc") || cleanUrl.includes("image2url.com") || cleanUrl.includes("supabase.co")) {
+        return {
+          validUrl: cleanUrl,
+          isOriginal: true,
+          theme
+        };
+      }
+      const isValid = await probeImageUrl(cleanUrl);
+      if (isValid) {
+        return {
+          validUrl: cleanUrl,
+          isOriginal: true,
+          theme
+        };
+      }
     }
   }
   const contextualUrl = getContentSpecificImage(title, content, category);
@@ -1245,6 +1301,10 @@ async function validateAndEnrichNewsCover(candidateUrl, title = "", content = ""
 }
 
 // src/services/autoBlogService.ts
+var isValidUuid = (val) => {
+  if (!val) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+};
 var NEWS_SOURCES = [
   {
     name: "Channels Television Nigeria",
@@ -1293,6 +1353,8 @@ var AutoBlogService = class _AutoBlogService {
     this.lastSyncTime = null;
     this.syncIntervalHandle = null;
     this.lastPingReport = null;
+    this.channel = null;
+    this.initializedPromise = null;
     this.supabase = supabaseClient;
     this.storageFilePath = path.resolve(process.cwd(), "src/data/auto_blogs.json");
   }
@@ -1311,27 +1373,61 @@ var AutoBlogService = class _AutoBlogService {
     this.supabase = client;
   }
   async init() {
-    console.log("[AutoBlogService] Initializing automated blog news & sync engine...");
-    await this.loadPersistedPosts();
-    await this.pullFromSupabase().catch((err) => console.error("[AutoBlogService] Startup DB pull failed:", err));
-    setTimeout(() => {
-      this.syncLatestNews().catch((err) => {
-        console.error("[AutoBlogService] Initial full sync error:", err);
+    if (this.initializedPromise) return this.initializedPromise;
+    this.initializedPromise = (async () => {
+      console.log("[AutoBlogService] Initializing automated blog news & sync engine...");
+      await this.loadPersistedPosts();
+      await this.pullFromSupabase().catch((err) => console.error("[AutoBlogService] Startup DB pull failed:", err));
+      if (this.isStale(1) || this.posts.length < 10) {
+        console.log("[AutoBlogService] Initial news sync triggered on startup...");
+        this.syncLatestNews().catch((err) => console.warn("[AutoBlogService] Initial sync notice:", err.message));
+      }
+      if (!this.syncIntervalHandle && typeof setInterval !== "undefined") {
+        this.syncIntervalHandle = setInterval(() => {
+          console.log("[AutoBlogService] Triggering scheduled automated news update cycle (3m)...");
+          this.syncLatestNews().catch((err) => {
+            console.warn("[AutoBlogService] Scheduled sync notice:", err.message);
+          });
+        }, 3 * 60 * 1e3);
+      }
+      this.setupRealtimeListener();
+    })();
+    return this.initializedPromise;
+  }
+  /**
+   * Ensures that the service has pulled latest data from Supabase at least once.
+   * Crucial for serverless environments.
+   */
+  async ensureInitialized() {
+    if (!this.initializedPromise) {
+      await this.init();
+    }
+    await this.initializedPromise;
+    if (this.posts.length < 5) {
+      await this.pullFromSupabase().catch(() => {
       });
-    }, 5e3);
-    if (!this.syncIntervalHandle) {
-      this.syncIntervalHandle = setInterval(() => {
-        console.log("[AutoBlogService] Triggering scheduled automated news update cycle...");
-        this.syncLatestNews().catch((err) => {
-          console.error("[AutoBlogService] Scheduled sync error:", err);
-        });
-      }, 30 * 60 * 1e3);
+    }
+  }
+  setupRealtimeListener() {
+    if (!this.supabase) return;
+    try {
+      console.log('[AutoBlogService] Setting up server-side real-time listener for "news" table...');
+      this.channel = this.supabase.channel("server-news-sync").on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "news" },
+        async (payload) => {
+          console.log("[AutoBlogService] Real-time DB change detected on server:", payload.eventType);
+          await this.pullFromSupabase();
+        }
+      ).subscribe();
+    } catch (err) {
+      console.error("[AutoBlogService] Real-time setup failed:", err);
     }
   }
   /**
    * Check whether the cached news is stale (older than maxAgeMinutes, or never synced)
    */
-  isStale(maxAgeMinutes = 15) {
+  isStale(maxAgeMinutes = 1) {
     if (!this.lastSyncTime) return true;
     const ageMs = Date.now() - new Date(this.lastSyncTime).getTime();
     return ageMs > maxAgeMinutes * 60 * 1e3;
@@ -1342,11 +1438,11 @@ var AutoBlogService = class _AutoBlogService {
    */
   async pullFromSupabase() {
     if (!this.supabase) return 0;
+    let syncedCount = 0;
     try {
-      const { data: dbRows, error: dbError } = await this.supabase.from("news").select("*").eq("is_published", true).order("created_at", { ascending: false }).limit(60);
+      const { data: dbRows, error: dbError } = await this.supabase.from("news").select("id, slug, title, excerpt, description, content, category, tags, image_url, image_urls, is_published, created_at, author_id").eq("is_published", true).order("created_at", { ascending: false }).limit(60);
       if (dbError) throw dbError;
       if (!dbRows || !Array.isArray(dbRows)) return 0;
-      let syncedCount = 0;
       for (const row of dbRows) {
         const rowSlug = row.slug || this.generateSlug(row.title) || row.id;
         const formattedDbPost = {
@@ -1360,15 +1456,14 @@ var AutoBlogService = class _AutoBlogService {
           tags: row.tags || ["Broadcasting", "News"],
           image_url: row.image_url || "https://images.unsplash.com/photo-1478737270239-2f02b77fc618?q=80&w=800",
           image_urls: row.image_urls || (row.image_url ? [row.image_url] : []),
-          read_time: row.read_time || "4 min read",
-          source_name: row.source_name || "FideTV Media",
+          read_time: "4 min read",
+          source_name: "FideTV Media",
           author_id: row.author_id || "fidetv_admin",
           is_published: true,
           created_at: row.created_at || (/* @__PURE__ */ new Date()).toISOString(),
           profiles: {
             username: "FideTV News Desk",
-            avatar_url: "https://api.dicebear.com/7.x/bottts/svg?seed=FideTV_NewsDesk",
-            role: "Official Editor"
+            avatar_url: "https://api.dicebear.com/7.x/bottts/svg?seed=FideTV_NewsDesk"
           }
         };
         const existingIdx = this.posts.findIndex((p) => p.id === row.id || p.slug === rowSlug);
@@ -1380,8 +1475,34 @@ var AutoBlogService = class _AutoBlogService {
         }
       }
       this.posts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      if (this.posts.length > 60) this.posts = this.posts.slice(0, 60);
+      const uniqueMap = /* @__PURE__ */ new Map();
+      this.posts.forEach((p) => {
+        if (!uniqueMap.has(p.slug)) uniqueMap.set(p.slug, p);
+      });
+      this.posts = Array.from(uniqueMap.values());
+      if (this.posts.length > 100) this.posts = this.posts.slice(0, 100);
       this.lastSyncTime = (/* @__PURE__ */ new Date()).toISOString();
+      if (syncedCount > 0) {
+        console.log(`[AutoBlogService] Broadcasting ${syncedCount} new articles to 'realtime' channel...`);
+        const broadcastChannel = this.supabase.channel("realtime");
+        broadcastChannel.subscribe((status) => {
+          if (status === "SUBSCRIBED") {
+            broadcastChannel.send({
+              type: "broadcast",
+              event: "news-updated",
+              payload: {
+                count: syncedCount,
+                timestamp: this.lastSyncTime,
+                message: "New articles have been synchronized"
+              }
+            }).then(() => {
+              console.log("[AutoBlogService] Broadcast sent successfully.");
+            }).catch((err) => {
+              console.warn("[AutoBlogService] Broadcast send failed:", err.message);
+            });
+          }
+        });
+      }
       return syncedCount;
     } catch (err) {
       console.error("[AutoBlogService] pullFromSupabase error:", err.message);
@@ -1425,6 +1546,58 @@ var AutoBlogService = class _AutoBlogService {
     if (!raw) return "";
     return raw.replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
   }
+  /**
+   * Scrapes an article webpage to extract authentic news photo and full multi-paragraph reporting.
+   */
+  async scrapeWebArticle(url) {
+    const result = { paragraphs: [] };
+    if (!url || !url.startsWith("http")) return result;
+    try {
+      const cleanUrl = url.split("?")[0];
+      const resp = await axios3.get(cleanUrl, {
+        timeout: 7e3,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 FideTV-NewsBot/3.0",
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+        }
+      });
+      if (!resp.data || typeof resp.data !== "string") return result;
+      const $page = cheerio.load(resp.data);
+      result.title = $page("title").text() || $page('meta[property="og:title"]').attr("content") || void 0;
+      let ogImg = $page('meta[property="og:image"]').attr("content") || $page('meta[name="twitter:image:src"]').attr("content") || $page('meta[name="twitter:image"]').attr("content") || $page(".post-content figure img").first().attr("src") || $page("article figure img").first().attr("src") || $page(".entry-content figure img").first().attr("src") || $page("figure img").first().attr("src") || "";
+      if (ogImg) {
+        ogImg = ogImg.trim();
+        if (ogImg.includes("ichef.bbci.co.uk")) {
+          ogImg = ogImg.replace(/\/ace\/standard\/\d+\//, "/ace/standard/1200/").replace(/\/cpsprodpb\/[a-z0-9]+\/live\//, "/cpsprodpb/1200/live/").replace(/\/branded_news\/\d+\//, "/branded_news/1200/");
+        }
+        const isLogo = ogImg.toLowerCase().includes("punch-logo") || ogImg.toLowerCase().includes("logo-500x179") || ogImg.toLowerCase().includes("default-avatar") || ogImg.toLowerCase().includes("1x1");
+        if (!isLogo && ogImg.startsWith("http")) {
+          result.imageUrl = ogImg;
+        }
+      }
+      const selectors = [
+        ".post-content p",
+        "article p",
+        '[data-component="text-block"] p',
+        ".entry-content p",
+        "main article p",
+        ".story-body p",
+        ".article__body p",
+        "main p"
+      ];
+      for (const sel of selectors) {
+        if (result.paragraphs.length >= 4) break;
+        $page(sel).each((_, el) => {
+          const text = $page(el).text().trim();
+          if (text.length > 25 && !text.toLowerCase().startsWith("file photo") && !text.toLowerCase().startsWith("photo:") && !text.toLowerCase().startsWith("image caption") && !text.includes("All rights reserved") && !text.includes("Contact:") && !text.includes("Follow BBC") && !text.includes("Sign up for our") && !text.includes("Download the BBC") && !text.includes("Image source,") && !text.includes("Get in touch") && !text.includes("Listen to the latest") && !text.includes("Read More:") && !text.includes("advertisement")) {
+            result.paragraphs.push(text);
+          }
+        });
+      }
+    } catch {
+    }
+    return result;
+  }
   async fetchRawFeeds() {
     const rawItems = [];
     for (const source of NEWS_SOURCES) {
@@ -1432,24 +1605,69 @@ var AutoBlogService = class _AutoBlogService {
         const response = await axios3.get(source.url, {
           timeout: 8e3,
           headers: {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) FideTV-NewsBot/3.0"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 FideTV-NewsBot/3.0"
           }
         });
         const xml = response.data;
         if (!xml || typeof xml !== "string") continue;
         const $ = cheerio.load(xml, { xmlMode: true });
-        $("item").each((i, el) => {
-          if (i >= 5) return;
+        const items = $("item").slice(0, 5).toArray();
+        for (const el of items) {
           const title = $(el).find("title").first().text();
           const link = $(el).find("link").first().text();
           const desc = $(el).find("description").first().text();
           const pubDate = $(el).find("pubDate").first().text();
-          let imageUrl = $(el).find("media\\:content, content").attr("url") || $(el).find("media\\:thumbnail, thumbnail").attr("url") || $(el).find('enclosure[type^="image"]').attr("url") || "";
+          const rawXml = $(el).html() || "";
+          let imageUrl = "";
+          const paragraphs = [];
+          const featuredMatch = rawXml.match(/<media:featured[^>]+url="([^">]+)"/i);
+          if (featuredMatch && featuredMatch[1]) {
+            imageUrl = featuredMatch[1];
+          }
           if (!imageUrl) {
-            const imgMatch = desc.match(/<img[^>]+src="([^">]+)"/i);
-            if (imgMatch && imgMatch[1]) {
-              imageUrl = imgMatch[1];
+            imageUrl = $(el).find("media\\:content, content").attr("url") || $(el).find("media\\:thumbnail, thumbnail").attr("url") || $(el).find('enclosure[type^="image"]').attr("url") || "";
+          }
+          if (!imageUrl) {
+            const bbcMatch = rawXml.match(/<media:thumbnail[^>]+url="([^">]+)"/i);
+            if (bbcMatch && bbcMatch[1]) {
+              imageUrl = bbcMatch[1].replace(/\/standard\/\d+\//, "/standard/976/");
             }
+          }
+          const contentEncoded = $(el).find("content\\:encoded").text();
+          if (contentEncoded) {
+            const $content = cheerio.load(contentEncoded);
+            if (!imageUrl) {
+              const contentImg = $content("img").first().attr("src");
+              if (contentImg && !contentImg.includes("logo") && !contentImg.includes("1x1")) {
+                imageUrl = contentImg;
+              }
+            }
+            $content("p").each((_, p) => {
+              const t = $content(p).text().trim();
+              if (t.length > 20 && !t.includes("Vanguard News") && !t.includes("All rights reserved")) {
+                paragraphs.push(t);
+              }
+            });
+          }
+          const isLogoImg = imageUrl.toLowerCase().includes("punch-logo") || imageUrl.toLowerCase().includes("500x179");
+          if ((paragraphs.length < 3 || !imageUrl || isLogoImg) && link) {
+            const scraped = await this.scrapeWebArticle(link);
+            if (scraped.imageUrl && (!imageUrl || isLogoImg)) {
+              imageUrl = scraped.imageUrl;
+            }
+            if (scraped.paragraphs.length > paragraphs.length) {
+              paragraphs.length = 0;
+              paragraphs.push(...scraped.paragraphs);
+            }
+          }
+          if (imageUrl && (imageUrl.includes("youtube.com") || imageUrl.includes("youtu.be"))) {
+            const ytMatch = imageUrl.match(/(?:youtube\.com\/(?:embed\/|watch\?v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+            if (ytMatch && ytMatch[1]) {
+              imageUrl = `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`;
+            }
+          }
+          if (imageUrl && (imageUrl.includes("punch-logo") || imageUrl.includes("500x179"))) {
+            imageUrl = "";
           }
           const cleanedTitle = this.cleanHtml(title);
           const cleanedDesc = this.cleanHtml(desc);
@@ -1462,12 +1680,17 @@ var AutoBlogService = class _AutoBlogService {
               sourceName: source.name,
               defaultCategory: source.defaultCategory,
               region: source.region,
-              imageUrl: imageUrl.trim() || void 0
+              imageUrl: imageUrl.trim() || void 0,
+              paragraphs: paragraphs.length > 0 ? paragraphs : void 0,
+              fullContent: paragraphs.length > 0 ? paragraphs.join("\n\n") : cleanedDesc
             });
           }
-        });
+        }
       } catch (feedErr) {
-        console.warn(`[AutoBlogService] Failed to fetch feed ${source.name}:`, feedErr.message);
+        if (feedErr.response?.status === 429) {
+        } else {
+          console.warn(`[AutoBlogService] Failed to fetch feed ${source.name}:`, feedErr.message);
+        }
       }
     }
     return rawItems;
@@ -1493,9 +1716,9 @@ var AutoBlogService = class _AutoBlogService {
     for (const src of nigerianSources) {
       try {
         const resp = await axios3.get(src.url, {
-          timeout: 6e3,
+          timeout: 7e3,
           headers: {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) FideTV-NigeriaWire/3.0"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 FideTV-NigeriaWire/3.0"
           }
         });
         const $ = cheerio.load(resp.data, { xmlMode: true });
@@ -1505,28 +1728,80 @@ var AutoBlogService = class _AutoBlogService {
           const link = $(el).find("link").first().text().trim();
           const desc = this.cleanHtml($(el).find("description").first().text());
           const pubDate = $(el).find("pubDate").first().text().trim();
-          let imageUrl = $(el).find("media\\:content, content").attr("url") || $(el).find("media\\:thumbnail, thumbnail").attr("url") || $(el).find('enclosure[type^="image"]').attr("url") || "";
+          const rawXml = $(el).html() || "";
+          let imageUrl = "";
+          const paragraphs = [];
+          const featuredMatch = rawXml.match(/<media:featured[^>]+url="([^">]+)"/i);
+          if (featuredMatch && featuredMatch[1]) {
+            imageUrl = featuredMatch[1];
+          }
           if (!imageUrl) {
-            const imgMatch = desc.match(/<img[^>]+src="([^">]+)"/i);
-            if (imgMatch && imgMatch[1]) imageUrl = imgMatch[1];
+            imageUrl = $(el).find("media\\:content, content").attr("url") || $(el).find("media\\:thumbnail, thumbnail").attr("url") || $(el).find('enclosure[type^="image"]').attr("url") || "";
+          }
+          const contentEncoded = $(el).find("content\\:encoded").text();
+          if (contentEncoded) {
+            const $content = cheerio.load(contentEncoded);
+            if (!imageUrl) {
+              const contentImg = $content("img").first().attr("src");
+              if (contentImg && !contentImg.includes("logo") && !contentImg.includes("1x1")) {
+                imageUrl = contentImg;
+              }
+            }
+            $content("p").each((_, p) => {
+              const t = $content(p).text().trim();
+              if (t.length > 20 && !t.includes("Vanguard News") && !t.includes("All rights reserved")) {
+                paragraphs.push(t);
+              }
+            });
+          }
+          const isLogoImg = imageUrl.toLowerCase().includes("punch-logo") || imageUrl.toLowerCase().includes("500x179");
+          if ((paragraphs.length < 3 || !imageUrl || isLogoImg) && link) {
+            const scraped = await this.scrapeWebArticle(link);
+            if (scraped.imageUrl && (!imageUrl || isLogoImg)) {
+              imageUrl = scraped.imageUrl;
+            }
+            if (scraped.paragraphs.length > paragraphs.length) {
+              paragraphs.length = 0;
+              paragraphs.push(...scraped.paragraphs);
+            }
+          }
+          if (imageUrl && (imageUrl.includes("youtube.com") || imageUrl.includes("youtu.be"))) {
+            const ytMatch = imageUrl.match(/(?:youtube\.com\/(?:embed\/|watch\?v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+            if (ytMatch && ytMatch[1]) imageUrl = `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`;
+          }
+          if (imageUrl && (imageUrl.includes("punch-logo") || imageUrl.includes("500x179"))) {
+            imageUrl = "";
           }
           if (title && title.length > 12) {
             const slug = this.generateSlug(title);
             const exists = nigeriaItems.some((n) => n.slug === slug || n.title.toLowerCase() === title.toLowerCase());
             if (!exists) {
               const validated = await validateAndEnrichNewsCover(imageUrl, title, desc, "Global News & Culture");
+              const rawNigeriaItem = {
+                title,
+                link,
+                description: desc,
+                pubDate: pubDate || (/* @__PURE__ */ new Date()).toISOString(),
+                sourceName: src.name,
+                defaultCategory: "Global News & Culture",
+                region: "Nigeria",
+                imageUrl: validated.validUrl,
+                paragraphs: paragraphs.length > 0 ? paragraphs : void 0,
+                fullContent: paragraphs.length > 0 ? paragraphs.join("\n\n") : desc
+              };
+              const synthesized = this.synthesizeFallbackPost(rawNigeriaItem);
               const post = {
                 id: crypto.randomUUID(),
                 slug,
-                title,
-                excerpt: desc ? desc.substring(0, 160) + "..." : "Breaking regional report from Nigeria.",
-                description: desc || "",
-                content: desc || "",
+                title: synthesized.title,
+                excerpt: synthesized.excerpt,
+                description: synthesized.excerpt,
+                content: synthesized.content,
                 category: "Global News & Culture",
-                tags: ["Nigeria", "RegionalNews", "AfricaWire", "FideTV"],
+                tags: synthesized.tags,
                 image_url: validated.validUrl,
                 image_urls: [validated.validUrl],
-                read_time: "3 min read",
+                read_time: synthesized.read_time,
                 source_name: src.name,
                 source_url: link,
                 region: "Nigeria",
@@ -1535,8 +1810,7 @@ var AutoBlogService = class _AutoBlogService {
                 created_at: pubDate ? new Date(pubDate).toISOString() : (/* @__PURE__ */ new Date()).toISOString(),
                 profiles: {
                   username: "Nigeria Regional Bureau",
-                  avatar_url: "https://api.dicebear.com/7.x/bottts/svg?seed=NigeriaNewsDesk",
-                  role: "Regional Wire Desk"
+                  avatar_url: "https://api.dicebear.com/7.x/bottts/svg?seed=NigeriaNewsDesk"
                 }
               };
               nigeriaItems.push(post);
@@ -1578,33 +1852,46 @@ var AutoBlogService = class _AutoBlogService {
           }
         }
       });
+      const fullSourceText = rawItem.paragraphs && rawItem.paragraphs.length > 0 ? rawItem.paragraphs.join("\n\n") : rawItem.fullContent || rawItem.description;
       const prompt = `You are the Lead Digital Media Editor and Journalist for FideTV Media Hub.
 FideTV is a 24/7 digital broadcasting platform, live streaming hub, and modern African & international media network.
 
-Analyze this breaking news story:
+Analyze this breaking news story and its FULL wire reporting:
 Headline: "${rawItem.title}"
 Source: "${rawItem.sourceName}"
-Snippet: "${rawItem.description}"
 Category Suggestion: "${rawItem.defaultCategory}"
 Region: "${rawItem.region || "Global"}"
 
-Write a comprehensive, original, high-quality editorial blog post for FideTV's audience.
-The post must be written in rich Markdown with informative subheadings, industry analysis, broadcasting/digital media implications, and a bulleted "Key Takeaways" section.
+FULL WIRE REPORTING:
+"""
+${fullSourceText}
+"""
+
+CRITICAL INSTRUCTIONS:
+1. Write a comprehensive, FULL-LENGTH journalistic news report in Markdown for FideTV's audience.
+2. DO NOT summarize into a short brief. You MUST preserve ALL verified facts, official statements, direct quotes, chronological background, and key details from the original wire text.
+3. Structure the article with clear sections:
+   - ## Introduction & The Breaking Context
+   - ## The Full Developing Story
+   - ## In-Depth Background & Statements
+   - ## Broadcast & Digital Media Perspective
+   - ## FideTV Editorial Commentary
+   - ## Key Takeaways (bulleted fact sheet)
 
 Output ONLY valid JSON in this exact structure without markdown fences:
 {
   "title": "A punchy, captivating journalistic headline",
-  "excerpt": "A crisp, compelling 2-sentence summary hook",
+  "excerpt": "A crisp, compelling 2-sentence summary hook (under 180 chars)",
   "category": "Broadcasting & Streaming | Technology & AI | Media & Entertainment | Global News & Culture | Creator Economy & Production | Sports & Live Events",
   "tags": ["tag1", "tag2", "tag3", "tag4"],
-  "read_time": "4 min read",
-  "content": "Full markdown content with ## Introduction, ## The Developing Story, ## Industry & Broadcast Impact, ## The FideTV Editorial Perspective, and ## Key Takeaways (bullet points)."
+  "read_time": "5 min read",
+  "content": "Full Markdown article text containing all sections and complete reporting."
 }`;
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
         contents: prompt,
         config: {
-          maxOutputTokens: 1200,
+          maxOutputTokens: 2500,
           temperature: 0.7,
           responseMimeType: "application/json"
         }
@@ -1613,14 +1900,14 @@ Output ONLY valid JSON in this exact structure without markdown fences:
       if (!responseText) return null;
       const cleanJson = responseText.replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
       const parsed = JSON.parse(cleanJson);
-      if (parsed.title && parsed.content) {
+      if (parsed.title && parsed.content && parsed.content.length > 300) {
         return {
           title: parsed.title,
           excerpt: parsed.excerpt || rawItem.description.substring(0, 160) + "...",
           content: parsed.content,
           category: parsed.category || rawItem.defaultCategory,
           tags: Array.isArray(parsed.tags) ? parsed.tags : ["DigitalMedia", "Broadcasting", "News"],
-          read_time: parsed.read_time || "4 min read"
+          read_time: parsed.read_time || "5 min read"
         };
       }
     } catch (aiErr) {
@@ -1631,17 +1918,65 @@ Output ONLY valid JSON in this exact structure without markdown fences:
   synthesizeFallbackPost(rawItem) {
     const title = rawItem.title;
     const category = rawItem.defaultCategory;
-    const snippet = rawItem.description || "Breaking coverage on major industry developments.";
-    const excerpt = snippet.length > 170 ? snippet.substring(0, 167) + "..." : snippet;
-    const content = `In a fast-moving development across the media and cultural landscape, **${title}** has emerged as a focal point for observers and audiences.
+    const paras = rawItem.paragraphs && rawItem.paragraphs.length > 0 ? rawItem.paragraphs : [rawItem.description];
+    const totalWordCount = paras.join(" ").split(/\s+/).length;
+    const readTimeMinutes = Math.max(3, Math.ceil(totalWordCount / 200));
+    const read_time = `${readTimeMinutes} min read`;
+    const leadPara = paras[0] || rawItem.description || "Breaking coverage on major industry developments.";
+    const excerpt = leadPara.length > 180 ? leadPara.substring(0, 177) + "..." : leadPara;
+    let content;
+    if (paras.length >= 3) {
+      const lead = paras.slice(0, 2).join("\n\n");
+      const middleStory = paras.slice(2, Math.floor(paras.length * 0.65)).join("\n\n");
+      const deepDetails = paras.slice(Math.floor(paras.length * 0.65), Math.max(paras.length - 2, 2)).join("\n\n");
+      const concluding = paras.slice(Math.max(paras.length - 2, 2)).join("\n\n");
+      content = `${lead}
 
 ---
 
-### \u{1F310} The Developing Story
+### \u{1F4F0} The Full Developing Story & Context
 
-${snippet}
+${middleStory}
 
-As reported via **${rawItem.sourceName}**, this event reflects broader shifts currently impacting how news and information are distributed, consumed, and experienced in real-time environments.
+---
+
+### \u{1F50D} Background, Statements & Official Perspectives
+
+${deepDetails || concluding}
+
+${concluding && deepDetails ? `
+
+---
+
+### \u{1F399}\uFE0F Perspectives & What Comes Next
+
+${concluding}` : ""}
+
+---
+
+### \u{1F4E1} Industry & Broadcast Perspective
+
+From a digital media infrastructure viewpoint, major developments like this illustrate the speed with which breaking events reverberate across national and international broadcast channels:
+* **Live Wire Distribution**: Real-time multi-platform reporting delivering instantaneous updates to viewers.
+* **In-Depth Journalistic Context**: Bringing verified facts, official statements, and unfiltered context over brief summaries.
+* **Community Engagement**: Enabling audiences to follow continuous updates and engage through digital broadcasts.
+
+---
+
+### \u{1F4A1} FideTV Media Editorial Note
+
+At **FideTV Media**, our mission is to deliver comprehensive, unfiltered news covering international media, industry icons, technology, and broadcasting breakthroughs. Whether tracking pivotal governance milestones, cultural shifts, or technological infrastructure, we keep our community equipped with timely, high-fidelity reporting.
+
+---
+
+### \u{1F4CC} Key Story Takeaways
+
+1. **Primary Subject**: ${title}
+2. **Category Focus**: ${category}
+3. **Reading Time**: ${read_time}
+4. **Source Attribution**: Reporting verified via *${rawItem.sourceName}* original coverage.`;
+    } else {
+      content = `${paras.join("\n\n")}
 
 ---
 
@@ -1649,7 +1984,6 @@ As reported via **${rawItem.sourceName}**, this event reflects broader shifts cu
 
 From a digital media infrastructure viewpoint, updates of this magnitude demonstrate the critical importance of adaptable, high-capacity broadcasting systems:
 * **Real-time Distribution**: The shift towards decentralized, multi-channel broadcast architectures.
-* **Creator Democratization**: Lowering the barrier for independent journalists and production studios to broadcast globally.
 * **Audience Interactivity**: Synchronized voice spaces and collaborative commentary.
 
 ---
@@ -1663,9 +1997,9 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
 ### \u{1F4CC} Key Takeaways
 
 1. **Impact**: Significant immediate relevance for digital media practitioners, creators, and audiences.
-2. **Key Insight**: ${snippet.substring(0, 100)}...
-3. **Next Steps**: Continued observation of follow-up announcements.
-4. **Source Reference**: Live wire coverage courtesy of *${rawItem.sourceName}*.`;
+2. **Key Insight**: ${leadPara.substring(0, 120)}...
+3. **Source Reference**: Live wire coverage courtesy of *${rawItem.sourceName}*.`;
+    }
     const tags = [
       category.split(" ")[0].replace(/[^a-zA-Z]/g, ""),
       "Broadcasting",
@@ -1680,7 +2014,7 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
       content,
       category,
       tags,
-      read_time: "4 min read"
+      read_time
     };
   }
   /**
@@ -1708,12 +2042,22 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
       results.targets.google = { status: "error", error: e.message };
     }
     try {
+      const recentUrls = this.posts.slice(0, 10).map((p) => `https://fidetv.online/news/${encodeURIComponent(p.slug || p.id)}`);
+      const allUrls = Array.from(/* @__PURE__ */ new Set([
+        sitemapUrl,
+        "https://fidetv.online",
+        "https://fidetv.online/news",
+        "https://fidetv.online/live",
+        "https://fidetv.online/content",
+        "https://fidetv.online/services",
+        ...recentUrls
+      ]));
       const indexNowUrl = "https://api.indexnow.org/indexnow";
       const indexNowResp = await axios3.post(indexNowUrl, {
         host: "fidetv.online",
         key: "fidetv_seo_key_2026",
-        urlList: [sitemapUrl, "https://fidetv.online/news"]
-      }, { timeout: 5e3, validateStatus: () => true });
+        urlList: allUrls
+      }, { timeout: 6e3, validateStatus: () => true });
       results.targets.indexNow = { status: indexNowResp.status, success: indexNowResp.status >= 200 && indexNowResp.status < 400 };
     } catch (e) {
       results.targets.indexNow = { status: "error", error: e.message };
@@ -1746,7 +2090,7 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
     try {
       if (this.supabase) {
         try {
-          const { data: dbRows, error: dbError } = await this.supabase.from("news").select("*").eq("is_published", true).order("created_at", { ascending: false });
+          const { data: dbRows, error: dbError } = await this.supabase.from("news").select("id, slug, title, excerpt, description, content, category, tags, image_url, is_published, created_at, author_id").eq("is_published", true).order("created_at", { ascending: false });
           if (!dbError && Array.isArray(dbRows)) {
             for (const row of dbRows) {
               const rowSlug = row.slug || this.generateSlug(row.title) || row.id;
@@ -1781,8 +2125,7 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
                 created_at: row.created_at || (/* @__PURE__ */ new Date()).toISOString(),
                 profiles: {
                   username: "FideTV News Desk",
-                  avatar_url: "https://api.dicebear.com/7.x/bottts/svg?seed=FideTV_NewsDesk",
-                  role: "Official Editor"
+                  avatar_url: "https://api.dicebear.com/7.x/bottts/svg?seed=FideTV_NewsDesk"
                 }
               };
               const existingIdx = this.posts.findIndex((p) => p.id === row.id || p.slug === rowSlug);
@@ -1802,12 +2145,18 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
       const rawItems = await this.fetchRawFeeds();
       console.log(`[AutoBlogService] Processing ${rawItems.length} candidate news items from live feeds...`);
       for (const item of rawItems) {
-        if (addedCount >= 8) break;
+        if (addedCount >= 50) break;
         const tempSlug = this.generateSlug(item.title);
-        const alreadyExists = this.posts.some(
-          (p) => p.slug === tempSlug || p.title.toLowerCase() === item.title.toLowerCase()
-        );
-        if (alreadyExists) continue;
+        const normalizedIncoming = item.title.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+        const incomingWords = item.title.toLowerCase().split(/\s+/).slice(0, 5).join(" ");
+        const alreadyExists = this.posts.some((p) => {
+          const normalizedExisting = p.title.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+          const existingWords = p.title.toLowerCase().split(/\s+/).slice(0, 5).join(" ");
+          return p.slug === tempSlug || p.id === item.link || normalizedExisting === normalizedIncoming || incomingWords.length > 10 && existingWords === incomingWords;
+        });
+        if (alreadyExists) {
+          continue;
+        }
         const validatedCover = await validateAndEnrichNewsCover(
           item.imageUrl,
           item.title,
@@ -1820,7 +2169,12 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
         }
         const id = crypto.randomUUID();
         let slug = this.generateSlug(generated.title) || tempSlug;
-        if (this.posts.some((p) => p.slug === slug)) {
+        let slugExists = this.posts.some((p) => p.slug === slug);
+        if (!slugExists && this.supabase) {
+          const { data } = await this.supabase.from("news").select("id").eq("slug", slug).maybeSingle();
+          if (data) slugExists = true;
+        }
+        if (slugExists) {
           slug = `${slug}-${Date.now().toString(36).substring(4)}`;
         }
         const newPost = {
@@ -1843,16 +2197,15 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
           created_at: (/* @__PURE__ */ new Date()).toISOString(),
           profiles: {
             username: "FideTV News Desk",
-            avatar_url: "https://api.dicebear.com/7.x/bottts/svg?seed=FideTV_NewsDesk",
-            role: "Automated News Curator"
+            avatar_url: "https://api.dicebear.com/7.x/bottts/svg?seed=FideTV_NewsDesk"
           }
         };
         this.posts.unshift(newPost);
         addedCount++;
         if (this.supabase) {
           try {
-            console.log("[AutoBlogService] Upserting to Supabase:", newPost.id, newPost.title);
-            await this.supabase.from("news").upsert({
+            console.log("[AutoBlogService] Upserting to Supabase:", newPost.id, newPost.title.substring(0, 50));
+            const upsertPayload = {
               id: newPost.id,
               slug: newPost.slug || newPost.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
               title: newPost.title,
@@ -1860,27 +2213,33 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
               description: newPost.description || "",
               content: newPost.content || "",
               category: newPost.category || "News",
-              tags: newPost.tags || [],
+              tags: Array.from(new Set(newPost.tags || [])),
               image_url: newPost.image_url || "",
               image_urls: newPost.image_urls || [],
               is_published: true,
-              created_at: newPost.created_at,
-              author_id: newPost.author_id,
-              read_time: newPost.read_time,
-              source_name: newPost.source_name,
-              source_url: newPost.source_url,
-              region: newPost.region
-            }, { onConflict: "id" });
+              created_at: newPost.created_at
+            };
+            if (isValidUuid(newPost.author_id)) {
+              upsertPayload.author_id = newPost.author_id;
+            }
+            const { error: upsertError } = await this.supabase.from("news").upsert(upsertPayload, { onConflict: "id" });
+            if (upsertError) {
+              const logEntry = `[${(/* @__PURE__ */ new Date()).toISOString()}] Supabase upsert error for ${newPost.id} (slug: ${newPost.slug}): ${JSON.stringify(upsertError, null, 2)}
+`;
+              fs.appendFile("upsert_errors.log", logEntry).catch(() => {
+              });
+              console.warn(`[AutoBlogService] Supabase upsert notice for ${newPost.id}:`, upsertError.message || upsertError);
+            }
           } catch (dbErr) {
-            console.error("[AutoBlogService] Supabase news upsert FAILED:", dbErr);
+            console.warn("[AutoBlogService] Supabase news upsert notice for:", newPost.title, dbErr.message || dbErr);
           }
         }
       }
       if (this.supabase) {
         try {
-          const syncCandidates = this.posts.slice(0, 15);
+          const syncCandidates = this.posts.slice(0, 20);
           for (const post of syncCandidates) {
-            await this.supabase.from("news").upsert({
+            const candidatePayload = {
               id: post.id,
               slug: post.slug,
               title: post.title,
@@ -1888,19 +2247,19 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
               description: post.description,
               content: post.content,
               category: post.category,
-              tags: post.tags,
+              tags: Array.from(new Set(post.tags || [])),
               image_url: post.image_url,
               image_urls: post.image_urls || [post.image_url],
               is_published: true,
-              created_at: post.created_at,
-              read_time: post.read_time,
-              source_name: post.source_name,
-              source_url: post.source_url,
-              region: post.region
-            }, { onConflict: "id" });
+              created_at: post.created_at
+            };
+            if (isValidUuid(post.author_id)) {
+              candidatePayload.author_id = post.author_id;
+            }
+            await this.supabase.from("news").upsert(candidatePayload, { onConflict: "id" });
           }
           try {
-            await this.supabase.channel("fidetv-news-realtime").send({
+            await this.supabase.channel("realtime").send({
               type: "broadcast",
               event: "news-updated",
               payload: { timestamp: (/* @__PURE__ */ new Date()).toISOString(), totalPosts: this.posts.length }
@@ -1985,6 +2344,31 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
       syncIntervalMinutes: 30
     };
   }
+  async processAndSave(url, sourceName) {
+    if (!this.supabase) return false;
+    console.log(`[AutoBlogService] Processing individual article: ${url} from ${sourceName}`);
+    try {
+      const scraped = await this.scrapeWebArticle(url);
+      if (!scraped.title) {
+        console.error("[AutoBlogService] Process error: No title found for", url);
+        return false;
+      }
+      const { error } = await this.supabase.from("news").insert({
+        title: scraped.title,
+        content: scraped.paragraphs.join("\n\n"),
+        image_url: scraped.imageUrl,
+        source_name: sourceName,
+        source_url: url,
+        is_published: true,
+        slug: this.generateSlug(scraped.title)
+      });
+      if (error) throw error;
+      return true;
+    } catch (err) {
+      console.error("[AutoBlogService] Process error:", err);
+      return false;
+    }
+  }
   getSeedBlogPosts() {
     const now = Date.now();
     return [
@@ -2028,8 +2412,7 @@ We are dedicated to building a supportive, highly specialized network for global
         created_at: new Date(now - 36e5 * 2).toISOString(),
         profiles: {
           username: "fidetv_admin",
-          avatar_url: "https://api.dicebear.com/7.x/bottts/svg?seed=fidetv_admin",
-          role: "Editor-in-Chief"
+          avatar_url: "https://api.dicebear.com/7.x/bottts/svg?seed=fidetv_admin"
         }
       },
       {
@@ -2072,8 +2455,7 @@ At FideTV, our objective is to fuse 24/7 IPTV continuous channels with participa
         created_at: new Date(now - 36e5 * 6).toISOString(),
         profiles: {
           username: "FideTV News Desk",
-          avatar_url: "https://api.dicebear.com/7.x/bottts/svg?seed=FideTV_Tech",
-          role: "Tech & Broadcasting Bureau"
+          avatar_url: "https://api.dicebear.com/7.x/bottts/svg?seed=FideTV_Tech"
         }
       },
       {
@@ -2110,8 +2492,7 @@ FideTV continues to lead this movement by offering free channel ingestion, autom
         created_at: new Date(now - 36e5 * 12).toISOString(),
         profiles: {
           username: "FideTV News Desk",
-          avatar_url: "https://api.dicebear.com/7.x/bottts/svg?seed=FideTV_Creators",
-          role: "Production Correspondent"
+          avatar_url: "https://api.dicebear.com/7.x/bottts/svg?seed=FideTV_Creators"
         }
       },
       {
@@ -2146,8 +2527,7 @@ FideTV's live sports lineup offers continuous coverage, highlighting both premie
         created_at: new Date(now - 36e5 * 18).toISOString(),
         profiles: {
           username: "FideTV Sports Desk",
-          avatar_url: "https://api.dicebear.com/7.x/bottts/svg?seed=FideTV_Sports",
-          role: "Sports Bureau Chief"
+          avatar_url: "https://api.dicebear.com/7.x/bottts/svg?seed=FideTV_Sports"
         }
       }
     ];
@@ -3458,7 +3838,7 @@ var apiLimiter = isVercel ? (req, res, next) => next() : rateLimit({
   max: 3e3,
   skip: (req) => {
     const p = req.path || "";
-    return req.method === "GET" && (p.startsWith("/news") || p.startsWith("/channels") || p.startsWith("/blog") || p.startsWith("/health"));
+    return req.method === "GET" && (p.startsWith("/blog") || p.startsWith("/channels") || p.startsWith("/health"));
   },
   message: {
     success: false,
@@ -3532,18 +3912,27 @@ async function initApp(startServer = true) {
     const baseUrl = hostUrl.startsWith("http") ? hostUrl : `https://${hostUrl}`;
     const staticPages = [
       { url: "", changefreq: "daily", priority: "1.0" },
-      { url: "/news", changefreq: "hourly", priority: "0.9" },
+      { url: "/news", changefreq: "always", priority: "1.0" },
       { url: "/live", changefreq: "always", priority: "0.9" },
-      { url: "/fidesave", changefreq: "weekly", priority: "0.8" },
-      { url: "/spaces", changefreq: "daily", priority: "0.8" },
-      { url: "/about", changefreq: "monthly", priority: "0.5" },
-      { url: "/contact", changefreq: "monthly", priority: "0.5" }
+      { url: "/content", changefreq: "daily", priority: "0.9" },
+      { url: "/services", changefreq: "weekly", priority: "0.9" },
+      { url: "/broadcast-hub", changefreq: "weekly", priority: "0.8" },
+      { url: "/fidesave", changefreq: "daily", priority: "0.8" },
+      { url: "/downloader", changefreq: "daily", priority: "0.8" },
+      { url: "/about", changefreq: "monthly", priority: "0.6" },
+      { url: "/contact", changefreq: "monthly", priority: "0.6" },
+      { url: "/partner", changefreq: "monthly", priority: "0.6" },
+      { url: "/advertise", changefreq: "monthly", priority: "0.6" },
+      { url: "/booking", changefreq: "monthly", priority: "0.6" },
+      { url: "/policies", changefreq: "yearly", priority: "0.4" }
     ];
-    const blogData = autoBlogService.getAllPosts({ limit: 100 });
+    const blogData = autoBlogService.getAllPosts({ limit: 1e3 });
     const posts = blogData.posts || [];
     let xml = `<?xml version="1.0" encoding="UTF-8"?>
 `;
-    xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+`;
+    xml += `        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
 `;
     for (const page of staticPages) {
       xml += `  <url>
@@ -3558,18 +3947,31 @@ async function initApp(startServer = true) {
 `;
     }
     for (const post of posts) {
-      const postUrl = `${baseUrl}/news/${post.slug || post.id}`;
+      const slug = post.slug || post.id;
+      const postUrl = `${baseUrl}/news/${encodeURIComponent(slug)}`;
       const lastMod = post.updated_at || post.created_at || (/* @__PURE__ */ new Date()).toISOString();
+      const safeTitle = (post.title || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
       xml += `  <url>
 `;
       xml += `    <loc>${postUrl}</loc>
 `;
       xml += `    <lastmod>${new Date(lastMod).toISOString().split("T")[0]}</lastmod>
 `;
-      xml += `    <changefreq>weekly</changefreq>
+      xml += `    <changefreq>daily</changefreq>
 `;
-      xml += `    <priority>0.8</priority>
+      xml += `    <priority>0.85</priority>
 `;
+      if (post.image_url && post.image_url.startsWith("http")) {
+        const safeImg = post.image_url.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+        xml += `    <image:image>
+`;
+        xml += `      <image:loc>${safeImg}</image:loc>
+`;
+        xml += `      <image:title>${safeTitle}</image:title>
+`;
+        xml += `    </image:image>
+`;
+      }
       xml += `  </url>
 `;
     }
@@ -3580,7 +3982,8 @@ async function initApp(startServer = true) {
     try {
       const host = "fidetv.online";
       const xml = generateSitemapXml("https://" + host);
-      res.type("application/xml");
+      res.setHeader("Content-Type", "application/xml");
+      res.setHeader("Cache-Control", "public, max-age=300, s-maxage=600");
       res.send(xml);
     } catch (err) {
       console.error("[Sitemap Error]", err);
@@ -3621,9 +4024,30 @@ async function initApp(startServer = true) {
       } finally {
         isAutomationRunning = false;
       }
-    }, 12 * 60 * 60 * 1e3);
+    }, 2 * 60 * 60 * 1e3);
   }
   const apiRouter = express.Router();
+  apiRouter.post("/news/sync-manual", async (req, res) => {
+    console.log("[API] Manual news sync triggered.");
+    try {
+      const result = await autoBlogService.syncLatestNews();
+      res.json({ success: true, result });
+    } catch (err) {
+      console.error("[API] Manual sync error:", err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+  apiRouter.post("/news/process", async (req, res) => {
+    const { url, sourceName } = req.body;
+    console.log("[API] News process triggered for:", url);
+    try {
+      const success = await autoBlogService.processAndSave(url, sourceName || "Manual Process");
+      res.json({ success });
+    } catch (err) {
+      console.error("[API] News process error:", err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
   apiRouter.use(express.json());
   apiRouter.use("/meeting", meetingRoutes_default);
   apiRouter.use((req, res, next) => {
@@ -4927,7 +5351,7 @@ async function initApp(startServer = true) {
         timeout: 45e3,
         // Increased for stability
         responseType: "stream",
-        validateStatus: (status) => status < 500,
+        validateStatus: (status) => status >= 200 && status < 300,
         maxRedirects: 15
       });
       const finalUrl = response.request?.res?.responseUrl || streamUrl;
@@ -4973,6 +5397,11 @@ async function initApp(startServer = true) {
           if (res.headersSent) return;
           const buffer = Buffer.concat(chunks);
           const content = buffer.toString("utf8");
+          const lowerContent = content.trim().toLowerCase();
+          if (lowerContent.startsWith("<!doctype") || lowerContent.startsWith("<html") || lowerContent.includes("<title>error")) {
+            console.error(`[Proxy] Blocked HTML error page from stream provider for: ${streamUrl}`);
+            return res.status(502).send("Upstream stream provider returned an HTML error page.");
+          }
           if (!content.trim().startsWith("#EXTM3U")) {
             res.setHeader("Content-Type", contentType || "application/octet-stream");
             return res.send(buffer);
@@ -5339,14 +5768,16 @@ async function initApp(startServer = true) {
   app.use("/api", apiRouter);
   apiRouter.get("/news", async (req, res) => {
     try {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+      await autoBlogService.ensureInitialized();
       const forceRefresh = req.query.refresh === "true";
-      const isStale = autoBlogService.isStale(15);
+      const isStale = autoBlogService.isStale(2);
       const currentPosts = autoBlogService.getAllPosts({ limit: 5 });
       if (forceRefresh || currentPosts.posts.length < 5) {
         console.log("[API /news] Immediate sync triggered (forceRefresh or low count)...");
-        await autoBlogService.syncLatestNews().catch((err) => console.warn("[API /news] Sync warning:", err.message));
+        autoBlogService.syncLatestNews().catch((err) => console.warn("[API /news] Sync warning:", err.message));
       } else if (isStale) {
-        console.log("[API /news] News cache is stale (>15 mins). Scheduling background sync...");
+        console.log("[API /news] News cache is stale (>2 mins). Scheduling background sync...");
         autoBlogService.syncLatestNews().catch((err) => console.warn("[API /news] Background sync warning:", err.message));
       }
       const limit = req.query.limit ? parseInt(req.query.limit, 10) : 40;
@@ -5359,6 +5790,7 @@ async function initApp(startServer = true) {
   });
   apiRouter.all("/news/sync", async (req, res) => {
     try {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
       console.log("[API /news/sync] Triggering manual news sync from live feeds and database...");
       const syncResult = await autoBlogService.syncLatestNews();
       const updatedPosts = autoBlogService.getAllPosts({ limit: 40 });
@@ -5375,14 +5807,16 @@ async function initApp(startServer = true) {
   });
   apiRouter.get("/news/nigeria", async (req, res) => {
     try {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
       const posts = await autoBlogService.getNigeriaNews(req.query.refresh === "true");
       res.json(posts);
     } catch (error) {
       res.status(500).json({ error: error.message || "Failed to fetch Nigeria news" });
     }
   });
-  apiRouter.get("/blog/posts", (req, res) => {
+  const handleGetPosts = (req, res) => {
     try {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
       const { category, search, page, limit } = req.query;
       const result = autoBlogService.getAllPosts({
         category,
@@ -5392,46 +5826,92 @@ async function initApp(startServer = true) {
       });
       res.json(result);
     } catch (error) {
-      console.error("[API /blog/posts] Error:", error);
-      res.status(500).json({ error: error.message || "Failed to fetch blog posts" });
+      console.error("[API /news/posts] Error:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch news posts" });
     }
-  });
-  apiRouter.get("/blog/posts/:slug", (req, res) => {
+  };
+  apiRouter.get("/news/posts", handleGetPosts);
+  apiRouter.get("/blog/posts", handleGetPosts);
+  const handleGetPostBySlug = async (req, res) => {
     try {
-      const { slug } = req.params;
-      const result = autoBlogService.getPostBySlugOrId(slug);
+      const slugParam = req.params.slug;
+      const slug = Array.isArray(slugParam) ? slugParam[0] : slugParam || "";
+      if (!slug) return res.status(400).json({ error: "Slug is required" });
+      let result = autoBlogService.getPostBySlugOrId(slug);
+      if (!result.post) {
+        const adminClient = getSupabaseAdmin();
+        if (adminClient) {
+          try {
+            const { data: dbRow } = await adminClient.from("news").select("*").or(`slug.eq.${slug},id.eq.${slug}`).maybeSingle();
+            if (dbRow) {
+              const formattedPost = {
+                id: dbRow.id,
+                slug: dbRow.slug || dbRow.id,
+                title: dbRow.title,
+                excerpt: dbRow.excerpt || dbRow.description || (dbRow.content ? dbRow.content.substring(0, 160) + "..." : ""),
+                description: dbRow.description || dbRow.excerpt || "",
+                content: dbRow.content || dbRow.description || dbRow.excerpt || "",
+                category: dbRow.category || "News",
+                tags: dbRow.tags || ["Broadcasting", "News"],
+                image_url: dbRow.image_url || "https://images.unsplash.com/photo-1478737270239-2f02b77fc618?q=80&w=800",
+                image_urls: dbRow.image_urls || (dbRow.image_url ? [dbRow.image_url] : []),
+                read_time: dbRow.read_time || "4 min read",
+                source_name: dbRow.source_name || "FideTV Media",
+                author_id: dbRow.author_id || "fidetv_admin",
+                is_published: true,
+                created_at: dbRow.created_at || (/* @__PURE__ */ new Date()).toISOString(),
+                profiles: {
+                  username: "FideTV News Desk",
+                  avatar_url: "https://api.dicebear.com/7.x/bottts/svg?seed=FideTV_NewsDesk"
+                }
+              };
+              const related = autoBlogService.getAllPosts({ limit: 4 }).posts.filter((p) => p.id !== formattedPost.id).slice(0, 3);
+              return res.json({ post: formattedPost, relatedPosts: related });
+            }
+          } catch (dbErr) {
+            console.warn("[API /news/posts/:slug] Supabase fallback warning:", dbErr);
+          }
+        }
+      }
       if (!result.post) {
         return res.status(404).json({ error: "Post not found" });
       }
       res.json(result);
     } catch (error) {
-      console.error("[API /blog/posts/:slug] Error:", error);
-      res.status(500).json({ error: error.message || "Failed to fetch blog post" });
+      console.error("[API /news/posts/:slug] Error:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch news article" });
     }
-  });
-  apiRouter.post("/blog/auto-generate", async (req, res) => {
+  };
+  apiRouter.get("/news/posts/:slug", handleGetPostBySlug);
+  apiRouter.get("/news/:slug", handleGetPostBySlug);
+  apiRouter.get("/blog/posts/:slug", handleGetPostBySlug);
+  const handleAutoGenerate = async (req, res) => {
     try {
-      console.log("[API] Manual/Admin trigger: Ingesting news & writing blog posts...");
+      console.log("[API] Manual/Admin trigger: Ingesting news & writing news posts...");
       const syncResult = await autoBlogService.syncLatestNews();
       const updatedPosts = autoBlogService.getAllPosts({ limit: 20 });
       res.json({
         success: true,
-        message: `Successfully ingested news and updated blog feed (${syncResult.addedCount} new posts).`,
+        message: `Successfully ingested news and updated news feed (${syncResult.addedCount} new posts).`,
         ...syncResult,
         posts: updatedPosts.posts
       });
     } catch (error) {
-      console.error("[API /blog/auto-generate] Error:", error);
-      res.status(500).json({ success: false, error: error.message || "Failed to generate blog posts" });
+      console.error("[API /news/auto-generate] Error:", error);
+      res.status(500).json({ success: false, error: error.message || "Failed to generate news posts" });
     }
-  });
-  apiRouter.get("/blog/status", (req, res) => {
+  };
+  apiRouter.post("/news/auto-generate", handleAutoGenerate);
+  apiRouter.post("/blog/auto-generate", handleAutoGenerate);
+  const handleGetStatus = (req, res) => {
     try {
       res.json(autoBlogService.getStatus());
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
-  });
+  };
+  apiRouter.get("/news/status", handleGetStatus);
+  apiRouter.get("/blog/status", handleGetStatus);
   apiRouter.get("/channels", async (req, res) => {
     try {
       const admin = getSupabaseAdmin();
@@ -5449,6 +5929,7 @@ async function initApp(startServer = true) {
   apiRouter.use((req, res) => {
     res.status(404).json({ success: false, error: `API route ${req.method} ${req.originalUrl} not found` });
   });
+  app.use("/api", apiRouter);
   function isValidGeminiKey(key) {
     if (!key) return false;
     const cleaned = key.trim().replace(/^['"]|['"]$/g, "");
@@ -5484,6 +5965,22 @@ async function initApp(startServer = true) {
       appType: "spa"
     });
     app.use(vite.middlewares);
+    app.use(/(.*)/, async (req, res, next) => {
+      if (req.path.startsWith("/api/")) {
+        return res.status(404).json({ success: false, error: "API route not found" });
+      }
+      if (req.path.includes(".") && !req.path.endsWith(".html")) {
+        return res.status(404).end();
+      }
+      try {
+        const indexPath = path2.resolve(process.cwd(), "index.html");
+        let html = await fs2.readFile(indexPath, "utf-8");
+        html = await vite.transformIndexHtml(req.url, html);
+        res.status(200).set({ "Content-Type": "text/html" }).send(html);
+      } catch (e) {
+        next(e);
+      }
+    });
   } else {
     const distPath = path2.join(process.cwd(), "dist");
     const indexHtmlPath = path2.join(distPath, "index.html");
@@ -5492,7 +5989,7 @@ async function initApp(startServer = true) {
       index: false
       // Don't serve index.html automatically, we'll handle it below
     }));
-    app.get("{/*path}", async (req, res) => {
+    app.get(/(.*)/, async (req, res) => {
       if (req.path.startsWith("/api/")) {
         console.warn(`[API 404] ${req.method} ${req.path}`);
         return res.status(404).json({ success: false, error: "API route not found" });
@@ -5505,15 +6002,23 @@ async function initApp(startServer = true) {
         console.log(`[SPA Fallback] Serving index.html for: ${req.path}`);
         res.sendFile(indexHtmlPath);
       } catch (err) {
-        console.error(`[SPA Fallback Error] index.html not found at ${indexHtmlPath}. Falling back to basic HTML.`);
-        res.status(404).send(`
+        console.warn(`[SPA Fallback Notice] index.html not yet built or found at ${indexHtmlPath}. Serving dynamic bootstrap shell.`);
+        res.status(200).send(`
           <!DOCTYPE html>
           <html lang="en">
-          <head><meta charset="UTF-8"><title>FideTV - Error</title></head>
-          <body style="font-family:sans-serif;text-align:center;padding:50px;">
-            <h1>Page Not Found</h1>
-            <p>The application is still starting up or a file is missing. Please refresh in a moment.</p>
-            <a href="/">Go to Home</a>
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>FideTV Media Hub</title>
+            <script type="module" src="/src/main.tsx"></script>
+          </head>
+          <body style="background:#09090b;color:#f8fafc;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+            <div style="text-align:center;padding:2rem;">
+              <div style="width:40px;height:40px;border:3px solid #10b981;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 1rem;"></div>
+              <h2 style="font-size:1.25rem;font-weight:bold;">Loading FideTV Hub...</h2>
+              <p style="font-size:0.875rem;color:#94a3b8;margin-top:0.5rem;">Synchronizing streams & editorial feeds...</p>
+            </div>
+            <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
           </body>
           </html>
         `);
@@ -5556,9 +6061,17 @@ async function initApp(startServer = true) {
         socket.to(roomId).emit("ice-candidate", candidate, userId);
       });
     });
-    httpServer.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
+    try {
+      httpServer.listen(PORT, "0.0.0.0", () => {
+        console.log(`Server running on http://localhost:${PORT}`);
+      });
+    } catch (err) {
+      if (err.code === "EADDRINUSE") {
+        console.error(`Port ${PORT} is already in use.`);
+      } else {
+        throw err;
+      }
+    }
   }
 }
 if (!isVercel) {
