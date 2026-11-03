@@ -213,7 +213,7 @@ export class AutoBlogService {
     try {
       const { data: dbRows, error: dbError } = await this.supabase
         .from('news')
-        .select('id, slug, title, excerpt, description, content, category, tags, image_url, image_urls, read_time, source_name, is_published, created_at, author_id')
+        .select('id, slug, title, excerpt, description, content, category, tags, image_url, image_urls, is_published, created_at, author_id')
         .eq('is_published', true)
         .order('created_at', { ascending: false })
         .limit(60);
@@ -237,8 +237,8 @@ export class AutoBlogService {
           tags: row.tags || ['Broadcasting', 'News'],
           image_url: row.image_url || 'https://images.unsplash.com/photo-1478737270239-2f02b77fc618?q=80&w=800',
           image_urls: row.image_urls || (row.image_url ? [row.image_url] : []),
-          read_time: row.read_time || '4 min read',
-          source_name: row.source_name || 'FideTV Media',
+          read_time: '4 min read',
+          source_name: 'FideTV Media',
           author_id: row.author_id || 'fidetv_admin',
           is_published: true,
           created_at: row.created_at || new Date().toISOString(),
@@ -1210,11 +1210,7 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
               image_url: newPost.image_url || '',
               image_urls: newPost.image_urls || [],
               is_published: true,
-              created_at: newPost.created_at,
-              read_time: newPost.read_time || '4 min read',
-              source_name: newPost.source_name || 'FideTV Media',
-              source_url: newPost.source_url || '',
-              region: newPost.region || 'Global'
+              created_at: newPost.created_at
             };
             if (isValidUuid(newPost.author_id)) {
               upsertPayload.author_id = newPost.author_id;
@@ -1250,11 +1246,7 @@ At **FideTV Media**, our commitment is to provide transparent, continuous insigh
               image_url: post.image_url,
               image_urls: post.image_urls || [post.image_url],
               is_published: true,
-              created_at: post.created_at,
-              read_time: post.read_time,
-              source_name: post.source_name,
-              source_url: post.source_url,
-              region: post.region
+              created_at: post.created_at
             };
             if (isValidUuid(post.author_id)) {
               candidatePayload.author_id = post.author_id;
