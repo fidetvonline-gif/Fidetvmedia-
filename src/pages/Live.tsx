@@ -69,8 +69,9 @@ export default function Live() {
               const fallbackRes = await fetch('/api/channels');
               if (fallbackRes.ok) {
                 const fallbackData = await parseResponseJson(fallbackRes);
-                console.log(`[Live] Signal Bridge restored ${fallbackData.length} channels.`);
-                return { data: fallbackData.slice(0, 200), error: null };
+                const list = Array.isArray(fallbackData) ? fallbackData : (fallbackData?.channels || fallbackData?.data || []);
+                console.log(`[Live] Signal Bridge restored channels.`);
+                return { data: Array.isArray(list) ? list.slice(0, 200) : [], error: null };
               }
             } catch (e) {
               console.error('[Live] Signal Bridge fallback failed:', e);

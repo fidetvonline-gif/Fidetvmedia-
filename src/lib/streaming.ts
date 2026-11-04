@@ -1,7 +1,6 @@
-
 import { extractYoutubeUrl } from './channelUtils';
 
-export type StreamType = 'youtube' | 'facebook' | 'vimeo' | 'hls' | 'mp4' | 'mpeg-ts' | 'unknown';
+export type StreamType = 'youtube' | 'facebook' | 'vimeo' | 'hls' | 'dash' | 'official_embed' | 'mp4' | 'mpeg-ts' | 'unknown';
 
 export interface NormalizedStream {
   id: string;
@@ -20,6 +19,14 @@ export const detectStreamType = (url: string): StreamType => {
   }
   const lowerUrl = url.toLowerCase();
   
+  if (lowerUrl.includes('.mpd')) {
+      console.log(`[Streaming] Type Detected: DASH for ${url}`);
+      return 'dash';
+  }
+  if (lowerUrl.includes('.m3u8') || lowerUrl.includes('m3u8') || lowerUrl.includes('playlist.m3u')) {
+      console.log(`[Streaming] Type Detected: HLS for ${url}`);
+      return 'hls';
+  }
   if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be') || /^[a-zA-Z0-9_-]{11}$/.test(url)) {
       console.log(`[Streaming] Type Detected: YouTube for ${url}`);
       return 'youtube';
@@ -32,10 +39,6 @@ export const detectStreamType = (url: string): StreamType => {
       console.log(`[Streaming] Type Detected: Vimeo for ${url}`);
       return 'vimeo';
   }
-  if (lowerUrl.includes('.m3u8') || lowerUrl.includes('m3u8') || lowerUrl.includes('playlist.m3u')) {
-      console.log(`[Streaming] Type Detected: HLS for ${url}`);
-      return 'hls';
-  }
   if (lowerUrl.includes('.mp4')) {
       console.log(`[Streaming] Type Detected: MP4 for ${url}`);
       return 'mp4';
@@ -44,23 +47,24 @@ export const detectStreamType = (url: string): StreamType => {
       console.log(`[Streaming] Type Detected: MPEG-TS for ${url}`);
       return 'mpeg-ts';
   }
+  if (lowerUrl.includes('nta.ng') || lowerUrl.includes('embed') || lowerUrl.includes('player') || lowerUrl.includes('watch') || lowerUrl.startsWith('http')) {
+      console.log(`[Streaming] Type Detected: Official Embed / Web Player for ${url}`);
+      return 'official_embed';
+  }
 
   return 'unknown';
 };
 
 export class UniversalStreamService {
   static normalize(channel: any): NormalizedStream {
-    const type = detectStreamType(channel.url);
-    const url = type === 'youtube' ? extractYoutubeUrl(channel.url) : channel.url;
-    const provider = this.getProviderName(channel.url, type);
+    const type = detectStreamType(channel.url || channel.stream_url);
+    const rawUrl = channel.url || channel.stream_url;
+    const url = type === 'youtube' ? extractYoutubeUrl(rawUrl) : rawUrl;
+    const provider = this.getProviderName(url, type);
     
     const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
-    const isHttpStream = url.startsWith('http://');
+    const isHttpStream = url && url.startsWith('http://');
     
-    // Many CDNs block Google Cloud IPs. Forcing all HLS streams through our proxy causes "Failed to load stream" for users on production 
-    // because the server's IP is banned, while dev environment (localhost/local IP) works.
-    // Solution: Only proxy if it's Mixed Content (HTTP on HTTPS) or explicitly failing CORS.
-    // We let HTTPS streams attempt direct playback first from the client's own IP.
     const knownCorsDomains = [
       'cloudfront.net',
       'tubi.video',
@@ -73,17 +77,18 @@ export class UniversalStreamService {
       'plex.tv',
       'samsungcloudtv.com',
       'roku.com',
-      'gravitas'
+      'gravitas',
+      'nta.ng'
     ];
     
-    const lowerUrl = url.toLowerCase();
+    const lowerUrl = (url || '').toLowerCase();
     const isKnownCorsDomain = knownCorsDomains.some(d => lowerUrl.includes(d));
     let needsProxy = (isHttps && isHttpStream) || isKnownCorsDomain;
     
     return {
       id: channel.id || 'temp-' + Math.random(),
       name: channel.name || 'Unknown Channel',
-      url: url,
+      url: url || '',
       type,
       provider,
       isLive: channel.is_live ?? true,
@@ -95,22 +100,23 @@ export class UniversalStreamService {
     if (type === 'youtube') return 'YouTube';
     if (type === 'facebook') return 'Facebook';
     if (type === 'vimeo') return 'Vimeo';
+    if (type === 'dash') return 'DASH Stream';
+    if (type === 'hls') return 'HLS Stream';
+    if (type === 'official_embed') return 'Official Broadcaster Portal';
     if (!url) return 'Direct';
-    if (url.includes('limex')) return 'Limex';
-    if (url.includes('amagi')) return 'Amagi';
-    if (url.includes('wurl')) return 'Wurl';
+    if (url.includes('nta.ng')) return 'NTA Official Portal';
+    if (url.includes('channelstv')) return 'Channels TV Portal';
+    if (url.includes('tvcnews')) return 'TVC News Portal';
     return 'Direct';
   }
 
   static async checkHealth(url: string): Promise<{ ok: boolean; status?: number; error?: string }> {
     try {
       const type = detectStreamType(url);
-      if (type === 'youtube' || type === 'facebook' || type === 'vimeo') {
-         // Embed URLs are hard to check head-on without API keys, assume OK for now
-         return { ok: true };
+      if (type === 'youtube' || type === 'facebook' || type === 'vimeo' || type === 'official_embed') {
+          return { ok: true };
       }
 
-      // For direct streams, we check the bridge
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
       

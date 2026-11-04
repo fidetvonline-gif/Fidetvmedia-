@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { UniversalStreamService, NormalizedStream } from '../../lib/streaming';
 import HlsPlayer from './HlsPlayer';
 import ReactPlayer from 'react-player';
-import { Loader2, AlertCircle, RefreshCw, Database } from 'lucide-react';
+import { Loader2, AlertCircle, RefreshCw, Database, Tv, ExternalLink } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 import { YouTubeVideoPlayer } from './../YouTubeVideoPlayer';
@@ -56,6 +56,13 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
 
     setLoading(true);
     console.log(`[Universal Player] Normalized stream:`, normalized);
+
+    if (normalized.type === 'youtube') {
+      const timer = setTimeout(() => {
+        setLoading(false);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
   }, [channel]);
 
   // Separate watchdog effect to ensure it resets on retry/fallback
@@ -255,6 +262,46 @@ const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
             muted={muted}
             onReady={handleReady}
             onError={handleError}
+          />
+        ) : stream.type === 'official_embed' ? (
+          <div className="relative w-full h-full bg-gradient-to-br from-zinc-950 via-zinc-900 to-black rounded-xl overflow-hidden shadow-2xl flex flex-col items-center justify-center p-8 text-center group">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(226,75,74,0.1)_0,transparent_70%)] pointer-events-none" />
+            <div className="relative z-10 flex flex-col items-center max-w-md">
+              <div className="w-16 h-16 rounded-2xl bg-primary/20 border border-primary/40 flex items-center justify-center mb-5 text-primary shadow-lg shadow-primary/20 animate-pulse">
+                <Tv className="w-8 h-8" />
+              </div>
+              <span className="px-3 py-1 bg-red-500/10 text-red-400 border border-red-500/20 rounded-full text-[10px] font-black uppercase tracking-widest mb-3">
+                Official Broadcast Portal
+              </span>
+              <h3 className="text-white text-xl font-black uppercase tracking-wider mb-2">
+                {stream.name}
+              </h3>
+              <p className="text-zinc-400 text-xs mb-8 leading-relaxed">
+                NTA's security policy requires direct viewing on their official broadcast network to ensure uninterrupted HD playback. Click below to launch the live stream instantly.
+              </p>
+              <a 
+                href={stream.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 px-8 py-4 bg-primary hover:bg-primary/90 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-primary/25 hover:scale-105 active:scale-95"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Launch Live Stream in New Tab
+              </a>
+            </div>
+          </div>
+        ) : stream.type === 'dash' ? (
+          <video 
+            ref={videoRef}
+            src={stream.url}
+            className="w-full h-full object-contain"
+            muted={muted}
+            controls
+            preload="auto"
+            onLoadedMetadata={handleReady}
+            onCanPlay={handleReady}
+            onError={handleError}
+            playsInline
           />
         ) : stream.type === 'mp4' ? (
           <video 

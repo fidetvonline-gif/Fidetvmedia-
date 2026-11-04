@@ -37,7 +37,9 @@ export default function SignalDebug() {
         url: dbCh.url,
         icon: Tv,
         description: dbCh.description || 'Channel stream.',
-        isLive: true
+        isLive: true,
+        stream_type: dbCh.stream_type || 'youtube',
+        order_index: dbCh.order_index || 0
       };
       if (idx > -1) base[idx] = mapped;
       else base.push(mapped);
