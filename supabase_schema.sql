@@ -125,9 +125,23 @@ CREATE TABLE IF NOT EXISTS site_visits (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   path TEXT,
   referrer TEXT,
+  ip_address TEXT,
   user_agent TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
+
+-- 11. API Request Logs (For persistent rate limiting and security auditing)
+CREATE TABLE IF NOT EXISTS api_request_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  ip_address TEXT NOT NULL,
+  endpoint TEXT NOT NULL,
+  method TEXT NOT NULL,
+  user_id UUID,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_api_request_logs_ip ON api_request_logs(ip_address);
+CREATE INDEX IF NOT EXISTS idx_api_request_logs_created ON api_request_logs(created_at);
 
 -- 10. Archived Channels (For cleanup automation)
 CREATE TABLE IF NOT EXISTS archived_channels (

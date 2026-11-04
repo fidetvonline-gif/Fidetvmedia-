@@ -125,7 +125,65 @@ const mediaLimiter = isVercel
       keyGenerator: getSafeClientIp,
     });
 
-app.use("/api/", apiLimiter);
+// Persistent IP Tracking and Rate Limiting (Supabase backed)
+const supabaseRateLimiter = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  // Bypass if running in serverless (limit execution time)
+  if (isVercel) return next();
+  
+  const admin = getSupabaseAdmin();
+  if (!admin) return next();
+
+  // Rate limit window (last 2 minutes)
+  const windowMs = 2 * 60 * 1000;
+  const threshold = 150; // Max requests per window
+
+  // Skip tracking for common high-frequency GET requests to avoid DB bloat
+  const p = req.path || '';
+  if (req.method === 'GET' && (
+    p.startsWith('/blog') || 
+    p.startsWith('/channels') || 
+    p.startsWith('/health') ||
+    p.endsWith('.xml') ||
+    p.endsWith('.txt')
+  )) {
+    return next();
+  }
+
+  const ip = getSafeClientIp(req);
+  
+  try {
+    // 1. Check current hit count for this IP
+    const startTime = new Date(Date.now() - windowMs).toISOString();
+    const { count, error } = await admin
+      .from('api_request_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('ip_address', ip)
+      .gt('created_at', startTime);
+
+    if (!error && count !== null && count >= threshold) {
+      console.warn(`[Security] Persistent Block triggered for IP: ${ip} | Hits: ${count}`);
+      return res.status(429).json({ 
+        success: false, 
+        error: "Persistent security limit reached. Excessive automated traffic detected. Please wait 2 minutes.",
+        ip: ip.replace(/\.\d+$/, '.***') // Mask IP for safety
+      });
+    }
+
+    // 2. Log this request (fire and forget to not block execution)
+    admin.from('api_request_logs').insert({
+      ip_address: ip,
+      endpoint: p,
+      method: req.method
+    }).then(() => {}).catch(() => {});
+
+    next();
+  } catch (err) {
+    // Fallback: Continue if DB check fails to ensure app availability
+    next();
+  }
+};
+
+app.use("/api/", apiLimiter, supabaseRateLimiter);
 
 const upload = multer({ 
   limits: { fileSize: 10 * 1024 * 1024 },
@@ -297,6 +355,13 @@ export async function initApp(startServer = true) {
       try {
         console.log("[Background] Running scheduled automation cycle...");
         lastAutomationReport = await ingestService.runFullAutomation();
+        
+        // Persistent Security Log Cleanup - Remove logs older than 24 hours
+        const admin = getSupabaseAdmin();
+        if (admin) {
+          const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+          await admin.from('api_request_logs').delete().lt('created_at', dayAgo);
+        }
       } finally {
         isAutomationRunning = false;
       }
@@ -1402,6 +1467,66 @@ export async function initApp(startServer = true) {
     } catch (err: any) {
       console.error(`[Storage Remote Save Error] ${err.message}`);
       res.status(500).json({ error: "Failed to save media to cloud storage: " + err.message });
+    }
+  });
+
+  // 1.5. Restore Channels from Backup (Admin Only)
+  apiRouter.post("/admin/restore-backup", async (req, res) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+
+    try {
+      const adminClient = getSupabaseAdmin();
+      if (!adminClient) throw new Error("Supabase Admin not configured");
+
+      const { data: { user }, error: authError } = await adminClient.auth.getUser(token);
+      if (authError || !user || user.email !== "fidetvonline@gmail.com") {
+        return res.status(403).json({ error: "Forbidden: Admin access required." });
+      }
+
+      console.log("[Admin Restore] Loading backup file...");
+      const backupPath = path.join(process.cwd(), 'tv_channels_backup.json');
+      const backupRaw = await fs.readFile(backupPath, 'utf8');
+      const backupData = JSON.parse(backupRaw);
+
+      console.log(`[Admin Restore] Found ${backupData.length} channels. Clearing table...`);
+      await adminClient.from('tv_channels').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+      console.log("[Admin Restore] Repopulating table in batches...");
+      const batchSize = 100;
+      let totalRestored = 0;
+
+      for (let i = 0; i < backupData.length; i += batchSize) {
+        const batch = backupData.slice(i, i + batchSize).map((ch: any) => ({
+          name: ch.name,
+          category: ch.category || 'General',
+          url: ch.url,
+          thumbnail: ch.thumbnail || '',
+          icon: ch.icon || null,
+          description: ch.description || '',
+          is_active: ch.is_active ?? true,
+          status: ch.status || 'online',
+          epg_id: ch.epg_id || null,
+          country: ch.country || null,
+          language: ch.language || null,
+          stream_type: ch.stream_type || 'hls',
+          order_index: ch.order_index || 0,
+          is_featured: ch.is_featured ?? false
+        }));
+
+        const { error: insertError } = await adminClient.from('tv_channels').insert(batch);
+        if (insertError) {
+          console.error(`[Admin Restore] Batch error:`, insertError.message);
+        } else {
+          totalRestored += batch.length;
+        }
+      }
+
+      res.json({ success: true, message: `Successfully restored ${totalRestored} channels from backup.` });
+    } catch (err: any) {
+      console.error("[Admin Restore] Failed:", err.message);
+      res.status(500).json({ error: err.message });
     }
   });
 

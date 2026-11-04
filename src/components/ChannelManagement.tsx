@@ -21,6 +21,38 @@ export const ChannelManagement = () => {
   const [syncingThumbnails, setSyncingThumbnails] = useState(false);
   const [runningHealthCheck, setRunningHealthCheck] = useState(false);
   const [restoringDefaults, setRestoringDefaults] = useState(false);
+  const [restoringBackup, setRestoringBackup] = useState(false);
+
+  const handleRestoreBackup = async () => {
+    if (!confirm('This will wipe all current channels and restore the 2000+ channels from the backup file. This cannot be undone. Continue?')) return;
+    
+    setRestoringBackup(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("No active session");
+
+      const response = await fetch('/api/admin/restore-backup', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        showToast(data.message, 'success');
+        fetchChannels();
+        broadcastChange('restore');
+      } else {
+        throw new Error(data.error || 'Restore failed');
+      }
+    } catch (err: any) {
+      showToast(err.message, 'error');
+    } finally {
+      setRestoringBackup(false);
+    }
+  };
 
   const handleHealthCheck = async () => {
     if (!confirm('This will perform a technical validation of all live channels. Broken signals will be marked inactive. Continue?')) return;
@@ -249,6 +281,15 @@ export const ChannelManagement = () => {
             >
               <RefreshCw className={cn("w-4 h-4", runningHealthCheck && "animate-spin")} /> 
               {runningHealthCheck ? 'Healing...' : 'Heal All Signals'}
+            </button>
+            <button 
+              onClick={handleRestoreBackup} 
+              disabled={restoringBackup}
+              className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors shadow-lg active:scale-95 disabled:opacity-50"
+              title="Restore 2000+ channels from backup file"
+            >
+              <RefreshCw className={cn("w-4 h-4", restoringBackup && "animate-spin")} /> 
+              {restoringBackup ? 'Restoring...' : 'Restore 2000+ Backup'}
             </button>
             <button 
               onClick={handleRestoreDefaults} 
