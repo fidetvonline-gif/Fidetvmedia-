@@ -53,16 +53,28 @@ export default function Live() {
           setIsAdmin(true);
         }
 
-        // Fast fetch for first batch to unlock interaction instantly
-        const fetchInitialBatch = async () => {
+        // Optimized fetch with LocalStorage Caching & Column Selection (0 MB egress on cache hit)
+        const cacheKey = 'fidetv_channels_cache_v3';
+        const cacheTimeKey = 'fidetv_channels_time_v3';
+        const cachedTime = localStorage.getItem(cacheTimeKey);
+        const cachedData = localStorage.getItem(cacheKey);
+
+        let channelsToUse = [];
+        if (cachedData && cachedTime && (Date.now() - Number(cachedTime) < 20 * 60 * 1000)) {
+          try {
+            channelsToUse = JSON.parse(cachedData);
+            console.log(`[Live] Loaded ${channelsToUse.length} channels from local cache (0 MB egress).`);
+          } catch {}
+        }
+
+        if (channelsToUse.length === 0) {
           let { data, error } = await supabase
             .from('tv_channels')
-            .select('*')
+            .select('id, name, category, url, thumbnail, stream_type, is_active, order_index, description')
             .eq('is_active', true)
             .order('order_index')
-            .range(0, 199);
+            .range(0, 499);
           
-          // CRITICAL FALLBACK: If RLS returns 0 rows or error, try the Server Bridge
           if (error || !data || data.length === 0) {
             console.warn('[Live] Supabase access restricted or empty. Attempting Signal Bridge fallback...');
             try {
@@ -70,86 +82,47 @@ export default function Live() {
               if (fallbackRes.ok) {
                 const fallbackData = await parseResponseJson(fallbackRes);
                 const list = Array.isArray(fallbackData) ? fallbackData : (fallbackData?.channels || fallbackData?.data || []);
-                console.log(`[Live] Signal Bridge restored channels.`);
-                return { data: Array.isArray(list) ? list.slice(0, 200) : [], error: null };
+                channelsToUse = Array.isArray(list) ? list.slice(0, 500) : DEFAULT_CHANNELS;
               }
             } catch (e) {
               console.error('[Live] Signal Bridge fallback failed:', e);
             }
+          } else {
+            channelsToUse = data;
           }
 
-          if (error) {
-            console.error('[Live] fetchInitialBatch encountered error:', error);
-          }
-          
-          // ABSOLUTE FINAL FALLBACK: If we still have no data, use the hardcoded defaults
-          if (!data || data.length === 0) {
-            console.warn('[Live] All remote and bridge sources failed. Activating Hardcoded Safety Signals.');
-            return { data: DEFAULT_CHANNELS, error: null };
+          if (!channelsToUse || channelsToUse.length === 0) {
+            channelsToUse = DEFAULT_CHANNELS;
           }
 
-          return { data: data || [], error: null };
-        };
-
-        const [channelsRes, settingsRes] = await Promise.all([
-          fetchInitialBatch(),
-          supabase.from('site_settings').select('*')
-        ]);
-
-        if (channelsRes.error) {
-          console.warn('[Live] Primary tv_channels check failed:', channelsRes.error.message);
-        } else if (channelsRes.data && channelsRes.data.length > 0) {
-          console.log(`[Live] Initial batch of ${channelsRes.data.length} channels loaded.`);
-          setDbChannels(channelsRes.data);
-          
-          // Predictive Pre-connection: Warm up TLS/DNS for top providers
           try {
-            const uniqueDomains = new Set<string>();
-            channelsRes.data.slice(0, 30).forEach((c: any) => {
-              if (c.url) {
-                const domain = new URL(c.url).origin;
-                uniqueDomains.add(domain);
-              }
-            });
-            uniqueDomains.forEach(domain => preloadManager.preconnect(domain));
-          } catch (e) {}
-
-          const randomIndex = Math.floor(Math.random() * channelsRes.data.length);
-          setActiveChannelId(selectedChannelIdFromQuery || channelsRes.data[randomIndex].id);
-
-          // Background deep fetch for the rest without blocking
-          (async () => {
-             let allData = [...channelsRes.data];
-             let rangeStart = 200;
-             const rangeSize = 500; // Smaller batches for more frequent non-blocking updates
-             let hasMore = channelsRes.data.length === 200;
-
-             while (hasMore) {
-                const { data, error } = await supabase
-                  .from('tv_channels')
-                  .select('*')
-                  .eq('is_active', true)
-                  .order('order_index')
-                  .range(rangeStart, rangeStart + rangeSize - 1);
-                
-                if (error || !data || data.length === 0) {
-                   hasMore = false;
-                } else {
-                   allData = [...allData, ...data];
-                   // Only update state every 2 batches to reduce re-renders
-                   if (allData.length % 2000 === 0 || data.length < rangeSize) {
-                     setDbChannels([...allData]);
-                   }
-                   if (data.length < rangeSize) hasMore = false;
-                   rangeStart += rangeSize;
-                }
-             }
-             console.log(`[Live] Background sync complete. Total: ${allData.length} channels.`);
-          })();
+            localStorage.setItem(cacheKey, JSON.stringify(channelsToUse));
+            localStorage.setItem(cacheTimeKey, String(Date.now()));
+          } catch {}
         }
 
-        if (settingsRes.data) {
-          const direct = settingsRes.data.find(s => s.key === 'direct_stream_hls_url')?.value;
+        setDbChannels(channelsToUse);
+
+        // Predictive Pre-connection: Warm up TLS/DNS for top providers
+        try {
+          const uniqueDomains = new Set<string>();
+          channelsToUse.slice(0, 30).forEach((c: any) => {
+            if (c.url) {
+              const domain = new URL(c.url).origin;
+              uniqueDomains.add(domain);
+            }
+          });
+          uniqueDomains.forEach(domain => preloadManager.preconnect(domain));
+        } catch (e) {}
+
+        if (channelsToUse.length > 0) {
+          const randomIndex = Math.floor(Math.random() * channelsToUse.length);
+          setActiveChannelId(selectedChannelIdFromQuery || channelsToUse[randomIndex].id);
+        }
+
+        const { data: settingsData } = await supabase.from('site_settings').select('*');
+        if (settingsData) {
+          const direct = settingsData.find(s => s.key === 'direct_stream_hls_url')?.value;
           if (direct) setDirectStreamUrl(direct);
         }
       } catch (err: any) {
