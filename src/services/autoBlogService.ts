@@ -329,7 +329,11 @@ export class AutoBlogService {
 
       return syncedCount;
     } catch (err: any) {
-      console.error('[AutoBlogService] pullFromSupabase error:', err.message);
+      if (err?.message?.includes('exceed_egress_quota') || err?.message?.includes('restricted') || err?.code === 'PGRST301') {
+        console.warn('[AutoBlogService] Supabase egress quota exceeded. Operating on robust local blog cache.');
+      } else {
+        console.error('[AutoBlogService] pullFromSupabase error:', err.message);
+      }
       return 0;
     }
   }
